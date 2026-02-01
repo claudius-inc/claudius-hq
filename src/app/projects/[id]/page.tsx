@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import db, { ensureDB } from "@/lib/db";
 import { Project, Task, Activity, Comment, Metric } from "@/lib/types";
 import { Nav } from "@/components/Nav";
 import { ActivityFeed } from "@/components/ActivityFeed";
@@ -46,32 +46,42 @@ const buildColors: Record<string, string> = {
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await ensureDB();
 
   const projectRes = await db.execute({ sql: "SELECT * FROM projects WHERE id = ?", args: [Number(id)] });
   if (projectRes.rows.length === 0) notFound();
   const project = projectRes.rows[0] as unknown as Project;
 
-  const [tasksRes, activityRes, commentsRes, metricsRes, checklistRes] = await Promise.all([
+  const [tasksRes, activityRes, commentsRes] = await Promise.all([
     db.execute({ sql: "SELECT t.*, p.name as project_name FROM tasks t LEFT JOIN projects p ON t.project_id = p.id WHERE t.project_id = ? ORDER BY CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END", args: [Number(id)] }),
     db.execute({ sql: "SELECT a.*, p.name as project_name FROM activity a LEFT JOIN projects p ON a.project_id = p.id WHERE a.project_id = ? ORDER BY a.created_at DESC LIMIT 20", args: [Number(id)] }),
     db.execute({ sql: "SELECT * FROM comments WHERE target_type = 'project' AND target_id = ? ORDER BY created_at DESC", args: [Number(id)] }),
-    db.execute({ sql: "SELECT m.*, p.name as project_name FROM metrics m LEFT JOIN projects p ON m.project_id = p.id WHERE m.project_id = ? ORDER BY m.recorded_at DESC", args: [Number(id)] }),
-    db.execute({
-      sql: `SELECT pc.*, pcp.completed, pcp.completed_at, pcp.notes, pcp.id as progress_id
-            FROM phase_checklists pc
-            LEFT JOIN project_checklist_progress pcp ON pc.id = pcp.checklist_item_id AND pcp.project_id = ?
-            WHERE pc.phase = ? AND pc.is_template = 1
-            ORDER BY pc.item_order`,
-      args: [Number(id), project.phase || "build"],
-    }),
   ]);
+
+  // These queries use new tables that might not exist yet — fail gracefully
+  let metricsRes, checklistRes;
+  try {
+    [metricsRes, checklistRes] = await Promise.all([
+      db.execute({ sql: "SELECT m.*, p.name as project_name FROM metrics m LEFT JOIN projects p ON m.project_id = p.id WHERE m.project_id = ? ORDER BY m.recorded_at DESC", args: [Number(id)] }),
+      db.execute({
+        sql: `SELECT pc.*, pcp.completed, pcp.completed_at, pcp.notes, pcp.id as progress_id
+              FROM phase_checklists pc
+              LEFT JOIN project_checklist_progress pcp ON pc.id = pcp.checklist_item_id AND pcp.project_id = ?
+              WHERE pc.phase = ? AND pc.is_template = 1
+              ORDER BY pc.item_order`,
+        args: [Number(id), project.phase || "build"],
+      }),
+    ]);
+  } catch {
+    // Tables not created yet — show empty state
+  }
 
   const tasks = tasksRes.rows as unknown as Task[];
   const activity = activityRes.rows as unknown as Activity[];
   const comments = commentsRes.rows as unknown as Comment[];
-  const metrics = metricsRes.rows as unknown as Metric[];
+  const metrics = (metricsRes?.rows || []) as unknown as Metric[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const checklistItems = checklistRes.rows as any[];
+  const checklistItems = (checklistRes?.rows || []) as any[];
 
   const phase = project.phase || "build";
 

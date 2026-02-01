@@ -7,6 +7,18 @@ const db = createClient({
 
 export default db;
 
+// Auto-init: run migrations on first import (lazy, runs once)
+let _initPromise: Promise<void> | null = null;
+export function ensureDB(): Promise<void> {
+  if (!_initPromise) {
+    _initPromise = initDB().catch((e) => {
+      console.error("DB init failed:", e);
+      _initPromise = null; // retry next time
+    });
+  }
+  return _initPromise;
+}
+
 export async function initDB() {
   await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS projects (

@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import db, { ensureDB } from "@/lib/db";
 import { Idea } from "@/lib/types";
 import { Nav } from "@/components/Nav";
 import { IdeasPipeline } from "@/components/IdeasPipeline";
@@ -6,6 +6,7 @@ import { IdeasPipeline } from "@/components/IdeasPipeline";
 export const dynamic = "force-dynamic";
 
 export default async function IdeasPage() {
+  await ensureDB();
   let ideas: Idea[] = [];
   try {
     const result = await db.execute("SELECT * FROM ideas ORDER BY created_at DESC");

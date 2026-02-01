@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import db, { ensureDB } from "@/lib/db";
 import { Project, Task, Activity, Cron } from "@/lib/types";
 import { ProjectCards } from "@/components/ProjectCards";
 import { ActivityFeed } from "@/components/ActivityFeed";
@@ -10,6 +10,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 async function getData() {
+  await ensureDB();
   try {
     const [projectsRes, tasksRes, activityRes, cronsRes, blockersRes] = await Promise.all([
       db.execute("SELECT * FROM projects ORDER BY updated_at DESC"),
