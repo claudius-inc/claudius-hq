@@ -2,6 +2,7 @@
 
 import { Idea, IdeaStatus } from "@/lib/types";
 import { useState } from "react";
+import { PromoteButton } from "@/components/PromoteButton";
 
 const statusColumns: { key: IdeaStatus; label: string; color: string }[] = [
   { key: "new", label: "New", color: "bg-blue-100 text-blue-700" },
@@ -172,6 +173,9 @@ function IdeaCard({ idea }: { idea: Idea }) {
       )}
       {idea.source && (
         <p className="text-xs text-gray-400 mt-2">📍 {idea.source}</p>
+      )}
+      {idea.status === "validated" && (
+        <PromoteButton ideaId={idea.id} ideaTitle={idea.title} />
       )}
     </div>
   );

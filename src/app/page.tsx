@@ -1,9 +1,11 @@
 import db, { ensureDB } from "@/lib/db";
-import { Project, Task, Activity, Cron } from "@/lib/types";
+import { Project, Task, Activity, Cron, Comment } from "@/lib/types";
 import { ProjectCards } from "@/components/ProjectCards";
 import { ActivityFeed } from "@/components/ActivityFeed";
 import { BlockersPanel } from "@/components/BlockersPanel";
 import { CronsPanel } from "@/components/CronsPanel";
+import { WhatsNext } from "@/components/WhatsNext";
+import { UnreadComments } from "@/components/UnreadComments";
 import { Nav } from "@/components/Nav";
 import Link from "next/link";
 
@@ -20,20 +22,100 @@ async function getData() {
       db.execute("SELECT t.*, p.name as project_name FROM tasks t LEFT JOIN projects p ON t.project_id = p.id WHERE t.status = 'blocked' ORDER BY CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END"),
     ]);
 
+    const projects = projectsRes.rows as unknown as Project[];
+
+    // Query checklist progress for launch-phase projects
+    let checklistProgress: Record<number, { total: number; completed: number; nextItem: string | null }> = {};
+    try {
+      const launchProjects = projects.filter((p) => p.phase === "launch");
+      for (const lp of launchProjects) {
+        const res = await db.execute({
+          sql: `SELECT pc.title, pc.item_order, COALESCE(pcp.completed, 0) as completed
+                FROM phase_checklists pc
+                LEFT JOIN project_checklist_progress pcp ON pc.id = pcp.checklist_item_id AND pcp.project_id = ?
+                WHERE pc.phase = 'launch' AND pc.is_template = 1
+                ORDER BY pc.item_order`,
+          args: [lp.id],
+        });
+        const items = res.rows as unknown as { title: string; item_order: number; completed: number }[];
+        const total = items.length;
+        const completed = items.filter((i) => Number(i.completed) === 1).length;
+        const next = items.find((i) => Number(i.completed) !== 1);
+        checklistProgress[lp.id] = {
+          total,
+          completed,
+          nextItem: next ? next.title : null,
+        };
+      }
+    } catch {
+      // Checklist tables may not exist yet
+    }
+
+    // Query blocked tasks with reasons (for WhatsNext)
+    let blockedWithReasons: { project_id: number; blocker_reason: string }[] = [];
+    try {
+      const blockedRes = await db.execute(
+        "SELECT project_id, blocker_reason FROM tasks WHERE status = 'blocked'"
+      );
+      blockedWithReasons = blockedRes.rows as unknown as { project_id: number; blocker_reason: string }[];
+    } catch {
+      // Tasks table may not exist
+    }
+
+    // Query unread comments
+    let unreadComments: Comment[] = [];
+    let unreadCount = 0;
+    try {
+      const countRes = await db.execute("SELECT COUNT(*) as count FROM comments WHERE is_read = 0");
+      unreadCount = Number((countRes.rows[0] as unknown as { count: number }).count);
+      if (unreadCount > 0) {
+        const commentsRes = await db.execute(
+          "SELECT * FROM comments WHERE is_read = 0 ORDER BY created_at DESC LIMIT 5"
+        );
+        unreadComments = commentsRes.rows as unknown as Comment[];
+      }
+    } catch {
+      // Comments table may not exist
+    }
+
     return {
-      projects: projectsRes.rows as unknown as Project[],
+      projects,
       taskStats: tasksRes.rows as unknown as { count: number; status: string }[],
       activity: activityRes.rows as unknown as Activity[],
       crons: cronsRes.rows as unknown as Cron[],
       blockers: blockersRes.rows as unknown as Task[],
+      checklistProgress,
+      blockedWithReasons,
+      unreadComments,
+      unreadCount,
     };
   } catch {
-    return { projects: [], taskStats: [], activity: [], crons: [], blockers: [] };
+    return {
+      projects: [],
+      taskStats: [],
+      activity: [],
+      crons: [],
+      blockers: [],
+      checklistProgress: {},
+      blockedWithReasons: [],
+      unreadComments: [],
+      unreadCount: 0,
+    };
   }
 }
 
 export default async function Dashboard() {
-  const { projects, taskStats, activity, crons, blockers } = await getData();
+  const {
+    projects,
+    taskStats,
+    activity,
+    crons,
+    blockers,
+    checklistProgress,
+    blockedWithReasons,
+    unreadComments,
+    unreadCount,
+  } = await getData();
 
   const totalTasks = taskStats.reduce((sum, s) => sum + Number(s.count), 0);
   const doneTasks = Number(taskStats.find((s) => s.status === "done")?.count || 0);
@@ -43,6 +125,16 @@ export default async function Dashboard() {
     <div className="min-h-screen">
       <Nav />
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* What's Next */}
+        <WhatsNext
+          projects={projects}
+          checklistProgress={checklistProgress}
+          blockedTasks={blockedWithReasons}
+        />
+
+        {/* Unread Comments */}
+        <UnreadComments comments={unreadComments} count={unreadCount} />
+
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="card">
