@@ -36,10 +36,10 @@ export function CronsPanel({ crons }: { crons: Cron[] }) {
           <div className="text-xs text-gray-400 ml-4 space-y-0.5">
             <div className="font-mono">{cron.schedule}</div>
             {cron.last_run && (
-              <div>Last: {new Date(cron.last_run + "Z").toLocaleString()}</div>
+              <div>Last: {new Date(cron.last_run.endsWith("Z") ? cron.last_run : cron.last_run + "Z").toLocaleString()}</div>
             )}
             {cron.next_run && (
-              <div>Next: {new Date(cron.next_run + "Z").toLocaleString()}</div>
+              <div>Next: {new Date(cron.next_run.endsWith("Z") ? cron.next_run : cron.next_run + "Z").toLocaleString()}</div>
             )}
             {cron.last_error && (
               <div className="text-red-600">Error: {cron.last_error}</div>

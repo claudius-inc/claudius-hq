@@ -52,13 +52,13 @@ export default async function CronsPage() {
                   {cron.last_run && (
                     <div>
                       <span className="text-gray-400">Last run: </span>
-                      {new Date(cron.last_run + "Z").toLocaleString()}
+                      {new Date(cron.last_run.endsWith("Z") ? cron.last_run : cron.last_run + "Z").toLocaleString()}
                     </div>
                   )}
                   {cron.next_run && (
                     <div>
                       <span className="text-gray-400">Next run: </span>
-                      {new Date(cron.next_run + "Z").toLocaleString()}
+                      {new Date(cron.next_run.endsWith("Z") ? cron.next_run : cron.next_run + "Z").toLocaleString()}
                     </div>
                   )}
                 </div>
