@@ -11,14 +11,14 @@ export const dynamic = "force-dynamic";
 
 const statusColors: Record<string, string> = {
   backlog: "bg-gray-200 text-gray-700",
-  in_progress: "bg-amber-900/50 text-amber-400",
-  blocked: "bg-red-900/50 text-red-400",
-  done: "bg-emerald-900/50 text-emerald-400",
+  in_progress: "bg-amber-100 text-amber-700",
+  blocked: "bg-red-100 text-red-700",
+  done: "bg-emerald-100 text-emerald-700",
 };
 
 const buildColors: Record<string, string> = {
-  pass: "text-emerald-400",
-  fail: "text-red-400",
+  pass: "text-emerald-600",
+  fail: "text-red-600",
   unknown: "text-gray-400",
 };
 
@@ -80,7 +80,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             {project.deploy_url && (
               <a href={project.deploy_url} target="_blank" rel="noopener noreferrer" className="card-hover flex items-center gap-2 px-3 py-2">
                 <span className="text-sm">🌐</span>
-                <span className="text-sm text-emerald-400">Live</span>
+                <span className="text-sm text-emerald-600">Live</span>
               </a>
             )}
             {project.repo_url && (

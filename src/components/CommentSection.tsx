@@ -48,7 +48,7 @@ export function CommentSection({ comments, targetType, targetId }: Props) {
                 {new Date(comment.created_at + "Z").toLocaleString()}
               </span>
               {!comment.is_read && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
               )}
             </div>
             <p className="text-sm text-gray-500">{comment.text}</p>

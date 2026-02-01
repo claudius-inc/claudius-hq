@@ -34,7 +34,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="card p-8">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-emerald-400">⚡ Claudius HQ</h1>
+            <h1 className="text-2xl font-bold text-emerald-600">⚡ Claudius HQ</h1>
             <p className="text-gray-400 text-sm mt-1">Mission Control</p>
           </div>
 
@@ -51,7 +51,7 @@ export default function LoginPage() {
             </div>
 
             {error && (
-              <p className="text-red-400 text-sm text-center">{error}</p>
+              <p className="text-red-600 text-sm text-center">{error}</p>
             )}
 
             <button

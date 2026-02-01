@@ -1,10 +1,10 @@
 import { Cron } from "@/lib/types";
 
 const statusColors: Record<string, string> = {
-  active: "text-emerald-400",
+  active: "text-emerald-600",
   paused: "text-gray-400",
-  error: "text-red-400",
-  running: "text-amber-400",
+  error: "text-red-600",
+  running: "text-amber-600",
 };
 
 const statusIcons: Record<string, string> = {
@@ -42,7 +42,7 @@ export function CronsPanel({ crons }: { crons: Cron[] }) {
               <div>Next: {new Date(cron.next_run + "Z").toLocaleString()}</div>
             )}
             {cron.last_error && (
-              <div className="text-red-400">Error: {cron.last_error}</div>
+              <div className="text-red-600">Error: {cron.last_error}</div>
             )}
           </div>
         </div>

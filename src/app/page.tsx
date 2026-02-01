@@ -50,15 +50,15 @@ export default async function Dashboard() {
           </div>
           <div className="card">
             <div className="text-gray-400 text-xs uppercase tracking-wide">In Progress</div>
-            <div className="text-2xl font-bold text-amber-400 mt-1">{inProgress}</div>
+            <div className="text-2xl font-bold text-amber-600 mt-1">{inProgress}</div>
           </div>
           <div className="card">
             <div className="text-gray-400 text-xs uppercase tracking-wide">Blockers</div>
-            <div className="text-2xl font-bold text-red-400 mt-1">{blockers.length}</div>
+            <div className="text-2xl font-bold text-red-600 mt-1">{blockers.length}</div>
           </div>
           <div className="card">
             <div className="text-gray-400 text-xs uppercase tracking-wide">Completed</div>
-            <div className="text-2xl font-bold text-emerald-400 mt-1">{doneTasks}/{totalTasks}</div>
+            <div className="text-2xl font-bold text-emerald-600 mt-1">{doneTasks}/{totalTasks}</div>
           </div>
         </div>
 

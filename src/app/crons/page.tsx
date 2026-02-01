@@ -5,10 +5,10 @@ import { Nav } from "@/components/Nav";
 export const dynamic = "force-dynamic";
 
 const statusColors: Record<string, string> = {
-  active: "bg-emerald-900/50 text-emerald-400",
+  active: "bg-emerald-100 text-emerald-700",
   paused: "bg-gray-100 text-gray-500",
-  error: "bg-red-900/50 text-red-400",
-  running: "bg-amber-900/50 text-amber-400",
+  error: "bg-red-100 text-red-700",
+  running: "bg-amber-100 text-amber-700",
 };
 
 export default async function CronsPage() {
@@ -64,7 +64,7 @@ export default async function CronsPage() {
                 </div>
 
                 {cron.last_error && (
-                  <div className="mt-2 text-xs text-red-400 bg-red-950/30 rounded px-2 py-1">
+                  <div className="mt-2 text-xs text-red-600 bg-red-50 rounded px-2 py-1">
                     Error: {cron.last_error}
                   </div>
                 )}

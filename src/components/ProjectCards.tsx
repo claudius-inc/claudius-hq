@@ -3,14 +3,14 @@ import Link from "next/link";
 
 const statusColors: Record<string, string> = {
   backlog: "bg-gray-200 text-gray-700",
-  in_progress: "bg-amber-900/50 text-amber-400",
-  blocked: "bg-red-900/50 text-red-400",
-  done: "bg-emerald-900/50 text-emerald-400",
+  in_progress: "bg-amber-100 text-amber-700",
+  blocked: "bg-red-100 text-red-700",
+  done: "bg-emerald-100 text-emerald-700",
 };
 
 const buildColors: Record<string, string> = {
-  pass: "text-emerald-400",
-  fail: "text-red-400",
+  pass: "text-emerald-600",
+  fail: "text-red-600",
   unknown: "text-gray-400",
 };
 
@@ -35,7 +35,7 @@ export function ProjectCards({ projects }: { projects: Project[] }) {
       {projects.map((project) => (
         <Link key={project.id} href={`/projects/${project.id}`} className="card-hover group">
           <div className="flex items-start justify-between mb-2">
-            <h3 className="font-semibold text-gray-900 group-hover:text-emerald-400 transition-colors truncate">
+            <h3 className="font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors truncate">
               {project.name}
             </h3>
             <span className={`status-badge ${statusColors[project.status] || statusColors.backlog}`}>

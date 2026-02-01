@@ -8,9 +8,9 @@ const columns = [
 ];
 
 const priorityBadges: Record<string, string> = {
-  critical: "bg-red-900/50 text-red-400",
-  high: "bg-orange-900/50 text-orange-400",
-  medium: "bg-amber-900/50 text-amber-400",
+  critical: "bg-red-100 text-red-700",
+  high: "bg-orange-100 text-orange-700",
+  medium: "bg-amber-100 text-amber-700",
   low: "bg-gray-100 text-gray-500",
 };
 
@@ -43,7 +43,7 @@ export function KanbanBoard({ tasks }: { tasks: Task[] }) {
                     </span>
                   )}
                   {task.blocker_reason && task.status === "blocked" && (
-                    <p className="text-xs text-red-400/80 mt-1.5">↳ {task.blocker_reason}</p>
+                    <p className="text-xs text-red-600/80 mt-1.5">↳ {task.blocker_reason}</p>
                   )}
                 </div>
               ))}

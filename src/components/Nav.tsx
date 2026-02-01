@@ -6,7 +6,7 @@ export function Nav() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-14">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-emerald-400 text-lg">⚡</span>
+            <span className="text-emerald-600 text-lg">⚡</span>
             <span className="font-bold text-gray-900">Claudius HQ</span>
           </Link>
 
