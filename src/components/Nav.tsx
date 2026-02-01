@@ -1,5 +1,6 @@
 import Link from "next/link";
 import db from "@/lib/db";
+import { MobileMenu } from "./MobileMenu";
 
 async function getUnreadCount(): Promise<number> {
   try {
@@ -10,8 +11,20 @@ async function getUnreadCount(): Promise<number> {
   }
 }
 
+const navLinks = [
+  { href: "/projects", label: "Projects" },
+  { href: "/ideas", label: "Ideas" },
+  { href: "/tasks", label: "Tasks" },
+  { href: "/activity", label: "Activity" },
+  { href: "/crons", label: "Crons" },
+];
+
 export async function Nav() {
   const unreadCount = await getUnreadCount();
+
+  const linksWithBadge = navLinks.map((link) =>
+    link.href === "/activity" ? { ...link, badge: unreadCount } : link
+  );
 
   return (
     <nav className="border-b border-gray-200 bg-gray-50/80 backdrop-blur-sm sticky top-0 z-50">
@@ -22,28 +35,30 @@ export async function Nav() {
             <span className="font-bold text-gray-900">Claudius HQ</span>
           </Link>
 
-          <div className="flex items-center gap-6">
-            <Link href="/projects" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
-              Projects
-            </Link>
-            <Link href="/ideas" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
-              Ideas
-            </Link>
-            <Link href="/tasks" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
-              Tasks
-            </Link>
-            <Link href="/activity" className="relative text-sm text-gray-500 hover:text-gray-900 transition-colors">
-              Activity
-              {unreadCount > 0 && (
-                <span className="absolute -top-1.5 -right-3.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-blue-500 rounded-full">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
-              )}
-            </Link>
-            <Link href="/crons" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
-              Crons
-            </Link>
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-6">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                {link.label === "Activity" && unreadCount > 0 ? (
+                  <span className="relative">
+                    Activity
+                    <span className="absolute -top-1.5 -right-3.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-blue-500 rounded-full">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  </span>
+                ) : (
+                  link.label
+                )}
+              </Link>
+            ))}
           </div>
+
+          {/* Mobile hamburger */}
+          <MobileMenu links={linksWithBadge} />
         </div>
       </div>
     </nav>
