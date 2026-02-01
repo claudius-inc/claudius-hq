@@ -38,20 +38,20 @@ export function CommentSection({ comments, targetType, targetId }: Props) {
       {/* Comment list */}
       <div className="space-y-3 mb-4">
         {comments.length === 0 && (
-          <p className="text-zinc-600 text-sm text-center py-4">No comments yet</p>
+          <p className="text-gray-400 text-sm text-center py-4">No comments yet</p>
         )}
         {comments.map((comment) => (
-          <div key={comment.id} className="border-l-2 border-zinc-800 pl-3">
+          <div key={comment.id} className="border-l-2 border-gray-200 pl-3">
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-xs font-medium text-zinc-300">{comment.author}</span>
-              <span className="text-[10px] text-zinc-600">
+              <span className="text-xs font-medium text-gray-700">{comment.author}</span>
+              <span className="text-[10px] text-gray-400">
                 {new Date(comment.created_at + "Z").toLocaleString()}
               </span>
               {!comment.is_read && (
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
               )}
             </div>
-            <p className="text-sm text-zinc-400">{comment.text}</p>
+            <p className="text-sm text-gray-500">{comment.text}</p>
           </div>
         ))}
       </div>
@@ -63,7 +63,7 @@ export function CommentSection({ comments, targetType, targetId }: Props) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Add a comment..."
-          className="flex-1 bg-zinc-800 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-600"
+          className="flex-1 bg-gray-100 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-800 placeholder-zinc-600 focus:outline-none focus:border-gray-400"
         />
         <button
           type="submit"

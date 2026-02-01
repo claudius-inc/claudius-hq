@@ -45,19 +45,19 @@ export default async function Dashboard() {
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="card">
-            <div className="text-zinc-500 text-xs uppercase tracking-wide">Projects</div>
-            <div className="text-2xl font-bold text-zinc-100 mt-1">{projects.length}</div>
+            <div className="text-gray-400 text-xs uppercase tracking-wide">Projects</div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">{projects.length}</div>
           </div>
           <div className="card">
-            <div className="text-zinc-500 text-xs uppercase tracking-wide">In Progress</div>
+            <div className="text-gray-400 text-xs uppercase tracking-wide">In Progress</div>
             <div className="text-2xl font-bold text-amber-400 mt-1">{inProgress}</div>
           </div>
           <div className="card">
-            <div className="text-zinc-500 text-xs uppercase tracking-wide">Blockers</div>
+            <div className="text-gray-400 text-xs uppercase tracking-wide">Blockers</div>
             <div className="text-2xl font-bold text-red-400 mt-1">{blockers.length}</div>
           </div>
           <div className="card">
-            <div className="text-zinc-500 text-xs uppercase tracking-wide">Completed</div>
+            <div className="text-gray-400 text-xs uppercase tracking-wide">Completed</div>
             <div className="text-2xl font-bold text-emerald-400 mt-1">{doneTasks}/{totalTasks}</div>
           </div>
         </div>
@@ -72,8 +72,8 @@ export default async function Dashboard() {
         {/* Projects */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-zinc-200">Projects</h2>
-            <Link href="/projects" className="text-sm text-zinc-500 hover:text-zinc-300">
+            <h2 className="text-lg font-semibold text-gray-800">Projects</h2>
+            <Link href="/projects" className="text-sm text-gray-400 hover:text-gray-700">
               View all →
             </Link>
           </div>
@@ -84,8 +84,8 @@ export default async function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-zinc-200">Recent Activity</h2>
-              <Link href="/activity" className="text-sm text-zinc-500 hover:text-zinc-300">
+              <h2 className="text-lg font-semibold text-gray-800">Recent Activity</h2>
+              <Link href="/activity" className="text-sm text-gray-400 hover:text-gray-700">
                 View all →
               </Link>
             </div>
@@ -93,8 +93,8 @@ export default async function Dashboard() {
           </div>
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-semibold text-zinc-200">Scheduled Tasks</h2>
-              <Link href="/crons" className="text-sm text-zinc-500 hover:text-zinc-300">
+              <h2 className="text-lg font-semibold text-gray-800">Scheduled Tasks</h2>
+              <Link href="/crons" className="text-sm text-gray-400 hover:text-gray-700">
                 View all →
               </Link>
             </div>

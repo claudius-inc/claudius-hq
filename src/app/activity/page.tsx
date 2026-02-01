@@ -18,7 +18,7 @@ export default async function ActivityPage() {
     <div className="min-h-screen">
       <Nav />
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-zinc-100 mb-6">Activity Feed</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Activity Feed</h1>
         <div className="max-w-3xl">
           <ActivityFeed activity={activity} />
         </div>

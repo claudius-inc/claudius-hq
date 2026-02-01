@@ -10,7 +10,7 @@ import { notFound } from "next/navigation";
 export const dynamic = "force-dynamic";
 
 const statusColors: Record<string, string> = {
-  backlog: "bg-zinc-700 text-zinc-300",
+  backlog: "bg-gray-200 text-gray-700",
   in_progress: "bg-amber-900/50 text-amber-400",
   blocked: "bg-red-900/50 text-red-400",
   done: "bg-emerald-900/50 text-emerald-400",
@@ -19,7 +19,7 @@ const statusColors: Record<string, string> = {
 const buildColors: Record<string, string> = {
   pass: "text-emerald-400",
   fail: "text-red-400",
-  unknown: "text-zinc-500",
+  unknown: "text-gray-400",
 };
 
 export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -45,18 +45,18 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-2 text-sm text-zinc-500 mb-2">
-            <Link href="/projects" className="hover:text-zinc-300">Projects</Link>
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
+            <Link href="/projects" className="hover:text-gray-700">Projects</Link>
             <span>/</span>
           </div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-zinc-100">{project.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{project.name}</h1>
             <span className={`status-badge ${statusColors[project.status]}`}>
               {project.status.replace("_", " ")}
             </span>
           </div>
           {project.description && (
-            <p className="text-zinc-400 mt-2">{project.description}</p>
+            <p className="text-gray-500 mt-2">{project.description}</p>
           )}
 
           {/* Health Card */}
@@ -66,7 +66,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 <span className={buildColors[project.build_status]}>
                   {project.build_status === "pass" ? "✓" : "✗"}
                 </span>
-                <span className="text-sm text-zinc-300">
+                <span className="text-sm text-gray-700">
                   Build {project.build_status}
                 </span>
               </div>
@@ -74,7 +74,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             {project.test_count > 0 && (
               <div className="card flex items-center gap-2 px-3 py-2">
                 <span className="text-sm">🧪</span>
-                <span className="text-sm text-zinc-300">{project.test_count} tests</span>
+                <span className="text-sm text-gray-700">{project.test_count} tests</span>
               </div>
             )}
             {project.deploy_url && (
@@ -86,13 +86,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             {project.repo_url && (
               <a href={project.repo_url} target="_blank" rel="noopener noreferrer" className="card-hover flex items-center gap-2 px-3 py-2">
                 <span className="text-sm">📦</span>
-                <span className="text-sm text-zinc-400">Repo</span>
+                <span className="text-sm text-gray-500">Repo</span>
               </a>
             )}
             {project.last_deploy_time && (
               <div className="card flex items-center gap-2 px-3 py-2">
                 <span className="text-sm">🚀</span>
-                <span className="text-sm text-zinc-400">
+                <span className="text-sm text-gray-500">
                   Deployed {new Date(project.last_deploy_time).toLocaleDateString()}
                 </span>
               </div>
@@ -102,18 +102,18 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
         {/* Kanban Board */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-zinc-200 mb-3">Tasks</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-3">Tasks</h2>
           <KanbanBoard tasks={tasks} />
         </div>
 
         {/* Activity + Comments */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-200 mb-3">Activity</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">Activity</h2>
             <ActivityFeed activity={activity} />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-zinc-200 mb-3">Comments</h2>
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">Comments</h2>
             <CommentSection comments={comments} targetType="project" targetId={project.id} />
           </div>
         </div>

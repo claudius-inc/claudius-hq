@@ -26,11 +26,11 @@ export function BlockersPanel({ blockers }: { blockers: Task[] }) {
             <div className="flex items-start justify-between">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-zinc-100 text-sm">{task.title}</span>
-                  <span className="text-xs text-zinc-600 uppercase">{task.priority}</span>
+                  <span className="font-medium text-gray-900 text-sm">{task.title}</span>
+                  <span className="text-xs text-gray-400 uppercase">{task.priority}</span>
                 </div>
                 {task.project_name && (
-                  <span className="text-xs text-zinc-500">{task.project_name}</span>
+                  <span className="text-xs text-gray-400">{task.project_name}</span>
                 )}
               </div>
             </div>

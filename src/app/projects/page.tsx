@@ -16,7 +16,7 @@ export default async function ProjectsPage() {
     <div className="min-h-screen">
       <Nav />
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-zinc-100 mb-6">All Projects</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">All Projects</h1>
         <ProjectCards projects={projects} />
       </main>
     </div>

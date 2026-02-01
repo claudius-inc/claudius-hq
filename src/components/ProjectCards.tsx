@@ -2,7 +2,7 @@ import { Project } from "@/lib/types";
 import Link from "next/link";
 
 const statusColors: Record<string, string> = {
-  backlog: "bg-zinc-700 text-zinc-300",
+  backlog: "bg-gray-200 text-gray-700",
   in_progress: "bg-amber-900/50 text-amber-400",
   blocked: "bg-red-900/50 text-red-400",
   done: "bg-emerald-900/50 text-emerald-400",
@@ -11,7 +11,7 @@ const statusColors: Record<string, string> = {
 const buildColors: Record<string, string> = {
   pass: "text-emerald-400",
   fail: "text-red-400",
-  unknown: "text-zinc-500",
+  unknown: "text-gray-400",
 };
 
 const statusLabels: Record<string, string> = {
@@ -24,7 +24,7 @@ const statusLabels: Record<string, string> = {
 export function ProjectCards({ projects }: { projects: Project[] }) {
   if (projects.length === 0) {
     return (
-      <div className="card text-center py-12 text-zinc-500">
+      <div className="card text-center py-12 text-gray-400">
         No projects yet. They&apos;ll appear here once Claudius creates them.
       </div>
     );
@@ -35,7 +35,7 @@ export function ProjectCards({ projects }: { projects: Project[] }) {
       {projects.map((project) => (
         <Link key={project.id} href={`/projects/${project.id}`} className="card-hover group">
           <div className="flex items-start justify-between mb-2">
-            <h3 className="font-semibold text-zinc-100 group-hover:text-emerald-400 transition-colors truncate">
+            <h3 className="font-semibold text-gray-900 group-hover:text-emerald-400 transition-colors truncate">
               {project.name}
             </h3>
             <span className={`status-badge ${statusColors[project.status] || statusColors.backlog}`}>
@@ -44,10 +44,10 @@ export function ProjectCards({ projects }: { projects: Project[] }) {
           </div>
 
           {project.description && (
-            <p className="text-sm text-zinc-400 mb-3 line-clamp-2">{project.description}</p>
+            <p className="text-sm text-gray-500 mb-3 line-clamp-2">{project.description}</p>
           )}
 
-          <div className="flex items-center gap-4 text-xs text-zinc-500 mt-auto">
+          <div className="flex items-center gap-4 text-xs text-gray-400 mt-auto">
             {project.build_status !== "unknown" && (
               <span className={`flex items-center gap-1 ${buildColors[project.build_status]}`}>
                 {project.build_status === "pass" ? "✓" : "✗"} Build
@@ -63,10 +63,10 @@ export function ProjectCards({ projects }: { projects: Project[] }) {
 
           <div className="flex gap-2 mt-3">
             {project.repo_url && (
-              <span className="text-xs text-zinc-600">📦 Repo</span>
+              <span className="text-xs text-gray-400">📦 Repo</span>
             )}
             {project.deploy_url && (
-              <span className="text-xs text-zinc-600">🌐 Live</span>
+              <span className="text-xs text-gray-400">🌐 Live</span>
             )}
           </div>
         </Link>

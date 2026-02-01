@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 const statusColors: Record<string, string> = {
   active: "bg-emerald-900/50 text-emerald-400",
-  paused: "bg-zinc-800 text-zinc-400",
+  paused: "bg-gray-100 text-gray-500",
   error: "bg-red-900/50 text-red-400",
   running: "bg-amber-900/50 text-amber-400",
 };
@@ -22,10 +22,10 @@ export default async function CronsPage() {
     <div className="min-h-screen">
       <Nav />
       <main className="max-w-7xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-zinc-100 mb-6">Scheduled Tasks</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Scheduled Tasks</h1>
 
         {crons.length === 0 ? (
-          <div className="card text-center py-12 text-zinc-500">
+          <div className="card text-center py-12 text-gray-400">
             No scheduled tasks configured yet.
           </div>
         ) : (
@@ -34,30 +34,30 @@ export default async function CronsPage() {
               <div key={cron.id} className="card">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <h3 className="font-medium text-zinc-100">{cron.name}</h3>
+                    <h3 className="font-medium text-gray-900">{cron.name}</h3>
                     <span className={`status-badge ${statusColors[cron.status]}`}>
                       {cron.status}
                     </span>
                   </div>
-                  <code className="text-xs text-zinc-500 bg-zinc-800 px-2 py-1 rounded font-mono">
+                  <code className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded font-mono">
                     {cron.schedule}
                   </code>
                 </div>
 
                 {cron.description && (
-                  <p className="text-sm text-zinc-400 mb-2">{cron.description}</p>
+                  <p className="text-sm text-gray-500 mb-2">{cron.description}</p>
                 )}
 
-                <div className="flex gap-6 text-xs text-zinc-500">
+                <div className="flex gap-6 text-xs text-gray-400">
                   {cron.last_run && (
                     <div>
-                      <span className="text-zinc-600">Last run: </span>
+                      <span className="text-gray-400">Last run: </span>
                       {new Date(cron.last_run + "Z").toLocaleString()}
                     </div>
                   )}
                   {cron.next_run && (
                     <div>
-                      <span className="text-zinc-600">Next run: </span>
+                      <span className="text-gray-400">Next run: </span>
                       {new Date(cron.next_run + "Z").toLocaleString()}
                     </div>
                   )}

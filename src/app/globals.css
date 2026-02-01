@@ -4,26 +4,21 @@
 
 @layer base {
   :root {
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
     @apply antialiased;
   }
-
-  * {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(63 63 70) transparent;
-  }
 }
 
 @layer components {
   .card {
-    @apply bg-zinc-900 border border-zinc-800 rounded-lg p-4;
+    @apply bg-white border border-gray-200 rounded-lg p-4 shadow-sm;
   }
 
   .card-hover {
-    @apply card hover:border-zinc-700 transition-colors;
+    @apply card hover:border-gray-300 hover:shadow-md transition-all;
   }
 
   .btn-primary {
@@ -31,7 +26,7 @@
   }
 
   .btn-secondary {
-    @apply bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-4 py-2 rounded-md font-medium transition-colors;
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md font-medium transition-colors;
   }
 
   .status-badge {
