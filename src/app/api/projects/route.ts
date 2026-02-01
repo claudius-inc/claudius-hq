@@ -13,7 +13,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, name, description, status, repo_url, deploy_url, test_count, build_status, last_deploy_time } = body;
+    const { id, name, description, status, phase, repo_url, deploy_url, test_count, build_status, last_deploy_time } = body;
 
     if (id) {
       // Update existing
@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
       if (name !== undefined) { fields.push("name = ?"); values.push(name); }
       if (description !== undefined) { fields.push("description = ?"); values.push(description); }
       if (status !== undefined) { fields.push("status = ?"); values.push(status); }
+      if (phase !== undefined) { fields.push("phase = ?"); values.push(phase); }
       if (repo_url !== undefined) { fields.push("repo_url = ?"); values.push(repo_url); }
       if (deploy_url !== undefined) { fields.push("deploy_url = ?"); values.push(deploy_url); }
       if (test_count !== undefined) { fields.push("test_count = ?"); values.push(test_count); }
@@ -40,12 +41,13 @@ export async function POST(request: NextRequest) {
     } else {
       // Create new
       const result = await db.execute({
-        sql: `INSERT INTO projects (name, description, status, repo_url, deploy_url, test_count, build_status, last_deploy_time)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO projects (name, description, status, phase, repo_url, deploy_url, test_count, build_status, last_deploy_time)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           name || "",
           description || "",
           status || "backlog",
+          phase || "build",
           repo_url || "",
           deploy_url || "",
           test_count || 0,
