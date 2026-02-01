@@ -1,0 +1,123 @@
+import db from "@/lib/db";
+import { Project, Task, Activity, Comment } from "@/lib/types";
+import { Nav } from "@/components/Nav";
+import { ActivityFeed } from "@/components/ActivityFeed";
+import { KanbanBoard } from "@/components/KanbanBoard";
+import { CommentSection } from "@/components/CommentSection";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+export const dynamic = "force-dynamic";
+
+const statusColors: Record<string, string> = {
+  backlog: "bg-zinc-700 text-zinc-300",
+  in_progress: "bg-amber-900/50 text-amber-400",
+  blocked: "bg-red-900/50 text-red-400",
+  done: "bg-emerald-900/50 text-emerald-400",
+};
+
+const buildColors: Record<string, string> = {
+  pass: "text-emerald-400",
+  fail: "text-red-400",
+  unknown: "text-zinc-500",
+};
+
+export default async function ProjectDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+
+  const projectRes = await db.execute({ sql: "SELECT * FROM projects WHERE id = ?", args: [Number(id)] });
+  if (projectRes.rows.length === 0) notFound();
+  const project = projectRes.rows[0] as unknown as Project;
+
+  const [tasksRes, activityRes, commentsRes] = await Promise.all([
+    db.execute({ sql: "SELECT t.*, p.name as project_name FROM tasks t LEFT JOIN projects p ON t.project_id = p.id WHERE t.project_id = ? ORDER BY CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 END", args: [Number(id)] }),
+    db.execute({ sql: "SELECT a.*, p.name as project_name FROM activity a LEFT JOIN projects p ON a.project_id = p.id WHERE a.project_id = ? ORDER BY a.created_at DESC LIMIT 20", args: [Number(id)] }),
+    db.execute({ sql: "SELECT * FROM comments WHERE target_type = 'project' AND target_id = ? ORDER BY created_at DESC", args: [Number(id)] }),
+  ]);
+
+  const tasks = tasksRes.rows as unknown as Task[];
+  const activity = activityRes.rows as unknown as Activity[];
+  const comments = commentsRes.rows as unknown as Comment[];
+
+  return (
+    <div className="min-h-screen">
+      <Nav />
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex items-center gap-2 text-sm text-zinc-500 mb-2">
+            <Link href="/projects" className="hover:text-zinc-300">Projects</Link>
+            <span>/</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-zinc-100">{project.name}</h1>
+            <span className={`status-badge ${statusColors[project.status]}`}>
+              {project.status.replace("_", " ")}
+            </span>
+          </div>
+          {project.description && (
+            <p className="text-zinc-400 mt-2">{project.description}</p>
+          )}
+
+          {/* Health Card */}
+          <div className="flex flex-wrap gap-4 mt-4">
+            {project.build_status !== "unknown" && (
+              <div className="card flex items-center gap-2 px-3 py-2">
+                <span className={buildColors[project.build_status]}>
+                  {project.build_status === "pass" ? "✓" : "✗"}
+                </span>
+                <span className="text-sm text-zinc-300">
+                  Build {project.build_status}
+                </span>
+              </div>
+            )}
+            {project.test_count > 0 && (
+              <div className="card flex items-center gap-2 px-3 py-2">
+                <span className="text-sm">🧪</span>
+                <span className="text-sm text-zinc-300">{project.test_count} tests</span>
+              </div>
+            )}
+            {project.deploy_url && (
+              <a href={project.deploy_url} target="_blank" rel="noopener noreferrer" className="card-hover flex items-center gap-2 px-3 py-2">
+                <span className="text-sm">🌐</span>
+                <span className="text-sm text-emerald-400">Live</span>
+              </a>
+            )}
+            {project.repo_url && (
+              <a href={project.repo_url} target="_blank" rel="noopener noreferrer" className="card-hover flex items-center gap-2 px-3 py-2">
+                <span className="text-sm">📦</span>
+                <span className="text-sm text-zinc-400">Repo</span>
+              </a>
+            )}
+            {project.last_deploy_time && (
+              <div className="card flex items-center gap-2 px-3 py-2">
+                <span className="text-sm">🚀</span>
+                <span className="text-sm text-zinc-400">
+                  Deployed {new Date(project.last_deploy_time).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Kanban Board */}
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-zinc-200 mb-3">Tasks</h2>
+          <KanbanBoard tasks={tasks} />
+        </div>
+
+        {/* Activity + Comments */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-200 mb-3">Activity</h2>
+            <ActivityFeed activity={activity} />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-200 mb-3">Comments</h2>
+            <CommentSection comments={comments} targetType="project" targetId={project.id} />
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
