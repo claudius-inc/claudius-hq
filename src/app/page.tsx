@@ -7,6 +7,7 @@ import { CronsPanel } from "@/components/CronsPanel";
 import { WhatsNext } from "@/components/WhatsNext";
 import { UnreadComments } from "@/components/UnreadComments";
 import { Nav } from "@/components/Nav";
+import { ActivityTimeline } from "@/components/ActivityTimeline";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,17 @@ async function getData() {
     ]);
 
     const projects = projectsRes.rows as unknown as Project[];
+
+    // Fetch 30-day activity for heatmap
+    let heatmapActivity: Activity[] = [];
+    try {
+      const heatRes = await db.execute(
+        "SELECT a.*, p.name as project_name FROM activity a LEFT JOIN projects p ON a.project_id = p.id WHERE a.created_at >= datetime('now', '-30 days') ORDER BY a.created_at DESC"
+      );
+      heatmapActivity = heatRes.rows as unknown as Activity[];
+    } catch {
+      // activity table may not exist
+    }
 
     // Query checklist progress for launch-phase projects
     let checklistProgress: Record<number, { total: number; completed: number; nextItem: string | null }> = {};
@@ -88,6 +100,7 @@ async function getData() {
       blockedWithReasons,
       unreadComments,
       unreadCount,
+      heatmapActivity,
     };
   } catch {
     return {
@@ -100,6 +113,7 @@ async function getData() {
       blockedWithReasons: [],
       unreadComments: [],
       unreadCount: 0,
+      heatmapActivity: [],
     };
   }
 }
@@ -115,6 +129,7 @@ export default async function Dashboard() {
     blockedWithReasons,
     unreadComments,
     unreadCount,
+    heatmapActivity,
   } = await getData();
 
   const totalTasks = taskStats.reduce((sum, s) => sum + Number(s.count), 0);
@@ -172,6 +187,14 @@ export default async function Dashboard() {
           </div>
           <ProjectCards projects={projects} />
         </div>
+
+        {/* Activity Heatmap */}
+        {heatmapActivity.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">📅 Activity (30 days)</h2>
+            <ActivityTimeline activity={heatmapActivity} projects={projects} />
+          </div>
+        )}
 
         {/* Activity + Crons */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
