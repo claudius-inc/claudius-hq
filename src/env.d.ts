@@ -4,6 +4,7 @@ declare namespace NodeJS {
     TURSO_AUTH_TOKEN: string;
     HQ_PASSWORD: string;
     HQ_API_KEY: string;
+    GITHUB_TOKEN?: string;
     NODE_ENV: "development" | "production" | "test";
   }
 

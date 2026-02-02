@@ -6,6 +6,7 @@ import { KanbanBoard } from "@/components/KanbanBoard";
 import { CommentSection } from "@/components/CommentSection";
 import { PhaseChecklist } from "@/components/PhaseChecklist";
 import { MetricsDisplay } from "@/components/MetricsDisplay";
+import { GitHubActivity } from "@/components/GitHubActivity";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -57,6 +58,69 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     db.execute({ sql: "SELECT a.*, p.name as project_name FROM activity a LEFT JOIN projects p ON a.project_id = p.id WHERE a.project_id = ? ORDER BY a.created_at DESC LIMIT 20", args: [Number(id)] }),
     db.execute({ sql: "SELECT * FROM comments WHERE target_type = 'project' AND target_id = ? ORDER BY created_at DESC", args: [Number(id)] }),
   ]);
+
+  // Fetch GitHub data
+  let githubData: {
+    repo: string;
+    project_name: string;
+    commits: { sha: string; message: string; author: string; date: string; url: string }[];
+    pull_requests: { number: number; title: string; state: string; url: string; author: string }[];
+    issues: { number: number; title: string; state: string; url: string; author: string }[];
+  } | null = null;
+  if (project.repo_url && process.env.GITHUB_TOKEN) {
+    try {
+      const repoUrl = project.repo_url.replace(/\.git$/, "");
+      const urlObj = new URL(repoUrl);
+      const parts = urlObj.pathname.split("/").filter(Boolean);
+      if (parts.length >= 2) {
+        const owner = parts[0];
+        const repo = parts[1];
+        const base = `https://api.github.com/repos/${owner}/${repo}`;
+        const headers = {
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+          Accept: "application/vnd.github+json",
+        };
+
+        const [commitsRes, prsRes, issuesRes] = await Promise.all([
+          fetch(`${base}/commits?per_page=5`, { headers, next: { revalidate: 300 } }).then((r) => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${base}/pulls?state=all&per_page=5&sort=updated&direction=desc`, { headers, next: { revalidate: 300 } }).then((r) => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${base}/issues?state=all&per_page=5&sort=updated&direction=desc`, { headers, next: { revalidate: 300 } }).then((r) => r.ok ? r.json() : []).catch(() => []),
+        ]);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        githubData = {
+          project_name: project.name,
+          repo: `${owner}/${repo}`,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          commits: (commitsRes || []).map((c: any) => ({
+            sha: c.sha?.slice(0, 7) || "",
+            message: (c.commit?.message || "").split("\n")[0],
+            author: c.commit?.author?.name || "",
+            date: c.commit?.author?.date || "",
+            url: c.html_url || "",
+          })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          pull_requests: (prsRes || []).map((pr: any) => ({
+            number: pr.number,
+            title: pr.title,
+            state: pr.state,
+            url: pr.html_url,
+            author: pr.user?.login || "",
+          })),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          issues: ((issuesRes || []).filter((i: any) => !i.pull_request)).map((i: any) => ({
+            number: i.number,
+            title: i.title,
+            state: i.state,
+            url: i.html_url,
+            author: i.user?.login || "",
+          })),
+        };
+      }
+    } catch {
+      // GitHub fetch failed — continue without it
+    }
+  }
 
   // These queries use new tables that might not exist yet — fail gracefully
   let metricsRes, checklistRes;
@@ -164,6 +228,16 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             <MetricsDisplay metrics={metrics} />
           </div>
         </div>
+
+        {/* GitHub Activity */}
+        {githubData && (
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">🐙 GitHub</h2>
+            <div className="card">
+              <GitHubActivity data={githubData} />
+            </div>
+          </div>
+        )}
 
         {/* Kanban Board */}
         <div className="mb-8">
