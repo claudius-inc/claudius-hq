@@ -12,6 +12,15 @@ async function getUnreadCount(): Promise<number> {
   }
 }
 
+async function getUnreadEmailCount(): Promise<number> {
+  try {
+    const result = await db.execute("SELECT COUNT(*) as count FROM emails WHERE is_read = 0");
+    return Number((result.rows[0] as unknown as { count: number }).count);
+  } catch {
+    return 0;
+  }
+}
+
 const navLinks = [
   { href: "/projects", label: "Projects" },
   { href: "/ideas", label: "Ideas" },
@@ -19,15 +28,21 @@ const navLinks = [
   { href: "/research", label: "Research" },
   { href: "/activity", label: "Activity" },
   { href: "/crons", label: "Crons" },
+  { href: "/emails", label: "Emails" },
   { href: "/integrations", label: "Integrations" },
 ];
 
 export async function Nav() {
-  const unreadCount = await getUnreadCount();
+  const [unreadCount, unreadEmails] = await Promise.all([
+    getUnreadCount(),
+    getUnreadEmailCount(),
+  ]);
 
-  const linksWithBadge = navLinks.map((link) =>
-    link.href === "/activity" ? { ...link, badge: unreadCount } : link
-  );
+  const linksWithBadge = navLinks.map((link) => {
+    if (link.href === "/activity") return { ...link, badge: unreadCount };
+    if (link.href === "/emails") return { ...link, badge: unreadEmails };
+    return link;
+  });
 
   return (
     <nav className="border-b border-gray-200 bg-gray-50/80 backdrop-blur-sm sticky top-0 z-50">
@@ -46,11 +61,13 @@ export async function Nav() {
                 href={link.href}
                 className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
               >
-                {link.label === "Activity" && unreadCount > 0 ? (
+                {(link.label === "Activity" && unreadCount > 0) || (link.label === "Emails" && unreadEmails > 0) ? (
                   <span className="relative">
-                    Activity
+                    {link.label}
                     <span className="absolute -top-1.5 -right-3.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-blue-500 rounded-full">
-                      {unreadCount > 9 ? "9+" : unreadCount}
+                      {link.label === "Activity"
+                        ? (unreadCount > 9 ? "9+" : unreadCount)
+                        : (unreadEmails > 9 ? "9+" : unreadEmails)}
                     </span>
                   </span>
                 ) : (

@@ -127,6 +127,18 @@ export async function initDB() {
 
     CREATE UNIQUE INDEX IF NOT EXISTS idx_checklist_progress ON project_checklist_progress(project_id, checklist_item_id);
 
+    CREATE TABLE IF NOT EXISTS emails (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_address TEXT NOT NULL DEFAULT '',
+      to_address TEXT NOT NULL DEFAULT '',
+      subject TEXT DEFAULT '',
+      body_text TEXT DEFAULT '',
+      body_html TEXT DEFAULT '',
+      headers TEXT DEFAULT '{}',
+      is_read INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS research_notes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       idea_id INTEGER REFERENCES ideas(id),

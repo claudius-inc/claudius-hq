@@ -9,6 +9,18 @@ export type IdeaPotential = "low" | "medium" | "high" | "moonshot" | "unknown";
 export type IdeaStatus = "new" | "researching" | "validated" | "promoted" | "rejected";
 export type NoteType = "general" | "competitor" | "market" | "tech" | "user_feedback";
 
+export interface Email {
+  id: number;
+  from_address: string;
+  to_address: string;
+  subject: string;
+  body_text: string;
+  body_html: string;
+  headers: string;
+  is_read: number;
+  created_at: string;
+}
+
 export interface Project {
   id: number;
   name: string;
