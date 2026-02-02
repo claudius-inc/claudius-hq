@@ -180,6 +180,15 @@ export async function initDB() {
       published_at TEXT DEFAULT (datetime('now')),
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS stock_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticker TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      report_type TEXT NOT NULL DEFAULT 'sun-tzu',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Add phase column to existing projects table if missing
