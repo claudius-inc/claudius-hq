@@ -7,6 +7,7 @@ import { CommentSection } from "@/components/CommentSection";
 import { PhaseChecklist } from "@/components/PhaseChecklist";
 import { MetricsDisplay } from "@/components/MetricsDisplay";
 import { GitHubActivity } from "@/components/GitHubActivity";
+import { HealthIndicator } from "@/components/HealthStatus";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -58,6 +59,25 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     db.execute({ sql: "SELECT a.*, p.name as project_name FROM activity a LEFT JOIN projects p ON a.project_id = p.id WHERE a.project_id = ? ORDER BY a.created_at DESC LIMIT 20", args: [Number(id)] }),
     db.execute({ sql: "SELECT * FROM comments WHERE target_type = 'project' AND target_id = ? ORDER BY created_at DESC", args: [Number(id)] }),
   ]);
+
+  // Fetch latest health check
+  let healthCheck: { project_id: number; project_name: string; url: string; status_code: number; response_time_ms: number; ok: boolean } | null = null;
+  try {
+    const hcRes = await db.execute({
+      sql: "SELECT * FROM health_checks WHERE project_id = ? ORDER BY checked_at DESC LIMIT 1",
+      args: [Number(id)],
+    });
+    if (hcRes.rows.length > 0) {
+      const row = hcRes.rows[0] as unknown as { project_id: number; url: string; status_code: number; response_time_ms: number };
+      healthCheck = {
+        ...row,
+        project_name: project.name,
+        ok: row.status_code >= 200 && row.status_code < 400,
+      };
+    }
+  } catch {
+    // health_checks table may not exist
+  }
 
   // Fetch GitHub data
   let githubData: {
@@ -202,6 +222,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 <span className="text-sm text-gray-500">Repo</span>
               </a>
             )}
+            <HealthIndicator check={healthCheck} />
             {project.last_deploy_time && (
               <div className="card flex items-center gap-2 px-3 py-2">
                 <span className="text-sm">🚀</span>

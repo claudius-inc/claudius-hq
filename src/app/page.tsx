@@ -8,6 +8,7 @@ import { WhatsNext } from "@/components/WhatsNext";
 import { UnreadComments } from "@/components/UnreadComments";
 import { Nav } from "@/components/Nav";
 import { ActivityTimeline } from "@/components/ActivityTimeline";
+import { HealthStatus } from "@/components/HealthStatus";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,26 @@ async function getData() {
       heatmapActivity = heatRes.rows as unknown as Activity[];
     } catch {
       // activity table may not exist
+    }
+
+    // Fetch latest health checks
+    let healthChecks: { project_id: number; project_name: string; url: string; status_code: number; response_time_ms: number; ok: boolean }[] = [];
+    try {
+      const healthRes = await db.execute(`
+        SELECT hc.*, p.name as project_name
+        FROM health_checks hc
+        JOIN projects p ON hc.project_id = p.id
+        WHERE hc.id IN (
+          SELECT MAX(id) FROM health_checks GROUP BY project_id
+        )
+        ORDER BY hc.checked_at DESC
+      `);
+      healthChecks = (healthRes.rows as unknown as { project_id: number; project_name: string; url: string; status_code: number; response_time_ms: number }[]).map((r) => ({
+        ...r,
+        ok: r.status_code >= 200 && r.status_code < 400,
+      }));
+    } catch {
+      // health_checks table may not exist
     }
 
     // Query checklist progress for launch-phase projects
@@ -101,6 +122,7 @@ async function getData() {
       unreadComments,
       unreadCount,
       heatmapActivity,
+      healthChecks,
     };
   } catch {
     return {
@@ -114,6 +136,7 @@ async function getData() {
       unreadComments: [],
       unreadCount: 0,
       heatmapActivity: [],
+      healthChecks: [],
     };
   }
 }
@@ -130,6 +153,7 @@ export default async function Dashboard() {
     unreadComments,
     unreadCount,
     heatmapActivity,
+    healthChecks,
   } = await getData();
 
   const totalTasks = taskStats.reduce((sum, s) => sum + Number(s.count), 0);
@@ -187,6 +211,21 @@ export default async function Dashboard() {
           </div>
           <ProjectCards projects={projects} />
         </div>
+
+        {/* Health Status */}
+        {healthChecks.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-lg font-semibold text-gray-800">🏥 Service Health</h2>
+              <Link href="/integrations" className="text-sm text-gray-400 hover:text-gray-700">
+                View all →
+              </Link>
+            </div>
+            <div className="card">
+              <HealthStatus checks={healthChecks} />
+            </div>
+          </div>
+        )}
 
         {/* Activity Heatmap */}
         {heatmapActivity.length > 0 && (
