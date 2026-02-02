@@ -7,6 +7,87 @@ interface MetricGroup {
   history: { value: number; date: string }[];
 }
 
+function Sparkline({ data }: { data: { value: number; date: string }[] }) {
+  if (data.length < 2) return null;
+
+  const points = data.slice(0, 14).reverse();
+  const values = points.map((p) => p.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+
+  const width = 120;
+  const height = 32;
+  const padding = 2;
+
+  const coords = values.map((v, i) => ({
+    x: padding + (i / (values.length - 1)) * (width - padding * 2),
+    y: padding + (1 - (v - min) / range) * (height - padding * 2),
+  }));
+
+  const pathD = coords
+    .map((c, i) => `${i === 0 ? "M" : "L"} ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)
+    .join(" ");
+
+  // Fill area under the line
+  const fillD = `${pathD} L ${coords[coords.length - 1].x.toFixed(1)} ${height} L ${coords[0].x.toFixed(1)} ${height} Z`;
+
+  const isUp = values[values.length - 1] >= values[0];
+
+  return (
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      className="mt-2"
+      aria-label="Sparkline chart"
+    >
+      <defs>
+        <linearGradient id={`grad-${isUp ? "up" : "down"}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={isUp ? "#10b981" : "#ef4444"} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={isUp ? "#10b981" : "#ef4444"} stopOpacity="0.05" />
+        </linearGradient>
+      </defs>
+      <path
+        d={fillD}
+        fill={`url(#grad-${isUp ? "up" : "down"})`}
+      />
+      <path
+        d={pathD}
+        fill="none"
+        stroke={isUp ? "#10b981" : "#ef4444"}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* Endpoint dot */}
+      <circle
+        cx={coords[coords.length - 1].x}
+        cy={coords[coords.length - 1].y}
+        r="2"
+        fill={isUp ? "#10b981" : "#ef4444"}
+      />
+    </svg>
+  );
+}
+
+function TrendIndicator({ delta, pctChange }: { delta: number; pctChange: string | null }) {
+  const arrow = delta > 0 ? "↑" : delta < 0 ? "↓" : "→";
+  const color = delta > 0 ? "text-emerald-600" : delta < 0 ? "text-red-500" : "text-gray-400";
+
+  return (
+    <div className={`text-xs mt-1 flex items-center gap-1 ${color}`}>
+      <span className="font-medium">{arrow}</span>
+      <span>{Math.abs(delta).toLocaleString()}</span>
+      {pctChange && (
+        <span className="text-gray-400">
+          ({delta >= 0 ? "+" : ""}{pctChange}%)
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function MetricsDisplay({ metrics }: { metrics: Metric[] }) {
   if (metrics.length === 0) {
     return (
@@ -44,9 +125,10 @@ export function MetricsDisplay({ metrics }: { metrics: Metric[] }) {
     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
       {Object.values(groups).map((g) => {
         const delta = g.previous !== null ? g.latest - g.previous : null;
-        const pctChange = g.previous !== null && g.previous !== 0
-          ? ((delta! / g.previous) * 100).toFixed(1)
-          : null;
+        const pctChange =
+          g.previous !== null && g.previous !== 0
+            ? ((delta! / g.previous) * 100).toFixed(1)
+            : null;
 
         return (
           <div key={g.name} className="card">
@@ -57,32 +139,9 @@ export function MetricsDisplay({ metrics }: { metrics: Metric[] }) {
               {formatValue(g.latest, g.name)}
             </div>
             {delta !== null && (
-              <div className={`text-xs mt-1 ${delta >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                {delta >= 0 ? "↑" : "↓"} {Math.abs(delta).toLocaleString()}
-                {pctChange && ` (${delta >= 0 ? "+" : ""}${pctChange}%)`}
-              </div>
+              <TrendIndicator delta={delta} pctChange={pctChange} />
             )}
-            {/* Mini sparkline */}
-            {g.history.length > 1 && (
-              <div className="mt-2 flex items-end gap-px h-6">
-                {g.history
-                  .slice(0, 10)
-                  .reverse()
-                  .map((p, i) => {
-                    const max = Math.max(...g.history.slice(0, 10).map((h) => h.value));
-                    const min = Math.min(...g.history.slice(0, 10).map((h) => h.value));
-                    const range = max - min || 1;
-                    const height = ((p.value - min) / range) * 100;
-                    return (
-                      <div
-                        key={i}
-                        className="flex-1 bg-emerald-200 rounded-sm min-h-[2px]"
-                        style={{ height: `${Math.max(height, 8)}%` }}
-                      />
-                    );
-                  })}
-              </div>
-            )}
+            {g.history.length > 1 && <Sparkline data={g.history} />}
           </div>
         );
       })}
@@ -91,7 +150,11 @@ export function MetricsDisplay({ metrics }: { metrics: Metric[] }) {
 }
 
 function formatValue(value: number, name: string): string {
-  if (name.includes("revenue") || name.includes("mrr") || name.includes("arr")) {
+  if (
+    name.includes("revenue") ||
+    name.includes("mrr") ||
+    name.includes("arr")
+  ) {
     return `$${value.toLocaleString()}`;
   }
   if (value >= 1000000) {
