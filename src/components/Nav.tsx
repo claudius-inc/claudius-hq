@@ -19,6 +19,7 @@ const navLinks = [
   { href: "/research", label: "Research" },
   { href: "/activity", label: "Activity" },
   { href: "/crons", label: "Crons" },
+  { href: "/integrations", label: "Integrations" },
 ];
 
 export async function Nav() {
