@@ -3,10 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // API routes: check API key
+  // API routes: check API key OR session cookie
   if (pathname.startsWith("/api/")) {
     const apiKey = request.headers.get("x-api-key") || request.headers.get("authorization")?.replace("Bearer ", "");
-    if (apiKey !== process.env.HQ_API_KEY) {
+    const session = request.cookies.get("hq_session");
+    if (apiKey !== process.env.HQ_API_KEY && session?.value !== "authenticated") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.next();
