@@ -149,6 +149,37 @@ export async function initDB() {
       note_type TEXT DEFAULT 'general' CHECK(note_type IN ('general','competitor','market','tech','user_feedback')),
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS watchlist_stocks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticker TEXT NOT NULL UNIQUE,
+      exchange TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT DEFAULT 'watchlist',
+      notes TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_prices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticker TEXT NOT NULL,
+      price REAL NOT NULL,
+      change_amount REAL DEFAULT 0,
+      change_pct REAL DEFAULT 0,
+      recorded_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS stock_news (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticker TEXT,
+      headline TEXT NOT NULL,
+      summary TEXT DEFAULT '',
+      source TEXT DEFAULT '',
+      url TEXT DEFAULT '',
+      sentiment TEXT DEFAULT 'neutral',
+      published_at TEXT DEFAULT (datetime('now')),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Add phase column to existing projects table if missing

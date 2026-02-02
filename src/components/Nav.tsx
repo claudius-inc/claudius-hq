@@ -2,6 +2,7 @@ import Link from "next/link";
 import db from "@/lib/db";
 import { MobileMenu } from "./MobileMenu";
 import { GlobalSearch } from "./GlobalSearch";
+import { MoreDropdown } from "./MoreDropdown";
 
 async function getUnreadCount(): Promise<number> {
   try {
@@ -21,14 +22,18 @@ async function getUnreadEmailCount(): Promise<number> {
   }
 }
 
-const navLinks = [
+const primaryLinks = [
   { href: "/projects", label: "Projects" },
+  { href: "/stocks", label: "Stocks" },
+  { href: "/emails", label: "Emails" },
+];
+
+const moreLinks = [
   { href: "/ideas", label: "Ideas" },
   { href: "/tasks", label: "Tasks" },
-  { href: "/research", label: "Research" },
   { href: "/activity", label: "Activity" },
+  { href: "/research", label: "Research" },
   { href: "/crons", label: "Crons" },
-  { href: "/emails", label: "Emails" },
   { href: "/integrations", label: "Integrations" },
 ];
 
@@ -38,9 +43,16 @@ export async function Nav() {
     getUnreadEmailCount(),
   ]);
 
-  const linksWithBadge = navLinks.map((link) => {
+  // All links for mobile menu
+  const allLinks = [...primaryLinks, ...moreLinks].map((link) => {
     if (link.href === "/activity") return { ...link, badge: unreadCount };
     if (link.href === "/emails") return { ...link, badge: unreadEmails };
+    return link;
+  });
+
+  // More links with badges
+  const moreLinksWithBadge = moreLinks.map((link) => {
+    if (link.href === "/activity") return { ...link, badge: unreadCount };
     return link;
   });
 
@@ -55,19 +67,17 @@ export async function Nav() {
 
           {/* Desktop nav */}
           <div className="hidden md:flex items-center gap-6">
-            {navLinks.map((link) => (
+            {primaryLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 className="text-sm text-gray-500 hover:text-gray-900 transition-colors"
               >
-                {(link.label === "Activity" && unreadCount > 0) || (link.label === "Emails" && unreadEmails > 0) ? (
+                {link.label === "Emails" && unreadEmails > 0 ? (
                   <span className="relative">
                     {link.label}
                     <span className="absolute -top-1.5 -right-3.5 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-blue-500 rounded-full">
-                      {link.label === "Activity"
-                        ? (unreadCount > 9 ? "9+" : unreadCount)
-                        : (unreadEmails > 9 ? "9+" : unreadEmails)}
+                      {unreadEmails > 9 ? "9+" : unreadEmails}
                     </span>
                   </span>
                 ) : (
@@ -75,11 +85,12 @@ export async function Nav() {
                 )}
               </Link>
             ))}
+            <MoreDropdown links={moreLinksWithBadge} />
             <GlobalSearch />
           </div>
 
           {/* Mobile hamburger */}
-          <MobileMenu links={linksWithBadge} />
+          <MobileMenu links={allLinks} />
         </div>
       </div>
     </nav>

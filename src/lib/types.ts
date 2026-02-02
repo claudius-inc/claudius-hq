@@ -144,3 +144,52 @@ export interface ResearchNote {
   idea_title?: string;
   project_name?: string;
 }
+
+// Stock types
+export type StockCategory = "watchlist" | "holding";
+export type StockSentiment = "positive" | "negative" | "neutral";
+
+export interface WatchlistStock {
+  id: number;
+  ticker: string;
+  exchange: string;
+  name: string;
+  category: string;
+  notes: string;
+  created_at: string;
+  // Joined from latest price
+  price?: number | null;
+  change_amount?: number | null;
+  change_pct?: number | null;
+  recorded_at?: string | null;
+}
+
+export interface StockPrice {
+  id: number;
+  ticker: string;
+  price: number;
+  change_amount: number;
+  change_pct: number;
+  recorded_at: string;
+}
+
+export interface StockNews {
+  id: number;
+  ticker: string | null;
+  headline: string;
+  summary: string;
+  source: string;
+  url: string;
+  sentiment: StockSentiment;
+  published_at: string;
+  created_at: string;
+}
+
+export interface StockReport {
+  id: number;
+  ticker: string;
+  title: string;
+  content: string;
+  report_type: string;
+  created_at: string;
+}
