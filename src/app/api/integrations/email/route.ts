@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import db, { ensureDB } from "@/lib/db";
+import { parseEmailBody, sanitizeFromAddress } from "@/lib/mime-parser";
 
 const API_KEY = process.env.HQ_API_KEY;
 
@@ -23,15 +24,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing from/to fields" }, { status: 400 });
     }
 
+    // Parse MIME content to extract clean text/html
+    const parsed = parseEmailBody(text || "", html || "");
+    const cleanFrom = sanitizeFromAddress(from || "");
+
     const result = await db.execute({
       sql: `INSERT INTO emails (from_address, to_address, subject, body_text, body_html, headers)
             VALUES (?, ?, ?, ?, ?, ?)`,
       args: [
-        from || "",
+        cleanFrom,
         to || "",
         subject || "(no subject)",
-        text || "",
-        html || "",
+        parsed.text,
+        parsed.html,
         typeof headers === "string" ? headers : JSON.stringify(headers || {}),
       ],
     });

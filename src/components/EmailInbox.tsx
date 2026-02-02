@@ -17,8 +17,11 @@ export function EmailInbox() {
   const [unread, setUnread] = useState(0);
   const [pages, setPages] = useState(1);
 
-  const fetchEmails = useCallback(async () => {
-    setLoading(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [secondsAgo, setSecondsAgo] = useState(0);
+
+  const fetchEmails = useCallback(async (background = false) => {
+    if (!background) setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "30" });
       if (filter !== "all") params.set("filter", filter);
@@ -30,15 +33,28 @@ export function EmailInbox() {
       setTotal(data.total || 0);
       setUnread(data.unread || 0);
       setPages(data.pages || 1);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Failed to fetch emails:", err);
     }
-    setLoading(false);
+    if (!background) setLoading(false);
   }, [page, filter, search]);
 
   useEffect(() => {
     fetchEmails();
+    const interval = setInterval(() => fetchEmails(true), 15000);
+    return () => clearInterval(interval);
   }, [fetchEmails]);
+
+  // Tick the "seconds ago" counter every second
+  useEffect(() => {
+    const tick = setInterval(() => {
+      if (lastUpdated) {
+        setSecondsAgo(Math.round((Date.now() - lastUpdated.getTime()) / 1000));
+      }
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [lastUpdated]);
 
   const markRead = async (id: number) => {
     await fetch("/api/integrations/email", {
@@ -124,6 +140,12 @@ export function EmailInbox() {
           <button onClick={markAllRead} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">
             Mark all read
           </button>
+        )}
+
+        {lastUpdated && (
+          <span className="text-xs text-gray-400 ml-auto whitespace-nowrap">
+            Updated {secondsAgo < 5 ? "just now" : `${secondsAgo}s ago`}
+          </span>
         )}
       </div>
 
