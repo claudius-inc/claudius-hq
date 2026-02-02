@@ -1,6 +1,7 @@
 import Link from "next/link";
 import db from "@/lib/db";
 import { MobileMenu } from "./MobileMenu";
+import { GlobalSearch } from "./GlobalSearch";
 
 async function getUnreadCount(): Promise<number> {
   try {
@@ -56,6 +57,7 @@ export async function Nav() {
                 )}
               </Link>
             ))}
+            <GlobalSearch />
           </div>
 
           {/* Mobile hamburger */}
