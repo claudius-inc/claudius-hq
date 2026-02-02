@@ -153,6 +153,13 @@ export function parseEmailBody(rawText: string, rawHtml: string): ParsedEmail {
     html = decodeQuotedPrintable(html);
   }
 
+  // Detect raw HTML stored as text (no multipart, but body is HTML)
+  const trimmedText = text.trim();
+  if (!html && trimmedText.match(/^<!DOCTYPE\s|^<html[\s>]/i)) {
+    html = trimmedText;
+    text = stripHtml(trimmedText);
+  }
+
   return { text: text.trim(), html: html.trim() };
 }
 
@@ -160,12 +167,20 @@ export function parseEmailBody(rawText: string, rawHtml: string): ParsedEmail {
 export function sanitizeFromAddress(from: string): string {
   if (!from) return "unknown@unknown";
 
-  // Already looks like a valid email or "Name <email>"
-  if (from.includes("@") && !from.match(/^[0-9a-f]{10,}-[0-9a-f-]+$/i)) {
+  // Check if the local part (before @) looks like a raw message/session ID
+  // Pattern: long hex-dash strings like 0100019c1dec67b8-9d75b1bd-a9b0-4530-...
+  const atIndex = from.indexOf("@");
+  if (atIndex > 0) {
+    const localPart = from.slice(0, atIndex);
+    if (/^[0-9a-f]{6,}-[0-9a-f-]+$/i.test(localPart) && localPart.length > 20) {
+      // Extract the domain for context
+      const domain = from.slice(atIndex + 1);
+      return `${domain} <${from}>`;
+    }
     return from;
   }
 
-  // Looks like a raw message ID (hex-dash pattern with no @) — not a real address
+  // No @ at all — likely a raw message ID
   if (/^[0-9a-f-]{20,}$/i.test(from)) {
     return `unknown-sender <${from}@unknown>`;
   }
