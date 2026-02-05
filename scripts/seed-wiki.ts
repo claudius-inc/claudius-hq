@@ -30,7 +30,7 @@ async function main() {
   const projectId = 7;
 
   const files = await fs.readdir(directory);
-  const mdFiles = files.filter((f) => f.endsWith(".md")).sort();
+  const mdFiles = files.filter((f: string) => f.endsWith(".md")).sort();
 
   console.log(`Found ${mdFiles.length} markdown files`);
 
