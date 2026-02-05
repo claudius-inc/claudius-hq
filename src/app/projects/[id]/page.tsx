@@ -142,6 +142,18 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     }
   }
 
+  // Check if wiki pages exist for this project
+  let wikiPageCount = 0;
+  try {
+    const wikiRes = await db.execute({
+      sql: "SELECT COUNT(*) as count FROM wiki_pages WHERE project_id = ?",
+      args: [Number(id)],
+    });
+    wikiPageCount = Number((wikiRes.rows[0] as unknown as { count: number }).count);
+  } catch {
+    // wiki_pages table may not exist yet
+  }
+
   // These queries use new tables that might not exist yet — fail gracefully
   let metricsRes, checklistRes;
   try {
@@ -223,6 +235,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               </a>
             )}
             <HealthIndicator check={healthCheck} />
+            {wikiPageCount > 0 && (
+              <Link href={`/projects/${id}/wiki`} className="card-hover flex items-center gap-2 px-3 py-2">
+                <span className="text-sm">📖</span>
+                <span className="text-sm text-gray-700">Wiki</span>
+                <span className="text-xs text-gray-400">({wikiPageCount})</span>
+              </Link>
+            )}
             {project.last_deploy_time && (
               <div className="card flex items-center gap-2 px-3 py-2">
                 <span className="text-sm">🚀</span>

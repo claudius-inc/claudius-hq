@@ -193,3 +193,14 @@ export interface StockReport {
   report_type: string;
   created_at: string;
 }
+
+export interface WikiPage {
+  id: number;
+  project_id: number;
+  slug: string;
+  title: string;
+  content: string;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}

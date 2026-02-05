@@ -10,13 +10,16 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/nodemailer": "^7.0.9",
+    "marked": "^17.0.1",
     "next": "14.2.35",
     "nodemailer": "^7.0.13",
     "react": "^18",
     "react-dom": "^18"
   },
   "devDependencies": {
+    "@types/marked": "^5.0.2",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
