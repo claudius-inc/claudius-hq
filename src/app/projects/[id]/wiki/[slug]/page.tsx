@@ -43,14 +43,14 @@ export default async function WikiPageDetail({ params }: { params: Promise<{ id:
       <Nav />
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
-          <Link href="/projects" className="hover:text-gray-700">Projects</Link>
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-gray-400 mb-4 overflow-x-auto">
+          <Link href="/projects" className="hover:text-gray-700 whitespace-nowrap">Projects</Link>
           <span>/</span>
-          <Link href={`/projects/${id}`} className="hover:text-gray-700">{project.name}</Link>
+          <Link href={`/projects/${id}`} className="hover:text-gray-700 whitespace-nowrap">{project.name}</Link>
           <span>/</span>
-          <Link href={`/projects/${id}/wiki`} className="hover:text-gray-700">Wiki</Link>
+          <Link href={`/projects/${id}/wiki`} className="hover:text-gray-700 whitespace-nowrap">Wiki</Link>
           <span>/</span>
-          <span className="text-gray-600 truncate max-w-[200px]">{page.title}</span>
+          <span className="text-gray-600 truncate">{page.title}</span>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -62,24 +62,26 @@ export default async function WikiPageDetail({ params }: { params: Promise<{ id:
           </aside>
 
           {/* Content */}
-          <article className="flex-1 min-w-0">
-            <div className="card p-6 lg:p-8">
+          <article className="flex-1 min-w-0 overflow-hidden">
+            <div className="card p-4 sm:p-6 lg:p-8">
               <div
-                className="prose prose-gray max-w-none
+                className="prose prose-gray max-w-none break-words
                   prose-headings:text-gray-900 prose-headings:font-semibold
-                  prose-h1:text-2xl prose-h1:border-b prose-h1:border-gray-100 prose-h1:pb-3 prose-h1:mb-6
-                  prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-3
-                  prose-h3:text-lg prose-h3:mt-6
-                  prose-p:text-gray-600 prose-p:leading-relaxed
-                  prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline
+                  prose-h1:text-xl prose-h1:sm:text-2xl prose-h1:border-b prose-h1:border-gray-100 prose-h1:pb-3 prose-h1:mb-6
+                  prose-h2:text-lg prose-h2:sm:text-xl prose-h2:mt-8 prose-h2:mb-3
+                  prose-h3:text-base prose-h3:sm:text-lg prose-h3:mt-6
+                  prose-p:text-gray-600 prose-p:leading-relaxed prose-p:text-sm prose-p:sm:text-base
+                  prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline prose-a:break-all
                   prose-strong:text-gray-800
                   prose-blockquote:border-emerald-200 prose-blockquote:bg-emerald-50/50 prose-blockquote:rounded-r-lg prose-blockquote:py-1 prose-blockquote:text-gray-600
                   prose-code:text-emerald-700 prose-code:bg-gray-100 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
-                  prose-pre:bg-gray-900 prose-pre:rounded-lg
-                  prose-li:text-gray-600
-                  prose-table:text-sm
-                  prose-th:text-left prose-th:text-gray-700 prose-th:bg-gray-50
-                  prose-td:text-gray-600"
+                  prose-pre:bg-gray-900 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-pre:text-xs prose-pre:sm:text-sm
+                  prose-li:text-gray-600 prose-li:text-sm prose-li:sm:text-base
+                  prose-table:text-xs prose-table:sm:text-sm
+                  prose-th:text-left prose-th:text-gray-700 prose-th:bg-gray-50 prose-th:px-2 prose-th:py-1.5 prose-th:sm:px-3 prose-th:sm:py-2
+                  prose-td:text-gray-600 prose-td:px-2 prose-td:py-1.5 prose-td:sm:px-3 prose-td:sm:py-2
+                  [&_table]:block [&_table]:overflow-x-auto [&_table]:whitespace-nowrap [&_table]:sm:whitespace-normal [&_table]:sm:table
+                  [&_pre]:max-w-[calc(100vw-4rem)] [&_pre]:sm:max-w-none"
                 dangerouslySetInnerHTML={{ __html: htmlContent }}
               />
             </div>
