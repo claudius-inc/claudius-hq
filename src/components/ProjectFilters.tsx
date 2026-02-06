@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Project } from "@/lib/types";
 
-type Phase = "all" | "build" | "launch" | "grow" | "iterate" | "maintain";
+type Phase = "all" | "build" | "live";
 type Status = "all" | "blocked" | "in_progress" | "backlog" | "done";
 type SortBy = "recent" | "alphabetical";
 
@@ -16,23 +16,13 @@ const statusColors: Record<string, string> = {
 };
 
 const phaseColors: Record<string, string> = {
-  idea: "bg-purple-100 text-purple-700",
-  research: "bg-blue-100 text-blue-700",
   build: "bg-amber-100 text-amber-700",
-  launch: "bg-emerald-100 text-emerald-700",
-  grow: "bg-teal-100 text-teal-700",
-  iterate: "bg-cyan-100 text-cyan-700",
-  maintain: "bg-gray-200 text-gray-600",
+  live: "bg-emerald-100 text-emerald-700",
 };
 
 const phaseEmojis: Record<string, string> = {
-  idea: "💡",
-  research: "🔍",
   build: "🔨",
-  launch: "🚀",
-  grow: "📈",
-  iterate: "🔄",
-  maintain: "🛡️",
+  live: "🌐",
 };
 
 const statusLabels: Record<string, string> = {
@@ -110,10 +100,7 @@ export function ProjectFilters({ projects }: ProjectFiltersProps) {
         >
           <option value="all">All Phases</option>
           <option value="build">🔨 Build</option>
-          <option value="launch">🚀 Launch</option>
-          <option value="grow">📈 Grow</option>
-          <option value="iterate">🔄 Iterate</option>
-          <option value="maintain">🛡️ Maintain</option>
+          <option value="live">🌐 Live</option>
         </select>
 
         {/* Status */}

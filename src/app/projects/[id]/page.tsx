@@ -15,23 +15,13 @@ const statusColors: Record<string, string> = {
 };
 
 const phaseColors: Record<string, string> = {
-  idea: "bg-purple-100 text-purple-700",
-  research: "bg-blue-100 text-blue-700",
   build: "bg-amber-100 text-amber-700",
-  launch: "bg-emerald-100 text-emerald-700",
-  grow: "bg-teal-100 text-teal-700",
-  iterate: "bg-cyan-100 text-cyan-700",
-  maintain: "bg-gray-200 text-gray-600",
+  live: "bg-emerald-100 text-emerald-700",
 };
 
 const phaseEmojis: Record<string, string> = {
-  idea: "💡",
-  research: "🔍",
   build: "🔨",
-  launch: "🚀",
-  grow: "📈",
-  iterate: "🔄",
-  maintain: "🛡️",
+  live: "🌐",
 };
 
 const buildColors: Record<string, string> = {
