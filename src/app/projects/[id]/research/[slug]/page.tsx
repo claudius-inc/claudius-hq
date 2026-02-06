@@ -85,11 +85,11 @@ export default async function ResearchPageDetail({ params }: { params: Promise<{
             </div>
 
             {/* Prev/Next navigation */}
-            <div className="flex items-center justify-between mt-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
               {prevPage ? (
                 <Link
                   href={`/projects/${id}/research/${prevPage.slug}`}
-                  className="card card-hover px-4 py-3 flex-1 group"
+                  className="card card-hover px-4 py-3 group overflow-hidden"
                 >
                   <span className="text-xs text-gray-400">← Previous</span>
                   <p className="text-sm font-medium text-gray-700 group-hover:text-emerald-600 transition-colors truncate">
@@ -97,12 +97,12 @@ export default async function ResearchPageDetail({ params }: { params: Promise<{
                   </p>
                 </Link>
               ) : (
-                <div className="flex-1" />
+                <div className="hidden sm:block" />
               )}
               {nextPage ? (
                 <Link
                   href={`/projects/${id}/research/${nextPage.slug}`}
-                  className="card card-hover px-4 py-3 flex-1 text-right group"
+                  className="card card-hover px-4 py-3 text-right group overflow-hidden sm:col-start-2"
                 >
                   <span className="text-xs text-gray-400">Next →</span>
                   <p className="text-sm font-medium text-gray-700 group-hover:text-emerald-600 transition-colors truncate">
@@ -110,7 +110,7 @@ export default async function ResearchPageDetail({ params }: { params: Promise<{
                   </p>
                 </Link>
               ) : (
-                <div className="flex-1" />
+                <div className="hidden sm:block" />
               )}
             </div>
           </article>
