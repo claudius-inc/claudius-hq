@@ -2,6 +2,7 @@ import db, { ensureDB } from "@/lib/db";
 import { Idea } from "@/lib/types";
 import { Nav } from "@/components/Nav";
 import { IdeasPipeline } from "@/components/IdeasPipeline";
+import { IdeaForm } from "@/components/IdeaForm";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,20 @@ export default async function IdeasPage() {
             <span>{ideas.length} ideas</span>
           </div>
         </div>
+
+        {/* Add New Idea Form */}
+        <div className="mb-8">
+          <details className="group">
+            <summary className="cursor-pointer text-sm font-medium text-emerald-600 hover:text-emerald-700 list-none flex items-center gap-2">
+              <span className="text-lg">+</span>
+              <span>Add New Idea</span>
+            </summary>
+            <div className="mt-4 card">
+              <IdeaForm />
+            </div>
+          </details>
+        </div>
+
         <IdeasPipeline ideas={ideas} />
       </main>
     </div>

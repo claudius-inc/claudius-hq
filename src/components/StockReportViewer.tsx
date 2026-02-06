@@ -1,4 +1,8 @@
+"use client";
+
 import { StockReport } from "@/lib/types";
+import Link from "next/link";
+import { useState } from "react";
 
 function renderMarkdown(md: string): string {
   let html = md
@@ -30,6 +34,7 @@ function renderMarkdown(md: string): string {
 }
 
 export function StockReportViewer({ report }: { report: StockReport }) {
+  const [expanded, setExpanded] = useState(false);
   const date = new Date(report.created_at);
   const dateStr = date.toLocaleDateString("en-US", {
     year: "numeric",
@@ -37,11 +42,23 @@ export function StockReportViewer({ report }: { report: StockReport }) {
     day: "numeric",
   });
 
+  // Truncate content for preview
+  const previewLength = 500;
+  const needsTruncation = report.content.length > previewLength;
+  const previewContent = needsTruncation && !expanded
+    ? report.content.slice(0, previewLength) + "..."
+    : report.content;
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <h3 className="font-semibold text-gray-900">{report.title}</h3>
+          <Link 
+            href={`/stocks/${report.id}`}
+            className="font-semibold text-gray-900 hover:text-emerald-600 transition-colors"
+          >
+            {report.title || `Sun Tzu Report: ${report.ticker}`}
+          </Link>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs text-gray-400">{dateStr}</span>
             <span className="text-[10px] font-medium text-gray-500 bg-gray-100 rounded px-1.5 py-0.5 uppercase">
@@ -49,12 +66,33 @@ export function StockReportViewer({ report }: { report: StockReport }) {
             </span>
           </div>
         </div>
-        <span className="font-mono text-sm font-medium text-emerald-600">{report.ticker}</span>
+        <Link
+          href={`/stocks/${report.id}`}
+          className="font-mono text-sm font-medium text-emerald-600 hover:text-emerald-700"
+        >
+          {report.ticker}
+        </Link>
       </div>
       <div
         className="prose-sm max-w-none"
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(report.content) }}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(previewContent) }}
       />
+      {needsTruncation && (
+        <div className="mt-3 flex gap-2">
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="text-sm text-gray-500 hover:text-gray-700"
+          >
+            {expanded ? "Show less" : "Show more"}
+          </button>
+          <Link
+            href={`/stocks/${report.id}`}
+            className="text-sm text-emerald-600 hover:text-emerald-700"
+          >
+            View full report →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

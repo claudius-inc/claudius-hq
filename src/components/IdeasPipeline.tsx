@@ -2,7 +2,7 @@
 
 import { Idea, IdeaStatus } from "@/lib/types";
 import { useState } from "react";
-import { PromoteButton } from "@/components/PromoteButton";
+import { IdeaForm } from "@/components/IdeaForm";
 
 const statusColumns: { key: IdeaStatus; label: string; color: string }[] = [
   { key: "new", label: "New", color: "bg-blue-100 text-blue-700" },
@@ -34,19 +34,31 @@ type ViewMode = "kanban" | "list";
 export function IdeasPipeline({ ideas }: { ideas: Idea[] }) {
   const [view, setView] = useState<ViewMode>("kanban");
   const [filter, setFilter] = useState<IdeaStatus | "all">("all");
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const filtered = filter === "all" ? ideas : ideas.filter((i) => i.status === filter);
+  const editingIdea = ideas.find((i) => i.id === editingId);
 
   if (ideas.length === 0) {
     return (
       <div className="card text-center py-12 text-gray-400">
-        No ideas yet. Add them via the API to start building your pipeline.
+        No ideas yet. Click &quot;Add New Idea&quot; above to start building your pipeline.
       </div>
     );
   }
 
   return (
     <div>
+      {/* Edit Modal */}
+      {editingIdea && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Edit Idea</h2>
+            <IdeaForm idea={editingIdea} onClose={() => setEditingId(null)} />
+          </div>
+        </div>
+      )}
+
       {/* Controls */}
       <div className="flex items-center gap-3 mb-4">
         <div className="flex bg-gray-100 rounded-md p-0.5">
@@ -76,15 +88,15 @@ export function IdeasPipeline({ ideas }: { ideas: Idea[] }) {
       </div>
 
       {view === "kanban" ? (
-        <KanbanView ideas={filtered} />
+        <KanbanView ideas={filtered} onEdit={setEditingId} />
       ) : (
-        <ListView ideas={filtered} />
+        <ListView ideas={filtered} onEdit={setEditingId} />
       )}
     </div>
   );
 }
 
-function KanbanView({ ideas }: { ideas: Idea[] }) {
+function KanbanView({ ideas, onEdit }: { ideas: Idea[]; onEdit: (id: number) => void }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {statusColumns.map((col) => {
@@ -96,7 +108,7 @@ function KanbanView({ ideas }: { ideas: Idea[] }) {
               <span className="text-xs text-gray-400">{colIdeas.length}</span>
             </div>
             {colIdeas.map((idea) => (
-              <IdeaCard key={idea.id} idea={idea} />
+              <IdeaCard key={idea.id} idea={idea} onEdit={onEdit} />
             ))}
             {colIdeas.length === 0 && (
               <div className="text-xs text-gray-300 text-center py-4 border border-dashed border-gray-200 rounded-lg">
@@ -110,11 +122,15 @@ function KanbanView({ ideas }: { ideas: Idea[] }) {
   );
 }
 
-function ListView({ ideas }: { ideas: Idea[] }) {
+function ListView({ ideas, onEdit }: { ideas: Idea[]; onEdit: (id: number) => void }) {
   return (
     <div className="space-y-2">
       {ideas.map((idea) => (
-        <div key={idea.id} className="card-hover flex items-center gap-4">
+        <div
+          key={idea.id}
+          className="card-hover flex items-center gap-4 cursor-pointer"
+          onClick={() => onEdit(idea.id)}
+        >
           <div className="flex-1 min-w-0">
             <h3 className="font-medium text-gray-900 truncate">{idea.title}</h3>
             {idea.description && (
@@ -138,14 +154,14 @@ function ListView({ ideas }: { ideas: Idea[] }) {
   );
 }
 
-function IdeaCard({ idea }: { idea: Idea }) {
+function IdeaCard({ idea, onEdit }: { idea: Idea; onEdit: (id: number) => void }) {
   let tags: string[] = [];
   try {
     tags = JSON.parse(idea.tags || "[]");
   } catch { /* ignore */ }
 
   return (
-    <div className="card-hover">
+    <div className="card-hover cursor-pointer" onClick={() => onEdit(idea.id)}>
       <h4 className="font-medium text-sm text-gray-900 mb-1">{idea.title}</h4>
       {idea.description && (
         <p className="text-xs text-gray-500 line-clamp-2 mb-2">{idea.description}</p>
@@ -173,9 +189,6 @@ function IdeaCard({ idea }: { idea: Idea }) {
       )}
       {idea.source && (
         <p className="text-xs text-gray-400 mt-2">📍 {idea.source}</p>
-      )}
-      {idea.status === "validated" && (
-        <PromoteButton ideaId={idea.id} ideaTitle={idea.title} />
       )}
     </div>
   );
