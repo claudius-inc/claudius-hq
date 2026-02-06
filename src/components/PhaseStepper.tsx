@@ -5,11 +5,11 @@ interface PhaseStepperProps {
 }
 
 const phases = [
-  { key: "build", label: "Build", emoji: "🔨" },
-  { key: "launch", label: "Launch", emoji: "🚀" },
-  { key: "grow", label: "Grow", emoji: "📈" },
-  { key: "iterate", label: "Iterate", emoji: "🔄" },
-  { key: "maintain", label: "Maintain", emoji: "🛡️" },
+  { key: "build", label: "Build" },
+  { key: "launch", label: "Launch" },
+  { key: "grow", label: "Grow" },
+  { key: "iterate", label: "Iterate" },
+  { key: "maintain", label: "Maintain" },
 ];
 
 export function PhaseStepper({ currentPhase }: PhaseStepperProps) {
@@ -42,7 +42,7 @@ export function PhaseStepper({ currentPhase }: PhaseStepperProps) {
                       <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                     </svg>
                   ) : (
-                    <span>{phase.emoji}</span>
+                    <span>{index + 1}</span>
                   )}
                 </div>
                 <span
@@ -77,7 +77,7 @@ export function PhaseStepper({ currentPhase }: PhaseStepperProps) {
             return (
               <div key={phase.key} className="flex items-center flex-1 last:flex-none">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs ${
+                  className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
                     isCompleted
                       ? "bg-emerald-500 text-white"
                       : isCurrent
@@ -85,7 +85,7 @@ export function PhaseStepper({ currentPhase }: PhaseStepperProps) {
                       : "bg-gray-200 text-gray-500"
                   }`}
                 >
-                  {isCompleted ? "✓" : phase.emoji}
+                  {isCompleted ? "✓" : index + 1}
                 </div>
                 {index < phases.length - 1 && (
                   <div
@@ -100,7 +100,7 @@ export function PhaseStepper({ currentPhase }: PhaseStepperProps) {
         </div>
         <div className="text-center">
           <span className="text-sm font-medium text-emerald-600">
-            {phases[currentIndex]?.emoji} {phases[currentIndex]?.label || currentPhase}
+            {phases[currentIndex]?.label || currentPhase}
           </span>
         </div>
       </div>
