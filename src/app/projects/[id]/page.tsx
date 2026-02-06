@@ -49,6 +49,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
 
   const phase = project.phase || "build";
 
+  // Get research page count
+  const researchRes = await db.execute({
+    sql: "SELECT COUNT(*) as count FROM research_pages WHERE project_id = ?",
+    args: [Number(id)],
+  });
+  const researchCount = (researchRes.rows[0] as unknown as { count: number }).count;
+
   return (
     <div className="min-h-screen">
       <Nav />
@@ -109,6 +116,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                   Deployed {new Date(project.last_deploy_time).toLocaleDateString()}
                 </span>
               </div>
+            )}
+            {researchCount > 0 && (
+              <Link href={`/projects/${id}/research`} className="card card-hover flex items-center gap-2 px-3 py-2">
+                <span className="text-sm">🔬</span>
+                <span className="text-sm text-emerald-600">{researchCount} Research Pages</span>
+              </Link>
             )}
           </div>
         </div>

@@ -1,0 +1,201 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import Link from "next/link";
+import { StockReport } from "@/lib/types";
+import { StockReportViewer } from "./StockReportViewer";
+
+type ReportType = "all" | "sun-tzu" | "weekly-scan";
+type DateRange = "all" | "7d" | "30d";
+type SortBy = "newest" | "alphabetical";
+
+interface StockFiltersProps {
+  reports: StockReport[];
+}
+
+export function StockFilters({ reports }: StockFiltersProps) {
+  const [search, setSearch] = useState("");
+  const [reportType, setReportType] = useState<ReportType>("all");
+  const [dateRange, setDateRange] = useState<DateRange>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("newest");
+
+  const filteredReports = useMemo(() => {
+    let filtered = [...reports];
+
+    // Filter by search
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.ticker.toLowerCase().includes(q) ||
+          r.title?.toLowerCase().includes(q)
+      );
+    }
+
+    // Filter by report type
+    if (reportType === "sun-tzu") {
+      filtered = filtered.filter(
+        (r) => !r.report_type || r.report_type === "sun-tzu"
+      );
+    } else if (reportType === "weekly-scan") {
+      filtered = filtered.filter((r) => r.report_type === "weekly-scan");
+    }
+
+    // Filter by date range
+    if (dateRange !== "all") {
+      const now = new Date();
+      const days = dateRange === "7d" ? 7 : 30;
+      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter(
+        (r) => r.created_at && new Date(r.created_at) >= cutoff
+      );
+    }
+
+    // Sort
+    if (sortBy === "alphabetical") {
+      filtered.sort((a, b) => a.ticker.localeCompare(b.ticker));
+    } else {
+      filtered.sort(
+        (a, b) =>
+          new Date(b.created_at || 0).getTime() -
+          new Date(a.created_at || 0).getTime()
+      );
+    }
+
+    return filtered;
+  }, [reports, search, reportType, dateRange, sortBy]);
+
+  // Group filtered reports by ticker
+  const reportsByTicker = useMemo(() => {
+    return filteredReports.reduce((acc, report) => {
+      if (!acc[report.ticker]) acc[report.ticker] = [];
+      acc[report.ticker].push(report);
+      return acc;
+    }, {} as Record<string, StockReport[]>);
+  }, [filteredReports]);
+
+  const tickers = Object.keys(reportsByTicker);
+
+  // Sort tickers based on sortBy
+  const sortedTickers = useMemo(() => {
+    if (sortBy === "alphabetical") {
+      return [...tickers].sort();
+    }
+    // Sort by latest report date
+    return [...tickers].sort((a, b) => {
+      const aDate = new Date(reportsByTicker[a][0]?.created_at || 0);
+      const bDate = new Date(reportsByTicker[b][0]?.created_at || 0);
+      return bDate.getTime() - aDate.getTime();
+    });
+  }, [tickers, reportsByTicker, sortBy]);
+
+  return (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3 items-center">
+        {/* Search */}
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search ticker..."
+          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none w-40"
+        />
+
+        {/* Report Type */}
+        <select
+          value={reportType}
+          onChange={(e) => setReportType(e.target.value as ReportType)}
+          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
+        >
+          <option value="all">All Types</option>
+          <option value="sun-tzu">Sun Tzu</option>
+          <option value="weekly-scan">Weekly Scan</option>
+        </select>
+
+        {/* Date Range */}
+        <select
+          value={dateRange}
+          onChange={(e) => setDateRange(e.target.value as DateRange)}
+          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
+        >
+          <option value="all">All Time</option>
+          <option value="7d">Last 7 Days</option>
+          <option value="30d">Last 30 Days</option>
+        </select>
+
+        {/* Sort */}
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortBy)}
+          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
+        >
+          <option value="newest">Newest First</option>
+          <option value="alphabetical">A-Z</option>
+        </select>
+
+        {/* Results count */}
+        <span className="text-xs text-gray-500 ml-auto">
+          {filteredReports.length} report{filteredReports.length !== 1 ? "s" : ""} · {sortedTickers.length} ticker{sortedTickers.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Reports by Ticker */}
+      {sortedTickers.length > 0 ? (
+        <div className="space-y-8">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+            Reports by Ticker
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {sortedTickers.map((ticker) => {
+              const tickerReports = reportsByTicker[ticker];
+              const latestReport = tickerReports[0];
+              return (
+                <Link
+                  key={ticker}
+                  href={`/stocks/${latestReport.id}`}
+                  className="card-hover"
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="text-lg font-bold text-gray-900">{ticker}</div>
+                      <div className="text-sm text-gray-500 line-clamp-1 mt-1">
+                        {latestReport.title || "Sun Tzu Report"}
+                      </div>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {tickerReports.length} report{tickerReports.length !== 1 ? "s" : ""}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-400 mt-2">
+                    Latest: {latestReport.created_at?.slice(0, 10)}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Latest Reports */}
+          <div>
+            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+              Latest Reports
+            </h2>
+            <div className="space-y-4">
+              {filteredReports.slice(0, 5).map((report) => (
+                <StockReportViewer key={report.id} report={report} />
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <div className="text-4xl mb-3">🔍</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">No matching reports</h3>
+          <p className="text-sm text-gray-500">
+            Try adjusting your filters or search term
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
