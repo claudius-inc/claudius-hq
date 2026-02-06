@@ -6,10 +6,7 @@ interface PhaseStepperProps {
 
 const phases = [
   { key: "build", label: "Build" },
-  { key: "launch", label: "Launch" },
-  { key: "grow", label: "Grow" },
-  { key: "iterate", label: "Iterate" },
-  { key: "maintain", label: "Maintain" },
+  { key: "live", label: "Live" },
 ];
 
 export function PhaseStepper({ currentPhase }: PhaseStepperProps) {
