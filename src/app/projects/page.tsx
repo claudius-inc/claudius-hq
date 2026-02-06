@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { Project } from "@/lib/types";
-import { ProjectCards } from "@/components/ProjectCards";
+import { ProjectFilters } from "@/components/ProjectFilters";
 import { Nav } from "@/components/Nav";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +17,13 @@ export default async function ProjectsPage() {
       <Nav />
       <main className="max-w-7xl mx-auto px-4 py-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">All Projects</h1>
-        <ProjectCards projects={projects} />
+        {projects.length > 0 ? (
+          <ProjectFilters projects={projects} />
+        ) : (
+          <div className="card text-center py-12 text-gray-400">
+            No projects yet. They&apos;ll appear here once Claudius creates them.
+          </div>
+        )}
       </main>
     </div>
   );
