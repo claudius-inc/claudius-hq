@@ -1,6 +1,7 @@
 import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
 import { Nav } from "@/components/Nav";
+import { PhaseStepper } from "@/components/PhaseStepper";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -71,13 +72,15 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             <span className={`status-badge ${statusColors[project.status]}`}>
               {project.status.replace("_", " ")}
             </span>
-            <span className={`status-badge ${phaseColors[phase]}`}>
-              {phaseEmojis[phase]} {phase}
-            </span>
           </div>
           {project.description && (
             <p className="text-gray-500 mt-2">{project.description}</p>
           )}
+
+          {/* Phase Stepper */}
+          <div className="mt-6 card">
+            <PhaseStepper currentPhase={phase} />
+          </div>
 
           {/* Project Info Cards */}
           <div className="flex flex-wrap gap-4 mt-4">
@@ -134,10 +137,6 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               <div>
                 <dt className="text-xs text-gray-400 uppercase tracking-wide">Status</dt>
                 <dd className="text-sm text-gray-900 mt-1">{project.status.replace("_", " ")}</dd>
-              </div>
-              <div>
-                <dt className="text-xs text-gray-400 uppercase tracking-wide">Phase</dt>
-                <dd className="text-sm text-gray-900 mt-1">{phaseEmojis[phase]} {phase}</dd>
               </div>
               {project.repo_url && (
                 <div>
