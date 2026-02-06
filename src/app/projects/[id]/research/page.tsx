@@ -33,8 +33,8 @@ export default async function ResearchIndexPage({ params }: { params: Promise<{ 
           <span className="text-gray-600">Research</span>
         </div>
 
-        <div className="flex items-center gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">🔬 {project.name} Research</h1>
+        <div className="flex items-center gap-3 mb-6 flex-wrap">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">🔬 {project.name} Research</h1>
           <span className="text-sm text-gray-400">{pages.length} pages</span>
         </div>
 
@@ -49,16 +49,16 @@ export default async function ResearchIndexPage({ params }: { params: Promise<{ 
               <Link
                 key={page.slug}
                 href={`/projects/${id}/research/${page.slug}`}
-                className="card card-hover p-4 flex items-center gap-4 group"
+                className="card card-hover p-4 flex items-center gap-3 group overflow-hidden"
               >
-                <span className="text-sm font-mono text-gray-300 w-6 text-right">{idx + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <h2 className="font-medium text-gray-900 group-hover:text-emerald-600 transition-colors truncate">
+                <span className="text-sm font-mono text-gray-300 w-5 shrink-0 text-right">{idx + 1}</span>
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <h2 className="font-medium text-gray-900 group-hover:text-emerald-600 transition-colors truncate text-sm sm:text-base">
                     {page.title}
                   </h2>
-                  <p className="text-xs text-gray-400 mt-0.5">/{page.slug}</p>
+                  <p className="text-xs text-gray-400 mt-0.5 truncate">/{page.slug}</p>
                 </div>
-                <span className="text-gray-300 group-hover:text-emerald-500 transition-colors">→</span>
+                <span className="text-gray-300 group-hover:text-emerald-500 transition-colors shrink-0">→</span>
               </Link>
             ))}
           </div>
