@@ -50,13 +50,13 @@ export function ResearchForm() {
             value={ticker}
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
             placeholder="e.g. AAPL, MSFT, 9988.HK"
-            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+            className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
             disabled={status === "loading"}
           />
           <button
             type="submit"
             disabled={!ticker.trim() || status === "loading"}
-            className="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="shrink-0 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {status === "loading" ? "Queuing..." : "Research"}
           </button>
