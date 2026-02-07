@@ -20,6 +20,11 @@ function addHeadingIds(html: string): string {
   });
 }
 
+// Strip the first H1 from content (redundant with page title)
+function stripFirstH1(html: string): string {
+  return html.replace(/^(\s*<h1[^>]*>.*?<\/h1>\s*)/i, '');
+}
+
 interface PageProps {
   params: { ticker: string };
   searchParams: { report?: string };
@@ -68,7 +73,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
   } catch { /* ignore */ }
 
   const rawHtml = report ? await marked(report.content) : "";
-  const htmlContent = addHeadingIds(rawHtml);
+  const htmlContent = stripFirstH1(addHeadingIds(rawHtml));
 
   const formatFullTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -113,7 +118,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
                   currentReportId={report.id}
                 />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900">
                 {report.title || `Sun Tzu Report: ${report.ticker}`}
               </h1>
             </div>
@@ -132,7 +137,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
             <div className="flex-1 min-w-0">
               <div className="bg-white border-y lg:border border-gray-200 lg:rounded-xl px-4 py-6 lg:p-6">
                 <div 
-                  className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-20 prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600"
+                  className="prose prose-sm md:prose-base prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-20 prose-h2:text-lg prose-h2:md:text-xl prose-h3:text-base prose-h3:md:text-lg prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600"
                   dangerouslySetInnerHTML={{ __html: htmlContent }}
                 />
               </div>
