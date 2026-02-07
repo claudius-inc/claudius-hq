@@ -137,7 +137,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
             <div className="flex-1 min-w-0">
               <div className="bg-white border-y lg:border border-gray-200 lg:rounded-xl px-4 py-6 lg:p-6">
                 <div 
-                  className="prose prose-sm md:prose-base prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-20 prose-h2:text-lg prose-h2:md:text-xl prose-h3:text-base prose-h3:md:text-lg prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600"
+                  className="prose prose-sm md:prose-base prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-20 prose-h2:text-lg prose-h2:md:text-xl prose-h3:text-base prose-h3:md:text-lg prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600 prose-table:text-xs prose-table:md:text-sm [&_table]:block [&_table]:overflow-x-auto [&_table]:whitespace-nowrap"
                   dangerouslySetInnerHTML={{ __html: htmlContent }}
                 />
               </div>
