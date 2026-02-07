@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      id: result.lastInsertRowid,
+      id: Number(result.lastInsertRowid),
     });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
