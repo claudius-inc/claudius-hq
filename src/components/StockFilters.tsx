@@ -153,7 +153,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
               return (
                 <Link
                   key={ticker}
-                  href={`/stocks/${latestReport.id}`}
+                  href={`/stocks/${encodeURIComponent(latestReport.ticker)}`}
                   className="card-hover"
                 >
                   <div className="flex items-start justify-between">

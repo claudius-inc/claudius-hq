@@ -6,27 +6,29 @@ import { marked } from "marked";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReportDetailPage({ params }: { params: { id: string } }) {
+export default async function ReportDetailPage({ params }: { params: Promise<{ ticker: string }> }) {
   await ensureDB();
-  const { id } = params;
+  const { ticker } = await params;
+  const decodedTicker = decodeURIComponent(ticker).toUpperCase();
 
   let report: StockReport | null = null;
-  let relatedReports: StockReport[] = [];
+  let olderReports: StockReport[] = [];
 
   try {
+    // Get the latest report for this ticker
     const result = await db.execute({
-      sql: "SELECT * FROM stock_reports WHERE id = ?",
-      args: [id],
+      sql: "SELECT * FROM stock_reports WHERE UPPER(ticker) = ? ORDER BY created_at DESC LIMIT 1",
+      args: [decodedTicker],
     });
     if (result.rows.length > 0) {
       report = result.rows[0] as unknown as StockReport;
       
-      // Fetch other reports for the same ticker
-      const related = await db.execute({
-        sql: "SELECT * FROM stock_reports WHERE ticker = ? AND id != ? ORDER BY created_at DESC",
-        args: [report.ticker, id],
+      // Fetch older reports for the same ticker
+      const older = await db.execute({
+        sql: "SELECT * FROM stock_reports WHERE UPPER(ticker) = ? AND id != ? ORDER BY created_at DESC",
+        args: [decodedTicker, report.id],
       });
-      relatedReports = related.rows as unknown as StockReport[];
+      olderReports = older.rows as unknown as StockReport[];
     }
   } catch { /* ignore */ }
 
@@ -40,11 +42,7 @@ export default async function ReportDetailPage({ params }: { params: { id: strin
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
           <Link href="/stocks" className="hover:text-gray-600 transition-colors">Stocks</Link>
           <span>›</span>
-          {report ? (
-            <span className="text-gray-900 font-medium">{report.ticker}</span>
-          ) : (
-            <span className="text-gray-900 font-medium">Report #{id}</span>
-          )}
+          <span className="text-gray-900 font-medium">{decodedTicker}</span>
         </div>
 
         {report ? (
@@ -75,18 +73,18 @@ export default async function ReportDetailPage({ params }: { params: { id: strin
               />
             </div>
 
-            {/* Related Reports */}
-            {relatedReports.length > 0 && (
+            {/* Older Reports */}
+            {olderReports.length > 0 && (
               <div>
                 <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                  Other Reports for {report.ticker}
+                  Previous Reports
                 </h2>
                 <div className="space-y-2">
-                  {relatedReports.map((r) => (
-                    <Link
+                  {olderReports.map((r) => (
+                    <div
                       key={r.id}
-                      href={`/stocks/${r.id}`}
-                      className="card-hover block"
+                      className="card-hover block cursor-pointer"
+                      onClick={() => window.location.href = `/stocks/${r.ticker}?report=${r.id}`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-900">
@@ -96,7 +94,7 @@ export default async function ReportDetailPage({ params }: { params: { id: strin
                           {r.created_at?.slice(0, 10)}
                         </span>
                       </div>
-                    </Link>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -105,8 +103,8 @@ export default async function ReportDetailPage({ params }: { params: { id: strin
         ) : (
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
             <div className="text-4xl mb-3">🔍</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">Report not found</h3>
-            <p className="text-sm text-gray-500">Report #{id} doesn&apos;t exist</p>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No reports found</h3>
+            <p className="text-sm text-gray-500">No research reports for {decodedTicker} yet</p>
             <Link href="/stocks" className="text-sm text-emerald-600 hover:underline mt-3 inline-block">
               ← Back to Stocks
             </Link>
