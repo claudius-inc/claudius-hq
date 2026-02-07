@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface TOCItem {
   id: string;
@@ -16,6 +16,24 @@ export function ReportTOC({ content }: ReportTOCProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeId, setActiveId] = useState<string>("");
   const [tocItems, setTocItems] = useState<TOCItem[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsExpanded(false);
+      }
+    };
+
+    if (isExpanded) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isExpanded]);
 
   // Parse markdown headings from content
   useEffect(() => {
@@ -69,62 +87,58 @@ export function ReportTOC({ content }: ReportTOCProps) {
   }
 
   return (
-    <>
-      {/* Desktop: Sticky sidebar */}
+    <div ref={containerRef}>
+      {/* Desktop: Sticky button with floating dropdown */}
       <div className="hidden lg:block sticky top-20 h-fit">
-        <div
-          className={`transition-all duration-200 overflow-hidden ${
-            isExpanded ? "w-52" : "w-12"
-          }`}
-        >
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-            {/* Toggle button */}
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="w-full p-3 flex items-center justify-center hover:bg-gray-50 transition-colors"
-              aria-label={isExpanded ? "Collapse table of contents" : "Expand table of contents"}
+        <div className="relative w-12">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="w-12 h-12 bg-white border border-gray-200 rounded-lg shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
+            aria-label={isExpanded ? "Close table of contents" : "Open table of contents"}
+          >
+            <svg
+              className="w-5 h-5 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <svg
-                className={`w-5 h-5 text-gray-600 transition-transform ${isExpanded ? "rotate-180" : ""}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 6h16M4 12h16M4 18h16"
+              />
+            </svg>
+          </button>
 
-            {/* TOC items */}
-            {isExpanded && (
-              <div className="border-t border-gray-100">
-                <div className="p-2 max-h-[calc(100vh-200px)] overflow-y-auto">
-                  <p className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                    Contents
-                  </p>
-                  {tocItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => scrollToSection(item.id)}
-                      className={`w-full text-left px-2 py-1.5 text-sm rounded transition-colors ${
-                        item.level === 3 ? "pl-4" : ""
-                      } ${
-                        activeId === item.id
-                          ? "bg-emerald-50 text-emerald-700 font-medium"
-                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      }`}
-                    >
-                      <span className="line-clamp-2">{item.text}</span>
-                    </button>
-                  ))}
-                </div>
+          {/* Desktop dropdown - floating, doesn't affect layout */}
+          {isExpanded && (
+            <div className="absolute top-0 left-14 w-64 bg-white border border-gray-200 rounded-lg shadow-lg max-h-[calc(100vh-200px)] overflow-y-auto z-50">
+              <div className="p-2">
+                <p className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                  Contents
+                </p>
+                {tocItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      scrollToSection(item.id);
+                      setIsExpanded(false);
+                    }}
+                    className={`w-full text-left px-2 py-1.5 text-sm rounded transition-colors ${
+                      item.level === 3 ? "pl-4" : ""
+                    } ${
+                      activeId === item.id
+                        ? "bg-emerald-50 text-emerald-700 font-medium"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }`}
+                  >
+                    <span className="line-clamp-2">{item.text}</span>
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -176,6 +190,6 @@ export function ReportTOC({ content }: ReportTOCProps) {
           )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
