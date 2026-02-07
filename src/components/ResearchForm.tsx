@@ -25,8 +25,12 @@ export function ResearchForm() {
 
       if (res.ok) {
         setStatus("success");
-        setMessage(`Research queued for ${ticker.toUpperCase()}. Job ID: ${data.jobId}`);
+        setMessage(`Research queued for ${ticker.toUpperCase()}. Refreshing...`);
         setTicker("");
+        // Refresh the page after a short delay to show the new job
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
       } else {
         setStatus("error");
         setMessage(data.error || "Failed to queue research");

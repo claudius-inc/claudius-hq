@@ -2,9 +2,21 @@ import db, { ensureDB } from "@/lib/db";
 import { StockReport } from "@/lib/types";
 import { Nav } from "@/components/Nav";
 import { ResearchForm } from "@/components/ResearchForm";
+import { ResearchJobs } from "@/components/ResearchJobs";
 import { StockFilters } from "@/components/StockFilters";
 
 export const dynamic = "force-dynamic";
+
+type ResearchJob = {
+  id: string;
+  ticker: string;
+  status: "pending" | "processing" | "complete" | "failed";
+  progress: number;
+  error_message: string | null;
+  report_id: number | null;
+  created_at: string;
+  updated_at: string;
+};
 
 async function getReports(): Promise<StockReport[]> {
   try {
@@ -15,9 +27,23 @@ async function getReports(): Promise<StockReport[]> {
   }
 }
 
+async function getActiveJobs(): Promise<ResearchJob[]> {
+  try {
+    const result = await db.execute(
+      "SELECT * FROM research_jobs WHERE status IN ('pending', 'processing') ORDER BY created_at DESC"
+    );
+    return result.rows as unknown as ResearchJob[];
+  } catch {
+    return [];
+  }
+}
+
 export default async function StocksPage() {
   await ensureDB();
-  const reports = await getReports();
+  const [reports, activeJobs] = await Promise.all([
+    getReports(),
+    getActiveJobs(),
+  ]);
 
   return (
     <div className="min-h-screen">
@@ -42,6 +68,9 @@ export default async function StocksPage() {
             <ResearchForm />
           </div>
         </div>
+
+        {/* In Progress Jobs */}
+        <ResearchJobs initialJobs={activeJobs} />
 
         {/* Filtered Reports */}
         {reports.length > 0 ? (

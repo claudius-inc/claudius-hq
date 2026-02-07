@@ -71,6 +71,17 @@ export async function initDB() {
       updated_at TEXT DEFAULT (datetime('now')),
       UNIQUE(project_id, slug)
     );
+
+    CREATE TABLE IF NOT EXISTS research_jobs (
+      id TEXT PRIMARY KEY,
+      ticker TEXT NOT NULL,
+      status TEXT DEFAULT 'pending' CHECK(status IN ('pending','processing','complete','failed')),
+      progress INTEGER DEFAULT 0,
+      error_message TEXT DEFAULT NULL,
+      report_id INTEGER REFERENCES stock_reports(id),
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Add phase column to existing projects table if missing
