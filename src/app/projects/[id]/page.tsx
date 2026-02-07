@@ -125,6 +125,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             actionPlan={project.action_plan}
             researchCount={researchCount}
             projectId={Number(id)}
+            deployUrl={project.deploy_url}
           />
         )}
 

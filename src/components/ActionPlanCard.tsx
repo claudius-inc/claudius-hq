@@ -5,6 +5,7 @@ interface ActionPlanCardProps {
   actionPlan: string;
   researchCount: number;
   projectId: number;
+  deployUrl?: string;
 }
 
 const phases = [
@@ -13,16 +14,26 @@ const phases = [
   { key: "live", label: "Deployed", icon: "🚀" },
 ];
 
-// Map old phase names to new ones
-function mapPhase(phase: string): string {
-  if (phase === "live") return "live";
-  if (phase === "build") return "build";
-  return "research";
+// Infer phase from multiple signals
+function inferPhase(phase: string, researchCount: number, deployUrl?: string): string {
+  // If explicitly set to live, or has deploy_url with 'vercel' (production deploy)
+  if (phase === "live" || (deployUrl && deployUrl.includes("vercel"))) {
+    return "live";
+  }
+  
+  // If lots of research and action plan mentions "research phase", it's research
+  // For simplicity: if no production deploy and > 5 research pages, likely still research
+  if (!deployUrl && researchCount > 5) {
+    return "research";
+  }
+  
+  // Default to build
+  return "build";
 }
 
-export function ActionPlanCard({ phase, actionPlan, researchCount, projectId }: ActionPlanCardProps) {
-  const normalizedPhase = mapPhase(phase);
-  const currentIndex = phases.findIndex((p) => p.key === normalizedPhase);
+export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, deployUrl }: ActionPlanCardProps) {
+  const inferredPhase = inferPhase(phase, researchCount, deployUrl);
+  const currentIndex = phases.findIndex((p) => p.key === inferredPhase);
 
   // Parse action plan into sections
   const sections = parseActionPlan(actionPlan);
