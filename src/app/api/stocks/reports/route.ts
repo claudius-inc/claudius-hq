@@ -65,3 +65,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
+
+// DELETE /api/stocks/reports — delete a report by id
+export async function DELETE(req: NextRequest) {
+  await ensureDB();
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "id query parameter is required" },
+        { status: 400 }
+      );
+    }
+
+    const reportId = parseInt(id, 10);
+    if (isNaN(reportId)) {
+      return NextResponse.json(
+        { error: "id must be a valid number" },
+        { status: 400 }
+      );
+    }
+
+    // Check if report exists
+    const existing = await db.execute({
+      sql: "SELECT id FROM stock_reports WHERE id = ?",
+      args: [reportId],
+    });
+
+    if (existing.rows.length === 0) {
+      return NextResponse.json(
+        { error: "Report not found" },
+        { status: 404 }
+      );
+    }
+
+    await db.execute({
+      sql: "DELETE FROM stock_reports WHERE id = ?",
+      args: [reportId],
+    });
+
+    return NextResponse.json({ success: true, deletedId: reportId });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
