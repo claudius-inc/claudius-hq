@@ -1,6 +1,6 @@
 export type ProjectStatus = "backlog" | "in_progress" | "blocked" | "done";
 export type BuildStatus = "pass" | "fail" | "unknown";
-export type ProjectPhase = "idea" | "research" | "build" | "launch" | "grow" | "iterate" | "maintain";
+export type ProjectPhase = "research" | "build" | "live";
 export type EffortEstimate = "tiny" | "small" | "medium" | "large" | "huge" | "unknown";
 export type IdeaPotential = "low" | "medium" | "high" | "moonshot" | "unknown";
 export type IdeaStatus = "new" | "researching" | "validated" | "promoted" | "rejected";

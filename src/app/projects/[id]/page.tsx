@@ -1,7 +1,7 @@
 import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
 import { Nav } from "@/components/Nav";
-import { PhaseStepper } from "@/components/PhaseStepper";
+import { ActionPlanCard } from "@/components/ActionPlanCard";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -67,11 +67,6 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
             <p className="text-gray-500 mt-2">{project.description}</p>
           )}
 
-          {/* Phase Stepper */}
-          <div className="mt-6 card">
-            <PhaseStepper currentPhase={phase} />
-          </div>
-
           {/* Project Info Cards */}
           <div className="flex flex-wrap gap-4 mt-4">
             {project.build_status !== "unknown" && (
@@ -110,12 +105,6 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                 </span>
               </div>
             )}
-            {researchCount > 0 && (
-              <Link href={`/projects/${id}/research`} className="card card-hover flex items-center gap-2 px-3 py-2">
-                <span className="text-sm">🔬</span>
-                <span className="text-sm text-emerald-600">{researchCount} Research Pages</span>
-              </Link>
-            )}
           </div>
         </div>
 
@@ -129,14 +118,14 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           </div>
         )}
 
-        {/* Action Plan */}
+        {/* Action Plan with Progress Stepper */}
         {project.action_plan && (
-          <div className="card mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-              <span>📋</span> Action Plan
-            </h2>
-            <div className="text-gray-700 whitespace-pre-wrap">{project.action_plan}</div>
-          </div>
+          <ActionPlanCard
+            phase={phase}
+            actionPlan={project.action_plan}
+            researchCount={researchCount}
+            projectId={Number(id)}
+          />
         )}
 
         {/* Project Details */}

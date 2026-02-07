@@ -26,7 +26,7 @@ export async function initDB() {
       name TEXT NOT NULL UNIQUE,
       description TEXT DEFAULT '',
       status TEXT DEFAULT 'backlog' CHECK(status IN ('backlog','in_progress','blocked','done')),
-      phase TEXT DEFAULT 'build' CHECK(phase IN ('build','live')),
+      phase TEXT DEFAULT 'build' CHECK(phase IN ('research','build','live')),
       repo_url TEXT DEFAULT '',
       deploy_url TEXT DEFAULT '',
       test_count INTEGER DEFAULT 0,
