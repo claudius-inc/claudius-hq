@@ -107,6 +107,10 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/stocks/reports — delete a report by id
 export async function DELETE(req: NextRequest) {
+  if (!isApiAuthenticated(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   await ensureDB();
   try {
     const { searchParams } = new URL(req.url);
@@ -140,6 +144,13 @@ export async function DELETE(req: NextRequest) {
       );
     }
 
+    // Clear foreign key references in research_jobs first
+    await db.execute({
+      sql: "UPDATE research_jobs SET report_id = NULL WHERE report_id = ?",
+      args: [reportId],
+    });
+
+    // Now delete the report
     await db.execute({
       sql: "DELETE FROM stock_reports WHERE id = ?",
       args: [reportId],
