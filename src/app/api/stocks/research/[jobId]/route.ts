@@ -4,10 +4,10 @@ import { isApiAuthenticated } from "@/lib/auth";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
+  { params }: { params: { jobId: string } }
 ) {
   await ensureDB();
-  const { jobId } = await params;
+  const { jobId } = params;
 
   try {
     const result = await db.execute({
@@ -27,10 +27,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
+  { params }: { params: { jobId: string } }
 ) {
   await ensureDB();
-  const { jobId } = await params;
+  const { jobId } = params;
 
   // Require API auth for updates
   if (!isApiAuthenticated(request)) {

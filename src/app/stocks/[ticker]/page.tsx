@@ -6,9 +6,9 @@ import { marked } from "marked";
 
 export const dynamic = "force-dynamic";
 
-export default async function ReportDetailPage({ params }: { params: Promise<{ ticker: string }> }) {
+export default async function ReportDetailPage({ params }: { params: { ticker: string } }) {
   await ensureDB();
-  const { ticker } = await params;
+  const { ticker } = params;
   const decodedTicker = decodeURIComponent(ticker).toUpperCase();
 
   let report: StockReport | null = null;
