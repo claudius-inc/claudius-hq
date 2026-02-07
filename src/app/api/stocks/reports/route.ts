@@ -107,10 +107,6 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/stocks/reports — delete a report by id
 export async function DELETE(req: NextRequest) {
-  if (!isApiAuthenticated(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   await ensureDB();
   try {
     const { searchParams } = new URL(req.url);
