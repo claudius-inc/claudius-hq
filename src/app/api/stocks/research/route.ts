@@ -68,12 +68,13 @@ export async function POST(request: NextRequest) {
             args: {
               task: `Stock research job ${jobId} for ticker ${cleanTicker}. 
 1. Update job status to 'processing': curl -X PATCH 'https://claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"processing","progress":10}'
-2. Read the stock-screener skill at /root/openclaw/skills/stock-screener/SKILL.md
-3. Generate a comprehensive Sun Tzu research report for ${cleanTicker}
+2. Read the sun-tzu-research skill at /root/openclaw/skills/sun-tzu-research/SKILL.md
+3. Generate a comprehensive Sun Tzu research report for ${cleanTicker} following the skill instructions
 4. POST the report: curl -X POST 'https://claudiusinc.com/api/stocks/reports' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"ticker":"${cleanTicker}","title":"...","content":"...","report_type":"sun-tzu"}'
 5. Get the report_id from the response, then PATCH job to complete: curl -X PATCH 'https://claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"complete","progress":100,"report_id":REPORT_ID}'`,
               label: `research-${cleanTicker.toLowerCase()}`,
               cleanup: "delete",
+              thinking: "high",
             },
           }),
         });
