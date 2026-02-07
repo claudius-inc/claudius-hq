@@ -51,11 +51,49 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Research Queue] Ticker: ${cleanTicker}, JobId: ${jobId}`);
 
+    // Trigger OpenClaw gateway to spawn research sub-agent
+    const gatewayUrl = process.env.OPENCLAW_GATEWAY_URL || "https://gateway.claudiusinc.com";
+    const gatewayToken = process.env.OPENCLAW_GATEWAY_TOKEN;
+    
+    if (gatewayToken) {
+      try {
+        const spawnResponse = await fetch(`${gatewayUrl}/tools/invoke`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${gatewayToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            tool: "sessions_spawn",
+            args: {
+              task: `Stock research job ${jobId} for ticker ${cleanTicker}. 
+1. Update job status to 'processing': curl -X PATCH 'https://claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"processing","progress":10}'
+2. Read the stock-screener skill at /root/openclaw/skills/stock-screener/SKILL.md
+3. Generate a comprehensive Sun Tzu research report for ${cleanTicker}
+4. POST the report: curl -X POST 'https://claudiusinc.com/api/stocks/reports' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"ticker":"${cleanTicker}","title":"...","content":"...","report_type":"sun-tzu"}'
+5. Get the report_id from the response, then PATCH job to complete: curl -X PATCH 'https://claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"complete","progress":100,"report_id":REPORT_ID}'`,
+              label: `research-${cleanTicker.toLowerCase()}`,
+              cleanup: "delete",
+            },
+          }),
+        });
+        
+        if (!spawnResponse.ok) {
+          console.error("[Research] Gateway spawn failed:", await spawnResponse.text());
+        } else {
+          console.log("[Research] Sub-agent spawned for", cleanTicker);
+        }
+      } catch (gatewayError) {
+        console.error("[Research] Gateway call failed:", gatewayError);
+        // Don't fail the request - job is queued, can be picked up by polling
+      }
+    }
+
     return NextResponse.json({
       jobId,
       ticker: cleanTicker,
       status: "pending",
-      message: "Research request queued. Refresh the page to see progress.",
+      message: "Research started. This typically takes 2-3 minutes.",
     });
   } catch (error) {
     console.error("[Research API Error]", error);

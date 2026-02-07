@@ -10,6 +10,8 @@ declare namespace NodeJS {
     SMTP_USER?: string;
     SMTP_PASS?: string;
     SMTP_FROM?: string;
+    OPENCLAW_GATEWAY_URL?: string;
+    OPENCLAW_GATEWAY_TOKEN?: string;
     NODE_ENV: "development" | "production" | "test";
   }
 
