@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ 
       success: true, 
-      id: result.lastInsertRowid,
+      id: Number(result.lastInsertRowid),
       message: "Research page saved"
     }, { status: 201 });
   } catch (e) {
