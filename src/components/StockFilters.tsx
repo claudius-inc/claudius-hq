@@ -5,18 +5,31 @@ import Link from "next/link";
 import { StockReport } from "@/lib/types";
 import { StockReportViewer } from "./StockReportViewer";
 
-// Extract company name from title patterns like "Sun Tzu Report: Company Name" or "Company: Description"
+// Extract company name from title patterns like "Sun Tzu Report: Company Name (TICKER)"
 function extractCompanyName(title: string | null | undefined): string {
   if (!title) return "";
-  // Remove common prefixes
-  const cleaned = title
-    .replace(/^Sun Tzu (Report|Analysis|Assessment):\s*/i, "")
-    .replace(/^Sun Tzu Report for\s*/i, "")
-    .replace(/\s*\([^)]+\)\s*$/, "") // Remove trailing (ticker)
-    .split(":")[0] // Take first part before colon if any
-    .split(" - ")[0] // Take first part before dash if any
+  
+  // Common patterns:
+  // "Sun Tzu Report: Company Name (TICKER)" 
+  // "Sun Tzu's Assessment of Company Name (EXCHANGE: TICKER)"
+  // "Sun Tzu Report: Company Name"
+  
+  let cleaned = title
+    // Remove Sun Tzu prefixes
+    .replace(/^Sun Tzu['']?s?\s*(Report|Analysis|Assessment|Strategic Assessment)\s*(of|for|:)?\s*/i, "")
+    // Remove ticker patterns like (SGX: C6L), (NASDAQ: FLNC), (AIY.SI)
+    .replace(/\s*\([^)]*:[^)]*\)\s*/g, "")
+    .replace(/\s*\([A-Z0-9.]+\)\s*/g, "")
+    // Remove trailing "— Sun Tzu..." type suffixes
+    .replace(/\s*[—–-]\s*Sun Tzu.*$/i, "")
     .trim();
-  return cleaned.substring(0, 40); // Limit length
+  
+  // If it still looks like a ticker (all caps, short, with dots), return empty
+  if (/^[A-Z0-9.]{1,10}$/.test(cleaned)) {
+    return "";
+  }
+  
+  return cleaned.substring(0, 50); // Limit length
 }
 
 // Format datetime with UTC correction and time

@@ -66,6 +66,45 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// PATCH /api/stocks/reports?id=123 — update a report's company_name
+export async function PATCH(req: NextRequest) {
+  if (!isApiAuthenticated(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  await ensureDB();
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "id query parameter is required" },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json();
+    const { company_name } = body;
+
+    if (company_name === undefined) {
+      return NextResponse.json(
+        { error: "company_name is required in body" },
+        { status: 400 }
+      );
+    }
+
+    await db.execute({
+      sql: "UPDATE stock_reports SET company_name = ? WHERE id = ?",
+      args: [company_name, parseInt(id, 10)],
+    });
+
+    return NextResponse.json({ success: true, id: parseInt(id, 10) });
+  } catch (e) {
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
 // DELETE /api/stocks/reports — delete a report by id
 export async function DELETE(req: NextRequest) {
   await ensureDB();
