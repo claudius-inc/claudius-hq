@@ -66,15 +66,38 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             tool: "sessions_spawn",
             args: {
-              task: `Stock research job ${jobId} for ticker ${cleanTicker}. 
-1. Update job status to 'processing': curl -X PATCH 'https://claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"processing","progress":10}'
-2. Read the sun-tzu-research skill at /root/openclaw/skills/sun-tzu-research/SKILL.md
-3. Generate a comprehensive Sun Tzu research report for ${cleanTicker} following the skill instructions
-4. POST the report: curl -X POST 'https://claudiusinc.com/api/stocks/reports' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"ticker":"${cleanTicker}","title":"...","content":"...","report_type":"sun-tzu"}'
-5. Get the report_id from the response, then PATCH job to complete: curl -X PATCH 'https://claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"complete","progress":100,"report_id":REPORT_ID}'`,
+              task: `Generate a COMPREHENSIVE Sun Tzu investment research report for ${cleanTicker}.
+
+**JOB ID:** ${jobId}
+
+**CRITICAL REQUIREMENTS:**
+- Read the skill file: /root/openclaw/skills/sun-tzu-research/SKILL.md
+- Follow ALL 14 sections exactly as specified in the skill
+- Report MUST be 3,000-5,000 words (approximately 15,000-25,000 characters)
+- Include 5-year historical data tables (ROE, D/E)
+- Include 4-6 bull points AND 4-6 bear points with Sun Tzu quotes
+- Include detailed management assessment with integrity/alignment scoring
+- Include price-based action table with specific price zones
+
+**EXECUTION STEPS:**
+1. Mark job as processing:
+   curl -X PATCH 'https://claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"processing","progress":10}'
+
+2. Gather comprehensive data on ${cleanTicker} using web_search and web_fetch
+
+3. Write the full 14-section report following /root/openclaw/skills/sun-tzu-research/SKILL.md
+
+4. POST the complete report:
+   curl -X POST 'https://claudiusinc.com/api/stocks/reports' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"ticker":"${cleanTicker}","title":"...","content":"<FULL REPORT>","report_type":"sun-tzu"}'
+
+5. Complete the job with report_id:
+   curl -X PATCH 'https://claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"complete","progress":100,"report_id":REPORT_ID}'
+
+DO NOT rush. Take your time to produce a thorough, publication-quality report.`,
               label: `research-${cleanTicker.toLowerCase()}`,
               cleanup: "delete",
               thinking: "high",
+              runTimeoutSeconds: 600,
             },
           }),
         });
