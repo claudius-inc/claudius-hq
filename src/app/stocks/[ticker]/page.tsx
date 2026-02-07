@@ -84,7 +84,8 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      {/* Header section with padding */}
+      <div className="max-w-6xl mx-auto px-4 pt-6">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
           <Link href="/stocks" className="hover:text-gray-600 transition-colors">Stocks</Link>
@@ -116,24 +117,30 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
                 {report.title || `Sun Tzu Report: ${report.ticker}`}
               </h1>
             </div>
+          </>
+        ) : null}
+      </div>
 
-            {/* Two-column layout: TOC | Report */}
-            <div className="flex gap-4">
-              {/* TOC Sidebar */}
-              <ReportTOC content={report.content} />
+      {/* Report content - full width on mobile */}
+      {report ? (
+        <main className="lg:max-w-6xl lg:mx-auto lg:px-4 pb-6">
+          <div className="flex gap-4">
+            {/* TOC Sidebar */}
+            <ReportTOC content={report.content} />
 
-              {/* Report Content */}
-              <div className="flex-1 min-w-0">
-                <div className="bg-white border border-gray-200 rounded-xl p-6">
-                  <div 
-                    className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-20 prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600"
-                    dangerouslySetInnerHTML={{ __html: htmlContent }}
-                  />
-                </div>
+            {/* Report Content - full width on mobile, contained on desktop */}
+            <div className="flex-1 min-w-0">
+              <div className="bg-white border-y lg:border border-gray-200 lg:rounded-xl px-4 py-6 lg:p-6">
+                <div 
+                  className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-20 prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600"
+                  dangerouslySetInnerHTML={{ __html: htmlContent }}
+                />
               </div>
             </div>
-          </>
-        ) : (
+          </div>
+        </main>
+      ) : (
+        <main className="max-w-6xl mx-auto px-4 pb-6">
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
             <div className="text-4xl mb-3">🔍</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">No reports found</h3>
@@ -142,8 +149,8 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
               ← Back to Stocks
             </Link>
           </div>
-        )}
-      </main>
+        </main>
+      )}
     </div>
   );
 }
