@@ -20,9 +20,16 @@ function addHeadingIds(html: string): string {
   });
 }
 
-// Strip the first H1 from content (redundant with page title)
-function stripFirstH1(html: string): string {
-  return html.replace(/^(\s*<h1[^>]*>.*?<\/h1>\s*)/i, '');
+// Strip redundant headers from content (page title handles these)
+function stripRedundantHeaders(html: string): string {
+  let cleaned = html;
+  // Strip first H1 (company name / report title)
+  cleaned = cleaned.replace(/^(\s*<h1[^>]*>.*?<\/h1>\s*)/i, '');
+  // Strip "Sun Tzu Analysis | Date" type H2s at the start
+  cleaned = cleaned.replace(/^(\s*<h2[^>]*>.*?Sun Tzu.*?<\/h2>\s*)/i, '');
+  // Strip any leading <hr> tags
+  cleaned = cleaned.replace(/^(\s*<hr[^>]*\/?>\s*)+/i, '');
+  return cleaned;
 }
 
 interface PageProps {
@@ -73,16 +80,19 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
   } catch { /* ignore */ }
 
   const rawHtml = report ? await marked(report.content) : "";
-  const htmlContent = stripFirstH1(addHeadingIds(rawHtml));
+  const htmlContent = stripRedundantHeaders(addHeadingIds(rawHtml));
 
   const formatFullTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleString("en-US", {
+    // DB stores UTC without 'Z' suffix - append it for correct parsing
+    const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
+    const date = new Date(utcTimestamp);
+    return date.toLocaleString("en-SG", {
       year: "numeric",
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
     });
   };
 
@@ -137,7 +147,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
             <div className="flex-1 min-w-0">
               <div className="bg-white border-y lg:border border-gray-200 lg:rounded-xl px-4 py-6 lg:p-6">
                 <div 
-                  className="prose prose-sm md:prose-base prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-20 prose-h2:text-lg prose-h2:md:text-xl prose-h3:text-base prose-h3:md:text-lg prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600 prose-table:text-xs prose-table:md:text-sm [&_table]:block [&_table]:overflow-x-auto [&_table]:whitespace-nowrap"
+                  className="prose prose-sm md:prose-base prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-20 prose-h2:text-base prose-h2:md:text-lg prose-h2:font-semibold prose-h3:text-sm prose-h3:md:text-base prose-h3:font-medium prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600 prose-table:text-xs prose-table:md:text-sm [&_table]:block [&_table]:overflow-x-auto [&_table]:whitespace-nowrap"
                   dangerouslySetInnerHTML={{ __html: htmlContent }}
                 />
               </div>
