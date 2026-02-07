@@ -9,9 +9,9 @@ interface ActionPlanCardProps {
 }
 
 const phases = [
-  { key: "research", label: "Research", icon: "🔬" },
-  { key: "build", label: "Build", icon: "🔨" },
-  { key: "live", label: "Deployed", icon: "🚀" },
+  { key: "research", label: "Research" },
+  { key: "build", label: "Build" },
+  { key: "live", label: "Deployed" },
 ];
 
 // Infer phase from multiple signals
@@ -84,7 +84,7 @@ export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, de
                         />
                       </svg>
                     ) : (
-                      <span>{p.icon}</span>
+                      <span className="text-sm font-semibold">{index + 1}</span>
                     )}
                   </div>
                   <span
