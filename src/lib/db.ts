@@ -90,4 +90,16 @@ export async function initDB() {
   } catch {
     await db.execute("ALTER TABLE projects ADD COLUMN phase TEXT DEFAULT 'build' CHECK(phase IN ('idea','research','build','launch','grow','iterate','maintain'))");
   }
+
+  // Add target_audience and action_plan columns if missing
+  try {
+    await db.execute("SELECT target_audience FROM projects LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE projects ADD COLUMN target_audience TEXT DEFAULT ''");
+  }
+  try {
+    await db.execute("SELECT action_plan FROM projects LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE projects ADD COLUMN action_plan TEXT DEFAULT ''");
+  }
 }

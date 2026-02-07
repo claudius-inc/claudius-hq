@@ -119,6 +119,26 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           </div>
         </div>
 
+        {/* Target Audience */}
+        {project.target_audience && (
+          <div className="card mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <span>🎯</span> Target Audience
+            </h2>
+            <p className="text-gray-700 whitespace-pre-wrap">{project.target_audience}</p>
+          </div>
+        )}
+
+        {/* Action Plan */}
+        {project.action_plan && (
+          <div className="card mb-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+              <span>📋</span> Action Plan
+            </h2>
+            <div className="text-gray-700 whitespace-pre-wrap">{project.action_plan}</div>
+          </div>
+        )}
+
         {/* Project Details */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="card">

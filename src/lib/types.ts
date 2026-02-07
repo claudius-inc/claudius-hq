@@ -16,6 +16,8 @@ export interface Project {
   test_count: number;
   build_status: BuildStatus;
   last_deploy_time: string;
+  target_audience: string;
+  action_plan: string;
   created_at: string;
   updated_at: string;
 }
