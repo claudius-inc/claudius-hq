@@ -90,10 +90,13 @@ export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
   };
 
   const getTimeAgo = (dateStr: string) => {
-    const date = new Date(dateStr);
+    // DB stores UTC without 'Z' suffix - append it for correct parsing
+    const utcDateStr = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
+    const date = new Date(utcDateStr);
     const now = new Date();
     const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
+    if (seconds < 0) return 'just now'; // Handle clock skew
     if (seconds < 60) return `${seconds}s ago`;
     if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;

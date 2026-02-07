@@ -27,7 +27,9 @@ export function PreviousReportsDropdown({ reports, currentReportId }: PreviousRe
   }
 
   const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
+    // DB stores UTC without 'Z' suffix - append it for correct parsing
+    const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
+    const date = new Date(utcTimestamp);
     return date.toLocaleString("en-US", {
       year: "numeric",
       month: "short",
