@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Spinner } from "./ui/Spinner";
 
 export function ResearchForm() {
   const [ticker, setTicker] = useState("");
@@ -60,8 +61,9 @@ export function ResearchForm() {
           <button
             type="submit"
             disabled={!ticker.trim() || status === "loading"}
-            className="shrink-0 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="shrink-0 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
           >
+            {status === "loading" && <Spinner size="sm" className="text-white" />}
             {status === "loading" ? "Queuing..." : "Research"}
           </button>
         </div>
