@@ -41,6 +41,7 @@ export interface StockReport {
   id: number;
   ticker: string;
   title: string;
+  company_name: string;
   content: string;
   report_type: string;
   created_at: string;

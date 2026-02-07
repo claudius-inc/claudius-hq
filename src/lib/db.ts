@@ -102,4 +102,11 @@ export async function initDB() {
   } catch {
     await db.execute("ALTER TABLE projects ADD COLUMN action_plan TEXT DEFAULT ''");
   }
+
+  // Add company_name column to stock_reports if missing
+  try {
+    await db.execute("SELECT company_name FROM stock_reports LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE stock_reports ADD COLUMN company_name TEXT DEFAULT ''");
+  }
 }

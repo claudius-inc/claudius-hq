@@ -5,6 +5,33 @@ import Link from "next/link";
 import { StockReport } from "@/lib/types";
 import { StockReportViewer } from "./StockReportViewer";
 
+// Extract company name from title patterns like "Sun Tzu Report: Company Name" or "Company: Description"
+function extractCompanyName(title: string | null | undefined): string {
+  if (!title) return "";
+  // Remove common prefixes
+  const cleaned = title
+    .replace(/^Sun Tzu (Report|Analysis|Assessment):\s*/i, "")
+    .replace(/^Sun Tzu Report for\s*/i, "")
+    .replace(/\s*\([^)]+\)\s*$/, "") // Remove trailing (ticker)
+    .split(":")[0] // Take first part before colon if any
+    .split(" - ")[0] // Take first part before dash if any
+    .trim();
+  return cleaned.substring(0, 40); // Limit length
+}
+
+// Format datetime with UTC correction and time
+function formatDateTime(dateStr: string | null | undefined): string {
+  if (!dateStr) return "-";
+  const utcDateStr = dateStr.endsWith("Z") ? dateStr : dateStr + "Z";
+  const date = new Date(utcDateStr);
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 type ReportType = "all" | "sun-tzu" | "weekly-scan";
 type DateRange = "all" | "7d" | "30d";
 type SortBy = "newest" | "alphabetical";
@@ -160,7 +187,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
                     <div>
                       <div className="text-lg font-bold text-gray-900">{ticker}</div>
                       <div className="text-sm text-gray-500 line-clamp-1 mt-1">
-                        {latestReport.title || "Sun Tzu Report"}
+                        {latestReport.company_name || extractCompanyName(latestReport.title) || ticker}
                       </div>
                     </div>
                     <div className="text-xs text-gray-400">
@@ -168,7 +195,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
                     </div>
                   </div>
                   <div className="text-xs text-gray-400 mt-2">
-                    Latest: {latestReport.created_at?.slice(0, 10)}
+                    Latest: {formatDateTime(latestReport.created_at)}
                   </div>
                 </Link>
               );
