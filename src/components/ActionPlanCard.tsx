@@ -56,8 +56,8 @@ export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, de
       </div>
 
       {/* Progress Stepper */}
-      <div className="mb-6 pb-6 border-b border-gray-100">
-        <div className="flex items-center justify-between">
+      <div className="mb-4 pb-4 border-b border-gray-100">
+        <div className="flex items-center justify-center gap-1">
           {phases.map((p, index) => {
             const isCompleted = index < currentIndex;
             const isCurrent = index === currentIndex;
@@ -67,16 +67,16 @@ export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, de
                 {/* Step */}
                 <div className="flex flex-col items-center">
                   <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all ${
+                    className={`w-6 h-6 rounded-full flex items-center justify-center transition-all ${
                       isCompleted
                         ? "bg-emerald-500 text-white"
                         : isCurrent
-                        ? "bg-emerald-500 text-white ring-4 ring-emerald-100"
-                        : "bg-gray-100 text-gray-400"
+                        ? "bg-emerald-500 text-white ring-2 ring-emerald-100"
+                        : "bg-gray-200 text-gray-400"
                     }`}
                   >
                     {isCompleted ? (
-                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path
                           fillRule="evenodd"
                           d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
@@ -84,15 +84,15 @@ export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, de
                         />
                       </svg>
                     ) : (
-                      <span className="text-sm font-semibold">{index + 1}</span>
+                      <span className="text-xs font-medium">{index + 1}</span>
                     )}
                   </div>
                   <span
-                    className={`mt-2 text-sm font-medium ${
+                    className={`mt-1 text-xs font-medium ${
                       isCurrent
                         ? "text-emerald-600"
                         : isCompleted
-                        ? "text-gray-700"
+                        ? "text-gray-600"
                         : "text-gray-400"
                     }`}
                   >
@@ -103,7 +103,7 @@ export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, de
                 {/* Connector */}
                 {index < phases.length - 1 && (
                   <div
-                    className={`flex-1 h-1 mx-3 rounded-full ${
+                    className={`flex-1 h-0.5 mx-2 rounded-full ${
                       index < currentIndex ? "bg-emerald-500" : "bg-gray-200"
                     }`}
                   />
