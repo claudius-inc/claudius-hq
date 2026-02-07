@@ -81,10 +81,10 @@ export default async function ReportDetailPage({ params }: { params: { ticker: s
                 </h2>
                 <div className="space-y-2">
                   {olderReports.map((r) => (
-                    <div
+                    <Link
                       key={r.id}
+                      href={`/stocks/${encodeURIComponent(r.ticker)}?report=${r.id}`}
                       className="card-hover block cursor-pointer"
-                      onClick={() => window.location.href = `/stocks/${r.ticker}?report=${r.id}`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-900">
@@ -94,7 +94,7 @@ export default async function ReportDetailPage({ params }: { params: { ticker: s
                           {r.created_at?.slice(0, 10)}
                         </span>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>
