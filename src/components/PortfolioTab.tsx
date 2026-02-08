@@ -6,6 +6,7 @@ import { Pencil, Trash2, Plus, X, Check, ChevronDown, ChevronUp, Sparkles, Loade
 import { PortfolioHolding, PortfolioReport } from "@/lib/types";
 import { AllocationBar } from "./AllocationBar";
 import { InvestorCritiques, parseCritiquesFromMarkdown } from "./InvestorCritiques";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { formatDateTime } from "@/lib/date";
 import { marked } from "marked";
 
@@ -37,6 +38,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
   const [reportExpanded, setReportExpanded] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeMessage, setAnalyzeMessage] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; ticker: string } | null>(null);
 
   // Fetch prices for all tickers
   const fetchPrices = useCallback(async () => {
@@ -104,16 +106,18 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Remove from portfolio?")) return;
-
+  const confirmDelete = async () => {
+    if (!deleteConfirm) return;
+    
     try {
-      const res = await fetch(`/api/portfolio/holdings/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/portfolio/holdings/${deleteConfirm.id}`, { method: "DELETE" });
       if (res.ok) {
-        setHoldings(holdings.filter((h) => h.id !== id));
+        setHoldings(holdings.filter((h) => h.id !== deleteConfirm.id));
       }
     } catch {
       // Ignore
+    } finally {
+      setDeleteConfirm(null);
     }
   };
 
@@ -434,7 +438,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
                               <Pencil className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(holding.id)}
+                              onClick={() => setDeleteConfirm({ id: holding.id, ticker: holding.ticker })}
                               className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
                               title="Delete"
                             >
@@ -527,6 +531,18 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
           + {reports.length - 1} historical report{reports.length > 2 ? "s" : ""}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        title="Remove holding"
+        description={`Are you sure you want to remove ${deleteConfirm?.ticker || ""} from your portfolio?`}
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        variant="destructive"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }
