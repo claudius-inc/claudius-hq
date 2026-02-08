@@ -125,46 +125,48 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
   return (
     <div className="min-h-screen">
       <Nav />
-      {/* Header section with padding */}
-      <div className="max-w-6xl mx-auto px-4 pt-6">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
-          <Link href="/stocks" className="hover:text-gray-600 transition-colors">Stocks</Link>
-          <span>›</span>
-          <span className="text-gray-900 font-medium">{decodedTicker}</span>
-        </div>
+      {/* Sticky header section */}
+      <div className="sticky top-0 z-40 bg-gray-50 border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 py-3 md:py-4">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2 md:mb-3">
+            <Link href="/stocks" className="hover:text-gray-600 transition-colors">Stocks</Link>
+            <span>›</span>
+            <span className="text-gray-900 font-medium">{decodedTicker}</span>
+          </div>
 
-        {report ? (
-          <>
-            {/* Header */}
-            <div className="mb-6">
-              <div className="flex flex-wrap items-center gap-3 mb-2">
-                <span className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-1">
-                  {report.ticker}
-                </span>
-                <span className="text-xs text-gray-400">
-                  {formatFullTimestamp(report.created_at)}
-                </span>
-                <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-1">
-                  {report.report_type || "sun-tzu"}
-                </span>
-                <div className="flex-grow" />
-                <PreviousReportsDropdown
-                  reports={olderReports}
-                  currentReportId={report.id}
-                />
+          {report ? (
+            <>
+              {/* Header meta + title */}
+              <div>
+                <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1 md:mb-2">
+                  <span className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-0.5 md:py-1">
+                    {report.ticker}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {formatFullTimestamp(report.created_at)}
+                  </span>
+                  <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5 md:py-1">
+                    {report.report_type || "sun-tzu"}
+                  </span>
+                  <div className="flex-grow" />
+                  <PreviousReportsDropdown
+                    reports={olderReports}
+                    currentReportId={report.id}
+                  />
+                </div>
+                <h1 className="text-base md:text-lg lg:text-xl font-bold text-gray-900 leading-tight">
+                  {report.title || `Sun Tzu Report: ${report.ticker}`}
+                </h1>
               </div>
-              <h1 className="text-lg md:text-xl lg:text-2xl font-bold text-gray-900">
-                {report.title || `Sun Tzu Report: ${report.ticker}`}
-              </h1>
-            </div>
-          </>
-        ) : null}
+            </>
+          ) : null}
+        </div>
       </div>
 
       {/* Report content - full width on mobile */}
       {report ? (
-        <main className="lg:max-w-6xl lg:mx-auto lg:px-4 pb-6">
+        <main className="lg:max-w-6xl lg:mx-auto lg:px-4 py-4 md:py-6">
           <div className="flex gap-4">
             {/* TOC Sidebar */}
             <ReportTOC content={report.content} />
@@ -173,7 +175,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
             <div className="flex-1 min-w-0">
               <div className="bg-white border-y lg:border border-gray-200 lg:rounded-xl px-4 py-6 lg:p-6">
                 <div 
-                  className="prose prose-sm md:prose-base prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-20 prose-h2:text-base prose-h2:md:text-lg prose-h2:font-semibold prose-h3:text-sm prose-h3:md:text-base prose-h3:font-medium prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600 prose-table:text-xs prose-table:md:text-sm [&_table]:block [&_table]:overflow-x-auto [&_table]:whitespace-nowrap"
+                  className="prose prose-sm md:prose-base prose-gray max-w-none prose-headings:text-gray-900 prose-headings:scroll-mt-32 md:prose-headings:scroll-mt-36 prose-h2:text-base prose-h2:md:text-lg prose-h2:font-semibold prose-h3:text-sm prose-h3:md:text-base prose-h3:font-medium prose-p:text-gray-700 prose-strong:text-gray-900 prose-a:text-emerald-600 prose-table:text-xs prose-table:md:text-sm [&_table]:block [&_table]:overflow-x-auto [&_table]:whitespace-nowrap"
                   dangerouslySetInnerHTML={{ __html: htmlContent }}
                 />
               </div>
