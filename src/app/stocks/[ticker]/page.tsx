@@ -14,13 +14,20 @@ export async function generateMetadata({ params }: { params: { ticker: string } 
   try {
     await ensureDB();
     const result = await db.execute({
-      sql: "SELECT company_name FROM stock_reports WHERE ticker = ? ORDER BY created_at DESC LIMIT 1",
+      sql: "SELECT company_name, title FROM stock_reports WHERE ticker = ? ORDER BY created_at DESC LIMIT 1",
       args: [ticker]
     });
     if (result.rows.length > 0) {
-      const report = result.rows[0] as unknown as { company_name: string };
+      const report = result.rows[0] as unknown as { company_name: string; title: string };
+      // Use company_name if available, otherwise try to extract from title
       if (report.company_name) {
         return { title: `${ticker} - ${report.company_name}` };
+      } else if (report.title) {
+        // Try to extract company name from title like "Tiger Brokers (TIGR): Sun Tzu..."
+        const match = report.title.match(/^([^(]+)\s*\(/);
+        if (match) {
+          return { title: `${ticker} - ${match[1].trim()}` };
+        }
       }
     }
   } catch {}
