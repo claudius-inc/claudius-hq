@@ -149,28 +149,27 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
                 </div>
               </div>
 
-              {/* Desktop: compact header with badges + truncated title */}
+              {/* Desktop: original two-row layout with truncated title */}
               <div className="hidden md:block">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-1 flex-shrink-0">
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <span className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-1">
                     {report.ticker}
                   </span>
-                  <span className="text-xs text-gray-400 flex-shrink-0">
+                  <span className="text-xs text-gray-400">
                     {formatFullTimestamp(report.created_at)}
                   </span>
-                  <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-1 flex-shrink-0">
+                  <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-1">
                     {report.report_type || "sun-tzu"}
                   </span>
-                  <h1 className="text-base lg:text-lg font-bold text-gray-900 leading-tight truncate min-w-0">
-                    {report.company_name || report.title || `Sun Tzu Report: ${report.ticker}`}
-                  </h1>
-                  <div className="flex-shrink-0 ml-auto">
-                    <PreviousReportsDropdown
-                      reports={olderReports}
-                      currentReportId={report.id}
-                    />
-                  </div>
+                  <div className="flex-grow" />
+                  <PreviousReportsDropdown
+                    reports={olderReports}
+                    currentReportId={report.id}
+                  />
                 </div>
+                <h1 className="text-lg lg:text-xl font-bold text-gray-900 leading-tight truncate">
+                  {report.title || `Sun Tzu Report: ${report.ticker}`}
+                </h1>
               </div>
             </>
           ) : null}
