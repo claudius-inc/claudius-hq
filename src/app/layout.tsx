@@ -5,7 +5,10 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Claudius HQ",
+  title: {
+    default: "Claudius HQ",
+    template: "%s | Claudius HQ",
+  },
   description: "Mission Control for Claudius Inc",
 };
 

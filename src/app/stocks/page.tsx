@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
 import { StockReport } from "@/lib/types";
 import { Nav } from "@/components/Nav";
 import { ResearchForm } from "@/components/ResearchForm";
 import { ResearchJobs } from "@/components/ResearchJobs";
 import { StockFilters } from "@/components/StockFilters";
+
+export const metadata: Metadata = {
+  title: "Stocks",
+};
 
 export const dynamic = "force-dynamic";
 

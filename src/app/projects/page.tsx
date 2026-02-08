@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import db from "@/lib/db";
 import { Project } from "@/lib/types";
 import { ProjectFilters } from "@/components/ProjectFilters";
 import { Nav } from "@/components/Nav";
+
+export const metadata: Metadata = {
+  title: "Projects",
+};
 
 export const dynamic = "force-dynamic";
 

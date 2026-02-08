@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
 import { Idea } from "@/lib/types";
 import { Nav } from "@/components/Nav";
 import { IdeasPipeline } from "@/components/IdeasPipeline";
 import { IdeaForm } from "@/components/IdeaForm";
+
+export const metadata: Metadata = {
+  title: "Ideas",
+};
 
 export const dynamic = "force-dynamic";
 

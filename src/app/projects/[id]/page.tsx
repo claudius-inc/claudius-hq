@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
 import { Nav } from "@/components/Nav";
@@ -6,6 +7,19 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    await ensureDB();
+    const result = await db.execute({ sql: "SELECT name FROM projects WHERE id = ?", args: [Number(id)] });
+    if (result.rows.length > 0) {
+      const project = result.rows[0] as unknown as { name: string };
+      return { title: project.name };
+    }
+  } catch {}
+  return { title: "Project" };
+}
 
 const statusColors: Record<string, string> = {
   backlog: "bg-gray-200 text-gray-700",

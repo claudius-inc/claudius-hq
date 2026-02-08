@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
 import { ProjectCards } from "@/components/ProjectCards";
 import { Nav } from "@/components/Nav";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+};
 
 export const dynamic = "force-dynamic";
 

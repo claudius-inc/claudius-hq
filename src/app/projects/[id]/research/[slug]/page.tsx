@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
 import { ResearchPage, Project } from "@/lib/types";
 import { Nav } from "@/components/Nav";
@@ -7,6 +8,22 @@ import { notFound } from "next/navigation";
 import { marked } from "marked";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string; slug: string }> }): Promise<Metadata> {
+  const { id, slug } = await params;
+  try {
+    await ensureDB();
+    const result = await db.execute({
+      sql: "SELECT title FROM research_pages WHERE project_id = ? AND slug = ?",
+      args: [Number(id), slug]
+    });
+    if (result.rows.length > 0) {
+      const page = result.rows[0] as unknown as { title: string };
+      return { title: page.title };
+    }
+  } catch {}
+  return { title: "Research" };
+}
 
 export default async function ResearchPageDetail({ params }: { params: Promise<{ id: string; slug: string }> }) {
   const { id, slug } = await params;

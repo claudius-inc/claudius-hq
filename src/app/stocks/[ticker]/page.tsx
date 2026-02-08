@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
 import { StockReport } from "@/lib/types";
 import { Nav } from "@/components/Nav";
@@ -7,6 +8,24 @@ import { ReportTOC } from "@/components/ReportTOC";
 import { PreviousReportsDropdown } from "@/components/PreviousReportsDropdown";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: { ticker: string } }): Promise<Metadata> {
+  const ticker = params.ticker.toUpperCase();
+  try {
+    await ensureDB();
+    const result = await db.execute({
+      sql: "SELECT company_name FROM stock_reports WHERE ticker = ? ORDER BY created_at DESC LIMIT 1",
+      args: [ticker]
+    });
+    if (result.rows.length > 0) {
+      const report = result.rows[0] as unknown as { company_name: string };
+      if (report.company_name) {
+        return { title: `${ticker} - ${report.company_name}` };
+      }
+    }
+  } catch {}
+  return { title: ticker };
+}
 
 // Custom renderer to add IDs to headings
 function addHeadingIds(html: string): string {
