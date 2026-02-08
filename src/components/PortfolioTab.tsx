@@ -6,7 +6,7 @@ import { Pencil, Trash2, Plus, X, Check, ChevronDown, ChevronUp, Sparkles, Loade
 import { PortfolioHolding, PortfolioReport } from "@/lib/types";
 import { AllocationBar } from "./AllocationBar";
 import { InvestorCritiques, parseCritiquesFromMarkdown } from "./InvestorCritiques";
-import { formatDate } from "@/lib/date";
+import { formatDateTime } from "@/lib/date";
 import { marked } from "marked";
 
 interface PortfolioTabProps {
@@ -476,18 +476,19 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
       {/* Latest Report */}
       {latestReport && (
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            Latest Analysis
-            <span className="text-sm font-normal text-gray-500">
-              {formatDate(latestReport.created_at)}
-            </span>
-          </h2>
+          <h2 className="text-lg font-semibold text-gray-900">Latest Analysis</h2>
           <div className="card">
-            {latestReport.summary && (
-              <div className="mb-4 p-4 bg-emerald-50 rounded-lg">
-                <p className="text-sm text-emerald-800">{latestReport.summary}</p>
+            <div className="mb-4 p-4 bg-emerald-50 rounded-lg">
+              <div className="text-sm text-emerald-800">
+                <p className="font-medium mb-2">
+                  Generated: {formatDateTime(latestReport.created_at)}
+                </p>
+                <p>
+                  <span className="font-medium">Portfolio: </span>
+                  {holdings.map((h) => `${h.ticker} (${h.target_allocation}%)`).join(", ")}
+                </p>
               </div>
-            )}
+            </div>
             
             {/* Expand/Collapse Button */}
             <button

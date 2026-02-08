@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { marked } from "marked";
 
 interface InvestorCritique {
   name: string;
@@ -66,9 +67,10 @@ function InvestorCard({ critique }: { critique: InvestorCritique }) {
 
       {expanded && (
         <div className="mt-4 space-y-3">
-          <blockquote className="text-sm text-gray-700 italic border-l-2 border-gray-300 pl-3">
-            {critique.critique}
-          </blockquote>
+          <div 
+            className="text-sm text-gray-700 prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: marked(critique.critique) as string }}
+          />
 
           <div className="flex gap-4 text-xs">
             {critique.wouldOwn.length > 0 && (
