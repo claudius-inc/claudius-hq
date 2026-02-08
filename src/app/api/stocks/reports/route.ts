@@ -26,6 +26,31 @@ export async function GET(req: NextRequest) {
   }
 }
 
+// Extract company name from title like "Tiger Brokers (TIGR): Sun Tzu..."
+function extractCompanyName(title: string, ticker: string): string {
+  if (!title) return "";
+  
+  // Pattern 1: "Company Name (TICKER)..." or "Company Name (TICKER.SI)..."
+  const match1 = title.match(/^([^(]+)\s*\([^)]+\)/);
+  if (match1) {
+    return match1[1].trim();
+  }
+  
+  // Pattern 2: "TICKER - Company Name..." or "TICKER: Company Name..."
+  const match2 = title.match(new RegExp(`^${ticker}\\s*[-:]\\s*([^—–-]+)`, 'i'));
+  if (match2) {
+    return match2[1].trim();
+  }
+  
+  // Pattern 3: "The Art of... Analysis of Company Name"
+  const match3 = title.match(/Analysis of\s+([^(]+)/i);
+  if (match3) {
+    return match3[1].trim().replace(/\s+Ltd\.?$/, '');
+  }
+  
+  return "";
+}
+
 // POST /api/stocks/reports — add a new report
 export async function POST(req: NextRequest) {
   if (!isApiAuthenticated(req)) {
@@ -35,7 +60,7 @@ export async function POST(req: NextRequest) {
   await ensureDB();
   try {
     const body = await req.json();
-    const { ticker, title, content, report_type } = body;
+    const { ticker, title, content, report_type, company_name } = body;
 
     if (!ticker || !content) {
       return NextResponse.json(
@@ -44,14 +69,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const cleanTicker = ticker.toUpperCase();
+    const finalTitle = title || `Sun Tzu Report: ${cleanTicker}`;
+    
+    // Use provided company_name or extract from title
+    const finalCompanyName = company_name || extractCompanyName(finalTitle, cleanTicker);
+
     const result = await db.execute({
-      sql: `INSERT INTO stock_reports (ticker, title, content, report_type) 
-            VALUES (?, ?, ?, ?)`,
+      sql: `INSERT INTO stock_reports (ticker, title, content, report_type, company_name) 
+            VALUES (?, ?, ?, ?, ?)`,
       args: [
-        ticker.toUpperCase(),
-        title || `Sun Tzu Report: ${ticker.toUpperCase()}`,
+        cleanTicker,
+        finalTitle,
         content,
         report_type || "sun-tzu",
+        finalCompanyName,
       ],
     });
 
