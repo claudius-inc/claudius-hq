@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Pencil, Trash2, Plus, X, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Check, ChevronDown, ChevronUp, Sparkles, Loader2 } from "lucide-react";
 import { PortfolioHolding, PortfolioReport } from "@/lib/types";
 import { AllocationBar } from "./AllocationBar";
 import { InvestorCritiques, parseCritiquesFromMarkdown } from "./InvestorCritiques";
@@ -35,6 +35,8 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
   const [editCostBasis, setEditCostBasis] = useState("");
   const [editShares, setEditShares] = useState("");
   const [reportExpanded, setReportExpanded] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeMessage, setAnalyzeMessage] = useState<string | null>(null);
 
   // Fetch prices for all tickers
   const fetchPrices = useCallback(async () => {
@@ -164,19 +166,70 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
 
   const latestReport = reports[0];
 
+  const handleAnalyze = async () => {
+    if (holdings.length === 0) {
+      setAnalyzeMessage("Add holdings first");
+      return;
+    }
+
+    setAnalyzing(true);
+    setAnalyzeMessage(null);
+
+    try {
+      const res = await fetch("/api/portfolio/analyze", { method: "POST" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setAnalyzeMessage(data.error || "Failed to start analysis");
+        return;
+      }
+
+      setAnalyzeMessage("Analysis started! Will take 5-8 minutes. Refresh page to see results.");
+    } catch {
+      setAnalyzeMessage("Network error");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-lg font-semibold text-gray-900">Portfolio Holdings</h2>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Add Holding
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzing || holdings.length === 0}
+            className="btn-secondary flex items-center gap-2 disabled:opacity-50"
+          >
+            {analyzing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4" />
+            )}
+            {analyzing ? "Starting..." : "Analyze Portfolio"}
+          </button>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Add Holding
+          </button>
+        </div>
       </div>
+
+      {/* Analysis Status Message */}
+      {analyzeMessage && (
+        <div className={`p-3 rounded-lg text-sm ${
+          analyzeMessage.includes("started") 
+            ? "bg-emerald-50 text-emerald-700" 
+            : "bg-amber-50 text-amber-700"
+        }`}>
+          {analyzeMessage}
+        </div>
+      )}
 
       {/* Add Form */}
       {showAddForm && (
