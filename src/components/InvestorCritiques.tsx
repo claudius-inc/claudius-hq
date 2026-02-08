@@ -4,7 +4,6 @@ import { useState } from "react";
 
 interface InvestorCritique {
   name: string;
-  emoji: string;
   philosophy: string;
   critique: string;
   wouldOwn: string[];
@@ -16,34 +15,28 @@ interface InvestorCritiquesProps {
   critiques: InvestorCritique[];
 }
 
-const INVESTOR_INFO: Record<string, { emoji: string; philosophy: string; color: string }> = {
+const INVESTOR_INFO: Record<string, { philosophy: string; color: string }> = {
   "Warren Buffett": {
-    emoji: "🎯",
     philosophy: "Moats, capital allocation, management integrity",
     color: "border-blue-200 bg-blue-50",
   },
   "Bill Ackman": {
-    emoji: "🔥",
     philosophy: "Activist lens, catalysts, concentrated bets",
     color: "border-orange-200 bg-orange-50",
   },
   "Peter Lynch": {
-    emoji: "📈",
     philosophy: "GARP, invest in what you know, PEG ratios",
     color: "border-green-200 bg-green-50",
   },
   "Ray Dalio": {
-    emoji: "🌊",
     philosophy: "Macro risks, correlation, diversification",
     color: "border-purple-200 bg-purple-50",
   },
   "Neil Shen": {
-    emoji: "🚀",
     philosophy: "China tech/consumer, founder quality, TAM",
     color: "border-red-200 bg-red-50",
   },
   "Zhang Lei": {
-    emoji: "🏔️",
     philosophy: "Long-term compounders, research depth, moats",
     color: "border-amber-200 bg-amber-50",
   },
@@ -52,7 +45,6 @@ const INVESTOR_INFO: Record<string, { emoji: string; philosophy: string; color: 
 function InvestorCard({ critique }: { critique: InvestorCritique }) {
   const [expanded, setExpanded] = useState(false);
   const info = INVESTOR_INFO[critique.name] || {
-    emoji: "💼",
     philosophy: "",
     color: "border-gray-200 bg-gray-50",
   };
@@ -63,12 +55,9 @@ function InvestorCard({ critique }: { critique: InvestorCritique }) {
       onClick={() => setExpanded(!expanded)}
     >
       <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-2xl">{info.emoji}</span>
-          <div>
-            <h4 className="font-semibold text-gray-900">{critique.name}</h4>
-            <p className="text-xs text-gray-500">{info.philosophy}</p>
-          </div>
+        <div>
+          <h4 className="font-semibold text-gray-900">{critique.name}</h4>
+          <p className="text-xs text-gray-500">{info.philosophy}</p>
         </div>
         <button className="text-gray-400 hover:text-gray-600">
           {expanded ? "▲" : "▼"}
@@ -112,7 +101,6 @@ export function InvestorCritiques({ critiques }: InvestorCritiquesProps) {
   if (!critiques || critiques.length === 0) {
     return (
       <div className="bg-gray-50 border border-gray-200 rounded-xl p-8 text-center">
-        <div className="text-3xl mb-2">🎭</div>
         <h3 className="text-sm font-medium text-gray-700 mb-1">
           Investor Critiques
         </h3>
@@ -125,8 +113,8 @@ export function InvestorCritiques({ critiques }: InvestorCritiquesProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-        <span>🎭</span> Investor Critiques
+      <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+        Investor Critiques
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {critiques.map((critique) => (
@@ -183,7 +171,6 @@ export function parseCritiquesFromMarkdown(content: string): InvestorCritique[] 
       if (critique || wouldOwn.length || wouldAvoid.length) {
         critiques.push({
           name,
-          emoji: INVESTOR_INFO[name]?.emoji || "💼",
           philosophy: INVESTOR_INFO[name]?.philosophy || "",
           critique,
           wouldOwn,
