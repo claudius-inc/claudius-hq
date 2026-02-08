@@ -33,7 +33,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
       </button>
 
       {open && (
-        <div className="md:hidden absolute top-14 left-0 right-0 bg-gray-50 border-b border-gray-200 shadow-sm z-50">
+        <div className="md:hidden absolute top-12 left-0 right-0 bg-gray-50 border-b border-gray-200 shadow-sm z-50">
           <div className="px-4 py-2 space-y-1">
             {links.map((link) => (
               <Link
