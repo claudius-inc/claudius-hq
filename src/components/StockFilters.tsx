@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { StockReport } from "@/lib/types";
 import { StockReportViewer } from "./StockReportViewer";
+import { Select } from "./ui/Select";
 
 // Extract company name from title patterns like "Sun Tzu Report: Company Name (TICKER)"
 function extractCompanyName(title: string | null | undefined): string {
@@ -143,36 +144,36 @@ export function StockFilters({ reports }: StockFiltersProps) {
         />
 
         {/* Report Type */}
-        <select
+        <Select
           value={reportType}
-          onChange={(e) => setReportType(e.target.value as ReportType)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
-        >
-          <option value="all">All Types</option>
-          <option value="sun-tzu">Sun Tzu</option>
-          <option value="weekly-scan">Weekly Scan</option>
-        </select>
+          onChange={(val) => setReportType(val as ReportType)}
+          options={[
+            { value: "all", label: "All Types" },
+            { value: "sun-tzu", label: "Sun Tzu" },
+            { value: "weekly-scan", label: "Weekly Scan" },
+          ]}
+        />
 
         {/* Date Range */}
-        <select
+        <Select
           value={dateRange}
-          onChange={(e) => setDateRange(e.target.value as DateRange)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
-        >
-          <option value="all">All Time</option>
-          <option value="7d">Last 7 Days</option>
-          <option value="30d">Last 30 Days</option>
-        </select>
+          onChange={(val) => setDateRange(val as DateRange)}
+          options={[
+            { value: "all", label: "All Time" },
+            { value: "7d", label: "Last 7 Days" },
+            { value: "30d", label: "Last 30 Days" },
+          ]}
+        />
 
         {/* Sort */}
-        <select
+        <Select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortBy)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
-        >
-          <option value="newest">Newest First</option>
-          <option value="alphabetical">A-Z</option>
-        </select>
+          onChange={(val) => setSortBy(val as SortBy)}
+          options={[
+            { value: "newest", label: "Newest First" },
+            { value: "alphabetical", label: "A-Z" },
+          ]}
+        />
 
         {/* Results count */}
         <span className="text-xs text-gray-500 ml-auto">
