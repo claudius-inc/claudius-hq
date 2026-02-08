@@ -82,6 +82,37 @@ export async function initDB() {
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now'))
     );
+
+    -- Watchlist: staging area for stocks being monitored
+    CREATE TABLE IF NOT EXISTS watchlist (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticker TEXT NOT NULL UNIQUE,
+      target_price REAL,
+      notes TEXT,
+      status TEXT DEFAULT 'watching' CHECK(status IN ('watching', 'accumulating', 'graduated')),
+      added_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Portfolio holdings: single evolving portfolio
+    CREATE TABLE IF NOT EXISTS portfolio_holdings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticker TEXT NOT NULL UNIQUE,
+      target_allocation REAL NOT NULL,
+      cost_basis REAL,
+      shares REAL,
+      added_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Portfolio analysis reports (historical)
+    CREATE TABLE IF NOT EXISTS portfolio_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      content TEXT NOT NULL,
+      summary TEXT,
+      total_tickers INTEGER,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // Add phase column to existing projects table if missing
