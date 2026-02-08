@@ -5,6 +5,7 @@ import { Nav } from "@/components/Nav";
 import { ResearchForm } from "@/components/ResearchForm";
 import { ResearchJobs } from "@/components/ResearchJobs";
 import { StockFilters } from "@/components/StockFilters";
+import { StockSearch } from "@/components/StockSearch";
 
 export const metadata: Metadata = {
   title: "Stocks",
@@ -53,7 +54,7 @@ export default async function StocksPage() {
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -61,6 +62,16 @@ export default async function StocksPage() {
             <p className="text-sm text-gray-500 mt-1">
               Sun Tzu analysis and weekly scans
             </p>
+          </div>
+        </div>
+
+        {/* Search Archive */}
+        <div className="mb-8">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+            Search Archive
+          </h2>
+          <div className="card">
+            <StockSearch />
           </div>
         </div>
 
