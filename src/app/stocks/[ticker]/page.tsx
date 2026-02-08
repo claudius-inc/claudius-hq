@@ -7,7 +7,8 @@ import { marked } from "marked";
 import { ReportTOC } from "@/components/ReportTOC";
 import { PreviousReportsDropdown } from "@/components/PreviousReportsDropdown";
 
-export const dynamic = "force-dynamic";
+// Cache stock reports for 1 hour - they don't change once generated
+export const revalidate = 3600;
 
 export async function generateMetadata({ params }: { params: { ticker: string } }): Promise<Metadata> {
   const ticker = params.ticker.toUpperCase();

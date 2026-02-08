@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import db, { ensureDB } from "@/lib/db";
-import { StockReport, WatchlistItem, PortfolioHolding, PortfolioReport } from "@/lib/types";
+import { StockReport } from "@/lib/types";
 import { Nav } from "@/components/Nav";
 import { StocksPageContent } from "./StocksPageContent";
 
@@ -9,7 +9,9 @@ export const metadata: Metadata = {
   title: "Stocks",
 };
 
-export const dynamic = "force-dynamic";
+// Cache Research tab data for 60 seconds
+// Watchlist/Portfolio tabs fetch client-side for real-time data
+export const revalidate = 60;
 
 type ResearchJob = {
   id: string;
@@ -42,47 +44,12 @@ async function getActiveJobs(): Promise<ResearchJob[]> {
   }
 }
 
-async function getWatchlistItems(): Promise<WatchlistItem[]> {
-  try {
-    const result = await db.execute("SELECT * FROM watchlist ORDER BY added_at DESC");
-    return result.rows as unknown as WatchlistItem[];
-  } catch {
-    return [];
-  }
-}
-
-async function getPortfolioHoldings(): Promise<PortfolioHolding[]> {
-  try {
-    const result = await db.execute(
-      "SELECT * FROM portfolio_holdings ORDER BY target_allocation DESC"
-    );
-    return result.rows as unknown as PortfolioHolding[];
-  } catch {
-    return [];
-  }
-}
-
-async function getPortfolioReports(): Promise<PortfolioReport[]> {
-  try {
-    const result = await db.execute(
-      "SELECT * FROM portfolio_reports ORDER BY created_at DESC"
-    );
-    return result.rows as unknown as PortfolioReport[];
-  } catch {
-    return [];
-  }
-}
-
 export default async function StocksPage() {
   await ensureDB();
-  const [reports, activeJobs, watchlistItems, portfolioHoldings, portfolioReports] =
-    await Promise.all([
-      getReports(),
-      getActiveJobs(),
-      getWatchlistItems(),
-      getPortfolioHoldings(),
-      getPortfolioReports(),
-    ]);
+  const [reports, activeJobs] = await Promise.all([
+    getReports(),
+    getActiveJobs(),
+  ]);
 
   return (
     <div className="min-h-screen">
@@ -92,9 +59,6 @@ export default async function StocksPage() {
           <StocksPageContent
             reports={reports}
             activeJobs={activeJobs}
-            watchlistItems={watchlistItems}
-            portfolioHoldings={portfolioHoldings}
-            portfolioReports={portfolioReports}
           />
         </Suspense>
       </main>

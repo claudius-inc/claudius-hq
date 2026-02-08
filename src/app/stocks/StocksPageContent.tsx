@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { StockReport, WatchlistItem, PortfolioHolding, PortfolioReport } from "@/lib/types";
 import { StocksTabs, StocksTab } from "@/components/StocksTabs";
@@ -25,17 +25,11 @@ type ResearchJob = {
 interface StocksPageContentProps {
   reports: StockReport[];
   activeJobs: ResearchJob[];
-  watchlistItems: WatchlistItem[];
-  portfolioHoldings: PortfolioHolding[];
-  portfolioReports: PortfolioReport[];
 }
 
 export function StocksPageContent({
   reports,
   activeJobs,
-  watchlistItems,
-  portfolioHoldings: initialHoldings,
-  portfolioReports,
 }: StocksPageContentProps) {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
@@ -44,7 +38,55 @@ export function StocksPageContent({
 
   // State for portfolio inclusion modal
   const [promotingItem, setPromotingItem] = useState<WatchlistItem | null>(null);
-  const [holdings, setHoldings] = useState<PortfolioHolding[]>(initialHoldings);
+  
+  // Client-side state for watchlist and portfolio (fetched on demand)
+  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
+  const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
+  const [portfolioReports, setPortfolioReports] = useState<PortfolioReport[]>([]);
+  const [watchlistLoaded, setWatchlistLoaded] = useState(false);
+  const [portfolioLoaded, setPortfolioLoaded] = useState(false);
+
+  // Fetch watchlist data client-side when tab is active
+  const fetchWatchlist = useCallback(async () => {
+    if (watchlistLoaded) return;
+    try {
+      const res = await fetch("/api/watchlist");
+      const data = await res.json();
+      setWatchlistItems(data.items || []);
+      setWatchlistLoaded(true);
+    } catch (e) {
+      console.error("Failed to fetch watchlist:", e);
+    }
+  }, [watchlistLoaded]);
+
+  // Fetch portfolio data client-side when tab is active
+  const fetchPortfolio = useCallback(async () => {
+    if (portfolioLoaded) return;
+    try {
+      const [holdingsRes, reportsRes] = await Promise.all([
+        fetch("/api/portfolio/holdings"),
+        fetch("/api/portfolio/reports"),
+      ]);
+      const holdingsData = await holdingsRes.json();
+      const reportsData = await reportsRes.json();
+      setHoldings(holdingsData.holdings || []);
+      setPortfolioReports(reportsData.reports || []);
+      setPortfolioLoaded(true);
+    } catch (e) {
+      console.error("Failed to fetch portfolio:", e);
+    }
+  }, [portfolioLoaded]);
+
+  // Fetch data when switching to relevant tabs
+  useEffect(() => {
+    if (activeTab === "watchlist") {
+      fetchWatchlist();
+      // Also fetch portfolio for the promotion modal
+      fetchPortfolio();
+    } else if (activeTab === "portfolio") {
+      fetchPortfolio();
+    }
+  }, [activeTab, fetchWatchlist, fetchPortfolio]);
 
   const handlePromoteToPortfolio = (item: WatchlistItem) => {
     setPromotingItem(item);
@@ -122,17 +164,29 @@ export function StocksPageContent({
       )}
 
       {activeTab === "watchlist" && (
-        <WatchlistTab
-          initialItems={watchlistItems}
-          onPromoteToPortfolio={handlePromoteToPortfolio}
-        />
+        watchlistLoaded ? (
+          <WatchlistTab
+            initialItems={watchlistItems}
+            onPromoteToPortfolio={handlePromoteToPortfolio}
+          />
+        ) : (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )
       )}
 
       {activeTab === "portfolio" && (
-        <PortfolioTab
-          initialHoldings={holdings}
-          initialReports={portfolioReports}
-        />
+        portfolioLoaded ? (
+          <PortfolioTab
+            initialHoldings={holdings}
+            initialReports={portfolioReports}
+          />
+        ) : (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )
       )}
 
       {/* Portfolio Inclusion Modal */}

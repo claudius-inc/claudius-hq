@@ -7,7 +7,8 @@ import { ActionPlanCard } from "@/components/ActionPlanCard";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-export const dynamic = "force-dynamic";
+// Revalidate project detail every 60 seconds
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;

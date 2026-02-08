@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-export const dynamic = "force-dynamic";
+// Revalidate dashboard every 60 seconds
+export const revalidate = 60;
 
 async function getData() {
   await ensureDB();

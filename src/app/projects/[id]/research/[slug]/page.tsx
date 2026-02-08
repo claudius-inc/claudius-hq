@@ -7,7 +7,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { marked } from "marked";
 
-export const dynamic = "force-dynamic";
+// Revalidate research pages every 5 minutes
+export const revalidate = 300;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string; slug: string }> }): Promise<Metadata> {
   const { id, slug } = await params;
