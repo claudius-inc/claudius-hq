@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Pencil, Trash2, Plus, X, Check } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { PortfolioHolding, PortfolioReport } from "@/lib/types";
 import { AllocationBar } from "./AllocationBar";
 import { InvestorCritiques, parseCritiquesFromMarkdown } from "./InvestorCritiques";
@@ -34,6 +34,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
   const [editAllocation, setEditAllocation] = useState("");
   const [editCostBasis, setEditCostBasis] = useState("");
   const [editShares, setEditShares] = useState("");
+  const [reportExpanded, setReportExpanded] = useState(false);
 
   // Fetch prices for all tickers
   const fetchPrices = useCallback(async () => {
@@ -434,12 +435,34 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
                 <p className="text-sm text-emerald-800">{latestReport.summary}</p>
               </div>
             )}
-            <div
-              className="prose prose-sm max-w-none prose-table:text-xs [&_table]:block [&_table]:overflow-x-auto [&_table]:whitespace-nowrap [&_th]:px-2 [&_td]:px-2"
-              dangerouslySetInnerHTML={{
-                __html: marked(latestReport.content) as string,
-              }}
-            />
+            
+            {/* Expand/Collapse Button */}
+            <button
+              onClick={() => setReportExpanded(!reportExpanded)}
+              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-medium text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+            >
+              {reportExpanded ? (
+                <>
+                  <ChevronUp className="w-4 h-4" />
+                  Collapse Report
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4" />
+                  View Full Report
+                </>
+              )}
+            </button>
+            
+            {/* Expandable Report Content */}
+            {reportExpanded && (
+              <div
+                className="mt-4 pt-4 border-t border-gray-100 prose prose-sm max-w-none prose-table:text-xs [&_table]:block [&_table]:overflow-x-auto [&_table]:whitespace-nowrap [&_th]:px-2 [&_td]:px-2"
+                dangerouslySetInnerHTML={{
+                  __html: marked(latestReport.content) as string,
+                }}
+              />
+            )}
           </div>
         </div>
       )}
