@@ -12,10 +12,10 @@ export function StocksTabs({ activeTab }: StocksTabsProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const tabs: { id: StocksTab; label: string; icon: string }[] = [
-    { id: "research", label: "Research", icon: "📊" },
-    { id: "watchlist", label: "Watchlist", icon: "👀" },
-    { id: "portfolio", label: "Portfolio", icon: "💼" },
+  const tabs: { id: StocksTab; label: string }[] = [
+    { id: "research", label: "Research" },
+    { id: "watchlist", label: "Watchlist" },
+    { id: "portfolio", label: "Portfolio" },
   ];
 
   const handleTabChange = (tab: StocksTab) => {
@@ -37,7 +37,7 @@ export function StocksTabs({ activeTab }: StocksTabsProps) {
             key={tab.id}
             onClick={() => handleTabChange(tab.id)}
             className={`
-              flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors
+              py-4 px-1 border-b-2 font-medium text-sm transition-colors
               ${
                 activeTab === tab.id
                   ? "border-emerald-500 text-emerald-600"
@@ -45,8 +45,7 @@ export function StocksTabs({ activeTab }: StocksTabsProps) {
               }
             `}
           >
-            <span>{tab.icon}</span>
-            <span>{tab.label}</span>
+            {tab.label}
           </button>
         ))}
       </nav>
