@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Pencil, Trash2, Plus, X, Check } from "lucide-react";
 import { PortfolioHolding, PortfolioReport } from "@/lib/types";
 import { AllocationBar } from "./AllocationBar";
+import { InvestorCritiques, parseCritiquesFromMarkdown } from "./InvestorCritiques";
 import { formatDate } from "@/lib/date";
 import { marked } from "marked";
 
@@ -411,6 +412,11 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
             Add your first holding to start tracking
           </p>
         </div>
+      )}
+
+      {/* Investor Critiques */}
+      {latestReport && (
+        <InvestorCritiques critiques={parseCritiquesFromMarkdown(latestReport.content)} />
       )}
 
       {/* Latest Report */}
