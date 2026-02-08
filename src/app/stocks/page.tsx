@@ -5,7 +5,6 @@ import { Nav } from "@/components/Nav";
 import { ResearchForm } from "@/components/ResearchForm";
 import { ResearchJobs } from "@/components/ResearchJobs";
 import { StockFilters } from "@/components/StockFilters";
-import { StockSearch } from "@/components/StockSearch";
 
 export const metadata: Metadata = {
   title: "Stocks",
@@ -62,16 +61,6 @@ export default async function StocksPage() {
             <p className="text-sm text-gray-500 mt-1">
               Sun Tzu analysis and weekly scans
             </p>
-          </div>
-        </div>
-
-        {/* Search Archive */}
-        <div className="mb-8">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-            Search Archive
-          </h2>
-          <div className="card">
-            <StockSearch />
           </div>
         </div>
 
