@@ -125,8 +125,8 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
   return (
     <div className="min-h-screen">
       <Nav />
-      {/* Sticky header section */}
-      <div className="sticky top-0 z-40 bg-gray-50 border-b border-gray-200">
+      {/* Sticky header section - top-14 to sit below Nav (h-14) */}
+      <div className="sticky top-14 z-40 bg-gray-50 border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 py-2 md:py-4">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-1 md:mb-3">
@@ -167,7 +167,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
                     currentReportId={report.id}
                   />
                 </div>
-                <h1 className="text-lg lg:text-xl font-bold text-gray-900 leading-tight truncate">
+                <h1 className="text-lg lg:text-xl font-bold text-gray-900 leading-tight">
                   {report.title || `Sun Tzu Report: ${report.ticker}`}
                 </h1>
               </div>
