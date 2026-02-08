@@ -1,4 +1,5 @@
 import { Project } from "@/lib/types";
+import { formatDate } from "@/lib/date";
 import Link from "next/link";
 
 const statusColors: Record<string, string> = {
@@ -84,7 +85,7 @@ export function ProjectCards({ projects }: { projects: Project[] }) {
                 <span>🧪 {project.test_count} tests</span>
               )}
               {project.last_deploy_time && (
-                <span>🚀 {new Date(project.last_deploy_time).toLocaleDateString()}</span>
+                <span>🚀 {formatDate(project.last_deploy_time)}</span>
               )}
             </div>
 

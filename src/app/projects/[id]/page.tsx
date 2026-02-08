@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
+import { formatDate, formatDateTime } from "@/lib/date";
 import { Project } from "@/lib/types";
 import { Nav } from "@/components/Nav";
 import { ActionPlanCard } from "@/components/ActionPlanCard";
@@ -115,7 +116,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               <div className="card flex items-center gap-2 px-3 py-2">
                 <span className="text-sm">🚀</span>
                 <span className="text-sm text-gray-500">
-                  Deployed {new Date(project.last_deploy_time).toLocaleDateString()}
+                  Deployed {formatDate(project.last_deploy_time)}
                 </span>
               </div>
             )}
@@ -174,11 +175,11 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
               )}
               <div>
                 <dt className="text-xs text-gray-400 uppercase tracking-wide">Created</dt>
-                <dd className="text-sm text-gray-900 mt-1">{new Date(project.created_at).toLocaleDateString()}</dd>
+                <dd className="text-sm text-gray-900 mt-1">{formatDate(project.created_at)}</dd>
               </div>
               <div>
                 <dt className="text-xs text-gray-400 uppercase tracking-wide">Last Updated</dt>
-                <dd className="text-sm text-gray-900 mt-1">{new Date(project.updated_at).toLocaleDateString()}</dd>
+                <dd className="text-sm text-gray-900 mt-1">{formatDate(project.updated_at)}</dd>
               </div>
             </dl>
           </div>
@@ -219,7 +220,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Last Deploy</span>
                     <span className="font-medium text-gray-900">
-                      {new Date(project.last_deploy_time).toLocaleString()}
+                      {formatDateTime(project.last_deploy_time)}
                     </span>
                   </div>
                 )}
