@@ -17,11 +17,15 @@ export async function PUT(
 
   try {
     const body = await req.json();
-    const { target_allocation, cost_basis, shares } = body;
+    const { ticker, target_allocation, cost_basis, shares } = body;
 
     const fields: string[] = [];
-    const values: (number | null)[] = [];
+    const values: (string | number | null)[] = [];
 
+    if (ticker !== undefined) {
+      fields.push("ticker = ?");
+      values.push(ticker);
+    }
     if (target_allocation !== undefined) {
       fields.push("target_allocation = ?");
       values.push(target_allocation);

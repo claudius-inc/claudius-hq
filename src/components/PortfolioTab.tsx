@@ -32,6 +32,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
   const [error, setError] = useState<string | null>(null);
 
   // Edit form state
+  const [editTicker, setEditTicker] = useState("");
   const [editAllocation, setEditAllocation] = useState("");
   const [editCostBasis, setEditCostBasis] = useState("");
   const [editShares, setEditShares] = useState("");
@@ -123,6 +124,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
 
   const startEdit = (holding: PortfolioHolding) => {
     setEditingId(holding.id);
+    setEditTicker(holding.ticker);
     setEditAllocation(holding.target_allocation.toString());
     setEditCostBasis(holding.cost_basis?.toString() || "");
     setEditShares(holding.shares?.toString() || "");
@@ -138,6 +140,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          ticker: editTicker.trim().toUpperCase(),
           target_allocation: parseFloat(editAllocation),
           cost_basis: editCostBasis ? parseFloat(editCostBasis) : null,
           shares: editShares ? parseFloat(editShares) : null,
@@ -357,12 +360,21 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
                 return (
                   <tr key={holding.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <Link
-                        href={`/stocks/${holding.ticker}`}
-                        className="text-emerald-600 hover:text-emerald-700 font-semibold"
-                      >
-                        {holding.ticker}
-                      </Link>
+                      {isEditing ? (
+                        <input
+                          type="text"
+                          value={editTicker}
+                          onChange={(e) => setEditTicker(e.target.value.toUpperCase())}
+                          className="input w-28 font-semibold"
+                        />
+                      ) : (
+                        <Link
+                          href={`/stocks/${holding.ticker}`}
+                          className="text-emerald-600 hover:text-emerald-700 font-semibold"
+                        >
+                          {holding.ticker}
+                        </Link>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
                       {isEditing ? (
