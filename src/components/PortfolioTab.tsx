@@ -201,21 +201,21 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
           <button
             onClick={handleAnalyze}
             disabled={analyzing || holdings.length === 0}
-            className="btn-secondary flex items-center gap-2 disabled:opacity-50"
+            className="btn-secondary flex items-center gap-1.5 text-sm px-3 py-1.5 disabled:opacity-50"
           >
             {analyzing ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
-              <Sparkles className="w-4 h-4" />
+              <Sparkles className="w-3.5 h-3.5" />
             )}
-            {analyzing ? "Starting..." : "Analyze Portfolio"}
+            {analyzing ? "Starting..." : "Analyze"}
           </button>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="btn-primary flex items-center gap-2"
+            className="btn-primary flex items-center gap-1.5 text-sm px-3 py-1.5"
           >
-            <Plus className="w-4 h-4" />
-            Add Holding
+            <Plus className="w-3.5 h-3.5" />
+            Add
           </button>
         </div>
       </div>
