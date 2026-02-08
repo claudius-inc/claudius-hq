@@ -266,7 +266,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
 
       {/* Holdings Table */}
       {holdings.length > 0 ? (
-        <div className="card overflow-hidden">
+        <div className="card overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -435,7 +435,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
               </div>
             )}
             <div
-              className="prose prose-sm max-w-none"
+              className="prose prose-sm max-w-none prose-table:text-xs [&_table]:block [&_table]:overflow-x-auto [&_table]:whitespace-nowrap [&_th]:px-2 [&_td]:px-2"
               dangerouslySetInnerHTML={{
                 __html: marked(latestReport.content) as string,
               }}
