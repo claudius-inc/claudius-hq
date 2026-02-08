@@ -49,7 +49,7 @@ Requirements:
       },
       body: JSON.stringify({
         tool: "sessions_spawn",
-        input: {
+        args: {
           task,
           thinking: "high",
           runTimeoutSeconds: 600,
