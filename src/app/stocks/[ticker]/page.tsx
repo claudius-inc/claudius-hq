@@ -127,9 +127,9 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
       <Nav />
       {/* Sticky header section */}
       <div className="sticky top-0 z-40 bg-gray-50 border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 py-3 md:py-4">
+        <div className="max-w-6xl mx-auto px-4 py-2 md:py-4">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-gray-400 mb-2 md:mb-3">
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-1 md:mb-3">
             <Link href="/stocks" className="hover:text-gray-600 transition-colors">Stocks</Link>
             <span>›</span>
             <span className="text-gray-900 font-medium">{decodedTicker}</span>
@@ -137,16 +137,28 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
 
           {report ? (
             <>
-              {/* Header meta + title */}
-              <div>
-                <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-1 md:mb-2">
-                  <span className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-0.5 md:py-1">
+              {/* Mobile: minimal header - title + date only */}
+              <div className="md:hidden">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h1 className="text-base font-bold text-gray-900 leading-tight truncate">
+                    {report.company_name || report.ticker}
+                  </h1>
+                  <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+                    {formatFullTimestamp(report.created_at)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Desktop: full header with badges */}
+              <div className="hidden md:block">
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <span className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-1">
                     {report.ticker}
                   </span>
                   <span className="text-xs text-gray-400">
                     {formatFullTimestamp(report.created_at)}
                   </span>
-                  <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-0.5 md:py-1">
+                  <span className="text-xs text-gray-400 bg-gray-100 rounded px-2 py-1">
                     {report.report_type || "sun-tzu"}
                   </span>
                   <div className="flex-grow" />
@@ -155,7 +167,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
                     currentReportId={report.id}
                   />
                 </div>
-                <h1 className="text-base md:text-lg lg:text-xl font-bold text-gray-900 leading-tight">
+                <h1 className="text-lg lg:text-xl font-bold text-gray-900 leading-tight">
                   {report.title || `Sun Tzu Report: ${report.ticker}`}
                 </h1>
               </div>
