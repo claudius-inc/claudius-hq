@@ -109,4 +109,11 @@ export async function initDB() {
   } catch {
     await db.execute("ALTER TABLE stock_reports ADD COLUMN company_name TEXT DEFAULT ''");
   }
+
+  // Add related_tickers column for comparison reports
+  try {
+    await db.execute("SELECT related_tickers FROM stock_reports LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE stock_reports ADD COLUMN related_tickers TEXT DEFAULT ''");
+  }
 }

@@ -10,27 +10,18 @@ import { Select } from "./ui/Select";
 function extractCompanyName(title: string | null | undefined): string {
   if (!title) return "";
   
-  // Common patterns:
-  // "Sun Tzu Report: Company Name (TICKER)" 
-  // "Sun Tzu's Assessment of Company Name (EXCHANGE: TICKER)"
-  // "Sun Tzu Report: Company Name"
-  
   let cleaned = title
-    // Remove Sun Tzu prefixes
-    .replace(/^Sun Tzu['']?s?\s*(Report|Analysis|Assessment|Strategic Assessment)\s*(of|for|:)?\s*/i, "")
-    // Remove ticker patterns like (SGX: C6L), (NASDAQ: FLNC), (AIY.SI)
+    .replace(/^Sun Tzu['']?s?\s*(Report|Analysis|Assessment|Strategic Assessment|Battlefield Assessment)\s*(of|for|:)?\s*/i, "")
     .replace(/\s*\([^)]*:[^)]*\)\s*/g, "")
     .replace(/\s*\([A-Z0-9.]+\)\s*/g, "")
-    // Remove trailing "— Sun Tzu..." type suffixes
     .replace(/\s*[—–-]\s*Sun Tzu.*$/i, "")
     .trim();
   
-  // If it still looks like a ticker (all caps, short, with dots), return empty
   if (/^[A-Z0-9.]{1,10}$/.test(cleaned)) {
     return "";
   }
   
-  return cleaned.substring(0, 50); // Limit length
+  return cleaned.substring(0, 50);
 }
 
 // Format datetime with UTC correction and time
@@ -46,7 +37,18 @@ function formatDateTime(dateStr: string | null | undefined): string {
   });
 }
 
-type ReportType = "all" | "sun-tzu" | "weekly-scan";
+// Parse related_tickers JSON safely
+function parseRelatedTickers(json: string | null | undefined): string[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+type ReportType = "all" | "sun-tzu" | "weekly-scan" | "comparison";
 type DateRange = "all" | "7d" | "30d";
 type SortBy = "newest" | "alphabetical";
 
@@ -60,8 +62,29 @@ export function StockFilters({ reports }: StockFiltersProps) {
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [sortBy, setSortBy] = useState<SortBy>("newest");
 
+  // Separate comparison reports from single-ticker reports
+  const { comparisonReports, singleReports } = useMemo(() => {
+    const comparisons: StockReport[] = [];
+    const singles: StockReport[] = [];
+    
+    for (const report of reports) {
+      if (report.report_type === "comparison") {
+        comparisons.push(report);
+      } else {
+        singles.push(report);
+      }
+    }
+    
+    return { comparisonReports: comparisons, singleReports: singles };
+  }, [reports]);
+
   const filteredReports = useMemo(() => {
-    let filtered = [...reports];
+    // Start with appropriate base based on filter
+    let filtered = reportType === "comparison" 
+      ? [...comparisonReports]
+      : reportType === "all" 
+        ? [...singleReports] // "all" shows single-ticker reports; comparisons shown separately
+        : [...singleReports];
 
     // Filter by search
     if (search) {
@@ -69,11 +92,12 @@ export function StockFilters({ reports }: StockFiltersProps) {
       filtered = filtered.filter(
         (r) =>
           r.ticker.toLowerCase().includes(q) ||
-          r.title?.toLowerCase().includes(q)
+          r.title?.toLowerCase().includes(q) ||
+          parseRelatedTickers(r.related_tickers).some(t => t.toLowerCase().includes(q))
       );
     }
 
-    // Filter by report type
+    // Filter by report type (for non-comparison)
     if (reportType === "sun-tzu") {
       filtered = filtered.filter(
         (r) => !r.report_type || r.report_type === "sun-tzu"
@@ -104,31 +128,65 @@ export function StockFilters({ reports }: StockFiltersProps) {
     }
 
     return filtered;
-  }, [reports, search, reportType, dateRange, sortBy]);
+  }, [singleReports, comparisonReports, search, reportType, dateRange, sortBy]);
 
-  // Group filtered reports by ticker
+  // Filter comparison reports by date/search
+  const filteredComparisons = useMemo(() => {
+    let filtered = [...comparisonReports];
+
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.ticker.toLowerCase().includes(q) ||
+          r.title?.toLowerCase().includes(q) ||
+          parseRelatedTickers(r.related_tickers).some(t => t.toLowerCase().includes(q))
+      );
+    }
+
+    if (dateRange !== "all") {
+      const now = new Date();
+      const days = dateRange === "7d" ? 7 : 30;
+      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter(
+        (r) => r.created_at && new Date(r.created_at) >= cutoff
+      );
+    }
+
+    filtered.sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime()
+    );
+
+    return filtered;
+  }, [comparisonReports, search, dateRange]);
+
+  // Group filtered single reports by ticker
   const reportsByTicker = useMemo(() => {
+    if (reportType === "comparison") return {};
     return filteredReports.reduce((acc, report) => {
       if (!acc[report.ticker]) acc[report.ticker] = [];
       acc[report.ticker].push(report);
       return acc;
     }, {} as Record<string, StockReport[]>);
-  }, [filteredReports]);
+  }, [filteredReports, reportType]);
 
   const tickers = Object.keys(reportsByTicker);
 
-  // Sort tickers based on sortBy
   const sortedTickers = useMemo(() => {
     if (sortBy === "alphabetical") {
       return [...tickers].sort();
     }
-    // Sort by latest report date
     return [...tickers].sort((a, b) => {
       const aDate = new Date(reportsByTicker[a][0]?.created_at || 0);
       const bDate = new Date(reportsByTicker[b][0]?.created_at || 0);
       return bDate.getTime() - aDate.getTime();
     });
   }, [tickers, reportsByTicker, sortBy]);
+
+  const showComparisonsSection = reportType === "all" || reportType === "comparison";
+  const showSingleTickerSection = reportType !== "comparison";
 
   return (
     <div className="space-y-6">
@@ -151,6 +209,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
             { value: "all", label: "All Types" },
             { value: "sun-tzu", label: "Sun Tzu" },
             { value: "weekly-scan", label: "Weekly Scan" },
+            { value: "comparison", label: "Comparison" },
           ]}
         />
 
@@ -177,13 +236,57 @@ export function StockFilters({ reports }: StockFiltersProps) {
 
         {/* Results count */}
         <span className="text-xs text-gray-500 ml-auto">
-          {filteredReports.length} report{filteredReports.length !== 1 ? "s" : ""} · {sortedTickers.length} ticker{sortedTickers.length !== 1 ? "s" : ""}
+          {filteredReports.length + (showComparisonsSection ? filteredComparisons.length : 0)} report{filteredReports.length + filteredComparisons.length !== 1 ? "s" : ""}
+          {reportType !== "comparison" && ` · ${sortedTickers.length} ticker${sortedTickers.length !== 1 ? "s" : ""}`}
         </span>
       </div>
 
-      {/* Reports by Ticker */}
-      {sortedTickers.length > 0 ? (
-        <div className="space-y-8">
+      {/* Comparisons Section */}
+      {showComparisonsSection && filteredComparisons.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+            <span>🏆</span> Comparisons
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredComparisons.map((report) => {
+              const relatedTickers = parseRelatedTickers(report.related_tickers);
+              const allTickers = [report.ticker, ...relatedTickers.filter(t => t !== report.ticker)];
+              
+              return (
+                <Link
+                  key={report.id}
+                  href={`/stocks/${encodeURIComponent(report.ticker)}?report=${report.id}`}
+                  className="card-hover"
+                >
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {allTickers.slice(0, 6).map((t) => (
+                      <span
+                        key={t}
+                        className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-0.5"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                    {allTickers.length > 6 && (
+                      <span className="text-xs text-gray-400">+{allTickers.length - 6} more</span>
+                    )}
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900 line-clamp-2">
+                    {report.title || "Comparison Report"}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-2">
+                    {formatDateTime(report.created_at)}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Single-Ticker Reports by Ticker */}
+      {showSingleTickerSection && sortedTickers.length > 0 && (
+        <div className="space-y-4">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
             Reports by Ticker
           </h2>
@@ -228,7 +331,10 @@ export function StockFilters({ reports }: StockFiltersProps) {
             </div>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* Empty state */}
+      {sortedTickers.length === 0 && filteredComparisons.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
           <div className="text-4xl mb-3">🔍</div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">No matching reports</h3>

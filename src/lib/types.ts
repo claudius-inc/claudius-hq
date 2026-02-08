@@ -44,6 +44,7 @@ export interface StockReport {
   company_name: string;
   content: string;
   report_type: string;
+  related_tickers: string; // JSON array for comparison reports, e.g. '["ENPH","NXT","FSLR"]'
   created_at: string;
 }
 

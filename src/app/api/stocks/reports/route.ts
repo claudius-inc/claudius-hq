@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   await ensureDB();
   try {
     const body = await req.json();
-    const { ticker, title, content, report_type, company_name } = body;
+    const { ticker, title, content, report_type, company_name, related_tickers } = body;
 
     if (!ticker || !content) {
       return NextResponse.json(
@@ -74,16 +74,27 @@ export async function POST(req: NextRequest) {
     
     // Use provided company_name or extract from title
     const finalCompanyName = company_name || extractCompanyName(finalTitle, cleanTicker);
+    
+    // Handle related_tickers - store as JSON string
+    let relatedTickersJson = "";
+    if (related_tickers) {
+      if (Array.isArray(related_tickers)) {
+        relatedTickersJson = JSON.stringify(related_tickers.map((t: string) => t.toUpperCase()));
+      } else if (typeof related_tickers === "string") {
+        relatedTickersJson = related_tickers;
+      }
+    }
 
     const result = await db.execute({
-      sql: `INSERT INTO stock_reports (ticker, title, content, report_type, company_name) 
-            VALUES (?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO stock_reports (ticker, title, content, report_type, company_name, related_tickers) 
+            VALUES (?, ?, ?, ?, ?, ?)`,
       args: [
         cleanTicker,
         finalTitle,
         content,
         report_type || "sun-tzu",
         finalCompanyName,
+        relatedTickersJson,
       ],
     });
 
