@@ -10,6 +10,10 @@ export const metadata: Metadata = {
     template: "%s | Claudius HQ",
   },
   description: "Mission Control for Claudius Inc",
+  icons: {
+    icon: "/logo.svg",
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { MobileMenu } from "./MobileMenu";
 
 const links = [
@@ -13,7 +14,13 @@ export async function Nav() {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between h-12">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-emerald-600 text-lg">⚡</span>
+            <Image 
+              src="/logo.svg" 
+              alt="Claudius HQ" 
+              width={24} 
+              height={24}
+              className="w-6 h-6"
+            />
             <span className="font-bold text-gray-900">Claudius HQ</span>
           </Link>
 
