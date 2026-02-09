@@ -17,29 +17,34 @@ export function parseDbDate(dateStr: string | null | undefined): Date | null {
 
 /**
  * Format a database datetime as a short date (e.g., "Feb 8, 2026")
+ * Uses Singapore timezone for server-side rendering consistency
  */
 export function formatDate(dateStr: string | null | undefined): string {
   const date = parseDbDate(dateStr);
   if (!date) return "-";
-  return date.toLocaleDateString("en-US", {
+  return date.toLocaleDateString("en-SG", {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "Asia/Singapore",
   });
 }
 
 /**
- * Format a database datetime as full timestamp (e.g., "8 Feb 2026, 10:30 AM")
+ * Format a database datetime as full timestamp (e.g., "8 Feb 2026, 02:30 pm")
+ * Uses Singapore timezone for server-side rendering consistency
  */
 export function formatDateTime(dateStr: string | null | undefined): string {
   const date = parseDbDate(dateStr);
   if (!date) return "-";
-  return date.toLocaleString("en-US", {
+  return date.toLocaleString("en-SG", {
     year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Singapore",
   });
 }
 

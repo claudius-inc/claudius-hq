@@ -120,6 +120,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
+      timeZone: "Asia/Singapore",
     });
   };
 
