@@ -70,6 +70,13 @@ export async function POST(request: NextRequest) {
 
 **JOB ID:** ${jobId}
 
+**TICKER INTERPRETATION:**
+- The exact ticker provided is: ${cleanTicker}
+- If the ticker includes an exchange suffix (e.g., .HK, .SI, .AX, .L), research THAT specific stock
+- If no suffix, assume it's a US-listed stock (NYSE/NASDAQ)
+- Do NOT substitute with a different exchange unless the user specifically included that suffix
+- Example: "NXT" = US stock, "NXT.AX" = Australian stock NEXTDC
+
 **CRITICAL REQUIREMENTS:**
 - Read the skill file: /root/openclaw/skills/sun-tzu-research/SKILL.md
 - Follow ALL 14 sections exactly as specified in the skill
