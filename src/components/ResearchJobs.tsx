@@ -22,44 +22,47 @@ interface ResearchJobsProps {
 export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
   const router = useRouter();
   const [jobs, setJobs] = useState<ResearchJob[]>(initialJobs);
-  const [polling, setPolling] = useState(false);
+  const [polling, setPolling] = useState(true);
+  const [prevActiveCount, setPrevActiveCount] = useState(initialJobs.filter(
+    j => j.status === "pending" || j.status === "processing"
+  ).length);
 
   // Filter to only show pending/processing jobs
   const activeJobs = jobs.filter(
     (job) => job.status === "pending" || job.status === "processing"
   );
 
+  // Always poll for jobs - catches newly submitted ones missed by ISR cache
   useEffect(() => {
-    // Poll for updates if there are active jobs
-    if (activeJobs.length === 0) {
-      setPolling(false);
-      return;
-    }
-
-    setPolling(true);
-    const interval = setInterval(async () => {
+    const fetchJobs = async () => {
       try {
         const res = await fetch("/api/stocks/research");
         const data = await res.json();
         if (data.jobs) {
           setJobs(data.jobs);
           
-          // If all jobs are complete, reload the page to show new reports
           const stillActive = data.jobs.filter(
             (j: ResearchJob) => j.status === "pending" || j.status === "processing"
           );
-          if (stillActive.length === 0 && activeJobs.length > 0) {
-            // Jobs finished, refresh to show new reports (forces ISR revalidation)
+          
+          // If we had active jobs and now they're all done, refresh to show new reports
+          if (stillActive.length === 0 && prevActiveCount > 0) {
+            setPrevActiveCount(0);
             router.refresh();
+          } else if (stillActive.length > 0) {
+            setPrevActiveCount(stillActive.length);
           }
         }
       } catch (error) {
         console.error("Failed to poll jobs:", error);
       }
-    }, 5000); // Poll every 5 seconds
+    };
+
+    fetchJobs(); // Fetch immediately on mount
+    const interval = setInterval(fetchJobs, 3000); // Poll every 3 seconds
 
     return () => clearInterval(interval);
-  }, [activeJobs.length, router]);
+  }, [router, prevActiveCount]);
 
   if (activeJobs.length === 0) {
     return null;
