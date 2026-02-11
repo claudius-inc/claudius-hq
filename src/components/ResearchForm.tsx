@@ -1,12 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Spinner } from "./ui/Spinner";
 
-export function ResearchForm() {
-  const [ticker, setTicker] = useState("");
+interface ResearchFormProps {
+  initialTicker?: string;
+}
+
+export function ResearchForm({ initialTicker }: ResearchFormProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [ticker, setTicker] = useState(initialTicker || "");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
+
+  // Handle ?refresh=TICKER param from stock detail page
+  useEffect(() => {
+    const refreshTicker = searchParams.get("refresh");
+    if (refreshTicker) {
+      setTicker(refreshTicker.toUpperCase());
+      // Clear the URL param without triggering navigation
+      const url = new URL(window.location.href);
+      url.searchParams.delete("refresh");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,10 +47,12 @@ export function ResearchForm() {
         setStatus("success");
         setMessage(`Research queued for ${ticker.toUpperCase()}. Refreshing...`);
         setTicker("");
-        // Refresh the page after a short delay to show the new job
+        // Refresh to show the new job (router.refresh forces ISR revalidation)
         setTimeout(() => {
-          window.location.reload();
-        }, 1000);
+          router.refresh();
+          setStatus("idle");
+          setMessage("");
+        }, 500);
       } else {
         setStatus("error");
         setMessage(data.error || "Failed to queue research");

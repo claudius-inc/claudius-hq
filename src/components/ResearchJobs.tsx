@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
 
 type ResearchJob = {
@@ -19,6 +20,7 @@ interface ResearchJobsProps {
 }
 
 export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
+  const router = useRouter();
   const [jobs, setJobs] = useState<ResearchJob[]>(initialJobs);
   const [polling, setPolling] = useState(false);
 
@@ -47,8 +49,8 @@ export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
             (j: ResearchJob) => j.status === "pending" || j.status === "processing"
           );
           if (stillActive.length === 0 && activeJobs.length > 0) {
-            // Jobs finished, refresh to show new reports
-            window.location.reload();
+            // Jobs finished, refresh to show new reports (forces ISR revalidation)
+            router.refresh();
           }
         }
       } catch (error) {
@@ -57,7 +59,7 @@ export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
     }, 5000); // Poll every 5 seconds
 
     return () => clearInterval(interval);
-  }, [activeJobs.length]);
+  }, [activeJobs.length, router]);
 
   if (activeJobs.length === 0) {
     return null;
