@@ -130,40 +130,14 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
       {/* Sticky header section - top-12 to sit below Nav (h-12) */}
       <div className="sticky top-12 z-40 bg-gray-50 border-b border-gray-200">
         <div className="max-w-6xl mx-auto px-4 py-2 md:py-3">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
-            <Link href="/stocks" className="hover:text-gray-600 transition-colors">Stocks</Link>
-            <span>›</span>
-            <span className="text-gray-900 font-medium">{decodedTicker}</span>
-          </div>
-
-          {report ? (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <h1 className="text-base md:text-lg font-bold text-gray-900 leading-tight truncate">
-                  {report.company_name || report.ticker}
-                </h1>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  {/* Staleness indicator - warn if report is > 90 days old */}
-                  {(() => {
-                    const utcTimestamp = report.created_at.endsWith('Z') ? report.created_at : report.created_at + 'Z';
-                    const reportDate = new Date(utcTimestamp);
-                    const daysSinceReport = Math.floor((Date.now() - reportDate.getTime()) / (1000 * 60 * 60 * 24));
-                    if (daysSinceReport > 90) {
-                      return (
-                        <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full" title="This report may be outdated">
-                          ⚠️ {daysSinceReport}d old
-                        </span>
-                      );
-                    }
-                    return null;
-                  })()}
-                  <span className="text-xs text-gray-400 whitespace-nowrap">
-                    {formatFullTimestamp(report.created_at)}
-                  </span>
-                </div>
-              </div>
-              {/* Actions row */}
+          {/* Breadcrumb + Actions row */}
+          <div className="flex items-center justify-between gap-2 text-sm mb-1">
+            <div className="flex items-center gap-2 text-gray-400">
+              <Link href="/stocks" className="hover:text-gray-600 transition-colors">Stocks</Link>
+              <span>›</span>
+              <span className="text-gray-900 font-medium">{decodedTicker}</span>
+            </div>
+            {report && (
               <div className="flex items-center gap-2">
                 {olderReports.length > 0 && (
                   <PreviousReportsDropdown 
@@ -173,13 +147,41 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
                 )}
                 <Link
                   href={`/stocks?refresh=${encodeURIComponent(decodedTicker)}`}
-                  className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-gray-900 bg-gray-50 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors"
+                  className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
+                  title="Generate new research report"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                   </svg>
-                  Refresh Research
+                  <span className="hidden sm:inline">Refresh</span>
                 </Link>
+              </div>
+            )}
+          </div>
+
+          {report ? (
+            <div className="flex items-baseline justify-between gap-2">
+              <h1 className="text-base md:text-lg font-bold text-gray-900 leading-tight truncate">
+                {report.company_name || report.ticker}
+              </h1>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {/* Staleness indicator - warn if report is > 90 days old */}
+                {(() => {
+                  const utcTimestamp = report.created_at.endsWith('Z') ? report.created_at : report.created_at + 'Z';
+                  const reportDate = new Date(utcTimestamp);
+                  const daysSinceReport = Math.floor((Date.now() - reportDate.getTime()) / (1000 * 60 * 60 * 24));
+                  if (daysSinceReport > 90) {
+                    return (
+                      <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full" title="This report may be outdated">
+                        ⚠️ {daysSinceReport}d old
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+                <span className="text-xs text-gray-400 whitespace-nowrap">
+                  {formatFullTimestamp(report.created_at)}
+                </span>
               </div>
             </div>
           ) : null}
