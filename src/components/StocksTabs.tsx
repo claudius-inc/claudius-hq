@@ -31,8 +31,8 @@ export function StocksTabs({ activeTab }: StocksTabsProps) {
   };
 
   return (
-    <div className="border-b border-gray-200 mb-6">
-      <nav className="-mb-px flex space-x-8">
+    <div className="border-b border-gray-200 mb-6 overflow-x-auto">
+      <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
         {tabs.map((tab) => (
           <button
             key={tab.id}

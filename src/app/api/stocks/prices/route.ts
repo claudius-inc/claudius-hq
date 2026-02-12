@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+
+// Instantiate Yahoo Finance client
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export const dynamic = "force-dynamic";
 

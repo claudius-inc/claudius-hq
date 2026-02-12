@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import db, { ensureDB } from "@/lib/db";
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
 import { Theme, ThemeWithPerformance, ThemePerformance } from "@/lib/types";
+
+// Instantiate Yahoo Finance client
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 // Revalidate every hour
 export const revalidate = 3600;
