@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH /api/stocks/reports?id=123 — update a report's company_name
+// PATCH /api/stocks/reports?id=123 — update a report's fields (company_name, ticker)
 export async function PATCH(req: NextRequest) {
   if (!isApiAuthenticated(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -128,18 +128,33 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { company_name } = body;
+    const { company_name, ticker } = body;
 
-    if (company_name === undefined) {
+    if (company_name === undefined && ticker === undefined) {
       return NextResponse.json(
-        { error: "company_name is required in body" },
+        { error: "At least one field (company_name or ticker) is required" },
         { status: 400 }
       );
     }
 
+    const updates: string[] = [];
+    const args: (string | number)[] = [];
+
+    if (company_name !== undefined) {
+      updates.push("company_name = ?");
+      args.push(company_name);
+    }
+
+    if (ticker !== undefined) {
+      updates.push("ticker = ?");
+      args.push(ticker.toUpperCase());
+    }
+
+    args.push(parseInt(id, 10));
+
     await db.execute({
-      sql: "UPDATE stock_reports SET company_name = ? WHERE id = ?",
-      args: [company_name, parseInt(id, 10)],
+      sql: `UPDATE stock_reports SET ${updates.join(", ")} WHERE id = ?`,
+      args,
     });
 
     return NextResponse.json({ success: true, id: parseInt(id, 10) });
