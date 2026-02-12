@@ -2,7 +2,7 @@
 
 import { useSearchParams, useRouter } from "next/navigation";
 
-export type StocksTab = "research" | "watchlist" | "portfolio" | "themes" | "sectors";
+export type StocksTab = "research" | "portfolio" | "themes" | "sectors";
 
 interface StocksTabsProps {
   activeTab: StocksTab;
@@ -14,7 +14,6 @@ export function StocksTabs({ activeTab }: StocksTabsProps) {
 
   const tabs: { id: StocksTab; label: string }[] = [
     { id: "research", label: "Research" },
-    { id: "watchlist", label: "Watchlist" },
     { id: "portfolio", label: "Portfolio" },
     { id: "themes", label: "Themes" },
     { id: "sectors", label: "Sectors" },

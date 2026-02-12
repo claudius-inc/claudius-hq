@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import db, { ensureDB } from "@/lib/db";
 import YahooFinance from "yahoo-finance2";
-import { Theme, ThemeWithPerformance, ThemePerformance } from "@/lib/types";
+import { Theme, ThemeWithPerformance, ThemePerformance, ThemeStockStatus } from "@/lib/types";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -12,6 +12,13 @@ export const revalidate = 3600;
 interface HistoricalRow {
   date: Date;
   close: number;
+}
+
+interface StockDbRow {
+  ticker: string;
+  target_price: number | null;
+  status: ThemeStockStatus | null;
+  notes: string | null;
 }
 
 // Get historical prices for a ticker
@@ -57,11 +64,12 @@ function calcPerformance(start: number | null, end: number | null): number | nul
   return ((end - start) / start) * 100;
 }
 
-// Get all stock performances for a theme
-async function getStockPerformances(tickers: string[]): Promise<ThemePerformance[]> {
+// Get all stock performances for a theme with watchlist data
+async function getStockPerformances(stockRows: StockDbRow[]): Promise<ThemePerformance[]> {
   const performances: ThemePerformance[] = [];
 
-  for (const ticker of tickers) {
+  for (const row of stockRows) {
+    const { ticker, target_price, status, notes } = row;
     try {
       const [prices1w, prices1m, prices3m, quote] = await Promise.all([
         getHistoricalPrices(ticker, "1w"),
@@ -70,12 +78,24 @@ async function getStockPerformances(tickers: string[]): Promise<ThemePerformance
         (yahooFinance.quote(ticker) as Promise<{ regularMarketPrice?: number }>).catch(() => null),
       ]);
 
+      const currentPrice = (quote as { regularMarketPrice?: number })?.regularMarketPrice ?? null;
+      
+      // Calculate price gap to target
+      let priceGapPercent: number | null = null;
+      if (currentPrice !== null && target_price !== null && target_price > 0) {
+        priceGapPercent = ((currentPrice - target_price) / target_price) * 100;
+      }
+
       performances.push({
         ticker,
         performance_1w: calcPerformance(prices1w.start, prices1w.end),
         performance_1m: calcPerformance(prices1m.start, prices1m.end),
         performance_3m: calcPerformance(prices3m.start, prices3m.end),
-        current_price: (quote as { regularMarketPrice?: number })?.regularMarketPrice ?? null,
+        current_price: currentPrice,
+        target_price,
+        status: status || "watching",
+        notes,
+        price_gap_percent: priceGapPercent,
       });
     } catch {
       performances.push({
@@ -84,6 +104,10 @@ async function getStockPerformances(tickers: string[]): Promise<ThemePerformance
         performance_1m: null,
         performance_3m: null,
         current_price: null,
+        target_price,
+        status: status || "watching",
+        notes,
+        price_gap_percent: null,
       });
     }
   }
@@ -138,16 +162,17 @@ export async function GET(
 
     const theme = themeResult.rows[0] as unknown as Theme;
 
-    // Get theme stocks
+    // Get theme stocks with watchlist data
     const stocksResult = await db.execute({
-      sql: "SELECT ticker FROM theme_stocks WHERE theme_id = ? ORDER BY ticker",
+      sql: "SELECT ticker, target_price, status, notes FROM theme_stocks WHERE theme_id = ? ORDER BY ticker",
       args: [id],
     });
 
-    const tickers = stocksResult.rows.map((r) => (r as unknown as { ticker: string }).ticker);
+    const stockRows = stocksResult.rows.map((r) => r as unknown as StockDbRow);
+    const tickers = stockRows.map((r) => r.ticker);
 
-    // Get stock performances
-    const stockPerfs = await getStockPerformances(tickers);
+    // Get stock performances with watchlist data
+    const stockPerfs = await getStockPerformances(stockRows);
 
     // Sort by 1M performance
     stockPerfs.sort((a, b) => (b.performance_1m ?? -999) - (a.performance_1m ?? -999));

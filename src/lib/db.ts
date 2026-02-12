@@ -164,4 +164,21 @@ export async function initDB() {
   } catch {
     await db.execute("ALTER TABLE stock_reports ADD COLUMN related_tickers TEXT DEFAULT ''");
   }
+
+  // Add watchlist-like fields to theme_stocks
+  try {
+    await db.execute("SELECT target_price FROM theme_stocks LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE theme_stocks ADD COLUMN target_price REAL");
+  }
+  try {
+    await db.execute("SELECT status FROM theme_stocks LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE theme_stocks ADD COLUMN status TEXT DEFAULT 'watching' CHECK(status IN ('watching', 'accumulating', 'holding'))");
+  }
+  try {
+    await db.execute("SELECT notes FROM theme_stocks LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE theme_stocks ADD COLUMN notes TEXT");
+  }
 }

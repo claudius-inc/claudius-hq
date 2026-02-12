@@ -57,7 +57,7 @@ function calcPerformance(start: number | null, end: number | null): number | nul
   return ((end - start) / start) * 100;
 }
 
-// Get all stock performances for a theme
+// Get all stock performances for a theme (for list view, no watchlist data)
 async function getStockPerformances(tickers: string[]): Promise<ThemePerformance[]> {
   const performances: ThemePerformance[] = [];
 
@@ -76,6 +76,10 @@ async function getStockPerformances(tickers: string[]): Promise<ThemePerformance
         performance_1m: calcPerformance(prices1m.start, prices1m.end),
         performance_3m: calcPerformance(prices3m.start, prices3m.end),
         current_price: (quote as { regularMarketPrice?: number })?.regularMarketPrice ?? null,
+        target_price: null,
+        status: "watching",
+        notes: null,
+        price_gap_percent: null,
       });
     } catch {
       performances.push({
@@ -84,6 +88,10 @@ async function getStockPerformances(tickers: string[]): Promise<ThemePerformance
         performance_1m: null,
         performance_3m: null,
         current_price: null,
+        target_price: null,
+        status: "watching",
+        notes: null,
+        price_gap_percent: null,
       });
     }
   }

@@ -105,10 +105,15 @@ export interface Theme {
   created_at: string;
 }
 
+export type ThemeStockStatus = "watching" | "accumulating" | "holding";
+
 export interface ThemeStock {
   id: number;
   theme_id: number;
   ticker: string;
+  target_price: number | null;
+  status: ThemeStockStatus;
+  notes: string | null;
   added_at: string;
 }
 
@@ -118,6 +123,11 @@ export interface ThemePerformance {
   performance_1m: number | null;
   performance_3m: number | null;
   current_price: number | null;
+  // Watchlist-like fields
+  target_price: number | null;
+  status: ThemeStockStatus;
+  notes: string | null;
+  price_gap_percent: number | null;
 }
 
 export interface ThemeWithPerformance extends Theme {
