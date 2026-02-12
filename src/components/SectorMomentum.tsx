@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Minus, RefreshCw, ExternalLink, List } from "lucide-react";
+import { SectorMomentumSkeleton } from "@/components/Skeleton";
 
 interface SectorData {
   id: string;
@@ -145,13 +146,7 @@ export function SectorMomentum() {
   }, []);
 
   if (loading) {
-    return (
-      <div className="card">
-        <div className="flex items-center justify-center py-12">
-          <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </div>
-    );
+    return <SectorMomentumSkeleton />;
   }
 
   if (error) {

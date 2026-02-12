@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ThemeWithPerformance } from "@/lib/types";
 import { ThemesTab } from "@/components/ThemesTab";
+import { ThemesTableSkeleton } from "@/components/Skeleton";
 
 export function ThemesPageContent() {
   const [themes, setThemes] = useState<ThemeWithPerformance[]>([]);
@@ -25,11 +26,7 @@ export function ThemesPageContent() {
   }, [fetchData]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <ThemesTableSkeleton />;
   }
 
   return <ThemesTab initialThemes={themes} />;

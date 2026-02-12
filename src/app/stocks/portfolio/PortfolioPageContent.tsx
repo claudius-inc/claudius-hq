@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { PortfolioHolding, PortfolioReport } from "@/lib/types";
 import { PortfolioTab } from "@/components/PortfolioTab";
+import { PortfolioSkeleton } from "@/components/Skeleton";
 
 export function PortfolioPageContent() {
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
@@ -31,11 +32,7 @@ export function PortfolioPageContent() {
   }, [fetchData]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <PortfolioSkeleton />;
   }
 
   return (

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Minus, RefreshCw, ExternalLink, Globe } from "lucide-react";
+import { GlobalMarketsSkeleton } from "@/components/Skeleton";
 
 interface MarketData {
   id: string;
@@ -177,13 +178,7 @@ export function GlobalMarkets() {
     : markets.filter(m => m.region === regionFilter);
 
   if (loading) {
-    return (
-      <div className="card">
-        <div className="flex items-center justify-center py-12">
-          <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      </div>
-    );
+    return <GlobalMarketsSkeleton />;
   }
 
   if (error) {

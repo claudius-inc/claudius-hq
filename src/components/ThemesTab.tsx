@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Plus, ChevronDown, ChevronRight, Trash2, X, Sparkles, Edit2, Target } from "lucide-react";
+import { SkeletonTableRow } from "@/components/Skeleton";
 import { ThemeWithPerformance, ThemePerformance, ThemeStockStatus } from "@/lib/types";
 
 interface ThemesTabProps {
@@ -490,8 +491,28 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                       <td colSpan={7} className="px-0 py-0">
                         <div className="bg-gray-50 border-t border-gray-200">
                           {loadingExpanded ? (
-                            <div className="flex items-center justify-center py-6">
-                              <div className="h-5 w-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full">
+                                <thead>
+                                  <tr className="text-xs text-gray-500">
+                                    <th className="px-4 py-2 text-center font-medium uppercase w-8">St</th>
+                                    <th className="px-4 py-2 text-left font-medium uppercase">Ticker</th>
+                                    <th className="px-4 py-2 text-center font-medium uppercase w-8"></th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">Price</th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">Target</th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">Gap</th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">1W</th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">1M</th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">3M</th>
+                                    <th className="px-4 py-2 w-20"></th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                  {Array.from({ length: 4 }).map((_, i) => (
+                                    <SkeletonTableRow key={i} cols={10} />
+                                  ))}
+                                </tbody>
+                              </table>
                             </div>
                           ) : expandedData?.stock_performances ? (
                             <>
