@@ -11,6 +11,7 @@ import { WatchlistTab } from "@/components/WatchlistTab";
 import { PortfolioTab } from "@/components/PortfolioTab";
 import { PortfolioInclusionModal } from "@/components/PortfolioInclusionModal";
 import { ThemesTab } from "@/components/ThemesTab";
+import { SectorMomentum } from "@/components/SectorMomentum";
 
 type ResearchJob = {
   id: string;
@@ -35,7 +36,7 @@ export function StocksPageContent({
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const activeTab: StocksTab =
-    tabParam === "watchlist" || tabParam === "portfolio" || tabParam === "themes" ? tabParam : "research";
+    tabParam === "watchlist" || tabParam === "portfolio" || tabParam === "themes" || tabParam === "sectors" ? tabParam : "research";
 
   // State for portfolio inclusion modal
   const [promotingItem, setPromotingItem] = useState<WatchlistItem | null>(null);
@@ -205,6 +206,10 @@ export function StocksPageContent({
             <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
           </div>
         )
+      )}
+
+      {activeTab === "sectors" && (
+        <SectorMomentum />
       )}
 
       {/* Portfolio Inclusion Modal */}
