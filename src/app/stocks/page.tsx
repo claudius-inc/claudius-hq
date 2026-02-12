@@ -1,16 +1,14 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import db, { ensureDB } from "@/lib/db";
 import { StockReport } from "@/lib/types";
-import { Nav } from "@/components/Nav";
-import { StocksPageContent } from "./StocksPageContent";
+import { ResearchForm } from "@/components/ResearchForm";
+import { ResearchJobs } from "@/components/ResearchJobs";
+import { StockFilters } from "@/components/StockFilters";
 
 export const metadata: Metadata = {
-  title: "Stocks",
+  title: "Research | Stocks",
 };
 
-// Cache Research tab data for 60 seconds
-// Watchlist/Portfolio tabs fetch client-side for real-time data
 export const revalidate = 60;
 
 type ResearchJob = {
@@ -44,7 +42,7 @@ async function getActiveJobs(): Promise<ResearchJob[]> {
   }
 }
 
-export default async function StocksPage() {
+export default async function ResearchPage() {
   await ensureDB();
   const [reports, activeJobs] = await Promise.all([
     getReports(),
@@ -52,16 +50,34 @@ export default async function StocksPage() {
   ]);
 
   return (
-    <div className="min-h-screen">
-      <Nav />
-      <main className="max-w-6xl mx-auto px-4 py-6">
-        <Suspense fallback={<div>Loading...</div>}>
-          <StocksPageContent
-            reports={reports}
-            activeJobs={activeJobs}
-          />
-        </Suspense>
-      </main>
-    </div>
+    <>
+      {/* Research Form */}
+      <div className="mb-8">
+        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
+          New Research
+        </h2>
+        <div className="card">
+          <ResearchForm />
+        </div>
+      </div>
+
+      {/* In Progress Jobs */}
+      <ResearchJobs initialJobs={activeJobs} />
+
+      {/* Filtered Reports */}
+      {reports.length > 0 ? (
+        <StockFilters reports={reports} />
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+          <div className="text-4xl mb-3">📈</div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">
+            No reports yet
+          </h3>
+          <p className="text-sm text-gray-500">
+            Enter a ticker above to queue research, or add reports via the API
+          </p>
+        </div>
+      )}
+    </>
   );
 }
