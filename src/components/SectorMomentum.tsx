@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, Minus, RefreshCw, ExternalLink } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, RefreshCw, ExternalLink, List } from "lucide-react";
 
 interface SectorData {
   id: string;
@@ -58,6 +58,25 @@ function MomentumTrendIcon({ trend }: { trend: SectorData["momentum_trend"] }) {
     return <span title="Stable"><Minus className="w-4 h-4 text-gray-400" /></span>;
   }
   return null;
+}
+
+// ETF holdings page URLs (SPDR sector ETFs)
+const ETF_HOLDINGS_URLS: Record<string, string> = {
+  XLK: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-technology-select-sector-spdr-fund-xlk",
+  XLF: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-financial-select-sector-spdr-fund-xlf",
+  XLY: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-consumer-discretionary-select-sector-spdr-fund-xly",
+  XLC: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-communication-services-select-sector-spdr-fund-xlc",
+  XLV: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-health-care-select-sector-spdr-fund-xlv",
+  XLI: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-industrial-select-sector-spdr-fund-xli",
+  XLP: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-consumer-staples-select-sector-spdr-fund-xlp",
+  XLE: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-energy-select-sector-spdr-fund-xle",
+  XLB: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-materials-select-sector-spdr-fund-xlb",
+  XLRE: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-real-estate-select-sector-spdr-fund-xlre",
+  XLU: "https://www.ssga.com/us/en/intermediary/etfs/funds/the-utilities-select-sector-spdr-fund-xlu",
+};
+
+function getHoldingsUrl(ticker: string): string {
+  return ETF_HOLDINGS_URLS[ticker] || `https://etf.com/${ticker}`;
 }
 
 function RelativeStrengthBar({ value }: { value: number | null }) {
@@ -248,15 +267,26 @@ export function SectorMomentum() {
                     </span>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <a
-                      href={`https://www.tradingview.com/chart/?symbol=${sector.ticker}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1 text-gray-400 hover:text-gray-600 inline-block"
-                      title="View on TradingView"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
+                    <div className="flex items-center gap-1">
+                      <a
+                        href={getHoldingsUrl(sector.ticker)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 text-gray-400 hover:text-blue-600 inline-block"
+                        title="View ETF holdings"
+                      >
+                        <List className="w-4 h-4" />
+                      </a>
+                      <a
+                        href={`https://www.tradingview.com/chart/?symbol=${sector.ticker}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 text-gray-400 hover:text-gray-600 inline-block"
+                        title="View chart on TradingView"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ))}
