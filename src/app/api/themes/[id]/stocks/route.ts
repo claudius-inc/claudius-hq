@@ -4,11 +4,11 @@ import db, { ensureDB } from "@/lib/db";
 // POST /api/themes/[id]/stocks - Add stock to theme
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     await ensureDB();
-    const { id } = await params;
+    const { id } = params;
 
     const body = await request.json();
     const { ticker, target_price, status, notes } = body;
@@ -60,11 +60,11 @@ export async function POST(
 // PATCH /api/themes/[id]/stocks - Update stock in theme
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     await ensureDB();
-    const { id } = await params;
+    const { id } = params;
 
     const body = await request.json();
     const { ticker, target_price, status, notes } = body;

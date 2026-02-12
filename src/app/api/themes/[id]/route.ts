@@ -155,11 +155,11 @@ function findLeader(stockPerfs: ThemePerformance[]): { ticker: string; performan
 // GET /api/themes/[id] - Get theme details with all stocks
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     await ensureDB();
-    const { id } = await params;
+    const { id } = params;
 
     // Get theme
     const themeResult = await db.execute({
@@ -208,11 +208,11 @@ export async function GET(
 // DELETE /api/themes/[id] - Delete a theme
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     await ensureDB();
-    const { id } = await params;
+    const { id } = params;
 
     // Delete theme (cascade will delete theme_stocks)
     const result = await db.execute({

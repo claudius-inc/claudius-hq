@@ -5,10 +5,10 @@ import { WatchlistItem } from "@/lib/types";
 // PUT /api/watchlist/[id] — Update watchlist item
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   await ensureDB();
-  const { id } = await params;
+  const { id } = params;
   const numericId = parseInt(id, 10);
 
   if (isNaN(numericId)) {
@@ -66,10 +66,10 @@ export async function PUT(
 // DELETE /api/watchlist/[id] — Remove from watchlist
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   await ensureDB();
-  const { id } = await params;
+  const { id } = params;
   const numericId = parseInt(id, 10);
 
   if (isNaN(numericId)) {

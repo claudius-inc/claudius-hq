@@ -10,8 +10,8 @@ import { marked } from "marked";
 // Revalidate research pages every 5 minutes
 export const revalidate = 300;
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string; slug: string }> }): Promise<Metadata> {
-  const { id, slug } = await params;
+export async function generateMetadata({ params }: { params: { id: string; slug: string } }): Promise<Metadata> {
+  const { id, slug } = params;
   try {
     await ensureDB();
     const result = await db.execute({
@@ -26,8 +26,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: "Research" };
 }
 
-export default async function ResearchPageDetail({ params }: { params: Promise<{ id: string; slug: string }> }) {
-  const { id, slug } = await params;
+export default async function ResearchPageDetail({ params }: { params: { id: string; slug: string } }) {
+  const { id, slug } = params;
   await ensureDB();
 
   const projectRes = await db.execute({ sql: "SELECT * FROM projects WHERE id = ?", args: [Number(id)] });

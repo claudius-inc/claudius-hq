@@ -5,10 +5,10 @@ import { PortfolioHolding } from "@/lib/types";
 // PUT /api/portfolio/holdings/[id] — Update holding
 export async function PUT(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   await ensureDB();
-  const { id } = await params;
+  const { id } = params;
   const numericId = parseInt(id, 10);
 
   if (isNaN(numericId)) {
@@ -70,10 +70,10 @@ export async function PUT(
 // DELETE /api/portfolio/holdings/[id] — Remove holding
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   await ensureDB();
-  const { id } = await params;
+  const { id } = params;
   const numericId = parseInt(id, 10);
 
   if (isNaN(numericId)) {

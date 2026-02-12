@@ -19,9 +19,9 @@ interface QuoteResult {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ ticker: string }> }
+  { params }: { params: { ticker: string } }
 ) {
-  const { ticker } = await params;
+  const { ticker } = params;
   const upperTicker = ticker.toUpperCase();
 
   try {

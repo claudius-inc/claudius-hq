@@ -8,8 +8,8 @@ import { notFound } from "next/navigation";
 // Revalidate research list every 5 minutes
 export const revalidate = 300;
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const { id } = await params;
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const { id } = params;
   try {
     await ensureDB();
     const result = await db.execute({ sql: "SELECT name FROM projects WHERE id = ?", args: [Number(id)] });
@@ -21,8 +21,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: "Research" };
 }
 
-export default async function ResearchIndexPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
+export default async function ResearchIndexPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   await ensureDB();
 
   const projectRes = await db.execute({ sql: "SELECT * FROM projects WHERE id = ?", args: [Number(id)] });

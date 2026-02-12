@@ -4,11 +4,11 @@ import db, { ensureDB } from "@/lib/db";
 // DELETE /api/themes/[id]/stocks/[ticker] - Remove stock from theme
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string; ticker: string }> }
+  { params }: { params: { id: string; ticker: string } }
 ) {
   try {
     await ensureDB();
-    const { id, ticker } = await params;
+    const { id, ticker } = params;
 
     const upperTicker = ticker.toUpperCase();
 
