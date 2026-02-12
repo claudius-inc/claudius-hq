@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import db, { ensureDB } from "@/lib/db";
 import { StockReport } from "@/lib/types";
 import { ResearchForm } from "@/components/ResearchForm";
 import { ResearchJobs } from "@/components/ResearchJobs";
 import { StockFilters } from "@/components/StockFilters";
+import { Skeleton } from "@/components/Skeleton";
 
 export const metadata: Metadata = {
   title: "Research | Stocks",
@@ -57,7 +59,9 @@ export default async function ResearchPage() {
           New Research
         </h2>
         <div className="card">
-          <ResearchForm />
+          <Suspense fallback={<Skeleton className="h-12 w-full" />}>
+            <ResearchForm />
+          </Suspense>
         </div>
       </div>
 
