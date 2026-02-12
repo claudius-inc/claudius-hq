@@ -2,11 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Plus, ChevronDown, ChevronRight, Trash2, X } from "lucide-react";
+import Image from "next/image";
+import { Plus, ChevronDown, ChevronRight, Trash2, X, Sparkles } from "lucide-react";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 
 interface ThemesTabProps {
   initialThemes?: ThemeWithPerformance[];
+}
+
+interface SuggestedStock {
+  ticker: string;
+  adding?: boolean;
 }
 
 function formatPercent(value: number | null | undefined): string {
@@ -25,12 +31,25 @@ function formatPrice(price: number | null | undefined): string {
   return `$${price.toFixed(2)}`;
 }
 
+function getTradingViewUrl(ticker: string): string {
+  // Handle special cases for non-US tickers
+  if (ticker.includes(".")) {
+    // Already has exchange suffix
+    return `https://www.tradingview.com/chart/?symbol=${ticker}`;
+  }
+  return `https://www.tradingview.com/chart/?symbol=${ticker}`;
+}
+
 export function ThemesTab({ initialThemes }: ThemesTabProps) {
   const [themes, setThemes] = useState<ThemeWithPerformance[]>(initialThemes || []);
   const [loading, setLoading] = useState(!initialThemes);
   const [expandedTheme, setExpandedTheme] = useState<number | null>(null);
   const [expandedData, setExpandedData] = useState<ThemeWithPerformance | null>(null);
   const [loadingExpanded, setLoadingExpanded] = useState(false);
+  
+  // Suggested stocks for expanded theme
+  const [suggestions, setSuggestions] = useState<SuggestedStock[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   
   // Add theme modal
   const [showAddModal, setShowAddModal] = useState(false);
@@ -39,6 +58,10 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
   const [newStocks, setNewStocks] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Theme name suggestions
+  const [themeSuggestions, setThemeSuggestions] = useState<string[]>([]);
+  const [loadingThemeSuggestions, setLoadingThemeSuggestions] = useState(false);
 
   // Fetch themes
   const fetchThemes = useCallback(async () => {
@@ -60,25 +83,119 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
     }
   }, [fetchThemes, initialThemes]);
 
+  // Fetch suggestions when theme name changes (debounced)
+  useEffect(() => {
+    if (!newName.trim() || newName.length < 2) {
+      setThemeSuggestions([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setLoadingThemeSuggestions(true);
+      try {
+        const res = await fetch(`/api/themes/suggestions?name=${encodeURIComponent(newName)}`);
+        const data = await res.json();
+        if (data.matched && data.suggestions) {
+          setThemeSuggestions(data.suggestions);
+          if (data.description && !newDescription) {
+            setNewDescription(data.description);
+          }
+        } else {
+          setThemeSuggestions([]);
+        }
+      } catch {
+        setThemeSuggestions([]);
+      } finally {
+        setLoadingThemeSuggestions(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [newName, newDescription]);
+
+  // Fetch suggested stocks for expanded theme
+  const fetchSuggestions = async (tickers: string[]) => {
+    if (tickers.length === 0) return;
+    
+    setLoadingSuggestions(true);
+    try {
+      const res = await fetch(`/api/themes/suggestions?tickers=${tickers.join(",")}`);
+      const data = await res.json();
+      if (data.suggestions) {
+        setSuggestions(data.suggestions.map((t: string) => ({ ticker: t })));
+      }
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
   // Toggle expand theme
   const toggleExpand = async (themeId: number) => {
     if (expandedTheme === themeId) {
       setExpandedTheme(null);
       setExpandedData(null);
+      setSuggestions([]);
       return;
     }
 
     setExpandedTheme(themeId);
     setLoadingExpanded(true);
+    setSuggestions([]);
 
     try {
       const res = await fetch(`/api/themes/${themeId}`);
       const data = await res.json();
       setExpandedData(data.theme);
+      
+      // Fetch suggestions based on current stocks
+      if (data.theme?.stocks?.length > 0) {
+        fetchSuggestions(data.theme.stocks);
+      }
     } catch (e) {
       console.error("Failed to fetch theme details:", e);
     } finally {
       setLoadingExpanded(false);
+    }
+  };
+
+  // Add suggested stock to theme
+  const handleAddSuggestedStock = async (themeId: number, ticker: string) => {
+    setSuggestions(prev => prev.map(s => 
+      s.ticker === ticker ? { ...s, adding: true } : s
+    ));
+
+    try {
+      const res = await fetch(`/api/themes/${themeId}/stocks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker }),
+      });
+
+      if (res.ok) {
+        // Remove from suggestions
+        setSuggestions(prev => prev.filter(s => s.ticker !== ticker));
+        // Refresh expanded data
+        const detailRes = await fetch(`/api/themes/${themeId}`);
+        const detailData = await detailRes.json();
+        setExpandedData(detailData.theme);
+        // Refresh themes list
+        fetchThemes();
+      }
+    } catch {
+      setSuggestions(prev => prev.map(s => 
+        s.ticker === ticker ? { ...s, adding: false } : s
+      ));
+    }
+  };
+
+  // Use theme suggestions
+  const handleUseThemeSuggestions = () => {
+    if (themeSuggestions.length > 0) {
+      const currentStocks = newStocks.split(/[,\s]+/).filter(s => s.trim());
+      const combined = Array.from(new Set([...currentStocks, ...themeSuggestions]));
+      setNewStocks(combined.join(", "));
     }
   };
 
@@ -131,6 +248,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
       setNewName("");
       setNewDescription("");
       setNewStocks("");
+      setThemeSuggestions([]);
       setShowAddModal(false);
     } catch {
       setError("Network error");
@@ -150,6 +268,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
         if (expandedTheme === themeId) {
           setExpandedTheme(null);
           setExpandedData(null);
+          setSuggestions([]);
         }
       }
     } catch {
@@ -166,13 +285,13 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
         method: "DELETE",
       });
       if (res.ok && expandedData) {
-        const newStocks = expandedData.stocks.filter((t) => t !== ticker);
+        const newStocksList = expandedData.stocks.filter((t) => t !== ticker);
         const newStockPerfs = expandedData.stock_performances?.filter(
           (p) => p.ticker !== ticker
         );
         setExpandedData({
           ...expandedData,
-          stocks: newStocks,
+          stocks: newStocksList,
           stock_performances: newStockPerfs,
         });
         // Refresh themes to update the main list
@@ -305,53 +424,108 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                               <div className="h-5 w-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                             </div>
                           ) : expandedData?.stock_performances ? (
-                            <table className="min-w-full">
-                              <thead>
-                                <tr className="text-xs text-gray-500">
-                                  <th className="px-6 py-2 text-left font-medium uppercase">Ticker</th>
-                                  <th className="px-4 py-2 text-right font-medium uppercase">Price</th>
-                                  <th className="px-4 py-2 text-right font-medium uppercase">1W</th>
-                                  <th className="px-4 py-2 text-right font-medium uppercase">1M</th>
-                                  <th className="px-4 py-2 text-right font-medium uppercase">3M</th>
-                                  <th className="px-4 py-2 w-12"></th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-gray-200">
-                                {expandedData.stock_performances.map((stock: ThemePerformance) => (
-                                  <tr key={stock.ticker} className="hover:bg-gray-100">
-                                    <td className="px-6 py-2">
-                                      <Link
-                                        href={`/stocks/${stock.ticker}`}
-                                        className="text-emerald-600 hover:text-emerald-700 font-semibold"
-                                      >
-                                        {stock.ticker}
-                                      </Link>
-                                    </td>
-                                    <td className="px-4 py-2 text-right text-sm">
-                                      {formatPrice(stock.current_price)}
-                                    </td>
-                                    <td className={`px-4 py-2 text-right text-sm font-medium ${getPercentColor(stock.performance_1w)}`}>
-                                      {formatPercent(stock.performance_1w)}
-                                    </td>
-                                    <td className={`px-4 py-2 text-right text-sm font-medium ${getPercentColor(stock.performance_1m)}`}>
-                                      {formatPercent(stock.performance_1m)}
-                                    </td>
-                                    <td className={`px-4 py-2 text-right text-sm font-medium ${getPercentColor(stock.performance_3m)}`}>
-                                      {formatPercent(stock.performance_3m)}
-                                    </td>
-                                    <td className="px-4 py-2 text-right">
-                                      <button
-                                        onClick={() => handleRemoveStock(theme.id, stock.ticker)}
-                                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                                        title="Remove stock"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </td>
+                            <>
+                              <table className="min-w-full">
+                                <thead>
+                                  <tr className="text-xs text-gray-500">
+                                    <th className="px-6 py-2 text-left font-medium uppercase">Ticker</th>
+                                    <th className="px-4 py-2 text-center font-medium uppercase w-10">Chart</th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">Price</th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">1W</th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">1M</th>
+                                    <th className="px-4 py-2 text-right font-medium uppercase">3M</th>
+                                    <th className="px-4 py-2 w-12"></th>
                                   </tr>
-                                ))}
-                              </tbody>
-                            </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                  {expandedData.stock_performances.map((stock: ThemePerformance) => (
+                                    <tr key={stock.ticker} className="hover:bg-gray-100">
+                                      <td className="px-6 py-2">
+                                        <Link
+                                          href={`/stocks/${stock.ticker}`}
+                                          className="text-emerald-600 hover:text-emerald-700 font-semibold"
+                                        >
+                                          {stock.ticker}
+                                        </Link>
+                                      </td>
+                                      <td className="px-4 py-2 text-center">
+                                        <a
+                                          href={getTradingViewUrl(stock.ticker)}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-block hover:opacity-80 transition-opacity"
+                                          title={`View ${stock.ticker} on TradingView`}
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <Image
+                                            src="/tradingview.svg"
+                                            alt="TradingView"
+                                            width={20}
+                                            height={20}
+                                            className="rounded"
+                                          />
+                                        </a>
+                                      </td>
+                                      <td className="px-4 py-2 text-right text-sm">
+                                        {formatPrice(stock.current_price)}
+                                      </td>
+                                      <td className={`px-4 py-2 text-right text-sm font-medium ${getPercentColor(stock.performance_1w)}`}>
+                                        {formatPercent(stock.performance_1w)}
+                                      </td>
+                                      <td className={`px-4 py-2 text-right text-sm font-medium ${getPercentColor(stock.performance_1m)}`}>
+                                        {formatPercent(stock.performance_1m)}
+                                      </td>
+                                      <td className={`px-4 py-2 text-right text-sm font-medium ${getPercentColor(stock.performance_3m)}`}>
+                                        {formatPercent(stock.performance_3m)}
+                                      </td>
+                                      <td className="px-4 py-2 text-right">
+                                        <button
+                                          onClick={() => handleRemoveStock(theme.id, stock.ticker)}
+                                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                          title="Remove stock"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              
+                              {/* Suggested Stocks Section */}
+                              {(loadingSuggestions || suggestions.length > 0) && (
+                                <div className="px-6 py-4 border-t border-gray-200 bg-gray-100">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <Sparkles className="w-4 h-4 text-amber-500" />
+                                    <span className="text-sm font-medium text-gray-700">Suggested Stocks</span>
+                                  </div>
+                                  {loadingSuggestions ? (
+                                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                                      <div className="h-4 w-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                      Finding related stocks...
+                                    </div>
+                                  ) : (
+                                    <div className="flex flex-wrap gap-2">
+                                      {suggestions.map((s) => (
+                                        <button
+                                          key={s.ticker}
+                                          onClick={() => handleAddSuggestedStock(theme.id, s.ticker)}
+                                          disabled={s.adding}
+                                          className="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-sm font-medium text-gray-700 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700 transition-colors disabled:opacity-50"
+                                        >
+                                          {s.adding ? (
+                                            <div className="h-3 w-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                          ) : (
+                                            <Plus className="w-3 h-3" />
+                                          )}
+                                          {s.ticker}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
                           ) : (
                             <div className="py-4 text-center text-gray-500">No stocks in theme</div>
                           )}
@@ -383,7 +557,13 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Add Theme</h3>
               <button
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setThemeSuggestions([]);
+                  setNewName("");
+                  setNewDescription("");
+                  setNewStocks("");
+                }}
                 className="p-1 text-gray-400 hover:text-gray-600"
               >
                 <X className="w-5 h-5" />
@@ -403,6 +583,12 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                   className="input w-full"
                   required
                 />
+                {loadingThemeSuggestions && (
+                  <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                    <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                    Looking for suggestions...
+                  </p>
+                )}
               </div>
 
               <div>
@@ -419,9 +605,21 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Stocks (optional)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Stocks
+                  </label>
+                  {themeSuggestions.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleUseThemeSuggestions}
+                      className="text-xs text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Use suggestions ({themeSuggestions.length})
+                    </button>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={newStocks}
@@ -429,6 +627,18 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                   placeholder="IONQ, RGTI, QBTS (comma or space separated)"
                   className="input w-full"
                 />
+                {themeSuggestions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {themeSuggestions.map((ticker) => (
+                      <span
+                        key={ticker}
+                        className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200"
+                      >
+                        {ticker}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <p className="text-xs text-gray-500 mt-1">
                   Enter tickers separated by commas or spaces
                 </p>
@@ -439,7 +649,13 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setThemeSuggestions([]);
+                    setNewName("");
+                    setNewDescription("");
+                    setNewStocks("");
+                  }}
                   className="btn-secondary"
                 >
                   Cancel
