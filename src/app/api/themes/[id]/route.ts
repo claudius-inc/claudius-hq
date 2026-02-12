@@ -64,6 +64,13 @@ function calcPerformance(start: number | null, end: number | null): number | nul
   return ((end - start) / start) * 100;
 }
 
+// Quote result type
+interface QuoteResult {
+  regularMarketPrice?: number;
+  shortName?: string;
+  longName?: string;
+}
+
 // Get all stock performances for a theme with watchlist data
 async function getStockPerformances(stockRows: StockDbRow[]): Promise<ThemePerformance[]> {
   const performances: ThemePerformance[] = [];
@@ -75,10 +82,12 @@ async function getStockPerformances(stockRows: StockDbRow[]): Promise<ThemePerfo
         getHistoricalPrices(ticker, "1w"),
         getHistoricalPrices(ticker, "1m"),
         getHistoricalPrices(ticker, "3m"),
-        (yahooFinance.quote(ticker) as Promise<{ regularMarketPrice?: number }>).catch(() => null),
+        (yahooFinance.quote(ticker) as Promise<QuoteResult>).catch(() => null),
       ]);
 
-      const currentPrice = (quote as { regularMarketPrice?: number })?.regularMarketPrice ?? null;
+      const quoteData = quote as QuoteResult | null;
+      const currentPrice = quoteData?.regularMarketPrice ?? null;
+      const companyName = quoteData?.shortName || quoteData?.longName || null;
       
       // Calculate price gap to target
       let priceGapPercent: number | null = null;
@@ -88,6 +97,7 @@ async function getStockPerformances(stockRows: StockDbRow[]): Promise<ThemePerfo
 
       performances.push({
         ticker,
+        name: companyName,
         performance_1w: calcPerformance(prices1w.start, prices1w.end),
         performance_1m: calcPerformance(prices1m.start, prices1m.end),
         performance_3m: calcPerformance(prices3m.start, prices3m.end),
@@ -100,6 +110,7 @@ async function getStockPerformances(stockRows: StockDbRow[]): Promise<ThemePerfo
     } catch {
       performances.push({
         ticker,
+        name: null,
         performance_1w: null,
         performance_1m: null,
         performance_3m: null,

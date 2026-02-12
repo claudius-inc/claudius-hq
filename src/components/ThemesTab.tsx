@@ -518,15 +518,24 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                                           <StatusBadge status={stock.status || "watching"} />
                                         </td>
                                         <td className="px-4 py-2">
-                                          <Link
-                                            href={`/stocks/${stock.ticker}`}
-                                            className="text-emerald-600 hover:text-emerald-700 font-semibold"
-                                          >
-                                            {stock.ticker}
-                                          </Link>
-                                          {stock.notes && (
-                                            <span className="ml-1 text-gray-400" title={stock.notes}>📝</span>
-                                          )}
+                                          <div className="flex flex-col">
+                                            <div className="flex items-center gap-1">
+                                              <Link
+                                                href={`/stocks/${stock.ticker}`}
+                                                className="text-emerald-600 hover:text-emerald-700 font-semibold"
+                                              >
+                                                {stock.ticker}
+                                              </Link>
+                                              {stock.notes && (
+                                                <span className="text-gray-400" title={stock.notes}>📝</span>
+                                              )}
+                                            </div>
+                                            {stock.name && (
+                                              <span className="text-xs text-gray-500 truncate max-w-[180px]" title={stock.name}>
+                                                {stock.name}
+                                              </span>
+                                            )}
+                                          </div>
                                         </td>
                                         <td className="px-4 py-2 text-center">
                                           <a

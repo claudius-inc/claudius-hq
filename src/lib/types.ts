@@ -119,6 +119,7 @@ export interface ThemeStock {
 
 export interface ThemePerformance {
   ticker: string;
+  name: string | null;
   performance_1w: number | null;
   performance_1m: number | null;
   performance_3m: number | null;

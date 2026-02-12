@@ -67,15 +67,18 @@ async function getStockPerformances(tickers: string[]): Promise<ThemePerformance
         getHistoricalPrices(ticker, "1w"),
         getHistoricalPrices(ticker, "1m"),
         getHistoricalPrices(ticker, "3m"),
-        (yahooFinance.quote(ticker) as Promise<{ regularMarketPrice?: number }>).catch(() => null),
+        (yahooFinance.quote(ticker) as Promise<{ regularMarketPrice?: number; shortName?: string }>).catch(() => null),
       ]);
+
+      const quoteData = quote as { regularMarketPrice?: number; shortName?: string } | null;
 
       performances.push({
         ticker,
+        name: quoteData?.shortName ?? null,
         performance_1w: calcPerformance(prices1w.start, prices1w.end),
         performance_1m: calcPerformance(prices1m.start, prices1m.end),
         performance_3m: calcPerformance(prices3m.start, prices3m.end),
-        current_price: (quote as { regularMarketPrice?: number })?.regularMarketPrice ?? null,
+        current_price: quoteData?.regularMarketPrice ?? null,
         target_price: null,
         status: "watching",
         notes: null,
@@ -84,6 +87,7 @@ async function getStockPerformances(tickers: string[]): Promise<ThemePerformance
     } catch {
       performances.push({
         ticker,
+        name: null,
         performance_1w: null,
         performance_1m: null,
         performance_3m: null,
