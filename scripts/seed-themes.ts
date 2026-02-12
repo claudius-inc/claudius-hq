@@ -96,7 +96,7 @@ async function seed() {
           sql: "SELECT id FROM themes WHERE name = ?",
           args: [theme.name],
         });
-        themeId = (existing.rows[0] as { id: number }).id;
+        themeId = (existing.rows[0] as unknown as { id: number }).id;
         console.log(`⏭️  Theme exists: ${theme.name} (id: ${themeId})`);
       }
 
