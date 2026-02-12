@@ -9,7 +9,7 @@ import { ResearchJobs } from "@/components/ResearchJobs";
 import { StockFilters } from "@/components/StockFilters";
 import { PortfolioTab } from "@/components/PortfolioTab";
 import { ThemesTab } from "@/components/ThemesTab";
-import { SectorMomentum } from "@/components/SectorMomentum";
+import { SectorsView } from "@/components/SectorsView";
 
 type ResearchJob = {
   id: string;
@@ -145,7 +145,7 @@ export function StocksPageContent({
       )}
 
       {activeTab === "sectors" && (
-        <SectorMomentum />
+        <SectorsView />
       )}
     </>
   );
