@@ -32,13 +32,13 @@ async function getHistoricalPrices(
       period1: startDate,
       period2: endDate,
       interval: "1d",
-    });
+    }) as HistoricalRow[];
 
     if (!result || result.length === 0) {
       return { start: null, end: null };
     }
 
-    const rows = result as HistoricalRow[];
+    const rows = result;
     return {
       start: rows[0]?.close ?? null,
       end: rows[rows.length - 1]?.close ?? null,
@@ -64,7 +64,7 @@ async function getStockPerformances(tickers: string[]): Promise<ThemePerformance
         getHistoricalPrices(ticker, "1w"),
         getHistoricalPrices(ticker, "1m"),
         getHistoricalPrices(ticker, "3m"),
-        yahooFinance.quote(ticker).catch(() => null),
+        (yahooFinance.quote(ticker) as Promise<{ regularMarketPrice?: number }>).catch(() => null),
       ]);
 
       performances.push({
@@ -136,7 +136,7 @@ export async function GET() {
     }
 
     // Get unique tickers across all themes
-    const allTickers = [...new Set(allStocks.map((s) => s.ticker))];
+    const allTickers = Array.from(new Set(allStocks.map((s) => s.ticker)));
 
     // Fetch performances for all tickers at once
     const allPerformances = await getStockPerformances(allTickers);
