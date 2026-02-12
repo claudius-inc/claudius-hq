@@ -96,3 +96,38 @@ export interface PortfolioReport {
   total_tickers: number | null;
   created_at: string;
 }
+
+// Investment themes
+export interface Theme {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+}
+
+export interface ThemeStock {
+  id: number;
+  theme_id: number;
+  ticker: string;
+  added_at: string;
+}
+
+export interface ThemePerformance {
+  ticker: string;
+  performance_1w: number | null;
+  performance_1m: number | null;
+  performance_3m: number | null;
+  current_price: number | null;
+}
+
+export interface ThemeWithPerformance extends Theme {
+  stocks: string[];
+  performance_1w: number | null;
+  performance_1m: number | null;
+  performance_3m: number | null;
+  leader: {
+    ticker: string;
+    performance_1m: number | null;
+  } | null;
+  stock_performances?: ThemePerformance[];
+}

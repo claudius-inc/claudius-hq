@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
-import { StockReport, WatchlistItem, PortfolioHolding, PortfolioReport } from "@/lib/types";
+import { StockReport, WatchlistItem, PortfolioHolding, PortfolioReport, ThemeWithPerformance } from "@/lib/types";
 import { StocksTabs, StocksTab } from "@/components/StocksTabs";
 import { ResearchForm } from "@/components/ResearchForm";
 import { ResearchJobs } from "@/components/ResearchJobs";
@@ -10,6 +10,7 @@ import { StockFilters } from "@/components/StockFilters";
 import { WatchlistTab } from "@/components/WatchlistTab";
 import { PortfolioTab } from "@/components/PortfolioTab";
 import { PortfolioInclusionModal } from "@/components/PortfolioInclusionModal";
+import { ThemesTab } from "@/components/ThemesTab";
 
 type ResearchJob = {
   id: string;
@@ -34,7 +35,7 @@ export function StocksPageContent({
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const activeTab: StocksTab =
-    tabParam === "watchlist" || tabParam === "portfolio" ? tabParam : "research";
+    tabParam === "watchlist" || tabParam === "portfolio" || tabParam === "themes" ? tabParam : "research";
 
   // State for portfolio inclusion modal
   const [promotingItem, setPromotingItem] = useState<WatchlistItem | null>(null);
@@ -43,8 +44,10 @@ export function StocksPageContent({
   const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
   const [portfolioReports, setPortfolioReports] = useState<PortfolioReport[]>([]);
+  const [themes, setThemes] = useState<ThemeWithPerformance[]>([]);
   const [watchlistLoaded, setWatchlistLoaded] = useState(false);
   const [portfolioLoaded, setPortfolioLoaded] = useState(false);
+  const [themesLoaded, setThemesLoaded] = useState(false);
 
   // Fetch watchlist data client-side when tab is active
   const fetchWatchlist = useCallback(async () => {
@@ -77,6 +80,19 @@ export function StocksPageContent({
     }
   }, [portfolioLoaded]);
 
+  // Fetch themes data client-side when tab is active
+  const fetchThemes = useCallback(async () => {
+    if (themesLoaded) return;
+    try {
+      const res = await fetch("/api/themes");
+      const data = await res.json();
+      setThemes(data.themes || []);
+      setThemesLoaded(true);
+    } catch (e) {
+      console.error("Failed to fetch themes:", e);
+    }
+  }, [themesLoaded]);
+
   // Fetch data when switching to relevant tabs
   useEffect(() => {
     if (activeTab === "watchlist") {
@@ -85,8 +101,10 @@ export function StocksPageContent({
       fetchPortfolio();
     } else if (activeTab === "portfolio") {
       fetchPortfolio();
+    } else if (activeTab === "themes") {
+      fetchThemes();
     }
-  }, [activeTab, fetchWatchlist, fetchPortfolio]);
+  }, [activeTab, fetchWatchlist, fetchPortfolio, fetchThemes]);
 
   const handlePromoteToPortfolio = (item: WatchlistItem) => {
     setPromotingItem(item);
@@ -172,6 +190,16 @@ export function StocksPageContent({
             initialHoldings={holdings}
             initialReports={portfolioReports}
           />
+        ) : (
+          <div className="flex items-center justify-center py-12">
+            <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        )
+      )}
+
+      {activeTab === "themes" && (
+        themesLoaded ? (
+          <ThemesTab initialThemes={themes} />
         ) : (
           <div className="flex items-center justify-center py-12">
             <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />

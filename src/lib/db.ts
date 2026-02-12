@@ -113,6 +113,23 @@ export async function initDB() {
       total_tickers INTEGER,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    -- Investment themes (basket of stocks to track together)
+    CREATE TABLE IF NOT EXISTS themes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Stocks belonging to themes
+    CREATE TABLE IF NOT EXISTS theme_stocks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      theme_id INTEGER NOT NULL REFERENCES themes(id) ON DELETE CASCADE,
+      ticker TEXT NOT NULL,
+      added_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(theme_id, ticker)
+    );
   `);
 
   // Add phase column to existing projects table if missing
