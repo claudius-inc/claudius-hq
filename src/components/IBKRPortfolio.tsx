@@ -8,6 +8,7 @@ interface Position {
   quantity: number;
   avgCost: number;
   currency: string;
+  priceCurrency?: string;
   totalCost: number;
   realizedPnl: number;
   currentPrice: number;
@@ -17,6 +18,12 @@ interface Position {
   unrealizedPnl: number;
   unrealizedPnlPct: number;
   totalPnl: number;
+  // USD-converted values
+  fxRate?: number;
+  marketValueUSD?: number;
+  totalCostUSD?: number;
+  unrealizedPnlUSD?: number;
+  realizedPnlUSD?: number;
 }
 
 interface Summary {
@@ -27,6 +34,7 @@ interface Summary {
   totalRealizedPnl: number;
   dayPnl: number;
   dayPnlPct: number;
+  baseCurrency?: string;
 }
 
 interface Trade {
@@ -215,6 +223,9 @@ export default function IBKRPortfolio() {
       {/* Summary Card */}
       {summary && positions.length > 0 && (
         <div className="bg-white rounded-lg border p-4">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs text-gray-400 uppercase tracking-wide">Portfolio Summary (USD)</span>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <div className="text-sm text-gray-500">Market Value</div>
@@ -288,7 +299,10 @@ export default function IBKRPortfolio() {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {positions.map((pos) => (
+                  {positions.map((pos) => {
+                    const displayCurrency = pos.priceCurrency || pos.currency;
+                    const isNonUSD = displayCurrency !== 'USD';
+                    return (
                     <tr
                       key={pos.symbol}
                       className="hover:bg-gray-50 cursor-pointer"
@@ -301,27 +315,42 @@ export default function IBKRPortfolio() {
                           ) : (
                             <ChevronRight className="w-4 h-4 text-gray-400" />
                           )}
-                          <span className="font-medium">{pos.symbol}</span>
+                          <div>
+                            <span className="font-medium">{pos.symbol}</span>
+                            {isNonUSD && (
+                              <span className="ml-2 text-xs text-gray-400">{displayCurrency}</span>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">{pos.quantity.toFixed(2)}</td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(pos.avgCost, pos.currency)}</td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(pos.currentPrice, pos.currency)}</td>
+                      <td className="px-4 py-3 text-right">{formatCurrency(pos.avgCost, displayCurrency)}</td>
+                      <td className="px-4 py-3 text-right">{formatCurrency(pos.currentPrice, displayCurrency)}</td>
                       <td className={`px-4 py-3 text-right ${pos.dayChangePct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         <div className="flex items-center justify-end gap-1">
                           {pos.dayChangePct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                           {formatPct(pos.dayChangePct)}
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-right">{formatCurrency(pos.marketValue, pos.currency)}</td>
+                      <td className="px-4 py-3 text-right">
+                        <div>{formatCurrency(pos.marketValue, displayCurrency)}</div>
+                        {isNonUSD && pos.marketValueUSD && (
+                          <div className="text-xs text-gray-400">{formatCurrency(pos.marketValueUSD)}</div>
+                        )}
+                      </td>
                       <td className={`px-4 py-3 text-right font-medium ${pos.unrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatCurrency(pos.unrealizedPnl, pos.currency)}
+                        <div>{formatCurrency(pos.unrealizedPnl, displayCurrency)}</div>
+                        {isNonUSD && pos.unrealizedPnlUSD && (
+                          <div className={`text-xs ${pos.unrealizedPnlUSD >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {formatCurrency(pos.unrealizedPnlUSD)}
+                          </div>
+                        )}
                       </td>
                       <td className={`px-4 py-3 text-right ${pos.unrealizedPnlPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {formatPct(pos.unrealizedPnlPct)}
                       </td>
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>
