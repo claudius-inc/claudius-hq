@@ -3,7 +3,7 @@ import db, { ensureDB } from '@/lib/db';
 import YahooFinance from 'yahoo-finance2';
 
 export const runtime = 'nodejs';
-export const revalidate = 60; // 1 minute cache
+export const revalidate = 30; // 30 second cache
 
 const yf = new YahooFinance();
 
