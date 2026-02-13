@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Upload, Trash2, ChevronDown, ChevronRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { RefreshCw, Upload, Trash2, ChevronDown, ChevronRight, TrendingUp, TrendingDown, X } from 'lucide-react';
 
 interface Position {
   symbol: string;
@@ -70,6 +70,7 @@ export default function IBKRPortfolio() {
   const [uploadResult, setUploadResult] = useState<{ success: boolean; message: string } | null>(null);
   const [activeSection, setActiveSection] = useState<'positions' | 'trades' | 'imports'>('positions');
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const fetchPositions = useCallback(async () => {
     try {
@@ -196,37 +197,56 @@ export default function IBKRPortfolio() {
 
   return (
     <div className="space-y-6">
-      {/* Upload Section */}
-      <div className="bg-white rounded-lg border p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium">IBKR Import</h3>
-          <label className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 disabled:opacity-50">
-            <Upload className="w-4 h-4" />
-            {uploading ? 'Uploading...' : 'Upload Statement'}
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              onChange={handleUpload}
-              disabled={uploading}
-              className="hidden"
-            />
-          </label>
-        </div>
-        {uploadResult && (
-          <div className={`p-3 rounded-lg text-sm ${uploadResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
-            {uploadResult.message}
+      {/* Import Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowImportModal(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg">Import IBKR Statement</h3>
+              <button onClick={() => setShowImportModal(false)} className="p-1 hover:bg-gray-100 rounded">
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4">
+              Upload your IBKR Activity Statement (Excel format). Duplicate trades are automatically skipped.
+            </p>
+            
+            <label className="flex items-center justify-center gap-2 w-full px-4 py-3 bg-blue-600 text-white rounded-lg cursor-pointer hover:bg-blue-700 disabled:opacity-50 mb-4">
+              <Upload className="w-4 h-4" />
+              {uploading ? 'Uploading...' : 'Choose File'}
+              <input
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={(e) => {
+                  handleUpload(e);
+                }}
+                disabled={uploading}
+                className="hidden"
+              />
+            </label>
+            
+            {uploadResult && (
+              <div className={`p-3 rounded-lg text-sm ${uploadResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {uploadResult.message}
+              </div>
+            )}
           </div>
-        )}
-        <p className="text-sm text-gray-500 mt-2">
-          Upload IBKR Activity Statement (Excel format). Duplicate trades are automatically skipped.
-        </p>
-      </div>
+        </div>
+      )}
 
       {/* Summary Card */}
       {summary && positions.length > 0 && (
         <div className="bg-white rounded-lg border p-4">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-400 uppercase tracking-wide">Portfolio Summary ({baseCurrency})</span>
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Import
+            </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
@@ -252,6 +272,20 @@ export default function IBKRPortfolio() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Empty state header with import button */}
+      {(!summary || positions.length === 0) && (
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">IBKR Portfolio</h2>
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Upload className="w-4 h-4" />
+            Import Statement
+          </button>
         </div>
       )}
 
@@ -282,8 +316,15 @@ export default function IBKRPortfolio() {
       {activeSection === 'positions' && (
         <div className="bg-white rounded-lg border overflow-hidden">
           {positions.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              No positions yet. Upload an IBKR statement to get started.
+            <div className="p-8 text-center">
+              <p className="text-gray-500 mb-4">No positions yet. Upload an IBKR statement to get started.</p>
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <Upload className="w-4 h-4" />
+                Import Statement
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
