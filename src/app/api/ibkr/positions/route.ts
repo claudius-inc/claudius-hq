@@ -3,7 +3,7 @@ import db, { ensureDB } from '@/lib/db';
 import YahooFinance from 'yahoo-finance2';
 
 export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic'; // Disable caching for debugging
+export const revalidate = 60; // 1 minute cache
 
 const yf = new YahooFinance();
 
@@ -165,7 +165,6 @@ export async function GET() {
       positions: enrichedPositions,
       fxRates,
       baseCurrency: BASE_CURRENCY,
-      _sellTradesCount: sellTradesResult.rows.length,  // Debug: count of sell trades
       summary: {
         totalCost: totalCostBase,
         totalMarketValue: totalMarketValueBase,
