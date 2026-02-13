@@ -305,24 +305,33 @@ async function getTopGainers(tickers: string[], days: number, limit: number = 3)
   
   for (const ticker of tickers.slice(0, 8)) { // Check up to 8 stocks
     try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
-      
-      const history = await yahooFinance.chart(ticker, {
-        period1: startDate,
-        period2: endDate,
-      });
-      
-      const quotes = history?.quotes ?? [];
-      if (quotes.length >= 2) {
-        const start = quotes[0]?.close ?? 0;
-        const end = quotes[quotes.length - 1]?.close ?? 0;
-        if (start > 0) {
-          results.push({
-            ticker,
-            perf: ((end - start) / start) * 100,
-          });
+      // For 1D, use quote API directly
+      if (days <= 1) {
+        const quote = await yahooFinance.quote(ticker) as QuoteResult;
+        const perf = quote?.regularMarketChangePercent;
+        if (perf !== undefined && perf !== null) {
+          results.push({ ticker, perf });
+        }
+      } else {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - Math.max(days, 2)); // At least 2 days for chart
+        
+        const history = await yahooFinance.chart(ticker, {
+          period1: startDate,
+          period2: endDate,
+        });
+        
+        const quotes = history?.quotes ?? [];
+        if (quotes.length >= 2) {
+          const start = quotes[0]?.close ?? 0;
+          const end = quotes[quotes.length - 1]?.close ?? 0;
+          if (start > 0) {
+            results.push({
+              ticker,
+              perf: ((end - start) / start) * 100,
+            });
+          }
         }
       }
     } catch {
@@ -353,31 +362,43 @@ async function handleSectors(period: TimePeriod = "1w"): Promise<SectorsResult> 
 
   for (const sector of SECTOR_ETFS) {
     try {
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - config.days);
+      let sectorPerf: number | null = null;
       
-      const history = await yahooFinance.chart(sector.ticker, {
-        period1: startDate,
-        period2: endDate,
-      });
-      
-      const quotes = history?.quotes ?? [];
-      if (quotes.length >= 2) {
-        const start = quotes[0]?.close ?? 0;
-        const end = quotes[quotes.length - 1]?.close ?? 0;
-        if (start > 0) {
-          // Get top gainers for this sector
-          const holdings = SECTOR_HOLDINGS[sector.ticker] || [];
-          const topGainers = await getTopGainers(holdings, config.days, 3);
-          
-          performances.push({
-            name: sector.name,
-            ticker: sector.ticker,
-            perf: ((end - start) / start) * 100,
-            topGainers,
-          });
+      // For 1D, use quote API directly
+      if (config.days <= 1) {
+        const quote = await yahooFinance.quote(sector.ticker) as QuoteResult;
+        sectorPerf = quote?.regularMarketChangePercent ?? null;
+      } else {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - Math.max(config.days, 2));
+        
+        const history = await yahooFinance.chart(sector.ticker, {
+          period1: startDate,
+          period2: endDate,
+        });
+        
+        const quotes = history?.quotes ?? [];
+        if (quotes.length >= 2) {
+          const start = quotes[0]?.close ?? 0;
+          const end = quotes[quotes.length - 1]?.close ?? 0;
+          if (start > 0) {
+            sectorPerf = ((end - start) / start) * 100;
+          }
         }
+      }
+      
+      if (sectorPerf !== null) {
+        // Get top gainers for this sector
+        const holdings = SECTOR_HOLDINGS[sector.ticker] || [];
+        const topGainers = await getTopGainers(holdings, config.days, 3);
+        
+        performances.push({
+          name: sector.name,
+          ticker: sector.ticker,
+          perf: sectorPerf,
+          topGainers,
+        });
       }
     } catch {
       // Skip errors
