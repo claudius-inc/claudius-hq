@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Telegram webhook: no auth (Telegram can't send API keys)
+  if (pathname.startsWith("/api/telegram/")) {
+    return NextResponse.next();
+  }
+
   // API routes: check API key OR session cookie
   if (pathname.startsWith("/api/")) {
     const apiKey = request.headers.get("x-api-key") || request.headers.get("authorization")?.replace("Bearer ", "");
