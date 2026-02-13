@@ -147,11 +147,19 @@ export async function GET() {
     const totalCostBase = enrichedPositions.reduce((sum, p) => sum + p.totalCostBase, 0);
     const totalMarketValueBase = enrichedPositions.reduce((sum, p) => sum + p.marketValueBase, 0);
     const totalUnrealizedPnlBase = enrichedPositions.reduce((sum, p) => sum + p.unrealizedPnlBase, 0);
-    const totalRealizedPnlBase = enrichedPositions.reduce((sum, p) => sum + p.realizedPnlBase, 0);
     const dayPnlBase = enrichedPositions.reduce((sum, p) => sum + p.dayChangeBase, 0);
 
-    // For closed positions' realized P&L, we'd need to track currency per trade
-    // For now, use the sum from open positions (closed positions need separate handling)
+    // Get TOTAL realized P&L from ALL sell trades (including closed positions)
+    // This uses IBKR's realized_pnl values converted to SGD
+    const sellTradesResult = await db.execute(
+      `SELECT realized_pnl, fx_rate, currency FROM ibkr_trades WHERE action = 'SELL' AND realized_pnl IS NOT NULL`
+    );
+    let totalRealizedPnlBase = 0;
+    for (const trade of sellTradesResult.rows) {
+      const pnl = Number(trade.realized_pnl || 0);
+      const fxRate = Number(trade.fx_rate || 1);
+      totalRealizedPnlBase += pnl * fxRate;
+    }
     
     return NextResponse.json({
       positions: enrichedPositions,
@@ -162,7 +170,7 @@ export async function GET() {
         totalMarketValue: totalMarketValueBase,
         totalUnrealizedPnl: totalUnrealizedPnlBase,
         totalUnrealizedPnlPct: totalCostBase > 0 ? (totalUnrealizedPnlBase / totalCostBase) * 100 : 0,
-        totalRealizedPnl: totalRealizedPnlBase,  // From open positions only for now
+        totalRealizedPnl: totalRealizedPnlBase,  // Sum of all SELL trades' realized P&L in SGD
         dayPnl: dayPnlBase,
         dayPnlPct: totalMarketValueBase > 0 ? (dayPnlBase / totalMarketValueBase) * 100 : 0,
         baseCurrency: BASE_CURRENCY,
