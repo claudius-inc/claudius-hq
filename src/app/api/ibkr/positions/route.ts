@@ -94,9 +94,8 @@ export async function GET() {
       }
     }
 
-    // Calculate P&L using:
-    // - Historical cost basis in SGD (from DB, using FX rate at trade time)
-    // - Current market value in SGD (live price × live FX rate)
+    // Calculate P&L using live FX rates for both cost and market value
+    // (IBKR's fxRate is for USD conversion, not SGD - so we use live rates for consistency)
     const enrichedPositions = positions.map(pos => {
       const quote = priceMap.get(pos.symbol);
       const currentPrice = quote?.price || pos.avgCost;
@@ -105,16 +104,16 @@ export async function GET() {
       const unrealizedPnl = marketValue - pos.totalCost;
       const unrealizedPnlPct = pos.totalCost > 0 ? (unrealizedPnl / pos.totalCost) * 100 : 0;
       
-      // Live FX rate for current market value
+      // Live FX rate for converting to SGD
       const liveFxRate = fxRates[priceCurrency] || 1;
+      
+      // Both cost and market value use the same live FX rate for consistent P&L
       const marketValueBase = marketValue * liveFxRate;
+      const totalCostBase = pos.totalCost * liveFxRate;  // Use live FX, not historical
       
-      // Use HISTORICAL cost basis from DB (already converted at trade time)
-      const historicalCostBase = pos.totalCostBase || (pos.totalCost * pos.avgFxRate);
-      
-      // Unrealized P&L = Current value (live FX) - Historical cost (historical FX)
-      const unrealizedPnlBase = marketValueBase - historicalCostBase;
-      const unrealizedPnlBasePct = historicalCostBase > 0 ? (unrealizedPnlBase / historicalCostBase) * 100 : 0;
+      // Unrealized P&L in base currency (using same FX rate for both)
+      const unrealizedPnlBase = (unrealizedPnl) * liveFxRate;
+      const unrealizedPnlBasePct = pos.totalCost > 0 ? (unrealizedPnl / pos.totalCost) * 100 : 0;
       
       // Day change in base currency
       const dayChangeBase = (quote?.change || 0) * pos.quantity * liveFxRate;
@@ -129,14 +128,13 @@ export async function GET() {
         unrealizedPnl,
         unrealizedPnlPct,
         totalPnl: unrealizedPnl + pos.realizedPnl,
-        // Base currency (SGD) values
+        // Base currency (SGD) values - all using live FX
         liveFxRate,
-        historicalFxRate: pos.avgFxRate,
         marketValueBase,
-        totalCostBase: historicalCostBase,
+        totalCostBase,
         unrealizedPnlBase,
         unrealizedPnlBasePct,
-        realizedPnlBase: pos.realizedPnlBase,
+        realizedPnlBase: pos.realizedPnl * liveFxRate,  // Also convert with live FX
         dayChangeBase,
       };
     });
@@ -145,8 +143,12 @@ export async function GET() {
     const totalCostBase = enrichedPositions.reduce((sum, p) => sum + p.totalCostBase, 0);
     const totalMarketValueBase = enrichedPositions.reduce((sum, p) => sum + p.marketValueBase, 0);
     const totalUnrealizedPnlBase = enrichedPositions.reduce((sum, p) => sum + p.unrealizedPnlBase, 0);
+    const totalRealizedPnlBase = enrichedPositions.reduce((sum, p) => sum + p.realizedPnlBase, 0);
     const dayPnlBase = enrichedPositions.reduce((sum, p) => sum + p.dayChangeBase, 0);
 
+    // For closed positions' realized P&L, we'd need to track currency per trade
+    // For now, use the sum from open positions (closed positions need separate handling)
+    
     return NextResponse.json({
       positions: enrichedPositions,
       fxRates,
@@ -156,7 +158,7 @@ export async function GET() {
         totalMarketValue: totalMarketValueBase,
         totalUnrealizedPnl: totalUnrealizedPnlBase,
         totalUnrealizedPnlPct: totalCostBase > 0 ? (totalUnrealizedPnlBase / totalCostBase) * 100 : 0,
-        totalRealizedPnl: portfolioTotalRealizedPnlBase,  // Includes ALL trades, even closed positions
+        totalRealizedPnl: totalRealizedPnlBase,  // From open positions only for now
         dayPnl: dayPnlBase,
         dayPnlPct: totalMarketValueBase > 0 ? (dayPnlBase / totalMarketValueBase) * 100 : 0,
         baseCurrency: BASE_CURRENCY,
