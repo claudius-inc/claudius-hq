@@ -645,11 +645,16 @@ export async function POST(request: NextRequest) {
       // Parse callback data: "command:period"
       const [cmd, period] = data.split(":");
       const validPeriod = ["1d", "1w", "1m", "3m"].includes(period) ? period as TimePeriod : "1m";
+      const periodLabel = PERIOD_CONFIG[validPeriod].label;
       
       if (cmd === "themes") {
+        // Show loading state
+        await editMessage(chatId, messageId, `⏳ Loading themes (${periodLabel})...`);
         const result = await handleThemes(validPeriod);
         await editMessage(chatId, messageId, result.text, result.keyboard);
       } else if (cmd === "sectors") {
+        // Show loading state
+        await editMessage(chatId, messageId, `⏳ Loading sectors (${periodLabel})...`);
         const result = await handleSectors(validPeriod);
         await editMessage(chatId, messageId, result.text, result.keyboard);
       }
