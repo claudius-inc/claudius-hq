@@ -204,4 +204,79 @@ export async function initDB() {
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // IBKR trade history tables
+  await db.executeMultiple(`
+    -- Track import history
+    CREATE TABLE IF NOT EXISTS ibkr_imports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      filename TEXT NOT NULL,
+      statement_start TEXT,
+      statement_end TEXT,
+      trade_count INTEGER DEFAULT 0,
+      dividend_count INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Individual trades from IBKR
+    CREATE TABLE IF NOT EXISTS ibkr_trades (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      import_id INTEGER REFERENCES ibkr_imports(id),
+      trade_date TEXT NOT NULL,
+      settle_date TEXT,
+      symbol TEXT NOT NULL,
+      description TEXT,
+      asset_class TEXT,
+      action TEXT NOT NULL,
+      quantity REAL NOT NULL,
+      price REAL NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      fx_rate REAL DEFAULT 1.0,
+      proceeds REAL,
+      cost_basis REAL,
+      realized_pnl REAL,
+      commission REAL DEFAULT 0,
+      fees REAL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(trade_date, symbol, action, quantity, price)
+    );
+
+    -- Dividend/interest income
+    CREATE TABLE IF NOT EXISTS ibkr_income (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      import_id INTEGER REFERENCES ibkr_imports(id),
+      date TEXT NOT NULL,
+      symbol TEXT NOT NULL,
+      description TEXT,
+      income_type TEXT NOT NULL,
+      amount REAL NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      fx_rate REAL DEFAULT 1.0,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(date, symbol, income_type, amount)
+    );
+
+    -- FX rates from IBKR statements (for reference)
+    CREATE TABLE IF NOT EXISTS ibkr_fx_rates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      from_currency TEXT NOT NULL,
+      to_currency TEXT NOT NULL,
+      rate REAL NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(date, from_currency, to_currency)
+    );
+
+    -- Calculated current positions (derived from trades)
+    CREATE TABLE IF NOT EXISTS ibkr_positions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      symbol TEXT NOT NULL UNIQUE,
+      quantity REAL NOT NULL,
+      avg_cost REAL NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'USD',
+      total_cost REAL NOT NULL,
+      realized_pnl REAL DEFAULT 0,
+      last_updated TEXT DEFAULT (datetime('now'))
+    );
+  `);
 }
