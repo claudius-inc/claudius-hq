@@ -7,16 +7,20 @@ export const revalidate = 60; // 1 minute cache
 
 const yf = new YahooFinance();
 
-// Currency to USD conversion pairs for Yahoo Finance
+// Base currency for portfolio summary
+const BASE_CURRENCY = 'SGD';
+
+// Currency to SGD conversion pairs for Yahoo Finance
+// Format: XXXSGD=X means "1 XXX = ? SGD"
 const FX_PAIRS: Record<string, string> = {
-  'HKD': 'HKDUSD=X',
-  'SGD': 'SGDUSD=X',
-  'EUR': 'EURUSD=X',
-  'GBP': 'GBPUSD=X',
-  'JPY': 'JPYUSD=X',
-  'CNY': 'CNYUSD=X',
-  'AUD': 'AUDUSD=X',
-  'CAD': 'CADUSD=X',
+  'USD': 'USDSGD=X',
+  'HKD': 'HKDSGD=X',
+  'EUR': 'EURSGD=X',
+  'GBP': 'GBPSGD=X',
+  'JPY': 'JPYSGD=X',
+  'CNY': 'CNYSGD=X',
+  'AUD': 'AUDSGD=X',
+  'CAD': 'CADSGD=X',
 };
 
 export async function GET() {
@@ -34,11 +38,11 @@ export async function GET() {
       realizedPnl: Number(row.realized_pnl),
     }));
 
-    // Get unique currencies that need conversion
-    const currencies = Array.from(new Set(positions.map(p => p.currency).filter(c => c !== 'USD')));
-    const fxRates: Record<string, number> = { 'USD': 1 };
+    // Get unique currencies that need conversion to SGD
+    const currencies = Array.from(new Set(positions.map(p => p.currency).filter(c => c !== BASE_CURRENCY)));
+    const fxRates: Record<string, number> = { [BASE_CURRENCY]: 1 };
 
-    // Fetch FX rates
+    // Fetch FX rates to convert to SGD
     if (currencies.length > 0) {
       const fxSymbols = currencies.map(c => FX_PAIRS[c]).filter(Boolean);
       if (fxSymbols.length > 0) {
@@ -47,8 +51,8 @@ export async function GET() {
           const fxArray = Array.isArray(fxQuotes) ? fxQuotes : [fxQuotes];
           for (const quote of fxArray) {
             if (quote && quote.symbol) {
-              // Extract currency code from symbol (e.g., HKDUSD=X -> HKD)
-              const currency = quote.symbol.replace('USD=X', '');
+              // Extract currency code from symbol (e.g., HKDSGD=X -> HKD)
+              const currency = quote.symbol.replace('SGD=X', '');
               fxRates[currency] = quote.regularMarketPrice || 1;
             }
           }
@@ -82,7 +86,7 @@ export async function GET() {
       }
     }
 
-    // Calculate P&L with FX conversion
+    // Calculate P&L with FX conversion to base currency (SGD)
     const enrichedPositions = positions.map(pos => {
       const quote = priceMap.get(pos.symbol);
       const currentPrice = quote?.price || pos.avgCost;
@@ -91,13 +95,13 @@ export async function GET() {
       const unrealizedPnl = marketValue - pos.totalCost;
       const unrealizedPnlPct = pos.totalCost > 0 ? (unrealizedPnl / pos.totalCost) * 100 : 0;
       
-      // FX rate to convert to USD
+      // FX rate to convert to base currency (SGD)
       const fxRate = fxRates[priceCurrency] || 1;
-      const marketValueUSD = marketValue * fxRate;
-      const totalCostUSD = pos.totalCost * fxRate;
-      const unrealizedPnlUSD = unrealizedPnl * fxRate;
-      const realizedPnlUSD = pos.realizedPnl * fxRate;
-      const dayChangeUSD = (quote?.change || 0) * pos.quantity * fxRate;
+      const marketValueBase = marketValue * fxRate;
+      const totalCostBase = pos.totalCost * fxRate;
+      const unrealizedPnlBase = unrealizedPnl * fxRate;
+      const realizedPnlBase = pos.realizedPnl * fxRate;
+      const dayChangeBase = (quote?.change || 0) * pos.quantity * fxRate;
       
       return {
         ...pos,
@@ -109,35 +113,36 @@ export async function GET() {
         unrealizedPnl,
         unrealizedPnlPct,
         totalPnl: unrealizedPnl + pos.realizedPnl,
-        // USD-converted values for summary
+        // Base currency (SGD) converted values
         fxRate,
-        marketValueUSD,
-        totalCostUSD,
-        unrealizedPnlUSD,
-        realizedPnlUSD,
-        dayChangeUSD,
+        marketValueBase,
+        totalCostBase,
+        unrealizedPnlBase,
+        realizedPnlBase,
+        dayChangeBase,
       };
     });
 
-    // Calculate totals in USD
-    const totalCostUSD = enrichedPositions.reduce((sum, p) => sum + p.totalCostUSD, 0);
-    const totalMarketValueUSD = enrichedPositions.reduce((sum, p) => sum + p.marketValueUSD, 0);
-    const totalUnrealizedPnlUSD = enrichedPositions.reduce((sum, p) => sum + p.unrealizedPnlUSD, 0);
-    const totalRealizedPnlUSD = enrichedPositions.reduce((sum, p) => sum + p.realizedPnlUSD, 0);
-    const dayPnlUSD = enrichedPositions.reduce((sum, p) => sum + p.dayChangeUSD, 0);
+    // Calculate totals in base currency (SGD)
+    const totalCostBase = enrichedPositions.reduce((sum, p) => sum + p.totalCostBase, 0);
+    const totalMarketValueBase = enrichedPositions.reduce((sum, p) => sum + p.marketValueBase, 0);
+    const totalUnrealizedPnlBase = enrichedPositions.reduce((sum, p) => sum + p.unrealizedPnlBase, 0);
+    const totalRealizedPnlBase = enrichedPositions.reduce((sum, p) => sum + p.realizedPnlBase, 0);
+    const dayPnlBase = enrichedPositions.reduce((sum, p) => sum + p.dayChangeBase, 0);
 
     return NextResponse.json({
       positions: enrichedPositions,
       fxRates,
+      baseCurrency: BASE_CURRENCY,
       summary: {
-        totalCost: totalCostUSD,
-        totalMarketValue: totalMarketValueUSD,
-        totalUnrealizedPnl: totalUnrealizedPnlUSD,
-        totalUnrealizedPnlPct: totalCostUSD > 0 ? (totalUnrealizedPnlUSD / totalCostUSD) * 100 : 0,
-        totalRealizedPnl: totalRealizedPnlUSD,
-        dayPnl: dayPnlUSD,
-        dayPnlPct: totalMarketValueUSD > 0 ? (dayPnlUSD / totalMarketValueUSD) * 100 : 0,
-        baseCurrency: 'USD',
+        totalCost: totalCostBase,
+        totalMarketValue: totalMarketValueBase,
+        totalUnrealizedPnl: totalUnrealizedPnlBase,
+        totalUnrealizedPnlPct: totalCostBase > 0 ? (totalUnrealizedPnlBase / totalCostBase) * 100 : 0,
+        totalRealizedPnl: totalRealizedPnlBase,
+        dayPnl: dayPnlBase,
+        dayPnlPct: totalMarketValueBase > 0 ? (dayPnlBase / totalMarketValueBase) * 100 : 0,
+        baseCurrency: BASE_CURRENCY,
       }
     });
   } catch (error) {

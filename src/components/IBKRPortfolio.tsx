@@ -18,12 +18,12 @@ interface Position {
   unrealizedPnl: number;
   unrealizedPnlPct: number;
   totalPnl: number;
-  // USD-converted values
+  // Base currency (SGD) converted values
   fxRate?: number;
-  marketValueUSD?: number;
-  totalCostUSD?: number;
-  unrealizedPnlUSD?: number;
-  realizedPnlUSD?: number;
+  marketValueBase?: number;
+  totalCostBase?: number;
+  unrealizedPnlBase?: number;
+  realizedPnlBase?: number;
 }
 
 interface Summary {
@@ -62,6 +62,7 @@ interface Import {
 export default function IBKRPortfolio() {
   const [positions, setPositions] = useState<Position[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [baseCurrency, setBaseCurrency] = useState<string>('SGD');
   const [trades, setTrades] = useState<Trade[]>([]);
   const [imports, setImports] = useState<Import[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +77,7 @@ export default function IBKRPortfolio() {
       const data = await res.json();
       setPositions(data.positions || []);
       setSummary(data.summary || null);
+      setBaseCurrency(data.baseCurrency || 'SGD');
     } catch (err) {
       console.error('Failed to fetch positions:', err);
     }
@@ -224,29 +226,29 @@ export default function IBKRPortfolio() {
       {summary && positions.length > 0 && (
         <div className="bg-white rounded-lg border p-4">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs text-gray-400 uppercase tracking-wide">Portfolio Summary (USD)</span>
+            <span className="text-xs text-gray-400 uppercase tracking-wide">Portfolio Summary ({baseCurrency})</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <div className="text-sm text-gray-500">Market Value</div>
-              <div className="text-xl font-semibold">{formatCurrency(summary.totalMarketValue)}</div>
+              <div className="text-xl font-semibold">{formatCurrency(summary.totalMarketValue, baseCurrency)}</div>
             </div>
             <div>
               <div className="text-sm text-gray-500">Day P&L</div>
               <div className={`text-xl font-semibold ${summary.dayPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(summary.dayPnl)} ({formatPct(summary.dayPnlPct)})
+                {formatCurrency(summary.dayPnl, baseCurrency)} ({formatPct(summary.dayPnlPct)})
               </div>
             </div>
             <div>
               <div className="text-sm text-gray-500">Unrealized P&L</div>
               <div className={`text-xl font-semibold ${summary.totalUnrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(summary.totalUnrealizedPnl)} ({formatPct(summary.totalUnrealizedPnlPct)})
+                {formatCurrency(summary.totalUnrealizedPnl, baseCurrency)} ({formatPct(summary.totalUnrealizedPnlPct)})
               </div>
             </div>
             <div>
               <div className="text-sm text-gray-500">Realized P&L</div>
               <div className={`text-xl font-semibold ${summary.totalRealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(summary.totalRealizedPnl)}
+                {formatCurrency(summary.totalRealizedPnl, baseCurrency)}
               </div>
             </div>
           </div>
@@ -301,7 +303,7 @@ export default function IBKRPortfolio() {
                 <tbody className="divide-y">
                   {positions.map((pos) => {
                     const displayCurrency = pos.priceCurrency || pos.currency;
-                    const isNonUSD = displayCurrency !== 'USD';
+                    const isNonBase = displayCurrency !== baseCurrency;
                     return (
                     <tr
                       key={pos.symbol}
@@ -317,7 +319,7 @@ export default function IBKRPortfolio() {
                           )}
                           <div>
                             <span className="font-medium">{pos.symbol}</span>
-                            {isNonUSD && (
+                            {isNonBase && (
                               <span className="ml-2 text-xs text-gray-400">{displayCurrency}</span>
                             )}
                           </div>
@@ -333,17 +335,25 @@ export default function IBKRPortfolio() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <div>{formatCurrency(pos.marketValue, displayCurrency)}</div>
-                        {isNonUSD && pos.marketValueUSD && (
-                          <div className="text-xs text-gray-400">{formatCurrency(pos.marketValueUSD)}</div>
+                        {isNonBase && pos.marketValueBase ? (
+                          <>
+                            <div>{formatCurrency(pos.marketValueBase, baseCurrency)}</div>
+                            <div className="text-xs text-gray-400">({formatCurrency(pos.marketValue, displayCurrency)})</div>
+                          </>
+                        ) : (
+                          <div>{formatCurrency(pos.marketValue, displayCurrency)}</div>
                         )}
                       </td>
                       <td className={`px-4 py-3 text-right font-medium ${pos.unrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        <div>{formatCurrency(pos.unrealizedPnl, displayCurrency)}</div>
-                        {isNonUSD && pos.unrealizedPnlUSD && (
-                          <div className={`text-xs ${pos.unrealizedPnlUSD >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {formatCurrency(pos.unrealizedPnlUSD)}
-                          </div>
+                        {isNonBase && pos.unrealizedPnlBase ? (
+                          <>
+                            <div>{formatCurrency(pos.unrealizedPnlBase, baseCurrency)}</div>
+                            <div className={`text-xs text-gray-400`}>
+                              ({formatCurrency(pos.unrealizedPnl, displayCurrency)})
+                            </div>
+                          </>
+                        ) : (
+                          <div>{formatCurrency(pos.unrealizedPnl, displayCurrency)}</div>
                         )}
                       </td>
                       <td className={`px-4 py-3 text-right ${pos.unrealizedPnlPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
