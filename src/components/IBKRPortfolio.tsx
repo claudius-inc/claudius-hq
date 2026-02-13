@@ -399,8 +399,8 @@ export default function IBKRPortfolio() {
                           <div>{formatCurrency(pos.unrealizedPnl, displayCurrency)}</div>
                         )}
                       </td>
-                      <td className={`px-4 py-3 text-right ${pos.unrealizedPnlPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {formatPct(pos.unrealizedPnlPct)}
+                      <td className={`px-4 py-3 text-right ${(isNonBase ? pos.unrealizedPnlBasePct : pos.unrealizedPnlPct) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatPct(isNonBase && pos.unrealizedPnlBasePct !== undefined ? pos.unrealizedPnlBasePct : pos.unrealizedPnlPct)}
                       </td>
                     </tr>
                   )})}
