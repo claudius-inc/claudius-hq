@@ -28,6 +28,28 @@ interface TelegramUpdate {
     };
     text?: string;
   };
+  callback_query?: {
+    id: string;
+    from: {
+      id: number;
+      username?: string;
+      first_name?: string;
+    };
+    message?: {
+      message_id: number;
+      chat: {
+        id: number;
+      };
+    };
+    data?: string;
+  };
+}
+
+type TimePeriod = "1d" | "1w" | "1m" | "3m";
+
+interface InlineKeyboardButton {
+  text: string;
+  callback_data: string;
 }
 
 interface QuoteResult {
@@ -38,19 +60,36 @@ interface QuoteResult {
 }
 
 // Send message
-async function sendMessage(chatId: number, text: string): Promise<number | null> {
+async function sendMessage(
+  chatId: number, 
+  text: string, 
+  keyboard?: InlineKeyboardButton[][]
+): Promise<number | null> {
+  const body: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+  };
+  if (keyboard) {
+    body.reply_markup = { inline_keyboard: keyboard };
+  }
   const res = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    }),
+    body: JSON.stringify(body),
   });
   const data = await res.json();
   return data.result?.message_id ?? null;
+}
+
+// Answer callback query (removes loading state)
+async function answerCallback(callbackId: string): Promise<void> {
+  await fetch(`${TELEGRAM_API}/answerCallbackQuery`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ callback_query_id: callbackId }),
+  });
 }
 
 // Send typing indicator
@@ -66,17 +105,26 @@ async function sendTyping(chatId: number): Promise<void> {
 }
 
 // Edit message
-async function editMessage(chatId: number, messageId: number, text: string): Promise<boolean> {
+async function editMessage(
+  chatId: number, 
+  messageId: number, 
+  text: string,
+  keyboard?: InlineKeyboardButton[][]
+): Promise<boolean> {
+  const body: Record<string, unknown> = {
+    chat_id: chatId,
+    message_id: messageId,
+    text,
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
+  };
+  if (keyboard) {
+    body.reply_markup = { inline_keyboard: keyboard };
+  }
   const res = await fetch(`${TELEGRAM_API}/editMessageText`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      message_id: messageId,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    }),
+    body: JSON.stringify(body),
   });
   return res.ok;
 }
@@ -142,15 +190,41 @@ async function handlePortfolio(chatId: number): Promise<string> {
   return lines.join("\n");
 }
 
-async function handleThemes(chatId: number): Promise<string> {
+// Period config
+const PERIOD_CONFIG: Record<TimePeriod, { label: string; days: number }> = {
+  "1d": { label: "1D", days: 1 },
+  "1w": { label: "1W", days: 7 },
+  "1m": { label: "1M", days: 30 },
+  "3m": { label: "3M", days: 90 },
+};
+
+function getPeriodKeyboard(command: string, current: TimePeriod): InlineKeyboardButton[][] {
+  return [[
+    { text: current === "1d" ? "• 1D •" : "1D", callback_data: `${command}:1d` },
+    { text: current === "1w" ? "• 1W •" : "1W", callback_data: `${command}:1w` },
+    { text: current === "1m" ? "• 1M •" : "1M", callback_data: `${command}:1m` },
+    { text: current === "3m" ? "• 3M •" : "3M", callback_data: `${command}:3m` },
+  ]];
+}
+
+interface ThemesResult {
+  text: string;
+  keyboard: InlineKeyboardButton[][];
+}
+
+async function handleThemes(period: TimePeriod = "1m"): Promise<ThemesResult> {
   const result = await db.execute("SELECT * FROM themes ORDER BY name");
   const themes = result.rows as unknown as Array<{ id: number; name: string }>;
+  const config = PERIOD_CONFIG[period];
 
   if (themes.length === 0) {
-    return "📈 <b>Themes</b>\n\nNo themes yet. Create them at claudiusinc.com/stocks/themes";
+    return {
+      text: "📈 <b>Themes</b>\n\nNo themes yet. Create them at claudiusinc.com/stocks/themes",
+      keyboard: [],
+    };
   }
 
-  const lines: string[] = ["📈 <b>Investment Themes</b>\n"];
+  const lines: string[] = [`📈 <b>Investment Themes (${config.label})</b>\n`];
 
   for (const theme of themes) {
     // Get stocks for this theme
@@ -165,7 +239,7 @@ async function handleThemes(chatId: number): Promise<string> {
       continue;
     }
 
-    // Calculate average 1M performance
+    // Calculate average performance for the period
     let totalPerf = 0;
     let count = 0;
     
@@ -173,7 +247,7 @@ async function handleThemes(chatId: number): Promise<string> {
       try {
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - 1);
+        startDate.setDate(startDate.getDate() - config.days);
         
         const history = await yahooFinance.chart(ticker, {
           period1: startDate,
@@ -199,10 +273,19 @@ async function handleThemes(chatId: number): Promise<string> {
   }
 
   lines.push(`\nclaudiusinc.com/stocks/themes`);
-  return lines.join("\n");
+  
+  return {
+    text: lines.join("\n"),
+    keyboard: getPeriodKeyboard("themes", period),
+  };
 }
 
-async function handleSectors(chatId: number): Promise<string> {
+interface SectorsResult {
+  text: string;
+  keyboard: InlineKeyboardButton[][];
+}
+
+async function handleSectors(period: TimePeriod = "1w"): Promise<SectorsResult> {
   const SECTOR_ETFS = [
     { ticker: "XLK", name: "Technology" },
     { ticker: "XLF", name: "Financials" },
@@ -217,13 +300,14 @@ async function handleSectors(chatId: number): Promise<string> {
     { ticker: "XLU", name: "Utilities" },
   ];
 
+  const config = PERIOD_CONFIG[period];
   const performances: Array<{ name: string; perf: number }> = [];
 
   for (const sector of SECTOR_ETFS) {
     try {
       const endDate = new Date();
       const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 7);
+      startDate.setDate(startDate.getDate() - config.days);
       
       const history = await yahooFinance.chart(sector.ticker, {
         period1: startDate,
@@ -248,7 +332,7 @@ async function handleSectors(chatId: number): Promise<string> {
 
   performances.sort((a, b) => b.perf - a.perf);
 
-  const lines: string[] = ["📊 <b>Sector Momentum (1W)</b>\n"];
+  const lines: string[] = [`📊 <b>Sector Momentum (${config.label})</b>\n`];
   
   lines.push("🔥 <b>Top 3</b>");
   for (const s of performances.slice(0, 3)) {
@@ -261,7 +345,11 @@ async function handleSectors(chatId: number): Promise<string> {
   }
 
   lines.push(`\nclaudiusinc.com/stocks/sectors`);
-  return lines.join("\n");
+  
+  return {
+    text: lines.join("\n"),
+    keyboard: getPeriodKeyboard("sectors", period),
+  };
 }
 
 async function handlePrice(chatId: number, ticker: string): Promise<string> {
@@ -467,6 +555,43 @@ export async function POST(request: NextRequest) {
     await ensureDB();
     
     const update: TelegramUpdate = await request.json();
+    
+    // Handle callback queries (button clicks)
+    if (update.callback_query) {
+      const cb = update.callback_query;
+      const telegramId = cb.from.id;
+      const chatId = cb.message?.chat.id;
+      const messageId = cb.message?.message_id;
+      const data = cb.data || "";
+      
+      // Answer callback to remove loading state
+      await answerCallback(cb.id);
+      
+      // Whitelist check
+      if (!ALLOWED_USER_IDS.includes(telegramId)) {
+        return NextResponse.json({ ok: true });
+      }
+      
+      if (!chatId || !messageId) {
+        return NextResponse.json({ ok: true });
+      }
+      
+      // Parse callback data: "command:period"
+      const [cmd, period] = data.split(":");
+      const validPeriod = ["1d", "1w", "1m", "3m"].includes(period) ? period as TimePeriod : "1m";
+      
+      if (cmd === "themes") {
+        const result = await handleThemes(validPeriod);
+        await editMessage(chatId, messageId, result.text, result.keyboard);
+      } else if (cmd === "sectors") {
+        const result = await handleSectors(validPeriod);
+        await editMessage(chatId, messageId, result.text, result.keyboard);
+      }
+      
+      return NextResponse.json({ ok: true });
+    }
+    
+    // Handle regular messages
     const message = update.message;
     
     if (!message?.text) {
@@ -478,7 +603,6 @@ export async function POST(request: NextRequest) {
     const username = message.from.username;
     const firstName = message.from.first_name;
     const text = message.text.trim();
-    const messageId = message.message_id;
 
     // Whitelist check
     if (!ALLOWED_USER_IDS.includes(telegramId)) {
@@ -497,6 +621,7 @@ export async function POST(request: NextRequest) {
     const arg = args.join(" ");
 
     let response: string;
+    let keyboard: InlineKeyboardButton[][] | undefined;
 
     switch (command.toLowerCase()) {
       case "/start":
@@ -508,16 +633,22 @@ export async function POST(request: NextRequest) {
       case "/portfolio":
         response = await handlePortfolio(chatId);
         break;
-      case "/themes":
-        response = await handleThemes(chatId);
+      case "/themes": {
+        const result = await handleThemes("1m");
+        response = result.text;
+        keyboard = result.keyboard;
         break;
-      case "/sectors":
-        response = await handleSectors(chatId);
+      }
+      case "/sectors": {
+        const result = await handleSectors("1w");
+        response = result.text;
+        keyboard = result.keyboard;
         break;
+      }
       case "/price":
         response = await handlePrice(chatId, arg);
         break;
-      case "/research":
+      case "/research": {
         // Send initial message, then return with message ID for editing later
         const initialMsg = await sendMessage(chatId, "⏳ Checking...");
         if (initialMsg) {
@@ -525,6 +656,7 @@ export async function POST(request: NextRequest) {
           await editMessage(chatId, initialMsg, response);
         }
         return NextResponse.json({ ok: true });
+      }
       case "/alerts":
         response = await handleAlerts(chatId, telegramId);
         break;
@@ -547,7 +679,7 @@ export async function POST(request: NextRequest) {
         response = "Unknown command. Try /help";
     }
 
-    await sendMessage(chatId, response);
+    await sendMessage(chatId, response, keyboard);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("Telegram webhook error:", e);
