@@ -22,8 +22,8 @@ export function StocksTabs() {
   };
 
   return (
-    <div className="border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden">
-      <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max">
+    <div className="border-b border-gray-200 mb-6 overflow-x-auto overflow-y-hidden scrollbar-hide">
+      <nav className="-mb-px flex space-x-4 sm:space-x-8 min-w-max pb-px">
         {tabs.map((tab) => (
           <Link
             key={tab.href}
