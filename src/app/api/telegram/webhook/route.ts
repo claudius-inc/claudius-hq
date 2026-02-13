@@ -5,6 +5,11 @@ import YahooFinance from "yahoo-finance2";
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "";
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
+// Whitelist of allowed Telegram user IDs
+const ALLOWED_USER_IDS = [
+  357112696, // Mr Z (@manapixels)
+];
+
 // Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey", "ripHistorical"] });
 
@@ -462,6 +467,12 @@ export async function POST(request: NextRequest) {
     const firstName = message.from.first_name;
     const text = message.text.trim();
     const messageId = message.message_id;
+
+    // Whitelist check
+    if (!ALLOWED_USER_IDS.includes(telegramId)) {
+      await sendMessage(chatId, "⛔ This bot is private.\n\nContact @manapixels for access.");
+      return NextResponse.json({ ok: true });
+    }
 
     // Ensure user exists
     await ensureUser(telegramId, username, firstName);
