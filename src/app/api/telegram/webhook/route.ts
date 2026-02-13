@@ -285,6 +285,54 @@ interface SectorsResult {
   keyboard: InlineKeyboardButton[][];
 }
 
+// Top holdings per sector (major stocks)
+const SECTOR_HOLDINGS: Record<string, string[]> = {
+  XLK: ["AAPL", "MSFT", "NVDA", "AVGO", "CRM", "AMD", "ADBE", "ORCL"],
+  XLF: ["BRK-B", "JPM", "V", "MA", "BAC", "WFC", "GS", "MS"],
+  XLY: ["AMZN", "TSLA", "HD", "MCD", "NKE", "SBUX", "LOW", "TJX"],
+  XLC: ["META", "GOOGL", "NFLX", "DIS", "CMCSA", "T", "VZ", "TMUS"],
+  XLV: ["LLY", "UNH", "JNJ", "MRK", "ABBV", "PFE", "TMO", "ABT"],
+  XLI: ["GE", "CAT", "RTX", "HON", "UNP", "BA", "DE", "LMT"],
+  XLP: ["PG", "KO", "PEP", "COST", "WMT", "PM", "MO", "CL"],
+  XLE: ["XOM", "CVX", "COP", "SLB", "EOG", "MPC", "PSX", "VLO"],
+  XLB: ["LIN", "APD", "SHW", "ECL", "FCX", "NEM", "NUE", "DOW"],
+  XLRE: ["PLD", "AMT", "EQIX", "SPG", "PSA", "O", "WELL", "DLR"],
+  XLU: ["NEE", "SO", "DUK", "CEG", "SRE", "AEP", "D", "EXC"],
+};
+
+async function getTopGainers(tickers: string[], days: number, limit: number = 3): Promise<Array<{ ticker: string; perf: number }>> {
+  const results: Array<{ ticker: string; perf: number }> = [];
+  
+  for (const ticker of tickers.slice(0, 8)) { // Check up to 8 stocks
+    try {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      
+      const history = await yahooFinance.chart(ticker, {
+        period1: startDate,
+        period2: endDate,
+      });
+      
+      const quotes = history?.quotes ?? [];
+      if (quotes.length >= 2) {
+        const start = quotes[0]?.close ?? 0;
+        const end = quotes[quotes.length - 1]?.close ?? 0;
+        if (start > 0) {
+          results.push({
+            ticker,
+            perf: ((end - start) / start) * 100,
+          });
+        }
+      }
+    } catch {
+      // Skip errors
+    }
+  }
+  
+  return results.sort((a, b) => b.perf - a.perf).slice(0, limit);
+}
+
 async function handleSectors(period: TimePeriod = "1w"): Promise<SectorsResult> {
   const SECTOR_ETFS = [
     { ticker: "XLK", name: "Technology" },
@@ -301,7 +349,7 @@ async function handleSectors(period: TimePeriod = "1w"): Promise<SectorsResult> 
   ];
 
   const config = PERIOD_CONFIG[period];
-  const performances: Array<{ name: string; perf: number }> = [];
+  const performances: Array<{ name: string; ticker: string; perf: number; topGainers: Array<{ ticker: string; perf: number }> }> = [];
 
   for (const sector of SECTOR_ETFS) {
     try {
@@ -319,9 +367,15 @@ async function handleSectors(period: TimePeriod = "1w"): Promise<SectorsResult> 
         const start = quotes[0]?.close ?? 0;
         const end = quotes[quotes.length - 1]?.close ?? 0;
         if (start > 0) {
+          // Get top gainers for this sector
+          const holdings = SECTOR_HOLDINGS[sector.ticker] || [];
+          const topGainers = await getTopGainers(holdings, config.days, 3);
+          
           performances.push({
             name: sector.name,
+            ticker: sector.ticker,
             perf: ((end - start) / start) * 100,
+            topGainers,
           });
         }
       }
@@ -334,14 +388,26 @@ async function handleSectors(period: TimePeriod = "1w"): Promise<SectorsResult> 
 
   const lines: string[] = [`📊 <b>Sector Momentum (${config.label})</b>\n`];
   
-  lines.push("🔥 <b>Top 3</b>");
+  lines.push("🔥 <b>Top 3 Sectors</b>");
   for (const s of performances.slice(0, 3)) {
-    lines.push(`  ${s.name}  ${formatPercent(s.perf)} 🟢`);
+    lines.push(`\n<b>${s.name}</b>  ${formatPercent(s.perf)} 🟢`);
+    if (s.topGainers.length > 0) {
+      const gainersStr = s.topGainers
+        .map(g => `${g.ticker} ${formatPercent(g.perf)}`)
+        .join(", ");
+      lines.push(`  └ ${gainersStr}`);
+    }
   }
   
-  lines.push("\n❄️ <b>Bottom 3</b>");
+  lines.push("\n❄️ <b>Bottom 3 Sectors</b>");
   for (const s of performances.slice(-3).reverse()) {
-    lines.push(`  ${s.name}  ${formatPercent(s.perf)} 🔴`);
+    lines.push(`\n<b>${s.name}</b>  ${formatPercent(s.perf)} 🔴`);
+    if (s.topGainers.length > 0) {
+      const gainersStr = s.topGainers
+        .map(g => `${g.ticker} ${formatPercent(g.perf)}`)
+        .join(", ");
+      lines.push(`  └ ${gainersStr}`);
+    }
   }
 
   lines.push(`\nclaudiusinc.com/stocks/sectors`);
