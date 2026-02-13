@@ -281,6 +281,16 @@ export async function initDB() {
       avg_fx_rate REAL DEFAULT 1,
       last_updated TEXT DEFAULT (datetime('now'))
     );
+
+    -- Portfolio-level aggregates (includes closed positions)
+    CREATE TABLE IF NOT EXISTS ibkr_portfolio_meta (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      total_realized_pnl REAL DEFAULT 0,
+      total_realized_pnl_base REAL DEFAULT 0,
+      base_currency TEXT DEFAULT 'SGD',
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+    INSERT OR IGNORE INTO ibkr_portfolio_meta (id) VALUES (1);
   `);
 
   // Add base currency columns to ibkr_positions if missing

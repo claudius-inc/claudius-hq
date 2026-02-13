@@ -292,16 +292,22 @@ function normalizeSymbol(symbol: string): string {
  * Calculate current positions from trade history
  * Uses historical FX rates from trades for accurate cost basis in base currency
  */
-export function calculatePositions(trades: IBKRTrade[], baseCurrency = 'SGD'): Map<string, { 
-  quantity: number; 
-  avgCost: number; 
-  totalCost: number; 
-  totalCostBase: number;  // Cost in base currency using historical FX rates
-  realizedPnl: number; 
-  realizedPnlBase: number;  // Realized P&L in base currency
-  currency: string;
-  avgFxRate: number;  // Weighted average FX rate for the position
-}> {
+export interface PositionsResult {
+  positions: Map<string, { 
+    quantity: number; 
+    avgCost: number; 
+    totalCost: number; 
+    totalCostBase: number;
+    realizedPnl: number; 
+    realizedPnlBase: number;
+    currency: string;
+    avgFxRate: number;
+  }>;
+  totalRealizedPnl: number;  // Total realized P&L across ALL trades (including closed positions)
+  totalRealizedPnlBase: number;  // In base currency
+}
+
+export function calculatePositions(trades: IBKRTrade[], baseCurrency = 'SGD'): PositionsResult {
   const positions = new Map<string, { 
     quantity: number; 
     totalCost: number; 
@@ -309,8 +315,12 @@ export function calculatePositions(trades: IBKRTrade[], baseCurrency = 'SGD'): M
     realizedPnl: number; 
     realizedPnlBase: number;
     currency: string;
-    weightedFxSum: number;  // For calculating weighted average FX rate
+    weightedFxSum: number;
   }>();
+  
+  // Track total realized P&L across ALL trades (including fully closed positions)
+  let totalRealizedPnl = 0;
+  let totalRealizedPnlBase = 0;
 
   // Sort trades by date
   const sortedTrades = [...trades].sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
@@ -349,25 +359,39 @@ export function calculatePositions(trades: IBKRTrade[], baseCurrency = 'SGD'): M
         const proceedsFromSale = soldQuantity * trade.price - trade.commission - trade.fees;
         const proceedsFromSaleBase = proceedsFromSale * fxToBase;
         
-        current.realizedPnl += proceedsFromSale - costOfSold;
-        current.realizedPnlBase += proceedsFromSaleBase - costOfSoldBase;
+        const tradeRealizedPnl = proceedsFromSale - costOfSold;
+        const tradeRealizedPnlBase = proceedsFromSaleBase - costOfSoldBase;
+        
+        current.realizedPnl += tradeRealizedPnl;
+        current.realizedPnlBase += tradeRealizedPnlBase;
         current.totalCost -= costOfSold;
         current.totalCostBase -= costOfSoldBase;
         current.quantity -= soldQuantity;
+        
+        // Accumulate to total (includes all closed positions)
+        totalRealizedPnl += tradeRealizedPnl;
+        totalRealizedPnlBase += tradeRealizedPnlBase;
       }
     }
 
-    if (trade.realizedPnl !== null) {
-      // Use IBKR's realized P&L if available (more accurate)
-      current.realizedPnl = trade.realizedPnl;
-      current.realizedPnlBase = trade.realizedPnl * fxToBase;
+    // If IBKR provides realized P&L directly, use it (more accurate)
+    if (trade.realizedPnl !== null && trade.action === 'SELL') {
+      const ibkrPnl = trade.realizedPnl;
+      const ibkrPnlBase = trade.realizedPnl * fxToBase;
+      // Adjust totals: remove our calculation, add IBKR's
+      const ourCalc = current.realizedPnl;
+      const ourCalcBase = current.realizedPnlBase;
+      totalRealizedPnl = totalRealizedPnl - ourCalc + ibkrPnl;
+      totalRealizedPnlBase = totalRealizedPnlBase - ourCalcBase + ibkrPnlBase;
+      current.realizedPnl = ibkrPnl;
+      current.realizedPnlBase = ibkrPnlBase;
     }
 
     positions.set(trade.symbol, current);
   }
 
-  // Calculate average cost and FX rate
-  const result = new Map<string, { 
+  // Calculate average cost and FX rate for open positions
+  const openPositions = new Map<string, { 
     quantity: number; 
     avgCost: number; 
     totalCost: number; 
@@ -380,7 +404,7 @@ export function calculatePositions(trades: IBKRTrade[], baseCurrency = 'SGD'): M
   
   for (const [symbol, pos] of Array.from(positions.entries())) {
     if (pos.quantity > 0.0001) { // Only keep positions with shares
-      result.set(symbol, {
+      openPositions.set(symbol, {
         quantity: pos.quantity,
         avgCost: pos.totalCost / pos.quantity,
         totalCost: pos.totalCost,
@@ -393,5 +417,9 @@ export function calculatePositions(trades: IBKRTrade[], baseCurrency = 'SGD'): M
     }
   }
 
-  return result;
+  return {
+    positions: openPositions,
+    totalRealizedPnl,
+    totalRealizedPnlBase,
+  };
 }

@@ -76,7 +76,7 @@ export async function DELETE(request: NextRequest) {
       fees: Number(row.fees || 0),
     }));
 
-    const positions = calculatePositions(trades, 'SGD');
+    const { positions, totalRealizedPnl, totalRealizedPnlBase } = calculatePositions(trades, 'SGD');
 
     await db.execute('DELETE FROM ibkr_positions');
     for (const [symbol, pos] of Array.from(positions.entries())) {
@@ -86,6 +86,12 @@ export async function DELETE(request: NextRequest) {
         args: [symbol, pos.quantity, pos.avgCost, pos.currency, pos.totalCost, pos.totalCostBase, pos.realizedPnl, pos.realizedPnlBase, pos.avgFxRate]
       });
     }
+
+    // Update portfolio meta with total realized P&L (includes closed positions)
+    await db.execute({
+      sql: `UPDATE ibkr_portfolio_meta SET total_realized_pnl = ?, total_realized_pnl_base = ?, updated_at = datetime('now') WHERE id = 1`,
+      args: [totalRealizedPnl, totalRealizedPnlBase]
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

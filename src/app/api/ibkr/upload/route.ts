@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       fees: Number(row.fees || 0),
     }));
 
-    const positions = calculatePositions(allTrades, 'SGD');
+    const { positions, totalRealizedPnl, totalRealizedPnlBase } = calculatePositions(allTrades, 'SGD');
 
     // Update positions table
     await db.execute('DELETE FROM ibkr_positions');
@@ -132,6 +132,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Store total realized P&L (including closed positions)
+    await db.execute({
+      sql: `UPDATE ibkr_portfolio_meta SET total_realized_pnl = ?, total_realized_pnl_base = ?, updated_at = datetime('now') WHERE id = 1`,
+      args: [totalRealizedPnl, totalRealizedPnlBase]
+    });
+
     return NextResponse.json({
       success: true,
       importId,
@@ -140,6 +146,8 @@ export async function POST(request: NextRequest) {
         start: parseResult.statementStart,
         end: parseResult.statementEnd
       },
+      totalRealizedPnl,
+      totalRealizedPnlBase,
       tradesFound: parseResult.trades.length,
       tradesInserted,
       incomeFound: parseResult.income.length,

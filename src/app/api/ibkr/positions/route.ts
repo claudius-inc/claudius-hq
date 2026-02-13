@@ -27,6 +27,11 @@ export async function GET() {
   try {
     await ensureDB();
     
+    // Get portfolio meta (total realized P&L including closed positions)
+    const metaResult = await db.execute('SELECT * FROM ibkr_portfolio_meta WHERE id = 1');
+    const meta = metaResult.rows[0] || {};
+    const portfolioTotalRealizedPnlBase = Number(meta.total_realized_pnl_base || 0);
+    
     const result = await db.execute('SELECT * FROM ibkr_positions ORDER BY total_cost_base DESC');
     
     const positions = result.rows.map(row => ({
@@ -140,7 +145,6 @@ export async function GET() {
     const totalCostBase = enrichedPositions.reduce((sum, p) => sum + p.totalCostBase, 0);
     const totalMarketValueBase = enrichedPositions.reduce((sum, p) => sum + p.marketValueBase, 0);
     const totalUnrealizedPnlBase = enrichedPositions.reduce((sum, p) => sum + p.unrealizedPnlBase, 0);
-    const totalRealizedPnlBase = enrichedPositions.reduce((sum, p) => sum + p.realizedPnlBase, 0);
     const dayPnlBase = enrichedPositions.reduce((sum, p) => sum + p.dayChangeBase, 0);
 
     return NextResponse.json({
@@ -152,7 +156,7 @@ export async function GET() {
         totalMarketValue: totalMarketValueBase,
         totalUnrealizedPnl: totalUnrealizedPnlBase,
         totalUnrealizedPnlPct: totalCostBase > 0 ? (totalUnrealizedPnlBase / totalCostBase) * 100 : 0,
-        totalRealizedPnl: totalRealizedPnlBase,
+        totalRealizedPnl: portfolioTotalRealizedPnlBase,  // Includes ALL trades, even closed positions
         dayPnl: dayPnlBase,
         dayPnlPct: totalMarketValueBase > 0 ? (dayPnlBase / totalMarketValueBase) * 100 : 0,
         baseCurrency: BASE_CURRENCY,
@@ -191,7 +195,7 @@ export async function POST() {
       fees: Number(row.fees || 0),
     }));
 
-    const positions = calculatePositions(trades, 'SGD');
+    const { positions, totalRealizedPnl, totalRealizedPnlBase } = calculatePositions(trades, 'SGD');
 
     // Clear and rebuild positions
     await db.execute('DELETE FROM ibkr_positions');
@@ -203,9 +207,16 @@ export async function POST() {
       });
     }
 
+    // Update portfolio meta with total realized P&L (includes closed positions)
+    await db.execute({
+      sql: `UPDATE ibkr_portfolio_meta SET total_realized_pnl = ?, total_realized_pnl_base = ?, updated_at = datetime('now') WHERE id = 1`,
+      args: [totalRealizedPnl, totalRealizedPnlBase]
+    });
+
     return NextResponse.json({ 
       success: true, 
-      positionsUpdated: positions.size 
+      positionsUpdated: positions.size,
+      totalRealizedPnlBase,
     });
   } catch (error) {
     console.error('Position recalculation error:', error);
