@@ -615,6 +615,9 @@ async function handleStart(firstName?: string): Promise<string> {
     "/sectors - Sector momentum (top/bottom 3)",
     "/price TICKER - Quick price lookup",
     "/research TICKER - Get or generate report",
+    "/news - Headlines for your holdings",
+    "/size TICKER 7 50 20 - Position sizing",
+    "/calendar - Upcoming catalysts",
     "/alerts - Configure alert settings",
     "",
     "Full dashboard: claudiusinc.com",
@@ -631,9 +634,185 @@ async function handleHelp(): Promise<string> {
     "/price TICKER - Quick price + changes",
     "/research TICKER - Sun Tzu analysis",
     "/alerts - View/configure alerts",
+    "/news - Today's headlines for holdings",
+    "/size TICKER CONV UP DOWN - Position sizing",
+    "/calendar - Upcoming catalysts",
     "",
     "claudiusinc.com",
   ].join("\n");
+}
+
+// Position sizing using Kelly Criterion
+async function handleSize(args: string[]): Promise<string> {
+  if (args.length < 4) {
+    return [
+      "📐 <b>Position Sizing Calculator</b>",
+      "",
+      "Usage: /size TICKER CONVICTION UPSIDE DOWNSIDE",
+      "",
+      "• CONVICTION: 1-10 (your confidence level)",
+      "• UPSIDE: Expected gain % if right",
+      "• DOWNSIDE: Expected loss % if wrong",
+      "",
+      "Example: /size BILI 7 50 20",
+      "(BILI, conviction 7/10, +50% upside, -20% downside)",
+    ].join("\n");
+  }
+
+  const [ticker, convStr, upStr, downStr] = args;
+  const conviction = parseInt(convStr);
+  const upside = parseFloat(upStr);
+  const downside = parseFloat(downStr);
+
+  if (isNaN(conviction) || conviction < 1 || conviction > 10) {
+    return "❌ Conviction must be 1-10";
+  }
+  if (isNaN(upside) || upside <= 0) {
+    return "❌ Upside must be a positive number";
+  }
+  if (isNaN(downside) || downside <= 0) {
+    return "❌ Downside must be a positive number";
+  }
+
+  // Map conviction to win probability (1=35%, 10=75%)
+  const winProb = 0.35 + (conviction - 1) * 0.044;
+  const loseProb = 1 - winProb;
+  
+  // Kelly formula: f* = (bp - q) / b
+  // b = odds = upside/downside
+  const odds = upside / downside;
+  const kelly = ((odds * winProb) - loseProb) / odds;
+  
+  // Cap at 10% max
+  const fullKelly = Math.min(Math.max(kelly * 100, 0), 10);
+  const halfKelly = fullKelly / 2;
+  const quarterKelly = fullKelly / 4;
+
+  const upperTicker = ticker.toUpperCase();
+
+  if (fullKelly <= 0) {
+    return [
+      `📐 <b>${upperTicker} Position Sizing</b>`,
+      "",
+      `Conviction: ${conviction}/10`,
+      `Upside: +${upside}% | Downside: -${downside}%`,
+      "",
+      "⚠️ <b>Negative Expected Value</b>",
+      "",
+      "Kelly suggests 0% allocation.",
+      "Risk/reward doesn't justify position.",
+    ].join("\n");
+  }
+
+  return [
+    `📐 <b>${upperTicker} Position Sizing</b>`,
+    "",
+    `Conviction: ${conviction}/10 (${(winProb * 100).toFixed(0)}% win prob)`,
+    `Upside: +${upside}% | Downside: -${downside}%`,
+    "",
+    `Full Kelly: ${fullKelly.toFixed(1)}%`,
+    `<b>Half Kelly: ${halfKelly.toFixed(1)}%</b> ← recommended`,
+    `Quarter Kelly: ${quarterKelly.toFixed(1)}%`,
+    "",
+    halfKelly >= 5 ? "⚠️ High conviction - verify thesis" : "✅ Reasonable size",
+  ].join("\n");
+}
+
+// News aggregator
+async function handleNews(): Promise<string> {
+  try {
+    // Try to fetch from API
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : "https://claudiusinc.com";
+    
+    const res = await fetch(`${baseUrl}/api/tools/news?limit=10`, {
+      headers: { "x-api-key": process.env.HQ_API_KEY || "" },
+    });
+    
+    if (!res.ok) {
+      return "❌ News feed unavailable. Check claudiusinc.com";
+    }
+    
+    const data = await res.json();
+    const news = data.news || [];
+    
+    if (news.length === 0) {
+      return "📰 No recent news for your holdings/watchlist.";
+    }
+
+    const lines = ["📰 <b>Today's Headlines</b>", ""];
+    
+    for (const item of news.slice(0, 8)) {
+      const emoji = item.sentiment === "positive" ? "🟢" : 
+                    item.sentiment === "negative" ? "🔴" : "⚪";
+      lines.push(`${emoji} <b>${item.ticker}</b>: ${item.title}`);
+    }
+    
+    lines.push("", "claudiusinc.com/stocks/news");
+    return lines.join("\n");
+  } catch {
+    return "❌ Error fetching news. Try again later.";
+  }
+}
+
+// Catalyst calendar
+async function handleCalendar(): Promise<string> {
+  try {
+    // Read catalyst calendar directly from memory
+    const fs = await import("fs/promises");
+    const path = "/root/openclaw/memory/catalyst-calendar.json";
+    
+    let calendar;
+    try {
+      const data = await fs.readFile(path, "utf-8");
+      calendar = JSON.parse(data);
+    } catch {
+      return "❌ Catalyst calendar not found.";
+    }
+    
+    const events = calendar.events || [];
+    const now = new Date();
+    const twoWeeksOut = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+    
+    // Filter to next 2 weeks, high impact only
+    const upcoming = events
+      .filter((e: { date: string; impact: string }) => {
+        if (e.date === "TBD") return false;
+        const eventDate = new Date(e.date);
+        return eventDate >= now && eventDate <= twoWeeksOut && e.impact === "high";
+      })
+      .sort((a: { date: string }, b: { date: string }) => 
+        new Date(a.date).getTime() - new Date(b.date).getTime()
+      )
+      .slice(0, 8);
+    
+    if (upcoming.length === 0) {
+      return "📅 No major catalysts in the next 2 weeks.";
+    }
+
+    const lines = ["📅 <b>Upcoming Catalysts</b>", ""];
+    
+    for (const event of upcoming) {
+      const eventDate = new Date(event.date);
+      const daysAway = Math.ceil((eventDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000));
+      const dayLabel = daysAway === 0 ? "Today" : 
+                       daysAway === 1 ? "Tomorrow" : 
+                       `in ${daysAway}d`;
+      
+      const dateStr = eventDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+      lines.push(`⏰ <b>${event.event}</b>`);
+      lines.push(`   ${dateStr} (${dayLabel})`);
+      if (event.notes) {
+        lines.push(`   ${event.notes.substring(0, 60)}${event.notes.length > 60 ? "..." : ""}`);
+      }
+      lines.push("");
+    }
+    
+    return lines.join("\n").trim();
+  } catch (e) {
+    return `❌ Error loading calendar: ${String(e)}`;
+  }
 }
 
 // Main webhook handler
@@ -766,6 +945,16 @@ export async function POST(request: NextRequest) {
         break;
       case "/alerts_threshold":
         response = await handleAlertThreshold(telegramId, parseFloat(arg));
+        break;
+      case "/size":
+        response = await handleSize(args);
+        break;
+      case "/news":
+        response = await handleNews();
+        break;
+      case "/calendar":
+      case "/catalysts":
+        response = await handleCalendar();
         break;
       default:
         response = "Unknown command. Try /help";
