@@ -12,6 +12,7 @@ declare namespace NodeJS {
     SMTP_FROM?: string;
     OPENCLAW_GATEWAY_URL?: string;
     OPENCLAW_GATEWAY_TOKEN?: string;
+    TELEGRAM_BOT_TOKEN?: string;
     NODE_ENV: "development" | "production" | "test";
   }
 

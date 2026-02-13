@@ -181,4 +181,27 @@ export async function initDB() {
   } catch {
     await db.execute("ALTER TABLE theme_stocks ADD COLUMN notes TEXT");
   }
+
+  // Telegram bot tables
+  await db.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS telegram_users (
+      telegram_id INTEGER PRIMARY KEY,
+      username TEXT,
+      first_name TEXT,
+      alert_theme_movers INTEGER DEFAULT 1,
+      alert_sector_rotation INTEGER DEFAULT 1,
+      alert_threshold REAL DEFAULT 5.0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS telegram_pending (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      telegram_id INTEGER NOT NULL,
+      chat_id INTEGER NOT NULL,
+      message_id INTEGER NOT NULL,
+      action_type TEXT NOT NULL,
+      payload TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
 }
