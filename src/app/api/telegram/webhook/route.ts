@@ -138,7 +138,7 @@ async function handlePortfolio(chatId: number): Promise<string> {
     }
   }
 
-  lines.push(`\n🔗 claudiusinc.com/stocks/portfolio`);
+  lines.push(`\nclaudiusinc.com/stocks/portfolio`);
   return lines.join("\n");
 }
 
@@ -198,7 +198,7 @@ async function handleThemes(chatId: number): Promise<string> {
     lines.push(`${theme.name} (${tickers.length})  ${formatPercent(avgPerf)} ${getEmoji(avgPerf)}`);
   }
 
-  lines.push(`\n🔗 claudiusinc.com/stocks/themes`);
+  lines.push(`\nclaudiusinc.com/stocks/themes`);
   return lines.join("\n");
 }
 
@@ -260,7 +260,7 @@ async function handleSectors(chatId: number): Promise<string> {
     lines.push(`  ${s.name}  ${formatPercent(s.perf)} 🔴`);
   }
 
-  lines.push(`\n🔗 claudiusinc.com/stocks/sectors`);
+  lines.push(`\nclaudiusinc.com/stocks/sectors`);
   return lines.join("\n");
 }
 
@@ -326,7 +326,7 @@ async function handlePrice(chatId: number, ticker: string): Promise<string> {
       `1W: ${formatPercent(change1W)} ${getEmoji(change1W)}`,
       `1M: ${formatPercent(change1M)} ${getEmoji(change1M)}`,
       "",
-      `🔗 tradingview.com/chart/?symbol=${upperTicker}`,
+      `tradingview.com/chart/?symbol=${upperTicker}`,
     ];
 
     return lines.join("\n");
@@ -357,7 +357,7 @@ async function handleResearch(chatId: number, messageId: number, ticker: string)
       "",
       preview + "...",
       "",
-      `🔗 Full report: claudiusinc.com/stocks/${upperTicker}`,
+      `Full report: claudiusinc.com/stocks/${upperTicker}`,
     ].join("\n");
   }
 
@@ -442,7 +442,7 @@ async function handleStart(firstName?: string): Promise<string> {
     "/research TICKER - Get or generate report",
     "/alerts - Configure alert settings",
     "",
-    "🔗 Full dashboard: claudiusinc.com",
+    "Full dashboard: claudiusinc.com",
   ].join("\n");
 }
 
@@ -457,7 +457,7 @@ async function handleHelp(): Promise<string> {
     "/research TICKER - Sun Tzu analysis",
     "/alerts - View/configure alerts",
     "",
-    "🔗 claudiusinc.com",
+    "claudiusinc.com",
   ].join("\n");
 }
 
