@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import db, { ensureDB } from '@/lib/db';
 import { parseIBKRStatement, calculatePositions } from '@/lib/ibkr-parser';
+import { getHistoricalFxRates, getFxRateFromCache } from '@/lib/historical-fx';
 
 export const runtime = 'nodejs';
 
@@ -26,6 +27,36 @@ export async function POST(request: NextRequest) {
         error: 'Failed to parse file',
         details: parseResult.errors 
       }, { status: 400 });
+    }
+
+    // Fetch historical FX rates for all trades
+    const fxRequests = parseResult.trades
+      .filter(t => t.currency !== 'SGD')
+      .map(t => ({ currency: t.currency, date: t.tradeDate }));
+    
+    const historicalFxRates = await getHistoricalFxRates(fxRequests);
+    
+    // Update trades with correct FX rates (to SGD)
+    for (const trade of parseResult.trades) {
+      if (trade.currency !== 'SGD') {
+        const rate = getFxRateFromCache(historicalFxRates, trade.currency, trade.tradeDate, 1);
+        trade.fxRate = rate;  // Override IBKR's fxRate with our XXXSGD rate
+      } else {
+        trade.fxRate = 1;
+      }
+    }
+
+    // Store historical FX rates in database
+    for (const [key, rate] of Array.from(historicalFxRates.entries())) {
+      const [currency, date] = key.split(':');
+      try {
+        await db.execute({
+          sql: `INSERT OR REPLACE INTO ibkr_fx_rates (date, from_currency, to_currency, rate) VALUES (?, ?, ?, ?)`,
+          args: [date, currency, 'SGD', rate]
+        });
+      } catch {
+        // Ignore errors
+      }
     }
 
     // Create import record
