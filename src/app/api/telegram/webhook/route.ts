@@ -53,6 +53,18 @@ async function sendMessage(chatId: number, text: string): Promise<number | null>
   return data.result?.message_id ?? null;
 }
 
+// Send typing indicator
+async function sendTyping(chatId: number): Promise<void> {
+  await fetch(`${TELEGRAM_API}/sendChatAction`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: chatId,
+      action: "typing",
+    }),
+  });
+}
+
 // Edit message
 async function editMessage(chatId: number, messageId: number, text: string): Promise<boolean> {
   const res = await fetch(`${TELEGRAM_API}/editMessageText`, {
@@ -473,6 +485,9 @@ export async function POST(request: NextRequest) {
       await sendMessage(chatId, "⛔ This bot is private.\n\nContact @manapixels for access.");
       return NextResponse.json({ ok: true });
     }
+
+    // Show typing indicator
+    await sendTyping(chatId);
 
     // Ensure user exists
     await ensureUser(telegramId, username, firstName);
