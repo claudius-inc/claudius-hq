@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     });
     const importId = Number(importResult.lastInsertRowid);
 
-    // Insert trades (skip duplicates)
+    // Insert trades (skip duplicates) and update FX rates for existing trades
     let tradesInserted = 0;
     for (const trade of parseResult.trades) {
       try {
@@ -104,6 +104,24 @@ export async function POST(request: NextRequest) {
       } catch {
         // Duplicate entry, skip
       }
+      
+      // Also update FX rate for existing trades (in case they had wrong rate)
+      if (trade.fxRate && trade.fxRate !== 1) {
+        await db.execute({
+          sql: `UPDATE ibkr_trades SET fx_rate = ? 
+                WHERE symbol = ? AND trade_date = ? AND quantity = ? AND price = ? AND currency = ?`,
+          args: [trade.fxRate, trade.symbol, trade.tradeDate, trade.quantity, trade.price, trade.currency]
+        });
+      }
+    }
+    
+    // Update FX rates for ALL existing trades from stored rates
+    const storedFxRates = await db.execute('SELECT date, from_currency, rate FROM ibkr_fx_rates WHERE to_currency = ?', ['SGD']);
+    for (const fxRow of storedFxRates.rows) {
+      await db.execute({
+        sql: `UPDATE ibkr_trades SET fx_rate = ? WHERE trade_date = ? AND currency = ? AND fx_rate = 1`,
+        args: [fxRow.rate, fxRow.date, fxRow.from_currency]
+      });
     }
 
     // Insert income records (skip duplicates)
