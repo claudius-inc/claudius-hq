@@ -275,8 +275,28 @@ export async function initDB() {
       avg_cost REAL NOT NULL,
       currency TEXT NOT NULL DEFAULT 'USD',
       total_cost REAL NOT NULL,
+      total_cost_base REAL DEFAULT 0,
       realized_pnl REAL DEFAULT 0,
+      realized_pnl_base REAL DEFAULT 0,
+      avg_fx_rate REAL DEFAULT 1,
       last_updated TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // Add base currency columns to ibkr_positions if missing
+  try {
+    await db.execute("SELECT total_cost_base FROM ibkr_positions LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE ibkr_positions ADD COLUMN total_cost_base REAL DEFAULT 0");
+  }
+  try {
+    await db.execute("SELECT realized_pnl_base FROM ibkr_positions LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE ibkr_positions ADD COLUMN realized_pnl_base REAL DEFAULT 0");
+  }
+  try {
+    await db.execute("SELECT avg_fx_rate FROM ibkr_positions LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE ibkr_positions ADD COLUMN avg_fx_rate REAL DEFAULT 1");
+  }
 }

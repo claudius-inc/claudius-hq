@@ -18,11 +18,13 @@ interface Position {
   unrealizedPnl: number;
   unrealizedPnlPct: number;
   totalPnl: number;
-  // Base currency (SGD) converted values
-  fxRate?: number;
+  // Base currency (SGD) values - historical cost, live market value
+  liveFxRate?: number;
+  historicalFxRate?: number;
   marketValueBase?: number;
-  totalCostBase?: number;
+  totalCostBase?: number;  // Historical cost in SGD (using FX at trade time)
   unrealizedPnlBase?: number;
+  unrealizedPnlBasePct?: number;
   realizedPnlBase?: number;
 }
 

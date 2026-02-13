@@ -27,7 +27,7 @@ export async function GET() {
   try {
     await ensureDB();
     
-    const result = await db.execute('SELECT * FROM ibkr_positions ORDER BY total_cost DESC');
+    const result = await db.execute('SELECT * FROM ibkr_positions ORDER BY total_cost_base DESC');
     
     const positions = result.rows.map(row => ({
       symbol: String(row.symbol),
@@ -35,7 +35,10 @@ export async function GET() {
       avgCost: Number(row.avg_cost),
       currency: String(row.currency),
       totalCost: Number(row.total_cost),
+      totalCostBase: Number(row.total_cost_base || 0),  // Historical cost in SGD
       realizedPnl: Number(row.realized_pnl),
+      realizedPnlBase: Number(row.realized_pnl_base || 0),  // Historical realized P&L in SGD
+      avgFxRate: Number(row.avg_fx_rate || 1),  // Weighted avg FX rate at purchase
     }));
 
     // Get unique currencies that need conversion to SGD
@@ -86,7 +89,9 @@ export async function GET() {
       }
     }
 
-    // Calculate P&L with FX conversion to base currency (SGD)
+    // Calculate P&L using:
+    // - Historical cost basis in SGD (from DB, using FX rate at trade time)
+    // - Current market value in SGD (live price × live FX rate)
     const enrichedPositions = positions.map(pos => {
       const quote = priceMap.get(pos.symbol);
       const currentPrice = quote?.price || pos.avgCost;
@@ -95,13 +100,19 @@ export async function GET() {
       const unrealizedPnl = marketValue - pos.totalCost;
       const unrealizedPnlPct = pos.totalCost > 0 ? (unrealizedPnl / pos.totalCost) * 100 : 0;
       
-      // FX rate to convert to base currency (SGD)
-      const fxRate = fxRates[priceCurrency] || 1;
-      const marketValueBase = marketValue * fxRate;
-      const totalCostBase = pos.totalCost * fxRate;
-      const unrealizedPnlBase = unrealizedPnl * fxRate;
-      const realizedPnlBase = pos.realizedPnl * fxRate;
-      const dayChangeBase = (quote?.change || 0) * pos.quantity * fxRate;
+      // Live FX rate for current market value
+      const liveFxRate = fxRates[priceCurrency] || 1;
+      const marketValueBase = marketValue * liveFxRate;
+      
+      // Use HISTORICAL cost basis from DB (already converted at trade time)
+      const historicalCostBase = pos.totalCostBase || (pos.totalCost * pos.avgFxRate);
+      
+      // Unrealized P&L = Current value (live FX) - Historical cost (historical FX)
+      const unrealizedPnlBase = marketValueBase - historicalCostBase;
+      const unrealizedPnlBasePct = historicalCostBase > 0 ? (unrealizedPnlBase / historicalCostBase) * 100 : 0;
+      
+      // Day change in base currency
+      const dayChangeBase = (quote?.change || 0) * pos.quantity * liveFxRate;
       
       return {
         ...pos,
@@ -113,12 +124,14 @@ export async function GET() {
         unrealizedPnl,
         unrealizedPnlPct,
         totalPnl: unrealizedPnl + pos.realizedPnl,
-        // Base currency (SGD) converted values
-        fxRate,
+        // Base currency (SGD) values
+        liveFxRate,
+        historicalFxRate: pos.avgFxRate,
         marketValueBase,
-        totalCostBase,
+        totalCostBase: historicalCostBase,
         unrealizedPnlBase,
-        realizedPnlBase,
+        unrealizedPnlBasePct,
+        realizedPnlBase: pos.realizedPnlBase,
         dayChangeBase,
       };
     });
@@ -178,15 +191,15 @@ export async function POST() {
       fees: Number(row.fees || 0),
     }));
 
-    const positions = calculatePositions(trades);
+    const positions = calculatePositions(trades, 'SGD');
 
     // Clear and rebuild positions
     await db.execute('DELETE FROM ibkr_positions');
     for (const [symbol, pos] of Array.from(positions.entries())) {
       await db.execute({
-        sql: `INSERT INTO ibkr_positions (symbol, quantity, avg_cost, currency, total_cost, realized_pnl)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [symbol, pos.quantity, pos.avgCost, pos.currency, pos.totalCost, pos.realizedPnl]
+        sql: `INSERT INTO ibkr_positions (symbol, quantity, avg_cost, currency, total_cost, total_cost_base, realized_pnl, realized_pnl_base, avg_fx_rate)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [symbol, pos.quantity, pos.avgCost, pos.currency, pos.totalCost, pos.totalCostBase, pos.realizedPnl, pos.realizedPnlBase, pos.avgFxRate]
       });
     }
 

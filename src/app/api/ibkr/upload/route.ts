@@ -120,15 +120,15 @@ export async function POST(request: NextRequest) {
       fees: Number(row.fees || 0),
     }));
 
-    const positions = calculatePositions(allTrades);
+    const positions = calculatePositions(allTrades, 'SGD');
 
     // Update positions table
     await db.execute('DELETE FROM ibkr_positions');
     for (const [symbol, pos] of Array.from(positions.entries())) {
       await db.execute({
-        sql: `INSERT INTO ibkr_positions (symbol, quantity, avg_cost, currency, total_cost, realized_pnl)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [symbol, pos.quantity, pos.avgCost, pos.currency, pos.totalCost, pos.realizedPnl]
+        sql: `INSERT INTO ibkr_positions (symbol, quantity, avg_cost, currency, total_cost, total_cost_base, realized_pnl, realized_pnl_base, avg_fx_rate)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [symbol, pos.quantity, pos.avgCost, pos.currency, pos.totalCost, pos.totalCostBase, pos.realizedPnl, pos.realizedPnlBase, pos.avgFxRate]
       });
     }
 

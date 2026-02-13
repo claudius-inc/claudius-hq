@@ -290,9 +290,27 @@ function normalizeSymbol(symbol: string): string {
 
 /**
  * Calculate current positions from trade history
+ * Uses historical FX rates from trades for accurate cost basis in base currency
  */
-export function calculatePositions(trades: IBKRTrade[]): Map<string, { quantity: number; avgCost: number; totalCost: number; realizedPnl: number; currency: string }> {
-  const positions = new Map<string, { quantity: number; totalCost: number; realizedPnl: number; currency: string }>();
+export function calculatePositions(trades: IBKRTrade[], baseCurrency = 'SGD'): Map<string, { 
+  quantity: number; 
+  avgCost: number; 
+  totalCost: number; 
+  totalCostBase: number;  // Cost in base currency using historical FX rates
+  realizedPnl: number; 
+  realizedPnlBase: number;  // Realized P&L in base currency
+  currency: string;
+  avgFxRate: number;  // Weighted average FX rate for the position
+}> {
+  const positions = new Map<string, { 
+    quantity: number; 
+    totalCost: number; 
+    totalCostBase: number;
+    realizedPnl: number; 
+    realizedPnlBase: number;
+    currency: string;
+    weightedFxSum: number;  // For calculating weighted average FX rate
+  }>();
 
   // Sort trades by date
   const sortedTrades = [...trades].sort((a, b) => a.tradeDate.localeCompare(b.tradeDate));
@@ -301,24 +319,40 @@ export function calculatePositions(trades: IBKRTrade[]): Map<string, { quantity:
     const current = positions.get(trade.symbol) || { 
       quantity: 0, 
       totalCost: 0, 
-      realizedPnl: 0, 
-      currency: trade.currency 
+      totalCostBase: 0,
+      realizedPnl: 0,
+      realizedPnlBase: 0,
+      currency: trade.currency,
+      weightedFxSum: 0,
     };
 
+    // FX rate to convert to base currency (from IBKR statement)
+    // If fxRate is 1 and currency matches base, no conversion needed
+    // Otherwise use the rate from the trade
+    const fxToBase = trade.fxRate || 1;
+
     if (trade.action === 'BUY') {
-      // Add to position
-      current.totalCost += trade.quantity * trade.price + trade.commission + trade.fees;
+      // Add to position (in original currency)
+      const tradeCost = trade.quantity * trade.price + trade.commission + trade.fees;
+      current.totalCost += tradeCost;
+      current.totalCostBase += tradeCost * fxToBase;  // Convert to base using historical rate
       current.quantity += trade.quantity;
+      current.weightedFxSum += tradeCost * fxToBase;
     } else {
       // Sell - realize P&L
       if (current.quantity > 0) {
         const avgCost = current.totalCost / current.quantity;
+        const avgCostBase = current.totalCostBase / current.quantity;
         const soldQuantity = Math.min(trade.quantity, current.quantity);
         const costOfSold = avgCost * soldQuantity;
+        const costOfSoldBase = avgCostBase * soldQuantity;
         const proceedsFromSale = soldQuantity * trade.price - trade.commission - trade.fees;
+        const proceedsFromSaleBase = proceedsFromSale * fxToBase;
         
         current.realizedPnl += proceedsFromSale - costOfSold;
+        current.realizedPnlBase += proceedsFromSaleBase - costOfSoldBase;
         current.totalCost -= costOfSold;
+        current.totalCostBase -= costOfSoldBase;
         current.quantity -= soldQuantity;
       }
     }
@@ -326,18 +360,35 @@ export function calculatePositions(trades: IBKRTrade[]): Map<string, { quantity:
     if (trade.realizedPnl !== null) {
       // Use IBKR's realized P&L if available (more accurate)
       current.realizedPnl = trade.realizedPnl;
+      current.realizedPnlBase = trade.realizedPnl * fxToBase;
     }
 
     positions.set(trade.symbol, current);
   }
 
-  // Calculate average cost
-  const result = new Map<string, { quantity: number; avgCost: number; totalCost: number; realizedPnl: number; currency: string }>();
+  // Calculate average cost and FX rate
+  const result = new Map<string, { 
+    quantity: number; 
+    avgCost: number; 
+    totalCost: number; 
+    totalCostBase: number;
+    realizedPnl: number; 
+    realizedPnlBase: number;
+    currency: string;
+    avgFxRate: number;
+  }>();
+  
   for (const [symbol, pos] of Array.from(positions.entries())) {
     if (pos.quantity > 0.0001) { // Only keep positions with shares
       result.set(symbol, {
-        ...pos,
+        quantity: pos.quantity,
         avgCost: pos.totalCost / pos.quantity,
+        totalCost: pos.totalCost,
+        totalCostBase: pos.totalCostBase,
+        realizedPnl: pos.realizedPnl,
+        realizedPnlBase: pos.realizedPnlBase,
+        currency: pos.currency,
+        avgFxRate: pos.totalCost > 0 ? pos.totalCostBase / pos.totalCost : 1,
       });
     }
   }
