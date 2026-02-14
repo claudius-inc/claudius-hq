@@ -232,7 +232,7 @@ export default async function MacroDashboardPage() {
                       Interpretation Guide
                     </h4>
                     <div className="space-y-2">
-                      {indicator.ranges.map((range, idx) => (
+                      {indicator.ranges.map((range: { label: string; min: number | null; max: number | null; meaning: string; marketImpact: string }, idx: number) => (
                         <div 
                           key={idx} 
                           className={`flex items-center gap-3 text-sm p-2 rounded ${
