@@ -192,6 +192,18 @@ export async function initDB() {
     await db.execute("ALTER TABLE projects ADD COLUMN action_plan TEXT DEFAULT ''");
   }
 
+  // Add plan_tech and plan_distribution columns if missing
+  try {
+    await db.execute("SELECT plan_tech FROM projects LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE projects ADD COLUMN plan_tech TEXT DEFAULT ''");
+  }
+  try {
+    await db.execute("SELECT plan_distribution FROM projects LIMIT 1");
+  } catch {
+    await db.execute("ALTER TABLE projects ADD COLUMN plan_distribution TEXT DEFAULT ''");
+  }
+
   // Add company_name column to stock_reports if missing
   try {
     await db.execute("SELECT company_name FROM stock_reports LIMIT 1");

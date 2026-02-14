@@ -18,6 +18,8 @@ export interface Project {
   last_deploy_time: string;
   target_audience: string;
   action_plan: string;
+  plan_tech: string;
+  plan_distribution: string;
   created_at: string;
   updated_at: string;
 }

@@ -13,7 +13,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, name, description, status, phase, repo_url, deploy_url, test_count, build_status, last_deploy_time, target_audience, action_plan } = body;
+    const { id, name, description, status, phase, repo_url, deploy_url, test_count, build_status, last_deploy_time, target_audience, action_plan, plan_tech, plan_distribution } = body;
 
     if (id) {
       // Update existing
@@ -31,6 +31,8 @@ export async function POST(request: NextRequest) {
       if (last_deploy_time !== undefined) { fields.push("last_deploy_time = ?"); values.push(last_deploy_time); }
       if (target_audience !== undefined) { fields.push("target_audience = ?"); values.push(target_audience); }
       if (action_plan !== undefined) { fields.push("action_plan = ?"); values.push(action_plan); }
+      if (plan_tech !== undefined) { fields.push("plan_tech = ?"); values.push(plan_tech); }
+      if (plan_distribution !== undefined) { fields.push("plan_distribution = ?"); values.push(plan_distribution); }
       fields.push("updated_at = datetime('now')");
 
       await db.execute({
@@ -43,8 +45,8 @@ export async function POST(request: NextRequest) {
     } else {
       // Create new
       const result = await db.execute({
-        sql: `INSERT INTO projects (name, description, status, phase, repo_url, deploy_url, test_count, build_status, last_deploy_time, target_audience, action_plan)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        sql: `INSERT INTO projects (name, description, status, phase, repo_url, deploy_url, test_count, build_status, last_deploy_time, target_audience, action_plan, plan_tech, plan_distribution)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           name || "",
           description || "",
@@ -57,6 +59,8 @@ export async function POST(request: NextRequest) {
           last_deploy_time || "",
           target_audience || "",
           action_plan || "",
+          plan_tech || "",
+          plan_distribution || "",
         ],
       });
 
