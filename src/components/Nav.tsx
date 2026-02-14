@@ -19,7 +19,7 @@ export async function Nav() {
               alt="Claudius HQ" 
               width={24} 
               height={24}
-              className="w-6 h-6 rounded-full"
+              className="w-6 h-6 rounded-lg"
             />
             <span className="font-bold text-gray-900">Claudius HQ</span>
           </Link>
