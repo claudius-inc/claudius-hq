@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
 import { StockReport } from "@/lib/types";
-import { Nav } from "@/components/Nav";
 import Link from "next/link";
 import { marked } from "marked";
 import { ReportTOC } from "@/components/ReportTOC";
@@ -125,10 +124,9 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
   };
 
   return (
-    <div className="min-h-screen">
-      <Nav />
-      {/* Sticky header section - top-12 to sit below Nav (h-12) */}
-      <div className="sticky top-12 z-40 bg-gray-50 border-b border-gray-200">
+    <>
+      {/* Sticky header section - top-24 to sit below Nav (h-12) + StocksTabs (~h-12) */}
+      <div className="sticky top-24 z-30 bg-gray-50 border-b border-gray-200 -mx-4 px-4">
         <div className="max-w-6xl mx-auto px-4 py-2 md:py-3">
           {/* Breadcrumb + Actions row */}
           <div className="flex items-center justify-between gap-2 text-sm mb-1">
@@ -218,6 +216,6 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
           </div>
         </main>
       )}
-    </div>
+    </>
   );
 }
