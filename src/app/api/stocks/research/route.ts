@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import db, { ensureDB } from "@/lib/db";
+import { db, researchJobs } from "@/db";
+import { eq, desc, inArray } from "drizzle-orm";
 
 export async function POST(request: NextRequest) {
-  await ensureDB();
-
   try {
     const body = await request.json();
     const { ticker } = body;
@@ -26,16 +25,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if there's already a pending/processing job for this ticker
-    const existing = await db.execute({
-      sql: "SELECT id, status FROM research_jobs WHERE ticker = ? AND status IN ('pending', 'processing') LIMIT 1",
-      args: [cleanTicker],
-    });
+    const [existing] = await db
+      .select({ id: researchJobs.id, status: researchJobs.status })
+      .from(researchJobs)
+      .where(eq(researchJobs.ticker, cleanTicker))
+      .limit(1);
 
-    if (existing.rows.length > 0) {
+    if (existing && (existing.status === "pending" || existing.status === "processing")) {
       return NextResponse.json({
-        jobId: existing.rows[0].id,
+        jobId: existing.id,
         ticker: cleanTicker,
-        status: existing.rows[0].status,
+        status: existing.status,
         message: "Research already in progress for this ticker.",
       });
     }
@@ -43,10 +43,11 @@ export async function POST(request: NextRequest) {
     // Generate a job ID and create the job record
     const jobId = `research-${cleanTicker}-${Date.now()}`;
     
-    await db.execute({
-      sql: `INSERT INTO research_jobs (id, ticker, status, progress, created_at, updated_at) 
-            VALUES (?, ?, 'pending', 0, datetime('now'), datetime('now'))`,
-      args: [jobId, cleanTicker],
+    await db.insert(researchJobs).values({
+      id: jobId,
+      ticker: cleanTicker,
+      status: "pending",
+      progress: 0,
     });
 
     console.log(`[Research Queue] Ticker: ${cleanTicker}, JobId: ${jobId}`);
@@ -136,8 +137,6 @@ DO NOT rush. Take your time to produce a thorough, publication-quality report.`,
 }
 
 export async function GET(request: NextRequest) {
-  await ensureDB();
-
   const { searchParams } = new URL(request.url);
   const jobId = searchParams.get("jobId");
   const status = searchParams.get("status");
@@ -145,31 +144,36 @@ export async function GET(request: NextRequest) {
   try {
     if (jobId) {
       // Get specific job
-      const result = await db.execute({
-        sql: "SELECT * FROM research_jobs WHERE id = ?",
-        args: [jobId],
-      });
+      const [job] = await db
+        .select()
+        .from(researchJobs)
+        .where(eq(researchJobs.id, jobId));
       
-      if (result.rows.length === 0) {
+      if (!job) {
         return NextResponse.json({ error: "Job not found" }, { status: 404 });
       }
       
-      return NextResponse.json({ job: result.rows[0] });
+      return NextResponse.json({ job });
     }
 
     // Get all jobs, optionally filtered by status
-    let sql = "SELECT * FROM research_jobs";
-    const args: string[] = [];
-    
+    let jobs;
     if (status) {
-      sql += " WHERE status = ?";
-      args.push(status);
+      jobs = await db
+        .select()
+        .from(researchJobs)
+        .where(eq(researchJobs.status, status))
+        .orderBy(desc(researchJobs.createdAt))
+        .limit(50);
+    } else {
+      jobs = await db
+        .select()
+        .from(researchJobs)
+        .orderBy(desc(researchJobs.createdAt))
+        .limit(50);
     }
     
-    sql += " ORDER BY created_at DESC LIMIT 50";
-    
-    const result = await db.execute({ sql, args });
-    return NextResponse.json({ jobs: result.rows });
+    return NextResponse.json({ jobs });
   } catch (error) {
     console.error("[Research API Error]", error);
     return NextResponse.json(

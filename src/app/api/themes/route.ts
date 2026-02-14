@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import db, { ensureDB } from "@/lib/db";
+import { db, themes, themeStocks } from "@/db";
+import { desc } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
 import { Theme, ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 
@@ -132,22 +133,18 @@ function findLeader(stockPerfs: ThemePerformance[]): { ticker: string; performan
 // GET /api/themes - List all themes with performance
 export async function GET() {
   try {
-    await ensureDB();
-
     // Get all themes
-    const themesResult = await db.execute("SELECT * FROM themes ORDER BY name");
-    const themes = themesResult.rows as unknown as Theme[];
+    const allThemes = await db.select().from(themes).orderBy(themes.name);
 
     // Get all theme stocks
-    const stocksResult = await db.execute("SELECT * FROM theme_stocks");
-    const allStocks = stocksResult.rows as unknown as { theme_id: number; ticker: string }[];
+    const allStocks = await db.select().from(themeStocks);
 
     // Group stocks by theme
     const stocksByTheme = new Map<number, string[]>();
     for (const stock of allStocks) {
-      const existing = stocksByTheme.get(stock.theme_id) || [];
+      const existing = stocksByTheme.get(stock.themeId) || [];
       existing.push(stock.ticker);
-      stocksByTheme.set(stock.theme_id, existing);
+      stocksByTheme.set(stock.themeId, existing);
     }
 
     // Get unique tickers across all themes
@@ -158,14 +155,17 @@ export async function GET() {
     const perfMap = new Map(allPerformances.map((p) => [p.ticker, p]));
 
     // Build themed response
-    const themesWithPerformance: ThemeWithPerformance[] = themes.map((theme) => {
+    const themesWithPerformance: ThemeWithPerformance[] = allThemes.map((theme) => {
       const tickers = stocksByTheme.get(theme.id) || [];
       const stockPerfs = tickers
         .map((t) => perfMap.get(t))
         .filter((p): p is ThemePerformance => p !== undefined);
 
       return {
-        ...theme,
+        id: theme.id,
+        name: theme.name,
+        description: theme.description || "",
+        created_at: theme.createdAt || "",
         stocks: tickers,
         performance_1w: calcBasketPerformance(stockPerfs, "performance_1w"),
         performance_1m: calcBasketPerformance(stockPerfs, "performance_1m"),
@@ -187,8 +187,6 @@ export async function GET() {
 // POST /api/themes - Create a new theme
 export async function POST(request: NextRequest) {
   try {
-    await ensureDB();
-
     const body = await request.json();
     const { name, description } = body;
 
@@ -196,19 +194,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: "INSERT INTO themes (name, description) VALUES (?, ?)",
-      args: [name.trim(), description?.trim() || ""],
-    });
+    const [newTheme] = await db
+      .insert(themes)
+      .values({
+        name: name.trim(),
+        description: description?.trim() || "",
+      })
+      .returning();
 
-    const theme = {
-      id: Number(result.lastInsertRowid),
-      name: name.trim(),
-      description: description?.trim() || "",
-      created_at: new Date().toISOString(),
-    };
-
-    return NextResponse.json({ theme }, { status: 201 });
+    return NextResponse.json({ theme: newTheme }, { status: 201 });
   } catch (e) {
     const error = String(e);
     if (error.includes("UNIQUE constraint")) {

@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
-import db, { ensureDB } from "@/lib/db";
-import { PortfolioHolding } from "@/lib/types";
+import { db, portfolioHoldings } from "@/db";
+import { desc } from "drizzle-orm";
 
 const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "https://gateway.claudiusinc.com";
 const GATEWAY_KEY = process.env.OPENCLAW_GATEWAY_TOKEN || "";
 
 // POST /api/portfolio/analyze — Trigger portfolio analysis
 export async function POST() {
-  await ensureDB();
-
   try {
     // Get current holdings
-    const result = await db.execute(
-      "SELECT * FROM portfolio_holdings ORDER BY target_allocation DESC"
-    );
-    const holdings = result.rows as unknown as PortfolioHolding[];
+    const holdings = await db
+      .select()
+      .from(portfolioHoldings)
+      .orderBy(desc(portfolioHoldings.targetAllocation));
 
     if (holdings.length === 0) {
       return NextResponse.json(
@@ -25,7 +23,7 @@ export async function POST() {
 
     // Build the portfolio string
     const portfolioStr = holdings
-      .map((h) => `${h.ticker} (${h.target_allocation}%)`)
+      .map((h) => `${h.ticker} (${h.targetAllocation}%)`)
       .join(", ");
 
     // Spawn analysis via OpenClaw gateway

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import db, { ensureDB } from "@/lib/db";
+import { db, themeStocks } from "@/db";
+import { eq, and } from "drizzle-orm";
 
 // DELETE /api/themes/[id]/stocks/[ticker] - Remove stock from theme
 export async function DELETE(
@@ -7,19 +8,28 @@ export async function DELETE(
   { params }: { params: { id: string; ticker: string } }
 ) {
   try {
-    await ensureDB();
     const { id, ticker } = params;
+    const numericId = parseInt(id, 10);
+
+    if (isNaN(numericId)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
 
     const upperTicker = ticker.toUpperCase();
 
-    const result = await db.execute({
-      sql: "DELETE FROM theme_stocks WHERE theme_id = ? AND ticker = ?",
-      args: [id, upperTicker],
-    });
+    // Check if exists first
+    const [existing] = await db
+      .select({ id: themeStocks.id })
+      .from(themeStocks)
+      .where(and(eq(themeStocks.themeId, numericId), eq(themeStocks.ticker, upperTicker)));
 
-    if (result.rowsAffected === 0) {
+    if (!existing) {
       return NextResponse.json({ error: "Stock not found in theme" }, { status: 404 });
     }
+
+    await db
+      .delete(themeStocks)
+      .where(and(eq(themeStocks.themeId, numericId), eq(themeStocks.ticker, upperTicker)));
 
     return NextResponse.json({ success: true });
   } catch (e) {

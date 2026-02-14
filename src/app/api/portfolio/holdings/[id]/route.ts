@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import db, { ensureDB } from "@/lib/db";
-import { PortfolioHolding } from "@/lib/types";
+import { db, portfolioHoldings } from "@/db";
+import { eq } from "drizzle-orm";
 
 // PUT /api/portfolio/holdings/[id] — Update holding
 export async function PUT(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  await ensureDB();
   const { id } = params;
   const numericId = parseInt(id, 10);
 
@@ -19,49 +18,31 @@ export async function PUT(
     const body = await req.json();
     const { ticker, target_allocation, cost_basis, shares } = body;
 
-    const fields: string[] = [];
-    const values: (string | number | null)[] = [];
+    const updateData: Partial<typeof portfolioHoldings.$inferInsert> = {
+      updatedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
+    };
 
-    if (ticker !== undefined) {
-      fields.push("ticker = ?");
-      values.push(ticker);
-    }
-    if (target_allocation !== undefined) {
-      fields.push("target_allocation = ?");
-      values.push(target_allocation);
-    }
-    if (cost_basis !== undefined) {
-      fields.push("cost_basis = ?");
-      values.push(cost_basis);
-    }
-    if (shares !== undefined) {
-      fields.push("shares = ?");
-      values.push(shares);
-    }
-    fields.push("updated_at = datetime('now')");
+    if (ticker !== undefined) updateData.ticker = ticker;
+    if (target_allocation !== undefined) updateData.targetAllocation = target_allocation;
+    if (cost_basis !== undefined) updateData.costBasis = cost_basis;
+    if (shares !== undefined) updateData.shares = shares;
 
-    if (fields.length === 1) {
-      return NextResponse.json(
-        { error: "No fields to update" },
-        { status: 400 }
-      );
+    if (Object.keys(updateData).length === 1) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
-    await db.execute({
-      sql: `UPDATE portfolio_holdings SET ${fields.join(", ")} WHERE id = ?`,
-      args: [...values, numericId],
-    });
+    await db.update(portfolioHoldings).set(updateData).where(eq(portfolioHoldings.id, numericId));
 
-    const result = await db.execute({
-      sql: "SELECT * FROM portfolio_holdings WHERE id = ?",
-      args: [numericId],
-    });
+    const [result] = await db
+      .select()
+      .from(portfolioHoldings)
+      .where(eq(portfolioHoldings.id, numericId));
 
-    if (result.rows.length === 0) {
+    if (!result) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ holding: result.rows[0] as unknown as PortfolioHolding });
+    return NextResponse.json({ holding: result });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
@@ -72,7 +53,6 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  await ensureDB();
   const { id } = params;
   const numericId = parseInt(id, 10);
 
@@ -81,19 +61,16 @@ export async function DELETE(
   }
 
   try {
-    const existing = await db.execute({
-      sql: "SELECT id FROM portfolio_holdings WHERE id = ?",
-      args: [numericId],
-    });
+    const [existing] = await db
+      .select({ id: portfolioHoldings.id })
+      .from(portfolioHoldings)
+      .where(eq(portfolioHoldings.id, numericId));
 
-    if (existing.rows.length === 0) {
+    if (!existing) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    await db.execute({
-      sql: "DELETE FROM portfolio_holdings WHERE id = ?",
-      args: [numericId],
-    });
+    await db.delete(portfolioHoldings).where(eq(portfolioHoldings.id, numericId));
 
     return NextResponse.json({ ok: true });
   } catch (e) {

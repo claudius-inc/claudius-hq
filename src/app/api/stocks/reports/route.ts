@@ -1,26 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import db, { ensureDB } from "@/lib/db";
+import { db, stockReports, researchJobs } from "@/db";
+import { desc, eq } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
 
 // GET /api/stocks/reports — list all reports, optionally filter by ticker
 export async function GET(req: NextRequest) {
-  await ensureDB();
   try {
     const { searchParams } = new URL(req.url);
     const ticker = searchParams.get("ticker");
 
-    let sql = "SELECT * FROM stock_reports";
-    const args: string[] = [];
+    let query = db.select().from(stockReports);
 
     if (ticker) {
-      sql += " WHERE ticker = ?";
-      args.push(ticker.toUpperCase());
+      const reports = await query
+        .where(eq(stockReports.ticker, ticker.toUpperCase()))
+        .orderBy(desc(stockReports.createdAt));
+      return NextResponse.json({ reports });
     }
 
-    sql += " ORDER BY created_at DESC";
-
-    const result = await db.execute({ sql, args });
-    return NextResponse.json({ reports: result.rows });
+    const reports = await query.orderBy(desc(stockReports.createdAt));
+    return NextResponse.json({ reports });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
@@ -57,7 +56,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await ensureDB();
   try {
     const body = await req.json();
     const { ticker, title, content, report_type, company_name, related_tickers } = body;
@@ -85,25 +83,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO stock_reports (ticker, title, content, report_type, company_name, related_tickers) 
-            VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [
-        cleanTicker,
-        finalTitle,
+    const [newReport] = await db
+      .insert(stockReports)
+      .values({
+        ticker: cleanTicker,
+        title: finalTitle,
         content,
-        report_type || "sun-tzu",
-        finalCompanyName,
-        relatedTickersJson,
-      ],
-    });
+        reportType: report_type || "sun-tzu",
+        companyName: finalCompanyName,
+        relatedTickers: relatedTickersJson,
+      })
+      .returning();
 
-    const newReport = await db.execute({
-      sql: "SELECT * FROM stock_reports WHERE id = ?",
-      args: [result.lastInsertRowid!],
-    });
-
-    return NextResponse.json({ report: newReport.rows[0] }, { status: 201 });
+    return NextResponse.json({ report: newReport }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
@@ -115,7 +107,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await ensureDB();
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -125,6 +116,11 @@ export async function PATCH(req: NextRequest) {
         { error: "id query parameter is required" },
         { status: 400 }
       );
+    }
+
+    const reportId = parseInt(id, 10);
+    if (isNaN(reportId)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
 
     const body = await req.json();
@@ -137,27 +133,19 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const updates: string[] = [];
-    const args: (string | number)[] = [];
+    const updateData: Partial<typeof stockReports.$inferInsert> = {};
 
     if (company_name !== undefined) {
-      updates.push("company_name = ?");
-      args.push(company_name);
+      updateData.companyName = company_name;
     }
 
     if (ticker !== undefined) {
-      updates.push("ticker = ?");
-      args.push(ticker.toUpperCase());
+      updateData.ticker = ticker.toUpperCase();
     }
 
-    args.push(parseInt(id, 10));
+    await db.update(stockReports).set(updateData).where(eq(stockReports.id, reportId));
 
-    await db.execute({
-      sql: `UPDATE stock_reports SET ${updates.join(", ")} WHERE id = ?`,
-      args,
-    });
-
-    return NextResponse.json({ success: true, id: parseInt(id, 10) });
+    return NextResponse.json({ success: true, id: reportId });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
@@ -165,7 +153,6 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/stocks/reports — delete a report by id
 export async function DELETE(req: NextRequest) {
-  await ensureDB();
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -186,12 +173,12 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Check if report exists
-    const existing = await db.execute({
-      sql: "SELECT id FROM stock_reports WHERE id = ?",
-      args: [reportId],
-    });
+    const [existing] = await db
+      .select({ id: stockReports.id })
+      .from(stockReports)
+      .where(eq(stockReports.id, reportId));
 
-    if (existing.rows.length === 0) {
+    if (!existing) {
       return NextResponse.json(
         { error: "Report not found" },
         { status: 404 }
@@ -199,16 +186,13 @@ export async function DELETE(req: NextRequest) {
     }
 
     // Clear foreign key references in research_jobs first
-    await db.execute({
-      sql: "UPDATE research_jobs SET report_id = NULL WHERE report_id = ?",
-      args: [reportId],
-    });
+    await db
+      .update(researchJobs)
+      .set({ reportId: null })
+      .where(eq(researchJobs.reportId, reportId));
 
     // Now delete the report
-    await db.execute({
-      sql: "DELETE FROM stock_reports WHERE id = ?",
-      args: [reportId],
-    });
+    await db.delete(stockReports).where(eq(stockReports.id, reportId));
 
     return NextResponse.json({ success: true, deletedId: reportId });
   } catch (e) {

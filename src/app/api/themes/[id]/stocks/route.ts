@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import db, { ensureDB } from "@/lib/db";
+import { db, themes, themeStocks, THEME_STOCK_STATUSES } from "@/db";
+import { eq, and } from "drizzle-orm";
 
 // POST /api/themes/[id]/stocks - Add stock to theme
 export async function POST(
@@ -7,8 +8,12 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    await ensureDB();
     const { id } = params;
+    const numericId = parseInt(id, 10);
+
+    if (isNaN(numericId)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
 
     const body = await request.json();
     const { ticker, target_price, status, notes } = body;
@@ -18,35 +23,27 @@ export async function POST(
     }
 
     // Check theme exists
-    const themeResult = await db.execute({
-      sql: "SELECT id FROM themes WHERE id = ?",
-      args: [id],
-    });
+    const [theme] = await db.select({ id: themes.id }).from(themes).where(eq(themes.id, numericId));
 
-    if (themeResult.rows.length === 0) {
+    if (!theme) {
       return NextResponse.json({ error: "Theme not found" }, { status: 404 });
     }
 
     const upperTicker = ticker.trim().toUpperCase();
-    const validStatus = ["watching", "accumulating", "holding"].includes(status) ? status : "watching";
+    const validStatus = THEME_STOCK_STATUSES.includes(status) ? status : "watching";
 
-    const result = await db.execute({
-      sql: `INSERT INTO theme_stocks (theme_id, ticker, target_price, status, notes) 
-            VALUES (?, ?, ?, ?, ?)`,
-      args: [id, upperTicker, target_price ?? null, validStatus, notes ?? null],
-    });
-
-    return NextResponse.json({
-      stock: {
-        id: Number(result.lastInsertRowid),
-        theme_id: Number(id),
+    const [newStock] = await db
+      .insert(themeStocks)
+      .values({
+        themeId: numericId,
         ticker: upperTicker,
-        target_price: target_price ?? null,
+        targetPrice: target_price ?? null,
         status: validStatus,
         notes: notes ?? null,
-        added_at: new Date().toISOString(),
-      },
-    }, { status: 201 });
+      })
+      .returning();
+
+    return NextResponse.json({ stock: newStock }, { status: 201 });
   } catch (e) {
     const error = String(e);
     if (error.includes("UNIQUE constraint")) {
@@ -63,8 +60,12 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    await ensureDB();
     const { id } = params;
+    const numericId = parseInt(id, 10);
+
+    if (isNaN(numericId)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
 
     const body = await request.json();
     const { ticker, target_price, status, notes } = body;
@@ -75,41 +76,39 @@ export async function PATCH(
 
     const upperTicker = ticker.trim().toUpperCase();
 
-    // Build dynamic update
-    const updates: string[] = [];
-    const args: (string | number | null)[] = [];
+    // Build update data
+    const updateData: Partial<typeof themeStocks.$inferInsert> = {};
 
     if (target_price !== undefined) {
-      updates.push("target_price = ?");
-      args.push(target_price);
+      updateData.targetPrice = target_price;
     }
-    if (status !== undefined) {
-      if (["watching", "accumulating", "holding"].includes(status)) {
-        updates.push("status = ?");
-        args.push(status);
-      }
+    if (status !== undefined && THEME_STOCK_STATUSES.includes(status)) {
+      updateData.status = status;
     }
     if (notes !== undefined) {
-      updates.push("notes = ?");
-      args.push(notes);
+      updateData.notes = notes;
     }
 
-    if (updates.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
-    args.push(id, upperTicker);
+    const result = await db
+      .update(themeStocks)
+      .set(updateData)
+      .where(and(eq(themeStocks.themeId, numericId), eq(themeStocks.ticker, upperTicker)));
 
-    const result = await db.execute({
-      sql: `UPDATE theme_stocks SET ${updates.join(", ")} WHERE theme_id = ? AND ticker = ?`,
-      args,
-    });
+    // Check if any rows were affected (Drizzle doesn't return rowsAffected directly)
+    const [updated] = await db
+      .select()
+      .from(themeStocks)
+      .where(and(eq(themeStocks.themeId, numericId), eq(themeStocks.ticker, upperTicker)));
 
-    if (result.rowsAffected === 0) {
+    if (!updated) {
       return NextResponse.json({ error: "Stock not found in theme" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, stock: updated });
   } catch (e) {
     console.error("Failed to update stock in theme:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });

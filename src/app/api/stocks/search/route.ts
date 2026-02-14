@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import db, { ensureDB } from "@/lib/db";
-import { StockReport } from "@/lib/types";
+import { db, stockReports } from "@/db";
 
 interface SearchResult {
   id: number;
   ticker: string;
   title: string;
-  company_name: string;
+  company_name: string | null;
   report_type: string;
-  created_at: string;
+  created_at: string | null;
   relevance_score: number;
   snippet: string;
 }
@@ -111,8 +110,6 @@ function extractSnippet(content: string, queryTokens: string[], maxLength: numbe
 
 // POST /api/stocks/search — search stock reports
 export async function POST(req: NextRequest) {
-  await ensureDB();
-
   try {
     const body = await req.json();
     const { query } = body;
@@ -125,10 +122,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch all reports
-    const result = await db.execute(
-      "SELECT id, ticker, title, company_name, content, report_type, created_at FROM stock_reports"
-    );
-    const reports = result.rows as unknown as StockReport[];
+    const reports = await db
+      .select({
+        id: stockReports.id,
+        ticker: stockReports.ticker,
+        title: stockReports.title,
+        companyName: stockReports.companyName,
+        content: stockReports.content,
+        reportType: stockReports.reportType,
+        createdAt: stockReports.createdAt,
+      })
+      .from(stockReports);
 
     if (reports.length === 0) {
       return NextResponse.json({ results: [] });
@@ -145,7 +149,7 @@ export async function POST(req: NextRequest) {
     const reportTokens: Map<number, string[]> = new Map();
 
     for (const report of reports) {
-      const combinedText = `${report.ticker} ${report.title || ""} ${report.company_name || ""} ${report.content}`;
+      const combinedText = `${report.ticker} ${report.title || ""} ${report.companyName || ""} ${report.content}`;
       const tokens = tokenize(combinedText);
       reportTokens.set(report.id, tokens);
 
@@ -157,7 +161,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Score each report
-    const scoredReports: { report: StockReport; score: number }[] = [];
+    const scoredReports: { report: typeof reports[0]; score: number }[] = [];
 
     for (const report of reports) {
       const tokens = reportTokens.get(report.id) || [];
@@ -166,7 +170,7 @@ export async function POST(req: NextRequest) {
       // Boost for ticker/title/company name matches
       const tickerLower = report.ticker.toLowerCase();
       const titleLower = (report.title || "").toLowerCase();
-      const companyLower = (report.company_name || "").toLowerCase();
+      const companyLower = (report.companyName || "").toLowerCase();
 
       for (const qToken of queryTokens) {
         if (tickerLower === qToken || tickerLower.includes(qToken)) {
@@ -193,9 +197,9 @@ export async function POST(req: NextRequest) {
       id: report.id,
       ticker: report.ticker,
       title: report.title,
-      company_name: report.company_name,
-      report_type: report.report_type,
-      created_at: report.created_at,
+      company_name: report.companyName,
+      report_type: report.reportType,
+      created_at: report.createdAt,
       relevance_score: Math.round(score * 100) / 100,
       snippet: extractSnippet(report.content, queryTokens),
     }));

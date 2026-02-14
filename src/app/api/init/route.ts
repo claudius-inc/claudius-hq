@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { initDB } from "@/lib/db";
 
+// With Drizzle ORM, schema is managed via drizzle-kit
+// Run: npx drizzle-kit push (for dev) or npx drizzle-kit migrate (for prod)
 export async function POST() {
-  try {
-    await initDB();
-    return NextResponse.json({ ok: true, message: "Database initialized" });
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
-  }
+  return NextResponse.json({ 
+    ok: true, 
+    message: "Database managed by Drizzle ORM. Run 'npx drizzle-kit push' to sync schema." 
+  });
 }
