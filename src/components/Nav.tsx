@@ -15,11 +15,11 @@ export async function Nav() {
         <div className="flex items-center justify-between h-12">
           <Link href="/" className="flex items-center gap-2">
             <Image 
-              src="/logo.svg" 
+              src="/logo.png" 
               alt="Claudius HQ" 
               width={24} 
               height={24}
-              className="w-6 h-6"
+              className="w-6 h-6 rounded-full"
             />
             <span className="font-bold text-gray-900">Claudius HQ</span>
           </Link>

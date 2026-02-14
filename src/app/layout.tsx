@@ -11,8 +11,8 @@ export const metadata: Metadata = {
   },
   description: "Mission Control for Claudius Inc",
   icons: {
-    icon: "/logo.svg",
-    apple: "/logo.svg",
+    icon: "/logo.png",
+    apple: "/logo.png",
   },
 };
 
