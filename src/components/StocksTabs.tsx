@@ -8,6 +8,7 @@ const tabs = [
   { href: "/stocks/portfolio", label: "Portfolio" },
   { href: "/stocks/themes", label: "Themes" },
   { href: "/stocks/sectors", label: "Sectors" },
+  { href: "/stocks/macro", label: "Macro" },
 ];
 
 export function StocksTabs() {
