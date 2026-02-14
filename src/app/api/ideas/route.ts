@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import db from "@/lib/db";
+import { db, ideas } from "@/db";
+import { and, desc, eq } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
@@ -8,26 +9,17 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const potential = searchParams.get("potential");
 
-    let sql = "SELECT * FROM ideas";
-    const conditions: string[] = [];
-    const args: (string | number)[] = [];
+    const conditions = [];
+    if (status) conditions.push(eq(ideas.status, status));
+    if (potential) conditions.push(eq(ideas.potential, potential));
 
-    if (status) {
-      conditions.push("status = ?");
-      args.push(status);
-    }
-    if (potential) {
-      conditions.push("potential = ?");
-      args.push(potential);
-    }
+    const result = await db
+      .select()
+      .from(ideas)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(ideas.createdAt));
 
-    if (conditions.length > 0) {
-      sql += " WHERE " + conditions.join(" AND ");
-    }
-    sql += " ORDER BY created_at DESC";
-
-    const result = await db.execute({ sql, args });
-    return NextResponse.json({ ideas: result.rows });
+    return NextResponse.json({ ideas: result });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -40,54 +32,59 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, title, description, source, market_notes, effort_estimate, potential, status, promoted_to_project_id, tags } = body;
+    const {
+      id,
+      title,
+      description,
+      source,
+      market_notes,
+      effort_estimate,
+      potential,
+      status,
+      promoted_to_project_id,
+      tags,
+    } = body;
 
     if (id) {
       // Update existing
-      const fields: string[] = [];
-      const values: (string | number | null)[] = [];
+      const updateData: Partial<typeof ideas.$inferInsert> = {
+        updatedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
+      };
 
-      if (title !== undefined) { fields.push("title = ?"); values.push(title); }
-      if (description !== undefined) { fields.push("description = ?"); values.push(description); }
-      if (source !== undefined) { fields.push("source = ?"); values.push(source); }
-      if (market_notes !== undefined) { fields.push("market_notes = ?"); values.push(market_notes); }
-      if (effort_estimate !== undefined) { fields.push("effort_estimate = ?"); values.push(effort_estimate); }
-      if (potential !== undefined) { fields.push("potential = ?"); values.push(potential); }
-      if (status !== undefined) { fields.push("status = ?"); values.push(status); }
-      if (promoted_to_project_id !== undefined) { fields.push("promoted_to_project_id = ?"); values.push(promoted_to_project_id); }
-      if (tags !== undefined) { fields.push("tags = ?"); values.push(typeof tags === "string" ? tags : JSON.stringify(tags)); }
-      fields.push("updated_at = datetime('now')");
+      if (title !== undefined) updateData.title = title;
+      if (description !== undefined) updateData.description = description;
+      if (source !== undefined) updateData.source = source;
+      if (market_notes !== undefined) updateData.marketNotes = market_notes;
+      if (effort_estimate !== undefined) updateData.effortEstimate = effort_estimate;
+      if (potential !== undefined) updateData.potential = potential;
+      if (status !== undefined) updateData.status = status;
+      if (promoted_to_project_id !== undefined) updateData.promotedToProjectId = promoted_to_project_id;
+      if (tags !== undefined) {
+        updateData.tags = typeof tags === "string" ? tags : JSON.stringify(tags);
+      }
 
-      await db.execute({
-        sql: `UPDATE ideas SET ${fields.join(", ")} WHERE id = ?`,
-        args: [...values, id],
-      });
+      await db.update(ideas).set(updateData).where(eq(ideas.id, id));
 
-      const result = await db.execute({ sql: "SELECT * FROM ideas WHERE id = ?", args: [id] });
-      return NextResponse.json({ idea: result.rows[0] });
+      const [updatedIdea] = await db.select().from(ideas).where(eq(ideas.id, id));
+      return NextResponse.json({ idea: updatedIdea });
     } else {
       // Create new
-      const result = await db.execute({
-        sql: `INSERT INTO ideas (title, description, source, market_notes, effort_estimate, potential, status, promoted_to_project_id, tags)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          title || "",
-          description || "",
-          source || "",
-          market_notes || "",
-          effort_estimate || "unknown",
-          potential || "unknown",
-          status || "new",
-          promoted_to_project_id || null,
-          typeof tags === "string" ? tags : JSON.stringify(tags || []),
-        ],
-      });
+      const [newIdea] = await db
+        .insert(ideas)
+        .values({
+          title: title || "",
+          description: description || "",
+          source: source || "",
+          marketNotes: market_notes || "",
+          effortEstimate: effort_estimate || "unknown",
+          potential: potential || "unknown",
+          status: status || "new",
+          promotedToProjectId: promoted_to_project_id || null,
+          tags: typeof tags === "string" ? tags : JSON.stringify(tags || []),
+        })
+        .returning();
 
-      const newIdea = await db.execute({
-        sql: "SELECT * FROM ideas WHERE id = ?",
-        args: [result.lastInsertRowid!],
-      });
-      return NextResponse.json({ idea: newIdea.rows[0] }, { status: 201 });
+      return NextResponse.json({ idea: newIdea }, { status: 201 });
     }
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
