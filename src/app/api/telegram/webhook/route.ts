@@ -763,7 +763,7 @@ async function handleNews(): Promise<string> {
   }
 }
 
-// Scanner commands
+// Scanner commands - reads from cached JSON files (updated by cron)
 async function handleScan(chatId: number, scanType?: string): Promise<string> {
   if (!scanType) {
     return [
@@ -780,73 +780,61 @@ async function handleScan(chatId: number, scanType?: string): Promise<string> {
   }
 
   const scan = scanType.toLowerCase();
+  const baseUrl = "https://claudiusinc.com/data";
   
   if (scan === "sgx") {
     try {
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const execAsync = promisify(exec);
+      const res = await fetch(`${baseUrl}/sgx-scan.json`, { next: { revalidate: 0 } });
+      if (!res.ok) throw new Error("Cache not found");
       
-      // Run scanner with timeout
-      const { stdout } = await execAsync(
-        "node /root/openclaw/scripts/sgx-accumulation-scan.js --json 2>/dev/null | head -50",
-        { timeout: 60000 }
-      );
-      
-      const results = JSON.parse(stdout);
-      const top5 = results.slice(0, 5);
+      const results = await res.json();
+      const top5 = results.filter((s: { score: number }) => s.score >= 5).slice(0, 5);
       
       if (top5.length === 0) {
-        return "🔍 <b>SGX Accumulation Scan</b>\n\nNo stocks meeting criteria today.";
+        return "🔍 <b>SGX Accumulation Scan</b>\n\nNo stocks meeting criteria (Score ≥5).";
       }
       
       const lines = ["🔍 <b>SGX Accumulation Scan</b>", "", "Top setups (Score ≥5):", ""];
       
       for (const stock of top5) {
+        const name = stock.name?.substring(0, 20) || "";
         lines.push(`<b>${stock.ticker}</b> — Score: ${stock.score}/10`);
-        lines.push(`  ${stock.name || ""}`);
-        lines.push(`  Price: S$${stock.price?.toFixed(2) || "-"} | P/E: ${stock.pe?.toFixed(1) || "-"}`);
+        lines.push(`  ${name}`);
+        lines.push(`  S$${stock.price?.toFixed(2) || "-"} | P/B: ${stock.pb || "-"} | From High: ${stock.fromHigh}%`);
         lines.push("");
       }
       
-      lines.push("Full results: claudiusinc.com/stocks/scans");
       return lines.join("\n");
     } catch (e) {
-      return `❌ Scanner error: ${String(e).substring(0, 100)}`;
+      return "❌ SGX scan cache not available. Scans refresh twice monthly (1st & 15th).";
     }
   }
   
   if (scan === "smallcap") {
     try {
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const execAsync = promisify(exec);
+      const res = await fetch(`${baseUrl}/smallcap-scan.json`, { next: { revalidate: 0 } });
+      if (!res.ok) throw new Error("Cache not found");
       
-      const { stdout } = await execAsync(
-        "node /root/openclaw/scripts/smallcap-compounder-scan.js --json 2>/dev/null | head -50",
-        { timeout: 60000 }
-      );
-      
-      const results = JSON.parse(stdout);
+      const results = await res.json();
       const top5 = results.slice(0, 5);
       
       if (top5.length === 0) {
-        return "🔍 <b>Small-Cap Scan</b>\n\nNo stocks meeting criteria today.";
+        return "🔍 <b>Small-Cap Scan</b>\n\nNo stocks meeting criteria.";
       }
       
       const lines = ["🔍 <b>Small-Cap Compounders</b>", "", "Top candidates:", ""];
       
       for (const stock of top5) {
-        lines.push(`<b>${stock.ticker}</b> — Score: ${stock.score}/10`);
-        lines.push(`  ${stock.name || ""}`);
-        lines.push(`  ROE: ${stock.roe?.toFixed(1) || "-"}% | Growth: ${stock.growth?.toFixed(1) || "-"}%`);
+        const name = stock.name?.substring(0, 20) || "";
+        lines.push(`<b>${stock.ticker}</b> — Score: ${stock.score}/13`);
+        lines.push(`  ${name}`);
+        lines.push(`  P/E: ${stock.pe?.toFixed(1) || "-"} | ROE: ${stock.roe?.toFixed(1) || "-"}% | Growth: ${stock.revenueGrowth?.toFixed(1) || "-"}%`);
         lines.push("");
       }
       
-      lines.push("Full results: claudiusinc.com/stocks/scans");
       return lines.join("\n");
     } catch (e) {
-      return `❌ Scanner error: ${String(e).substring(0, 100)}`;
+      return "❌ Small-cap scan cache not available. Scans refresh twice monthly (8th & 22nd).";
     }
   }
   
