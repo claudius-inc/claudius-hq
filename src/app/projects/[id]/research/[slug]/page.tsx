@@ -59,7 +59,7 @@ export default async function ResearchPageDetail({ params }: { params: { id: str
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-4">
           <Link href="/projects" className="hover:text-gray-700">Projects</Link>

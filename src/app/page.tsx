@@ -45,7 +45,7 @@ export default async function Dashboard() {
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="card">

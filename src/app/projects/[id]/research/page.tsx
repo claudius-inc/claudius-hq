@@ -38,7 +38,7 @@ export default async function ResearchIndexPage({ params }: { params: { id: stri
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="max-w-7xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-6">
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-2">
           <Link href="/projects" className="hover:text-gray-700">Projects</Link>
