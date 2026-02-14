@@ -8,6 +8,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public API routes (no sensitive data)
+  if (pathname === "/api/macro") {
+    return NextResponse.next();
+  }
+
   // API routes: check API key OR session cookie
   if (pathname.startsWith("/api/")) {
     const apiKey = request.headers.get("x-api-key") || request.headers.get("authorization")?.replace("Bearer ", "");
