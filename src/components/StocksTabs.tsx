@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs = [
-  { href: "/stocks", label: "Research" },
+  { href: "/stocks/research", label: "Research" },
   { href: "/stocks/portfolio", label: "Portfolio" },
   { href: "/stocks/themes", label: "Themes" },
   { href: "/stocks/sectors", label: "Sectors" },
@@ -15,9 +15,6 @@ export function StocksTabs() {
 
   // Determine active tab based on pathname
   const getIsActive = (href: string) => {
-    if (href === "/stocks") {
-      return pathname === "/stocks";
-    }
     return pathname.startsWith(href);
   };
 
