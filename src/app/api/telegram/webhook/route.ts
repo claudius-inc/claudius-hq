@@ -845,6 +845,7 @@ async function handleScan(chatId: number, scanType?: string): Promise<string> {
 async function handleCalendar(): Promise<string> {
   try {
     // Read catalyst calendar directly from memory
+    // @ts-ignore - fs/promises available in Node.js runtime
     const fs = await import("fs/promises");
     const path = "/root/openclaw/memory/catalyst-calendar.json";
     

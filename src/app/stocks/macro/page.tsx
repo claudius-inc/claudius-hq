@@ -258,7 +258,7 @@ export default async function MacroDashboardPage() {
                         Key Levels to Watch
                       </h4>
                       <div className="flex flex-wrap gap-2">
-                        {indicator.keyLevels.map((kl, idx) => (
+                        {indicator.keyLevels.map((kl: { level: number; significance: string }, idx: number) => (
                           <div key={idx} className="bg-gray-100 rounded px-3 py-1.5 text-sm">
                             <span className="font-mono font-semibold">{kl.level}</span>
                             <span className="text-gray-500 ml-2">{kl.significance}</span>
@@ -274,7 +274,7 @@ export default async function MacroDashboardPage() {
                       Assets Affected
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
-                      {indicator.affectedAssets.map((asset, idx) => (
+                      {indicator.affectedAssets.map((asset: string, idx: number) => (
                         <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
                           {asset}
                         </span>
