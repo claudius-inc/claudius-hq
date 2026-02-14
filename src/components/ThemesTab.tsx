@@ -458,7 +458,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                       {theme.leader ? (
                         <div className="flex items-center gap-2">
                           <Link
-                            href={`/stocks/${theme.leader.ticker}`}
+                            href={`/stocks/research/${theme.leader.ticker}`}
                             className="text-emerald-600 hover:text-emerald-700 font-semibold"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -543,7 +543,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                                           <div className="flex flex-col">
                                             <div className="flex items-center gap-1">
                                               <Link
-                                                href={`/stocks/${stock.ticker}`}
+                                                href={`/stocks/research/${stock.ticker}`}
                                                 className="text-emerald-600 hover:text-emerald-700 font-semibold"
                                               >
                                                 {stock.ticker}

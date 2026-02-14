@@ -369,7 +369,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
                         />
                       ) : (
                         <Link
-                          href={`/stocks/${holding.ticker}`}
+                          href={`/stocks/research/${holding.ticker}`}
                           className="text-emerald-600 hover:text-emerald-700 font-semibold"
                         >
                           {holding.ticker}

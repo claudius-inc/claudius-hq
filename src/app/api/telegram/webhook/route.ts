@@ -532,7 +532,7 @@ async function handleResearch(chatId: number, messageId: number, ticker: string)
       "",
       preview + "...",
       "",
-      `Full report: claudiusinc.com/stocks/${upperTicker}`,
+      `Full report: claudiusinc.com/stocks/research/${upperTicker}`,
     ].join("\n");
   }
 

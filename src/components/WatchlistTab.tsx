@@ -264,7 +264,7 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Link
-                        href={`/stocks/${item.ticker}`}
+                        href={`/stocks/research/${item.ticker}`}
                         className="text-emerald-600 hover:text-emerald-700 font-semibold"
                       >
                         {item.ticker}

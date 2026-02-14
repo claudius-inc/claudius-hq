@@ -271,7 +271,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
               return (
                 <Link
                   key={report.id}
-                  href={`/stocks/${encodeURIComponent(report.ticker)}?report=${report.id}`}
+                  href={`/stocks/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
                   className="card-hover"
                 >
                   <div className="flex flex-wrap gap-1.5 mb-2">
@@ -313,7 +313,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
               return (
                 <Link
                   key={ticker}
-                  href={`/stocks/${encodeURIComponent(latestReport.ticker)}`}
+                  href={`/stocks/research/${encodeURIComponent(latestReport.ticker)}`}
                   className="card-hover"
                 >
                   <div className="flex items-start justify-between">
