@@ -139,6 +139,47 @@ export async function initDB() {
     await db.execute("ALTER TABLE projects ADD COLUMN phase TEXT DEFAULT 'build' CHECK(phase IN ('idea','research','build','launch','grow','iterate','maintain'))");
   }
 
+  // Migrate phase CHECK constraint to include 'plan'
+  // SQLite doesn't allow altering CHECK constraints, so we recreate the table
+  try {
+    // Test if 'plan' is allowed
+    await db.execute("INSERT INTO projects (name, phase) VALUES ('__test_plan_constraint__', 'plan')");
+    await db.execute("DELETE FROM projects WHERE name = '__test_plan_constraint__'");
+  } catch {
+    // 'plan' not allowed - need to migrate
+    console.log("Migrating projects table to allow 'plan' phase...");
+    await db.executeMultiple(`
+      -- Create new table with updated constraint
+      CREATE TABLE IF NOT EXISTS projects_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        status TEXT DEFAULT 'backlog' CHECK(status IN ('backlog','in_progress','blocked','done')),
+        phase TEXT DEFAULT 'build' CHECK(phase IN ('research','plan','build','live')),
+        repo_url TEXT DEFAULT '',
+        deploy_url TEXT DEFAULT '',
+        test_count INTEGER DEFAULT 0,
+        build_status TEXT DEFAULT 'unknown' CHECK(build_status IN ('pass','fail','unknown')),
+        last_deploy_time TEXT DEFAULT '',
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now')),
+        target_audience TEXT DEFAULT '',
+        action_plan TEXT DEFAULT ''
+      );
+      
+      -- Copy data from old table
+      INSERT INTO projects_new (id, name, description, status, phase, repo_url, deploy_url, test_count, build_status, last_deploy_time, created_at, updated_at, target_audience, action_plan)
+      SELECT id, name, description, status, phase, repo_url, deploy_url, test_count, build_status, last_deploy_time, created_at, updated_at, 
+        COALESCE(target_audience, ''), COALESCE(action_plan, '')
+      FROM projects;
+      
+      -- Drop old table and rename new one
+      DROP TABLE projects;
+      ALTER TABLE projects_new RENAME TO projects;
+    `);
+    console.log("Projects table migrated successfully");
+  }
+
   // Add target_audience and action_plan columns if missing
   try {
     await db.execute("SELECT target_audience FROM projects LIMIT 1");
