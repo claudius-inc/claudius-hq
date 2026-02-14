@@ -10,6 +10,7 @@ interface ActionPlanCardProps {
 
 const phases = [
   { key: "research", label: "Research" },
+  { key: "plan", label: "Plan" },
   { key: "build", label: "Build" },
   { key: "live", label: "Deployed" },
 ];
@@ -21,8 +22,17 @@ function inferPhase(phase: string, researchCount: number, deployUrl?: string): s
     return "live";
   }
   
-  // If lots of research and action plan mentions "research phase", it's research
-  // For simplicity: if no production deploy and > 5 research pages, likely still research
+  // If explicitly set to plan, use it
+  if (phase === "plan") {
+    return "plan";
+  }
+  
+  // If explicitly set to build, use it
+  if (phase === "build") {
+    return "build";
+  }
+  
+  // If lots of research and no production deploy, likely still research
   if (!deployUrl && researchCount > 5) {
     return "research";
   }
