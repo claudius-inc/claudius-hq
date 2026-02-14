@@ -89,7 +89,7 @@ export function ReportTOC({ content }: ReportTOCProps) {
   return (
     <div ref={containerRef}>
       {/* Desktop: Sticky button with floating dropdown */}
-      <div className="hidden lg:block sticky top-20 h-fit">
+      <div className="hidden lg:block sticky top-20 h-fit z-40">
         <div className="relative w-12">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
