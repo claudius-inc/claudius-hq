@@ -278,11 +278,21 @@ export default function StocksDashboard() {
       .finally(() => setLoading((prev) => ({ ...prev, reports: false })));
   }, []);
 
-  // Get key macro indicators to display
-  const keyMacroIds = ["fed-funds", "yield-curve", "cpi", "unemployment"];
-  const keyMacroIndicators = keyMacroIds
-    .map((id) => macroIndicators.find((ind) => ind.id === id))
-    .filter((ind): ind is MacroIndicator => ind !== undefined);
+  // Group macro indicators by category for organized display
+  const macroByCategory = macroIndicators.reduce((acc, ind) => {
+    if (!acc[ind.category]) acc[ind.category] = [];
+    acc[ind.category].push(ind);
+    return acc;
+  }, {} as Record<string, MacroIndicator[]>);
+  
+  const categoryOrder = ["rates", "inflation", "employment", "growth", "credit"];
+  const categoryIcons: Record<string, string> = {
+    rates: "📈",
+    inflation: "🔥",
+    employment: "👷",
+    growth: "🏭",
+    credit: "💳",
+  };
 
   return (
     <>
@@ -421,53 +431,78 @@ export default function StocksDashboard() {
           )}
         </DashboardCard>
 
-        {/* Macro Signals */}
-        <DashboardCard
-          title="Macro Signals"
-          icon="🌍"
-          href="/markets/macro"
-          loading={loading.macro}
-        >
-          {keyMacroIndicators.length > 0 ? (
-            <div className="space-y-2">
-              {keyMacroIndicators.map((indicator) => (
-                <div
-                  key={indicator.id}
-                  className="flex items-center justify-between py-1"
-                >
-                  <span className="text-sm text-gray-700">{indicator.name}</span>
-                  <div className="flex items-center gap-2">
-                    {indicator.data && (
-                      <span className="text-sm font-medium">
-                        {indicator.data.current.toFixed(2)}
-                        {indicator.id !== "yield-curve" ? "%" : " bps"}
-                      </span>
-                    )}
-                    {indicator.interpretation && (
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full ${getStatusColor(
-                          indicator.interpretation.label
-                        )}`}
-                      >
-                        {indicator.interpretation.label}
-                      </span>
-                    )}
-                    {!indicator.data && (
-                      <span className="text-xs text-gray-400">—</span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-sm text-gray-500">
-              <p>No macro data available.</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Add FRED_API_KEY for live data
-              </p>
-            </div>
-          )}
-        </DashboardCard>
+        {/* Macro Signals - Full Width */}
+        <div className="md:col-span-2">
+          <DashboardCard
+            title="Macro Signals"
+            icon="🌍"
+            href="/markets/macro"
+            loading={loading.macro}
+          >
+            {macroIndicators.length > 0 ? (
+              <div className="space-y-4">
+                {categoryOrder.map((category) => {
+                  const indicators = macroByCategory[category];
+                  if (!indicators?.length) return null;
+                  return (
+                    <div key={category}>
+                      <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                        <span>{categoryIcons[category]}</span>
+                        {category}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {indicators.map((indicator) => (
+                          <div
+                            key={indicator.id}
+                            className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
+                          >
+                            <span className="text-xs text-gray-600 truncate mr-2">
+                              {indicator.name.replace(" (YoY)", "").replace(" Rate", "")}
+                            </span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              {indicator.data && (
+                                <span className="text-xs font-medium text-gray-900">
+                                  {indicator.id === "initial-claims" 
+                                    ? `${(indicator.data.current / 1000).toFixed(0)}K`
+                                    : indicator.id === "pmi-manufacturing"
+                                    ? indicator.data.current.toLocaleString()
+                                    : indicator.id === "hy-spread"
+                                    ? `${indicator.data.current.toFixed(0)}bp`
+                                    : indicator.id === "yield-curve"
+                                    ? `${indicator.data.current.toFixed(0)}bp`
+                                    : `${indicator.data.current.toFixed(1)}%`}
+                                </span>
+                              )}
+                              {indicator.interpretation && (
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.5 rounded ${getStatusColor(
+                                    indicator.interpretation.label
+                                  )}`}
+                                >
+                                  {indicator.interpretation.label}
+                                </span>
+                              )}
+                              {!indicator.data && (
+                                <span className="text-xs text-gray-400">—</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-500">
+                <p>No macro data available.</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Add FRED_API_KEY for live data
+                </p>
+              </div>
+            )}
+          </DashboardCard>
+        </div>
 
         {/* Recent Research */}
         <DashboardCard
