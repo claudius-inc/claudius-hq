@@ -8,11 +8,11 @@ type ResearchJob = {
   id: string;
   ticker: string;
   status: "pending" | "processing" | "complete" | "failed";
-  progress: number;
-  error_message: string | null;
-  report_id: number | null;
-  created_at: string;
-  updated_at: string;
+  progress: number | null;
+  errorMessage: string | null;
+  reportId: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
 };
 
 interface ResearchJobsProps {
@@ -94,7 +94,8 @@ export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
     }
   };
 
-  const getTimeAgo = (dateStr: string) => {
+  const getTimeAgo = (dateStr: string | null | undefined) => {
+    if (!dateStr) return "just now";
     // DB stores UTC without 'Z' suffix - append it for correct parsing
     const utcDateStr = dateStr.endsWith('Z') ? dateStr : dateStr + 'Z';
     const date = new Date(utcDateStr);
@@ -153,15 +154,15 @@ export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
                   width: job.status === "pending" 
                     ? "10%" 
                     : job.status === "processing" 
-                    ? `${Math.max(20, job.progress)}%`
+                    ? `${Math.max(20, job.progress || 0)}%`
                     : "100%",
                 }}
               />
             </div>
             
             <div className="flex items-center justify-between text-xs text-gray-500">
-              <span>Started {getTimeAgo(job.created_at)}</span>
-              {job.progress > 0 && (
+              <span>Started {getTimeAgo(job.createdAt)}</span>
+              {job.progress && job.progress > 0 && (
                 <span>{job.progress}%</span>
               )}
             </div>
