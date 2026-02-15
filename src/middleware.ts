@@ -9,7 +9,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Public API routes (no sensitive data)
-  if (pathname === "/api/macro") {
+  if (pathname === "/api/macro" || pathname.startsWith("/api/macro/insights")) {
     return NextResponse.next();
   }
 
