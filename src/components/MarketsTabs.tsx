@@ -10,6 +10,7 @@ const tabs: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: "/markets/themes", label: "Themes" },
   { href: "/markets/sectors", label: "Sectors" },
   { href: "/markets/macro", label: "Macro" },
+  { href: "/markets/gold", label: "Gold" },
   { href: "/markets/alerts", label: "Alerts" },
 ];
 

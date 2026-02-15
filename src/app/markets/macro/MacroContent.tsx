@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MACRO_INDICATORS } from "@/lib/macro-indicators";
+import ReactMarkdown from "react-markdown";
 
 // Color coding for interpretation
 function getStatusColor(label: string): string {
@@ -74,21 +75,41 @@ interface MacroIndicator {
   percentile: number | null;
 }
 
+interface InsightsData {
+  insights: string | null;
+  generatedAt: string | null;
+  indicatorSnapshot: unknown;
+}
+
 export function MacroContent() {
   const [indicators, setIndicators] = useState<MacroIndicator[]>([]);
   const [status, setStatus] = useState<string>("loading");
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // AI Insights state
+  const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [insightsError, setInsightsError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch("/api/macro");
-        if (res.ok) {
-          const data = await res.json();
+        const [macroRes, insightsRes] = await Promise.all([
+          fetch("/api/macro"),
+          fetch("/api/macro/insights"),
+        ]);
+        
+        if (macroRes.ok) {
+          const data = await macroRes.json();
           setIndicators(data.indicators || []);
           setStatus(data.status || "offline");
           setLastUpdated(data.lastUpdated || null);
+        }
+        
+        if (insightsRes.ok) {
+          const insights = await insightsRes.json();
+          setInsightsData(insights);
         }
       } catch (e) {
         console.error("Error fetching macro data:", e);
@@ -105,6 +126,38 @@ export function MacroContent() {
     }
     fetchData();
   }, []);
+
+  const regenerateInsights = async () => {
+    setGenerating(true);
+    setInsightsError(null);
+    try {
+      const res = await fetch("/api/macro/insights/generate", {
+        method: "POST",
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setInsightsData(data);
+      } else {
+        const error = await res.json();
+        setInsightsError(error.error || "Failed to generate insights");
+      }
+    } catch (e) {
+      console.error("Error generating insights:", e);
+      setInsightsError("Failed to generate insights");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   if (loading) {
     return (
@@ -151,6 +204,55 @@ export function MacroContent() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* AI Insights Section */}
+      <div className="card mb-6 p-5 border-l-4 border-blue-500">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+            🧠 AI Market Insights
+          </h2>
+          <div className="flex items-center gap-3">
+            {insightsData?.generatedAt && (
+              <span className="text-xs text-gray-400">
+                Generated: {formatDate(insightsData.generatedAt)}
+              </span>
+            )}
+            <button
+              onClick={regenerateInsights}
+              disabled={generating}
+              className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {generating ? "Generating..." : "🔄 Regenerate"}
+            </button>
+          </div>
+        </div>
+        
+        {insightsError && (
+          <div className="bg-red-50 text-red-700 text-sm p-3 rounded mb-3">
+            {insightsError === "GEMINI_API_KEY not configured" 
+              ? "Add GEMINI_API_KEY to enable AI insights"
+              : insightsError}
+          </div>
+        )}
+        
+        {generating ? (
+          <div className="flex items-center gap-2 text-gray-500 py-4">
+            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            <span>Analyzing macro indicators...</span>
+          </div>
+        ) : insightsData?.insights ? (
+          <div className="prose prose-sm max-w-none prose-headings:text-gray-800 prose-headings:font-semibold prose-h2:text-base prose-h2:mt-4 prose-h2:mb-2 prose-ul:my-2 prose-li:my-0.5">
+            <ReactMarkdown>{insightsData.insights}</ReactMarkdown>
+          </div>
+        ) : (
+          <div className="text-gray-500 text-sm py-4">
+            No insights generated yet. Click &quot;Regenerate&quot; to analyze current macro conditions.
+          </div>
+        )}
       </div>
 
       {/* Legend */}

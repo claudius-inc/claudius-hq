@@ -28,6 +28,7 @@
     "nodemailer": "^7.0.13",
     "react": "^18",
     "react-dom": "^18",
+    "react-markdown": "^10.1.0",
     "xlsx": "^0.18.5",
     "yahoo-finance2": "^3.13.0"
   },

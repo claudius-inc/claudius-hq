@@ -346,3 +346,50 @@ export type NewIbkrPortfolioMeta = typeof ibkrPortfolioMeta.$inferInsert;
 
 export type StockAlert = typeof stockAlerts.$inferSelect;
 export type NewStockAlert = typeof stockAlerts.$inferInsert;
+
+// ============================================================================
+// Gold Analysis
+// ============================================================================
+
+export const goldAnalysis = sqliteTable("gold_analysis", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  currentPrice: real("current_price"),
+  ath: real("ath"),
+  athDate: text("ath_date"),
+  keyLevels: text("key_levels"), // JSON: [{ level: number, significance: string }]
+  scenarios: text("scenarios"), // JSON: [{ name: string, probability: number, priceRange: string, description: string }]
+  thesisNotes: text("thesis_notes"), // Markdown
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export const goldFlows = sqliteTable("gold_flows", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  date: text("date").notNull(),
+  gldSharesOutstanding: real("gld_shares_outstanding"),
+  gldNav: real("gld_nav"),
+  estimatedFlowUsd: real("estimated_flow_usd"), // calculated
+  globalEtfFlowUsd: real("global_etf_flow_usd"), // manual/scraped
+  centralBankTonnes: real("central_bank_tonnes"), // manual/scraped quarterly
+  source: text("source"), // 'yahoo' | 'wgc' | 'manual'
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type GoldAnalysis = typeof goldAnalysis.$inferSelect;
+export type NewGoldAnalysis = typeof goldAnalysis.$inferInsert;
+
+export type GoldFlow = typeof goldFlows.$inferSelect;
+export type NewGoldFlow = typeof goldFlows.$inferInsert;
+
+// ============================================================================
+// Macro Insights (AI-generated)
+// ============================================================================
+
+export const macroInsights = sqliteTable("macro_insights", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  insights: text("insights").notNull(), // Markdown content
+  indicatorSnapshot: text("indicator_snapshot"), // JSON of indicator values at generation time
+  generatedAt: text("generated_at").default(sql`(datetime('now'))`),
+});
+
+export type MacroInsight = typeof macroInsights.$inferSelect;
+export type NewMacroInsight = typeof macroInsights.$inferInsert;
