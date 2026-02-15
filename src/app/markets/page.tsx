@@ -27,16 +27,6 @@ interface Summary {
   dayPnlPct: number;
 }
 
-interface WatchlistItem {
-  id: number;
-  ticker: string;
-  targetPrice: number | null;
-  currentPrice?: number;
-  notes: string | null;
-  status: string;
-  addedAt: string;
-}
-
 interface MacroIndicator {
   id: string;
   name: string;
@@ -278,13 +268,11 @@ export default function StocksDashboard() {
     summary: Summary | null;
     baseCurrency: string;
   } | null>(null);
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [macroIndicators, setMacroIndicators] = useState<MacroIndicator[]>([]);
   const [recentReports, setRecentReports] = useState<StockReport[]>([]);
   const [sentimentData, setSentimentData] = useState<SentimentData | null>(null);
   const [loading, setLoading] = useState({
     portfolio: true,
-    watchlist: true,
     macro: true,
     reports: true,
     sentiment: true,
@@ -304,15 +292,6 @@ export default function StocksDashboard() {
       })
       .catch(console.error)
       .finally(() => setLoading((prev) => ({ ...prev, portfolio: false })));
-
-    // Fetch watchlist
-    fetch("/api/watchlist")
-      .then((res) => res.json())
-      .then((data) => {
-        setWatchlist(data.items || []);
-      })
-      .catch(console.error)
-      .finally(() => setLoading((prev) => ({ ...prev, watchlist: false })));
 
     // Fetch macro indicators
     fetch("/api/macro")
@@ -492,56 +471,6 @@ export default function StocksDashboard() {
               >
                 Import IBKR statement →
               </Link>
-            </div>
-          )}
-        </DashboardCard>
-
-        {/* Watchlist Alerts */}
-        <DashboardCard
-          title="Watchlist"
-          icon="👁️"
-          loading={loading.watchlist}
-        >
-          {watchlist.length > 0 ? (
-            <div className="space-y-2">
-              {watchlist.slice(0, 5).map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/markets/${item.ticker.toLowerCase()}`}
-                  className="flex items-center justify-between py-1.5 hover:bg-gray-50 -mx-2 px-2 rounded"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{item.ticker}</span>
-                    {item.status === "buying" && (
-                      <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
-                        Buying
-                      </span>
-                    )}
-                    {item.status === "watching" && (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                        Watch
-                      </span>
-                    )}
-                  </div>
-                  {item.targetPrice && (
-                    <span className="text-xs text-gray-500">
-                      Target: ${item.targetPrice.toFixed(2)}
-                    </span>
-                  )}
-                </Link>
-              ))}
-              {watchlist.length > 5 && (
-                <div className="text-xs text-gray-400 pt-1">
-                  +{watchlist.length - 5} more
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-sm text-gray-500">
-              <p>No stocks in watchlist.</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Add tickers via API or Telegram bot
-              </p>
             </div>
           )}
         </DashboardCard>
