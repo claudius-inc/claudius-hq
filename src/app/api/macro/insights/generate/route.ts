@@ -16,8 +16,11 @@ export async function POST() {
 
   try {
     // Fetch current macro data
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
     const macroRes = await fetch(
-      `${process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"}/api/macro`,
+      `${baseUrl}/api/macro`,
       { cache: "no-store" }
     );
 
