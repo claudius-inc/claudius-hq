@@ -77,6 +77,8 @@ export function ResearchForm({ initialTicker }: ResearchFormProps) {
             value={ticker}
             onChange={(e) => setTicker(e.target.value.toUpperCase())}
             placeholder="e.g. AAPL, MSFT, 9988.HK, NXT.AX"
+            autoCapitalize="characters"
+            autoComplete="off"
             className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
             disabled={status === "loading"}
           />

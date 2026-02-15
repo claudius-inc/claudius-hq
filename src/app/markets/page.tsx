@@ -194,6 +194,8 @@ function QuickResearchForm() {
           value={ticker}
           onChange={(e) => setTicker(e.target.value.toUpperCase())}
           placeholder="Enter ticker (e.g., AAPL)"
+          autoCapitalize="characters"
+          autoComplete="off"
           className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
           disabled={status === "loading"}
         />

@@ -204,6 +204,8 @@ export function StockFilters({ reports }: StockFiltersProps) {
             value={search}
             onChange={(e) => setSearch(e.target.value.toUpperCase())}
             placeholder="Filter by ticker..."
+            autoCapitalize="characters"
+            autoComplete="off"
             className="pl-8 pr-8 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none w-40"
           />
           {search && (
