@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, Upload, Trash2, ChevronDown, ChevronRight, TrendingUp, TrendingDown, X } from 'lucide-react';
+import { useResearchStatus } from '@/hooks/useResearchStatus';
+import { ResearchStatusBadge } from '@/components/ResearchStatusBadge';
 
 interface Position {
   symbol: string;
@@ -73,6 +75,10 @@ export default function IBKRPortfolio() {
   const [activeSection, setActiveSection] = useState<'positions' | 'trades' | 'imports'>('positions');
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
+
+  // Research status for portfolio positions
+  const positionTickers = useMemo(() => positions.map((p) => p.symbol), [positions]);
+  const { statuses: researchStatuses, refetch: refetchResearch } = useResearchStatus(positionTickers);
 
   const fetchPositions = useCallback(async () => {
     try {
@@ -334,6 +340,7 @@ export default function IBKRPortfolio() {
                 <thead className="bg-gray-50 text-left">
                   <tr>
                     <th className="px-4 py-3 font-medium text-gray-600">Symbol</th>
+                    <th className="px-4 py-3 font-medium text-gray-600 text-center">Research</th>
                     <th className="px-4 py-3 font-medium text-gray-600 text-right">Qty</th>
                     <th className="px-4 py-3 font-medium text-gray-600 text-right">Avg Cost</th>
                     <th className="px-4 py-3 font-medium text-gray-600 text-right">Price</th>
@@ -367,6 +374,14 @@ export default function IBKRPortfolio() {
                             )}
                           </div>
                         </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <ResearchStatusBadge
+                          ticker={pos.symbol}
+                          status={researchStatuses[pos.symbol.toUpperCase()] ?? null}
+                          compact
+                          onResearchTriggered={refetchResearch}
+                        />
                       </td>
                       <td className="px-4 py-3 text-right">{pos.quantity.toFixed(2)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(pos.avgCost, displayCurrency)}</td>

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { Pencil, Trash2, ArrowRight, Plus, X, Check } from "lucide-react";
 import { WatchlistItem, WatchlistStatus } from "@/lib/types";
 import { formatDate } from "@/lib/date";
+import { useResearchStatus } from "@/hooks/useResearchStatus";
+import { ResearchStatusBadge } from "@/components/ResearchStatusBadge";
 
 interface WatchlistTabProps {
   initialItems: WatchlistItem[];
@@ -35,6 +37,10 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
   const [editTargetPrice, setEditTargetPrice] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editStatus, setEditStatus] = useState<WatchlistStatus>("watching");
+
+  // Research status for watchlist items
+  const watchlistTickers = useMemo(() => items.map((i) => i.ticker), [items]);
+  const { statuses: researchStatuses, refetch: refetchResearch } = useResearchStatus(watchlistTickers);
 
   // Fetch prices for all tickers
   const fetchPrices = useCallback(async () => {
@@ -234,6 +240,9 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Ticker
                 </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Research
+                </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Price
                 </th>
@@ -269,6 +278,14 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
                       >
                         {item.ticker}
                       </Link>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-center">
+                      <ResearchStatusBadge
+                        ticker={item.ticker}
+                        status={researchStatuses[item.ticker.toUpperCase()] ?? null}
+                        compact
+                        onResearchTriggered={refetchResearch}
+                      />
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
                       {loadingPrices ? (
