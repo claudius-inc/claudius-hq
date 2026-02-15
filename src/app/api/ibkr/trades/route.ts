@@ -1,56 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db, { ensureDB } from '@/lib/db';
-import type { InValue } from '@libsql/client';
+import { db, ibkrTrades } from '@/db';
+import { eq, desc, sql, count } from 'drizzle-orm';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
   try {
-    await ensureDB();
-    
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
     const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    let sql = `SELECT * FROM ibkr_trades`;
-    const args: InValue[] = [];
+    // Build query
+    let tradesQuery;
+    let countQuery;
 
     if (symbol) {
-      sql += ` WHERE symbol = ?`;
-      args.push(symbol.toUpperCase());
+      tradesQuery = db
+        .select()
+        .from(ibkrTrades)
+        .where(eq(ibkrTrades.symbol, symbol.toUpperCase()))
+        .orderBy(desc(ibkrTrades.tradeDate), desc(ibkrTrades.id))
+        .limit(limit)
+        .offset(offset);
+
+      countQuery = db
+        .select({ count: count() })
+        .from(ibkrTrades)
+        .where(eq(ibkrTrades.symbol, symbol.toUpperCase()));
+    } else {
+      tradesQuery = db
+        .select()
+        .from(ibkrTrades)
+        .orderBy(desc(ibkrTrades.tradeDate), desc(ibkrTrades.id))
+        .limit(limit)
+        .offset(offset);
+
+      countQuery = db.select({ count: count() }).from(ibkrTrades);
     }
 
-    sql += ` ORDER BY trade_date DESC, id DESC LIMIT ? OFFSET ?`;
-    args.push(limit, offset);
+    const [tradesData, countData] = await Promise.all([tradesQuery, countQuery]);
+    const total = Number(countData[0]?.count || 0);
 
-    const result = await db.execute({ sql, args });
-
-    // Get total count
-    let countSql = 'SELECT COUNT(*) as count FROM ibkr_trades';
-    const countArgs: InValue[] = [];
-    if (symbol) {
-      countSql += ' WHERE symbol = ?';
-      countArgs.push(symbol.toUpperCase());
-    }
-    const countResult = await db.execute({ sql: countSql, args: countArgs });
-    const total = Number(countResult.rows[0].count);
-
-    const trades = result.rows.map(row => ({
+    const trades = tradesData.map(row => ({
       id: row.id,
-      tradeDate: row.trade_date,
-      settleDate: row.settle_date,
+      tradeDate: row.tradeDate,
+      settleDate: row.settleDate,
       symbol: row.symbol,
       description: row.description,
-      assetClass: row.asset_class,
+      assetClass: row.assetClass,
       action: row.action,
       quantity: Number(row.quantity),
       price: Number(row.price),
       currency: row.currency,
-      fxRate: Number(row.fx_rate),
+      fxRate: Number(row.fxRate),
       proceeds: row.proceeds ? Number(row.proceeds) : null,
-      costBasis: row.cost_basis ? Number(row.cost_basis) : null,
-      realizedPnl: row.realized_pnl ? Number(row.realized_pnl) : null,
+      costBasis: row.costBasis ? Number(row.costBasis) : null,
+      realizedPnl: row.realizedPnl ? Number(row.realizedPnl) : null,
       commission: Number(row.commission),
       fees: Number(row.fees),
       total: Number(row.quantity) * Number(row.price) + Number(row.commission || 0) + Number(row.fees || 0),
@@ -74,18 +80,13 @@ export async function GET(request: NextRequest) {
 // Delete a trade
 export async function DELETE(request: NextRequest) {
   try {
-    await ensureDB();
-    
     const { id } = await request.json();
     
     if (!id) {
       return NextResponse.json({ error: 'Trade ID required' }, { status: 400 });
     }
 
-    await db.execute({
-      sql: 'DELETE FROM ibkr_trades WHERE id = ?',
-      args: [id]
-    });
+    await db.delete(ibkrTrades).where(eq(ibkrTrades.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -15,4 +15,4 @@ export const db = drizzle(client, { schema });
 export * from "./schema";
 
 // Re-export the raw client for cases where we need direct SQL
-export { client };
+export { client, client as rawClient };

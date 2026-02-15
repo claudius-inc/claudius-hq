@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import db, { ensureDB } from '@/lib/db';
+import { db, ibkrPositions, ibkrPortfolioMeta, ibkrTrades } from '@/db';
+import { eq, desc, asc } from 'drizzle-orm';
 import YahooFinance from 'yahoo-finance2';
 
 export const runtime = 'nodejs';
@@ -11,7 +12,6 @@ const yf = new YahooFinance();
 const BASE_CURRENCY = 'SGD';
 
 // Currency to SGD conversion pairs for Yahoo Finance
-// Format: XXXSGD=X means "1 XXX = ? SGD"
 const FX_PAIRS: Record<string, string> = {
   'USD': 'USDSGD=X',
   'HKD': 'HKDSGD=X',
@@ -25,32 +25,32 @@ const FX_PAIRS: Record<string, string> = {
 
 export async function GET() {
   try {
-    await ensureDB();
+    // Get portfolio meta
+    const [meta] = await db.select().from(ibkrPortfolioMeta).where(eq(ibkrPortfolioMeta.id, 1));
+    const portfolioTotalRealizedPnlBase = Number(meta?.totalRealizedPnlBase || 0);
     
-    // Get portfolio meta (total realized P&L including closed positions)
-    const metaResult = await db.execute('SELECT * FROM ibkr_portfolio_meta WHERE id = 1');
-    const meta = metaResult.rows[0] || {};
-    const portfolioTotalRealizedPnlBase = Number(meta.total_realized_pnl_base || 0);
+    const positionsData = await db
+      .select()
+      .from(ibkrPositions)
+      .orderBy(desc(ibkrPositions.totalCostBase));
     
-    const result = await db.execute('SELECT * FROM ibkr_positions ORDER BY total_cost_base DESC');
-    
-    const positions = result.rows.map(row => ({
+    const positions = positionsData.map(row => ({
       symbol: String(row.symbol),
       quantity: Number(row.quantity),
-      avgCost: Number(row.avg_cost),
+      avgCost: Number(row.avgCost),
       currency: String(row.currency),
-      totalCost: Number(row.total_cost),
-      totalCostBase: Number(row.total_cost_base || 0),  // Historical cost in SGD
-      realizedPnl: Number(row.realized_pnl),
-      realizedPnlBase: Number(row.realized_pnl_base || 0),  // Historical realized P&L in SGD
-      avgFxRate: Number(row.avg_fx_rate || 1),  // Weighted avg FX rate at purchase
+      totalCost: Number(row.totalCost),
+      totalCostBase: Number(row.totalCostBase || 0),
+      realizedPnl: Number(row.realizedPnl),
+      realizedPnlBase: Number(row.realizedPnlBase || 0),
+      avgFxRate: Number(row.avgFxRate || 1),
     }));
 
-    // Get unique currencies that need conversion to SGD
+    // Get unique currencies
     const currencies = Array.from(new Set(positions.map(p => p.currency).filter(c => c !== BASE_CURRENCY)));
     const fxRates: Record<string, number> = { [BASE_CURRENCY]: 1 };
 
-    // Fetch FX rates to convert to SGD
+    // Fetch FX rates
     if (currencies.length > 0) {
       const fxSymbols = currencies.map(c => FX_PAIRS[c]).filter(Boolean);
       if (fxSymbols.length > 0) {
@@ -59,7 +59,6 @@ export async function GET() {
           const fxArray = Array.isArray(fxQuotes) ? fxQuotes : [fxQuotes];
           for (const quote of fxArray) {
             if (quote && quote.symbol) {
-              // Extract currency code from symbol (e.g., HKDSGD=X -> HKD)
               const currency = quote.symbol.replace('SGD=X', '');
               fxRates[currency] = quote.regularMarketPrice || 1;
             }
@@ -78,7 +77,6 @@ export async function GET() {
       try {
         const quotes = await yf.quote(symbols);
         const quotesArray = Array.isArray(quotes) ? quotes : [quotes];
-        
         for (const quote of quotesArray) {
           if (quote && quote.symbol) {
             priceMap.set(quote.symbol, {
@@ -94,9 +92,7 @@ export async function GET() {
       }
     }
 
-    // Calculate P&L using:
-    // - Historical FX rate for cost basis (stored in DB, fetched at import time)
-    // - Live FX rate for market value (current value if sold today)
+    // Calculate P&L
     const enrichedPositions = positions.map(pos => {
       const quote = priceMap.get(pos.symbol);
       const currentPrice = quote?.price || pos.avgCost;
@@ -105,20 +101,11 @@ export async function GET() {
       const unrealizedPnl = marketValue - pos.totalCost;
       const unrealizedPnlPct = pos.totalCost > 0 ? (unrealizedPnl / pos.totalCost) * 100 : 0;
       
-      // Live FX rate for current market value
       const liveFxRate = fxRates[priceCurrency] || 1;
       const marketValueBase = marketValue * liveFxRate;
-      
-      // Historical FX rate for cost basis (from DB, fetched at import using trade date)
-      // pos.totalCostBase was calculated using historical rates at import time
       const historicalCostBase = pos.totalCostBase > 0 ? pos.totalCostBase : pos.totalCost * liveFxRate;
-      
-      // P&L = Current value (live FX) - Historical cost (historical FX)
-      // This captures both price change AND FX movement
       const unrealizedPnlBase = marketValueBase - historicalCostBase;
       const unrealizedPnlBasePct = historicalCostBase > 0 ? (unrealizedPnlBase / historicalCostBase) * 100 : 0;
-      
-      // Day change in base currency (using live FX)
       const dayChangeBase = (quote?.change || 0) * pos.quantity * liveFxRate;
       
       return {
@@ -131,7 +118,6 @@ export async function GET() {
         unrealizedPnl,
         unrealizedPnlPct,
         totalPnl: unrealizedPnl + pos.realizedPnl,
-        // Base currency (SGD) values
         liveFxRate,
         historicalFxRate: pos.avgFxRate,
         marketValueBase,
@@ -143,22 +129,29 @@ export async function GET() {
       };
     });
 
-    // Calculate totals in base currency (SGD)
+    // Calculate totals
     const totalCostBase = enrichedPositions.reduce((sum, p) => sum + p.totalCostBase, 0);
     const totalMarketValueBase = enrichedPositions.reduce((sum, p) => sum + p.marketValueBase, 0);
     const totalUnrealizedPnlBase = enrichedPositions.reduce((sum, p) => sum + p.unrealizedPnlBase, 0);
     const dayPnlBase = enrichedPositions.reduce((sum, p) => sum + p.dayChangeBase, 0);
 
-    // Get TOTAL realized P&L from ALL sell trades (including closed positions)
-    // This uses IBKR's realized_pnl values converted to SGD
-    const sellTradesResult = await db.execute(
-      `SELECT realized_pnl, fx_rate, currency FROM ibkr_trades WHERE action = 'SELL' AND realized_pnl IS NOT NULL`
-    );
+    // Get total realized P&L from sell trades
+    const sellTrades = await db
+      .select({
+        realizedPnl: ibkrTrades.realizedPnl,
+        fxRate: ibkrTrades.fxRate,
+        currency: ibkrTrades.currency,
+      })
+      .from(ibkrTrades)
+      .where(eq(ibkrTrades.action, 'SELL'));
+
     let totalRealizedPnlBase = 0;
-    for (const trade of sellTradesResult.rows) {
-      const pnl = Number(trade.realized_pnl || 0);
-      const fxRate = Number(trade.fx_rate || 1);
-      totalRealizedPnlBase += pnl * fxRate;
+    for (const trade of sellTrades) {
+      if (trade.realizedPnl !== null) {
+        const pnl = Number(trade.realizedPnl);
+        const fxRate = Number(trade.fxRate || 1);
+        totalRealizedPnlBase += pnl * fxRate;
+      }
     }
     
     return NextResponse.json({
@@ -170,7 +163,7 @@ export async function GET() {
         totalMarketValue: totalMarketValueBase,
         totalUnrealizedPnl: totalUnrealizedPnlBase,
         totalUnrealizedPnlPct: totalCostBase > 0 ? (totalUnrealizedPnlBase / totalCostBase) * 100 : 0,
-        totalRealizedPnl: totalRealizedPnlBase,  // Sum of all SELL trades' realized P&L in SGD
+        totalRealizedPnl: totalRealizedPnlBase,
         dayPnl: dayPnlBase,
         dayPnlPct: totalMarketValueBase > 0 ? (dayPnlBase / totalMarketValueBase) * 100 : 0,
         baseCurrency: BASE_CURRENCY,
@@ -185,26 +178,27 @@ export async function GET() {
 // Recalculate positions from trades
 export async function POST() {
   try {
-    await ensureDB();
-    
-    // Import the calculation function
     const { calculatePositions } = await import('@/lib/ibkr-parser');
     
-    const result = await db.execute('SELECT * FROM ibkr_trades ORDER BY trade_date ASC');
-    const trades = result.rows.map(row => ({
-      tradeDate: String(row.trade_date),
-      settleDate: row.settle_date ? String(row.settle_date) : null,
+    const tradesData = await db
+      .select()
+      .from(ibkrTrades)
+      .orderBy(asc(ibkrTrades.tradeDate));
+
+    const trades = tradesData.map(row => ({
+      tradeDate: String(row.tradeDate),
+      settleDate: row.settleDate ? String(row.settleDate) : null,
       symbol: String(row.symbol),
       description: String(row.description || ''),
-      assetClass: String(row.asset_class || 'STK'),
+      assetClass: String(row.assetClass || 'STK'),
       action: row.action as 'BUY' | 'SELL',
       quantity: Number(row.quantity),
       price: Number(row.price),
       currency: String(row.currency),
-      fxRate: Number(row.fx_rate || 1),
+      fxRate: Number(row.fxRate || 1),
       proceeds: row.proceeds ? Number(row.proceeds) : null,
-      costBasis: row.cost_basis ? Number(row.cost_basis) : null,
-      realizedPnl: row.realized_pnl ? Number(row.realized_pnl) : null,
+      costBasis: row.costBasis ? Number(row.costBasis) : null,
+      realizedPnl: row.realizedPnl ? Number(row.realizedPnl) : null,
       commission: Number(row.commission || 0),
       fees: Number(row.fees || 0),
     }));
@@ -212,20 +206,31 @@ export async function POST() {
     const { positions, totalRealizedPnl, totalRealizedPnlBase } = calculatePositions(trades, 'SGD');
 
     // Clear and rebuild positions
-    await db.execute('DELETE FROM ibkr_positions');
+    await db.delete(ibkrPositions);
+    
     for (const [symbol, pos] of Array.from(positions.entries())) {
-      await db.execute({
-        sql: `INSERT INTO ibkr_positions (symbol, quantity, avg_cost, currency, total_cost, total_cost_base, realized_pnl, realized_pnl_base, avg_fx_rate)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [symbol, pos.quantity, pos.avgCost, pos.currency, pos.totalCost, pos.totalCostBase, pos.realizedPnl, pos.realizedPnlBase, pos.avgFxRate]
+      await db.insert(ibkrPositions).values({
+        symbol,
+        quantity: pos.quantity,
+        avgCost: pos.avgCost,
+        currency: pos.currency,
+        totalCost: pos.totalCost,
+        totalCostBase: pos.totalCostBase,
+        realizedPnl: pos.realizedPnl,
+        realizedPnlBase: pos.realizedPnlBase,
+        avgFxRate: pos.avgFxRate,
       });
     }
 
-    // Update portfolio meta with total realized P&L (includes closed positions)
-    await db.execute({
-      sql: `UPDATE ibkr_portfolio_meta SET total_realized_pnl = ?, total_realized_pnl_base = ?, updated_at = datetime('now') WHERE id = 1`,
-      args: [totalRealizedPnl, totalRealizedPnlBase]
-    });
+    // Update portfolio meta
+    await db
+      .update(ibkrPortfolioMeta)
+      .set({
+        totalRealizedPnl,
+        totalRealizedPnlBase,
+        updatedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
+      })
+      .where(eq(ibkrPortfolioMeta.id, 1));
 
     return NextResponse.json({ 
       success: true, 

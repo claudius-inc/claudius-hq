@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import db, { ensureDB } from '@/lib/db';
+import { db, ibkrImports, ibkrTrades, ibkrIncome, ibkrFxRates, ibkrPositions, ibkrPortfolioMeta } from '@/db';
+import { eq, and, asc } from 'drizzle-orm';
 import { parseIBKRStatement, calculatePositions } from '@/lib/ibkr-parser';
 import { getHistoricalFxRates, getFxRateFromCache } from '@/lib/historical-fx';
 
@@ -7,8 +8,6 @@ export const runtime = 'nodejs';
 
 export async function POST(request: NextRequest) {
   try {
-    await ensureDB();
-    
     const formData = await request.formData();
     const file = formData.get('file') as File;
     
@@ -40,7 +39,7 @@ export async function POST(request: NextRequest) {
     for (const trade of parseResult.trades) {
       if (trade.currency !== 'SGD') {
         const rate = getFxRateFromCache(historicalFxRates, trade.currency, trade.tradeDate, 1);
-        trade.fxRate = rate;  // Override IBKR's fxRate with our XXXSGD rate
+        trade.fxRate = rate;
       } else {
         trade.fxRate = 1;
       }
@@ -50,121 +49,174 @@ export async function POST(request: NextRequest) {
     for (const [key, rate] of Array.from(historicalFxRates.entries())) {
       const [currency, date] = key.split(':');
       try {
-        await db.execute({
-          sql: `INSERT OR REPLACE INTO ibkr_fx_rates (date, from_currency, to_currency, rate) VALUES (?, ?, ?, ?)`,
-          args: [date, currency, 'SGD', rate]
-        });
+        // Check if exists, then insert or update
+        const [existing] = await db
+          .select({ id: ibkrFxRates.id })
+          .from(ibkrFxRates)
+          .where(and(
+            eq(ibkrFxRates.date, date),
+            eq(ibkrFxRates.fromCurrency, currency),
+            eq(ibkrFxRates.toCurrency, 'SGD')
+          ));
+        
+        if (existing) {
+          await db
+            .update(ibkrFxRates)
+            .set({ rate })
+            .where(eq(ibkrFxRates.id, existing.id));
+        } else {
+          await db.insert(ibkrFxRates).values({
+            date,
+            fromCurrency: currency,
+            toCurrency: 'SGD',
+            rate,
+          });
+        }
       } catch {
         // Ignore errors
       }
     }
 
     // Create import record
-    const importResult = await db.execute({
-      sql: `INSERT INTO ibkr_imports (filename, statement_start, statement_end, trade_count, dividend_count)
-            VALUES (?, ?, ?, ?, ?)`,
-      args: [
-        file.name,
-        parseResult.statementStart,
-        parseResult.statementEnd,
-        parseResult.trades.length,
-        parseResult.income.length
-      ]
-    });
-    const importId = Number(importResult.lastInsertRowid);
+    const [importRecord] = await db
+      .insert(ibkrImports)
+      .values({
+        filename: file.name,
+        statementStart: parseResult.statementStart,
+        statementEnd: parseResult.statementEnd,
+        tradeCount: parseResult.trades.length,
+        dividendCount: parseResult.income.length,
+      })
+      .returning();
+    
+    const importId = importRecord.id;
 
-    // Insert trades (skip duplicates) and update FX rates for existing trades
+    // Insert trades (skip duplicates)
     let tradesInserted = 0;
     for (const trade of parseResult.trades) {
       try {
-        await db.execute({
-          sql: `INSERT OR IGNORE INTO ibkr_trades 
-                (import_id, trade_date, settle_date, symbol, description, asset_class, action, quantity, price, currency, fx_rate, proceeds, cost_basis, realized_pnl, commission, fees)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [
+        // Check for duplicate
+        const [existing] = await db
+          .select({ id: ibkrTrades.id })
+          .from(ibkrTrades)
+          .where(and(
+            eq(ibkrTrades.tradeDate, trade.tradeDate),
+            eq(ibkrTrades.symbol, trade.symbol),
+            eq(ibkrTrades.action, trade.action),
+            eq(ibkrTrades.quantity, trade.quantity),
+            eq(ibkrTrades.price, trade.price)
+          ));
+
+        if (!existing) {
+          await db.insert(ibkrTrades).values({
             importId,
-            trade.tradeDate,
-            trade.settleDate,
-            trade.symbol,
-            trade.description,
-            trade.assetClass,
-            trade.action,
-            trade.quantity,
-            trade.price,
-            trade.currency,
-            trade.fxRate,
-            trade.proceeds,
-            trade.costBasis,
-            trade.realizedPnl,
-            trade.commission,
-            trade.fees
-          ]
-        });
-        tradesInserted++;
+            tradeDate: trade.tradeDate,
+            settleDate: trade.settleDate,
+            symbol: trade.symbol,
+            description: trade.description,
+            assetClass: trade.assetClass,
+            action: trade.action,
+            quantity: trade.quantity,
+            price: trade.price,
+            currency: trade.currency,
+            fxRate: trade.fxRate,
+            proceeds: trade.proceeds,
+            costBasis: trade.costBasis,
+            realizedPnl: trade.realizedPnl,
+            commission: trade.commission,
+            fees: trade.fees,
+          });
+          tradesInserted++;
+        }
+        
+        // Update FX rate for existing trades with fxRate = 1
+        if (trade.fxRate && trade.fxRate !== 1) {
+          await db
+            .update(ibkrTrades)
+            .set({ fxRate: trade.fxRate })
+            .where(and(
+              eq(ibkrTrades.symbol, trade.symbol),
+              eq(ibkrTrades.tradeDate, trade.tradeDate),
+              eq(ibkrTrades.quantity, trade.quantity),
+              eq(ibkrTrades.price, trade.price),
+              eq(ibkrTrades.currency, trade.currency)
+            ));
+        }
       } catch {
-        // Duplicate entry, skip
-      }
-      
-      // Also update FX rate for existing trades (in case they had wrong rate)
-      if (trade.fxRate && trade.fxRate !== 1) {
-        await db.execute({
-          sql: `UPDATE ibkr_trades SET fx_rate = ? 
-                WHERE symbol = ? AND trade_date = ? AND quantity = ? AND price = ? AND currency = ?`,
-          args: [trade.fxRate, trade.symbol, trade.tradeDate, trade.quantity, trade.price, trade.currency]
-        });
+        // Skip errors
       }
     }
     
-    // Update FX rates for ALL existing trades from stored rates
-    const storedFxRates = await db.execute('SELECT date, from_currency, rate FROM ibkr_fx_rates WHERE to_currency = ?', ['SGD']);
-    for (const fxRow of storedFxRates.rows) {
-      await db.execute({
-        sql: `UPDATE ibkr_trades SET fx_rate = ? WHERE trade_date = ? AND currency = ? AND fx_rate = 1`,
-        args: [fxRow.rate, fxRow.date, fxRow.from_currency]
-      });
+    // Update FX rates for all existing trades from stored rates
+    const storedFxRates = await db
+      .select()
+      .from(ibkrFxRates)
+      .where(eq(ibkrFxRates.toCurrency, 'SGD'));
+    
+    for (const fxRow of storedFxRates) {
+      await db
+        .update(ibkrTrades)
+        .set({ fxRate: fxRow.rate })
+        .where(and(
+          eq(ibkrTrades.tradeDate, fxRow.date),
+          eq(ibkrTrades.currency, fxRow.fromCurrency),
+          eq(ibkrTrades.fxRate, 1)
+        ));
     }
 
     // Insert income records (skip duplicates)
     let incomeInserted = 0;
     for (const income of parseResult.income) {
       try {
-        await db.execute({
-          sql: `INSERT OR IGNORE INTO ibkr_income 
-                (import_id, date, symbol, description, income_type, amount, currency, fx_rate)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [
+        // Check for duplicate
+        const [existing] = await db
+          .select({ id: ibkrIncome.id })
+          .from(ibkrIncome)
+          .where(and(
+            eq(ibkrIncome.date, income.date),
+            eq(ibkrIncome.symbol, income.symbol),
+            eq(ibkrIncome.incomeType, income.incomeType),
+            eq(ibkrIncome.amount, income.amount)
+          ));
+
+        if (!existing) {
+          await db.insert(ibkrIncome).values({
             importId,
-            income.date,
-            income.symbol,
-            income.description,
-            income.incomeType,
-            income.amount,
-            income.currency,
-            income.fxRate
-          ]
-        });
-        incomeInserted++;
+            date: income.date,
+            symbol: income.symbol,
+            description: income.description,
+            incomeType: income.incomeType,
+            amount: income.amount,
+            currency: income.currency,
+            fxRate: income.fxRate,
+          });
+          incomeInserted++;
+        }
       } catch {
-        // Duplicate entry, skip
+        // Skip errors
       }
     }
 
     // Recalculate positions from all trades
-    const allTradesResult = await db.execute('SELECT * FROM ibkr_trades ORDER BY trade_date ASC');
-    const allTrades = allTradesResult.rows.map(row => ({
-      tradeDate: String(row.trade_date),
-      settleDate: row.settle_date ? String(row.settle_date) : null,
+    const allTradesData = await db
+      .select()
+      .from(ibkrTrades)
+      .orderBy(asc(ibkrTrades.tradeDate));
+
+    const allTrades = allTradesData.map(row => ({
+      tradeDate: String(row.tradeDate),
+      settleDate: row.settleDate ? String(row.settleDate) : null,
       symbol: String(row.symbol),
       description: String(row.description || ''),
-      assetClass: String(row.asset_class || 'STK'),
+      assetClass: String(row.assetClass || 'STK'),
       action: row.action as 'BUY' | 'SELL',
       quantity: Number(row.quantity),
       price: Number(row.price),
       currency: String(row.currency),
-      fxRate: Number(row.fx_rate || 1),
+      fxRate: Number(row.fxRate || 1),
       proceeds: row.proceeds ? Number(row.proceeds) : null,
-      costBasis: row.cost_basis ? Number(row.cost_basis) : null,
-      realizedPnl: row.realized_pnl ? Number(row.realized_pnl) : null,
+      costBasis: row.costBasis ? Number(row.costBasis) : null,
+      realizedPnl: row.realizedPnl ? Number(row.realizedPnl) : null,
       commission: Number(row.commission || 0),
       fees: Number(row.fees || 0),
     }));
@@ -172,20 +224,31 @@ export async function POST(request: NextRequest) {
     const { positions, totalRealizedPnl, totalRealizedPnlBase } = calculatePositions(allTrades, 'SGD');
 
     // Update positions table
-    await db.execute('DELETE FROM ibkr_positions');
+    await db.delete(ibkrPositions);
+    
     for (const [symbol, pos] of Array.from(positions.entries())) {
-      await db.execute({
-        sql: `INSERT INTO ibkr_positions (symbol, quantity, avg_cost, currency, total_cost, total_cost_base, realized_pnl, realized_pnl_base, avg_fx_rate)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [symbol, pos.quantity, pos.avgCost, pos.currency, pos.totalCost, pos.totalCostBase, pos.realizedPnl, pos.realizedPnlBase, pos.avgFxRate]
+      await db.insert(ibkrPositions).values({
+        symbol,
+        quantity: pos.quantity,
+        avgCost: pos.avgCost,
+        currency: pos.currency,
+        totalCost: pos.totalCost,
+        totalCostBase: pos.totalCostBase,
+        realizedPnl: pos.realizedPnl,
+        realizedPnlBase: pos.realizedPnlBase,
+        avgFxRate: pos.avgFxRate,
       });
     }
 
-    // Store total realized P&L (including closed positions)
-    await db.execute({
-      sql: `UPDATE ibkr_portfolio_meta SET total_realized_pnl = ?, total_realized_pnl_base = ?, updated_at = datetime('now') WHERE id = 1`,
-      args: [totalRealizedPnl, totalRealizedPnlBase]
-    });
+    // Store total realized P&L
+    await db
+      .update(ibkrPortfolioMeta)
+      .set({
+        totalRealizedPnl,
+        totalRealizedPnlBase,
+        updatedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
+      })
+      .where(eq(ibkrPortfolioMeta.id, 1));
 
     return NextResponse.json({
       success: true,
