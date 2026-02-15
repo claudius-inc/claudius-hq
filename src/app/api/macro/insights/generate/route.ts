@@ -68,7 +68,7 @@ Keep it concise and data-driven. No fluff. Reference specific indicator values w
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gemini-2.0-flash",
+        model: "gemini-3-flash-preview",
         messages: [
           {
             role: "user",
