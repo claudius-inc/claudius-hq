@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Spinner } from "./ui/Spinner";
 
 interface ResearchFormProps {
@@ -10,22 +10,23 @@ interface ResearchFormProps {
 
 export function ResearchForm({ initialTicker }: ResearchFormProps) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [ticker, setTicker] = useState(initialTicker || "");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
-  // Handle ?refresh=TICKER param from stock detail page
+  // Handle ?refresh=TICKER param from stock detail page (client-side only)
   useEffect(() => {
-    const refreshTicker = searchParams.get("refresh");
-    if (refreshTicker) {
-      setTicker(refreshTicker.toUpperCase());
-      // Clear the URL param without triggering navigation
+    if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      url.searchParams.delete("refresh");
-      window.history.replaceState({}, "", url.toString());
+      const refreshTicker = url.searchParams.get("refresh");
+      if (refreshTicker) {
+        setTicker(refreshTicker.toUpperCase());
+        // Clear the URL param without triggering navigation
+        url.searchParams.delete("refresh");
+        window.history.replaceState({}, "", url.toString());
+      }
     }
-  }, [searchParams]);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

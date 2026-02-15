@@ -52,6 +52,18 @@ interface StockReport {
   createdAt: string;
 }
 
+interface SentimentData {
+  vix: {
+    value: number | null;
+    change: number | null;
+    level: "low" | "moderate" | "elevated" | "fear" | null;
+  };
+  putCall: {
+    value: number | null;
+    level: "greedy" | "neutral" | "fearful" | null;
+  };
+}
+
 // Helper functions
 function formatCurrency(value: number, currency = "SGD") {
   return new Intl.NumberFormat("en-US", {
@@ -218,6 +230,46 @@ function QuickResearchForm() {
   );
 }
 
+// Sentiment level color helpers
+function getSentimentColor(level: string | null): string {
+  switch (level) {
+    case "low":
+    case "greedy":
+      return "text-amber-600"; // Caution - could be complacent
+    case "moderate":
+    case "neutral":
+      return "text-emerald-600"; // Healthy
+    case "elevated":
+    case "fearful":
+    case "fear":
+      return "text-red-600"; // Stress
+    default:
+      return "text-gray-500";
+  }
+}
+
+function getSentimentBgColor(level: string | null): string {
+  switch (level) {
+    case "low":
+    case "greedy":
+      return "bg-amber-50 border-amber-200";
+    case "moderate":
+    case "neutral":
+      return "bg-emerald-50 border-emerald-200";
+    case "elevated":
+    case "fearful":
+    case "fear":
+      return "bg-red-50 border-red-200";
+    default:
+      return "bg-gray-50 border-gray-200";
+  }
+}
+
+function formatSentimentLevel(level: string | null): string {
+  if (!level) return "—";
+  return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
 export default function StocksDashboard() {
   // State
   const [portfolioData, setPortfolioData] = useState<{
@@ -228,11 +280,13 @@ export default function StocksDashboard() {
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [macroIndicators, setMacroIndicators] = useState<MacroIndicator[]>([]);
   const [recentReports, setRecentReports] = useState<StockReport[]>([]);
+  const [sentimentData, setSentimentData] = useState<SentimentData | null>(null);
   const [loading, setLoading] = useState({
     portfolio: true,
     watchlist: true,
     macro: true,
     reports: true,
+    sentiment: true,
   });
 
   // Fetch all data on mount
@@ -276,6 +330,18 @@ export default function StocksDashboard() {
       })
       .catch(console.error)
       .finally(() => setLoading((prev) => ({ ...prev, reports: false })));
+
+    // Fetch sentiment data
+    fetch("/api/markets/sentiment")
+      .then((res) => res.json())
+      .then((data) => {
+        setSentimentData({
+          vix: data.vix || { value: null, change: null, level: null },
+          putCall: data.putCall || { value: null, level: null },
+        });
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, sentiment: false })));
   }, []);
 
   // Group macro indicators by category for organized display
@@ -302,6 +368,54 @@ export default function StocksDashboard() {
         <p className="text-sm text-gray-500 mt-1">
           Portfolio overview, research, and market signals
         </p>
+      </div>
+
+      {/* Market Pulse - Sentiment Card */}
+      <div className={`mb-6 p-4 rounded-xl border ${
+        loading.sentiment 
+          ? "bg-gray-50 border-gray-200" 
+          : getSentimentBgColor(sentimentData?.vix.level || sentimentData?.putCall.level)
+      }`}>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-lg">🌡️</span>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
+            Market Pulse
+          </h2>
+        </div>
+        {loading.sentiment ? (
+          <div className="flex gap-6">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-6 w-32" />
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-6">
+            {/* VIX */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 font-medium">VIX:</span>
+              <span className={`text-lg font-bold ${getSentimentColor(sentimentData?.vix.level)}`}>
+                {sentimentData?.vix.value?.toFixed(1) ?? "—"}
+              </span>
+              {sentimentData?.vix.change !== null && (
+                <span className={`text-xs ${sentimentData.vix.change >= 0 ? "text-red-500" : "text-green-500"}`}>
+                  ({sentimentData.vix.change >= 0 ? "+" : ""}{sentimentData.vix.change.toFixed(1)})
+                </span>
+              )}
+              <span className={`text-sm font-medium ${getSentimentColor(sentimentData?.vix.level)}`}>
+                ({formatSentimentLevel(sentimentData?.vix.level)})
+              </span>
+            </div>
+            {/* Put/Call */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600 font-medium">Put/Call:</span>
+              <span className={`text-lg font-bold ${getSentimentColor(sentimentData?.putCall.level)}`}>
+                {sentimentData?.putCall.value?.toFixed(2) ?? "—"}
+              </span>
+              <span className={`text-sm font-medium ${getSentimentColor(sentimentData?.putCall.level)}`}>
+                ({formatSentimentLevel(sentimentData?.putCall.level)})
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Grid Layout */}
