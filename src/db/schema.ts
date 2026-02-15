@@ -393,3 +393,87 @@ export const macroInsights = sqliteTable("macro_insights", {
 
 export type MacroInsight = typeof macroInsights.$inferSelect;
 export type NewMacroInsight = typeof macroInsights.$inferInsert;
+
+// ============================================================================
+// Analyst Tracker
+// ============================================================================
+
+export const ANALYST_CALL_ACTIONS = ["buy", "sell", "hold", "upgrade", "downgrade"] as const;
+export type AnalystCallAction = (typeof ANALYST_CALL_ACTIONS)[number];
+
+export const ANALYST_CALL_OUTCOMES = ["hit", "miss", "pending"] as const;
+export type AnalystCallOutcome = (typeof ANALYST_CALL_OUTCOMES)[number];
+
+export const analysts = sqliteTable("analysts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  firm: text("firm").notNull(),
+  specialty: text("specialty"), // e.g., "semiconductors", "financials"
+  successRate: real("success_rate"), // e.g., 0.88 for 88%
+  avgReturn: real("avg_return"), // average return on their picks
+  notes: text("notes"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export const analystCalls = sqliteTable("analyst_calls", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  analystId: integer("analyst_id").references(() => analysts.id),
+  ticker: text("ticker").notNull(),
+  action: text("action").notNull(), // 'buy', 'sell', 'hold', 'upgrade', 'downgrade'
+  priceTarget: real("price_target"),
+  priceAtCall: real("price_at_call"),
+  currentPrice: real("current_price"),
+  callDate: text("call_date").notNull(),
+  notes: text("notes"),
+  outcome: text("outcome"), // 'hit', 'miss', 'pending'
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type Analyst = typeof analysts.$inferSelect;
+export type NewAnalyst = typeof analysts.$inferInsert;
+
+export type AnalystCall = typeof analystCalls.$inferSelect;
+export type NewAnalystCall = typeof analystCalls.$inferInsert;
+
+// ============================================================================
+// Analysts Tracker
+// ============================================================================
+
+export const ANALYST_CALL_ACTIONS = ["buy", "sell", "hold", "upgrade", "downgrade"] as const;
+export type AnalystCallAction = (typeof ANALYST_CALL_ACTIONS)[number];
+
+export const ANALYST_CALL_OUTCOMES = ["hit", "miss", "pending"] as const;
+export type AnalystCallOutcome = (typeof ANALYST_CALL_OUTCOMES)[number];
+
+export const analysts = sqliteTable("analysts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  firm: text("firm").notNull(),
+  specialty: text("specialty"),
+  successRate: real("success_rate"),
+  avgReturn: real("avg_return"),
+  notes: text("notes"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export const analystCalls = sqliteTable("analyst_calls", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  analystId: integer("analyst_id").references(() => analysts.id),
+  ticker: text("ticker").notNull(),
+  action: text("action").notNull(),
+  priceTarget: real("price_target"),
+  priceAtCall: real("price_at_call"),
+  currentPrice: real("current_price"),
+  callDate: text("call_date").notNull(),
+  notes: text("notes"),
+  outcome: text("outcome"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type Analyst = typeof analysts.$inferSelect;
+export type NewAnalyst = typeof analysts.$inferInsert;
+
+export type AnalystCall = typeof analystCalls.$inferSelect;
+export type NewAnalystCall = typeof analystCalls.$inferInsert;

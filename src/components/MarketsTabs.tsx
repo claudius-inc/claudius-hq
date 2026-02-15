@@ -11,6 +11,7 @@ const tabs: Array<{ href: string; label: string; exact?: boolean }> = [
   { href: "/markets/sectors", label: "Sectors" },
   { href: "/markets/macro", label: "Macro" },
   { href: "/markets/gold", label: "Gold" },
+  { href: "/markets/analysts", label: "Analysts" },
   { href: "/markets/alerts", label: "Alerts" },
 ];
 
