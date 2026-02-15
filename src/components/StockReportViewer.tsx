@@ -43,13 +43,15 @@ export function StockReportViewer({ report }: { report: StockReport }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // DB stores UTC without 'Z' suffix - append it for correct parsing
-  const utcTimestamp = report.created_at.endsWith('Z') ? report.created_at : report.created_at + 'Z';
-  const date = new Date(utcTimestamp);
-  const dateStr = date.toLocaleDateString("en-US", {
+  const utcTimestamp = report.created_at 
+    ? (report.created_at.endsWith('Z') ? report.created_at : report.created_at + 'Z')
+    : null;
+  const date = utcTimestamp ? new Date(utcTimestamp) : null;
+  const dateStr = date ? date.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
-  });
+  }) : "—";
 
   const handleDelete = async () => {
     setIsDeleting(true);

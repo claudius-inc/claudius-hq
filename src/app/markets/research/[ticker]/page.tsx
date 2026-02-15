@@ -108,7 +108,8 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
   const rawHtml = report ? await marked(report.content) : "";
   const htmlContent = stripRedundantHeaders(addHeadingIds(rawHtml));
 
-  const formatFullTimestamp = (timestamp: string) => {
+  const formatFullTimestamp = (timestamp: string | null | undefined) => {
+    if (!timestamp) return "—";
     // DB stores UTC without 'Z' suffix - append it for correct parsing
     const utcTimestamp = timestamp.endsWith('Z') ? timestamp : timestamp + 'Z';
     const date = new Date(utcTimestamp);
@@ -165,6 +166,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
               <div className="flex items-center gap-2 flex-shrink-0">
                 {/* Staleness indicator - warn if report is > 90 days old */}
                 {(() => {
+                  if (!report.created_at) return null;
                   const utcTimestamp = report.created_at.endsWith('Z') ? report.created_at : report.created_at + 'Z';
                   const reportDate = new Date(utcTimestamp);
                   const daysSinceReport = Math.floor((Date.now() - reportDate.getTime()) / (1000 * 60 * 60 * 24));
