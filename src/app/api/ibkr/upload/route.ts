@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ibkrImports, ibkrTrades, ibkrIncome, ibkrFxRates, ibkrPositions, ibkrPortfolioMeta } from '@/db';
 import { eq, and, asc } from 'drizzle-orm';
-import { parseIBKRStatement, calculatePositions } from '@/lib/ibkr-parser';
+// Lazy load ibkr-parser to avoid bundling xlsx (~500KB) until needed
 import { getHistoricalFxRates, getFxRateFromCache } from '@/lib/historical-fx';
 
 export const runtime = 'nodejs';
@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
     // Read file buffer
     const buffer = Buffer.from(await file.arrayBuffer());
     
-    // Parse the IBKR statement
+    // Parse the IBKR statement (lazy load to avoid bundling xlsx until needed)
+    const { parseIBKRStatement } = await import('@/lib/ibkr-parser');
     const parseResult = parseIBKRStatement(buffer);
     
     if (parseResult.errors.length > 0 && parseResult.trades.length === 0) {
@@ -228,6 +229,7 @@ export async function POST(request: NextRequest) {
       fees: Number(row.fees || 0),
     }));
 
+    const { calculatePositions } = await import('@/lib/ibkr-parser');
     const { positions, totalRealizedPnl, totalRealizedPnlBase } = calculatePositions(allTrades, 'SGD');
 
     // Update positions table
