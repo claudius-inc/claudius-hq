@@ -87,19 +87,21 @@ export async function POST(request: NextRequest) {
 - Include detailed management assessment with integrity/alignment scoring
 - Include price-based action table with specific price zones
 
+**API KEY:** Read HQ_API_KEY from /root/openclaw/claudius-inc/claudius-hq/.env.local (line starting with HQ_API_KEY=)
+
 **EXECUTION STEPS:**
 1. Mark job as processing:
-   curl -X PATCH 'https://www.claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"processing","progress":10}'
+   curl -X PATCH 'https://www.claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: <HQ_API_KEY>' -H 'Content-Type: application/json' -d '{"status":"processing","progress":10}'
 
 2. Gather comprehensive data on ${cleanTicker} using web_search and web_fetch
 
 3. Write the full 14-section report following /root/openclaw/skills/sun-tzu-research/SKILL.md
 
 4. POST the complete report:
-   curl -X POST 'https://www.claudiusinc.com/api/stocks/reports' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"ticker":"${cleanTicker}","title":"...","content":"<FULL REPORT>","report_type":"sun-tzu"}'
+   curl -X POST 'https://www.claudiusinc.com/api/stocks/reports' -H 'x-api-key: <HQ_API_KEY>' -H 'Content-Type: application/json' -d '{"ticker":"${cleanTicker}","title":"...","content":"<FULL REPORT>","report_type":"sun-tzu"}'
 
 5. Complete the job with report_id:
-   curl -X PATCH 'https://www.claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: ${process.env.HQ_API_KEY}' -H 'Content-Type: application/json' -d '{"status":"complete","progress":100,"report_id":REPORT_ID}'
+   curl -X PATCH 'https://www.claudiusinc.com/api/stocks/research/${jobId}' -H 'x-api-key: <HQ_API_KEY>' -H 'Content-Type: application/json' -d '{"status":"complete","progress":100,"report_id":REPORT_ID}'
 
 DO NOT rush. Take your time to produce a thorough, publication-quality report.`,
               label: `research-${cleanTicker.toLowerCase()}`,
