@@ -131,7 +131,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
           {/* Breadcrumb + Actions row */}
           <div className="flex items-center justify-between gap-2 text-sm mb-1">
             <div className="flex items-center gap-2 text-gray-400">
-              <Link href="/stocks" className="hover:text-gray-600 transition-colors">Stocks</Link>
+              <Link href="/markets" className="hover:text-gray-600 transition-colors">Markets</Link>
               <span>›</span>
               <span className="text-gray-900 font-medium">{decodedTicker}</span>
             </div>
@@ -144,7 +144,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
                   />
                 )}
                 <Link
-                  href={`/stocks?refresh=${encodeURIComponent(decodedTicker)}`}
+                  href={`/markets?refresh=${encodeURIComponent(decodedTicker)}`}
                   className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
                   title="Generate new research report"
                 >
@@ -210,7 +210,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
             <div className="text-4xl mb-3">🔍</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">No reports found</h3>
             <p className="text-sm text-gray-500">No research reports for {decodedTicker} yet</p>
-            <Link href="/stocks" className="text-sm text-emerald-600 hover:underline mt-3 inline-block">
+            <Link href="/markets" className="text-sm text-emerald-600 hover:underline mt-3 inline-block">
               ← Back to Stocks
             </Link>
           </div>

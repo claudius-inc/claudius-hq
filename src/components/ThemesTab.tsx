@@ -221,7 +221,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
     ));
 
     try {
-      const res = await fetch(`/api/themes/${themeId}/stocks`, {
+      const res = await fetch(`/api/themes/${themeId}/markets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker }),
@@ -281,7 +281,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
         .filter((s) => s.length > 0);
 
       for (const ticker of stockList) {
-        await fetch(`/api/themes/${themeId}/stocks`, {
+        await fetch(`/api/themes/${themeId}/markets`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ticker }),
@@ -326,7 +326,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
     if (!confirm(`Remove ${ticker} from theme?`)) return;
 
     try {
-      const res = await fetch(`/api/themes/${themeId}/stocks/${ticker}`, {
+      const res = await fetch(`/api/themes/${themeId}/markets/${ticker}`, {
         method: "DELETE",
       });
       if (res.ok && expandedData) {
@@ -364,7 +364,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
 
     setEditSubmitting(true);
     try {
-      const res = await fetch(`/api/themes/${editingStock.themeId}/stocks`, {
+      const res = await fetch(`/api/themes/${editingStock.themeId}/markets`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -458,7 +458,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                       {theme.leader ? (
                         <div className="flex items-center gap-2">
                           <Link
-                            href={`/stocks/research/${theme.leader.ticker}`}
+                            href={`/markets/research/${theme.leader.ticker}`}
                             className="text-emerald-600 hover:text-emerald-700 font-semibold"
                             onClick={(e) => e.stopPropagation()}
                           >
@@ -543,7 +543,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                                           <div className="flex flex-col">
                                             <div className="flex items-center gap-1">
                                               <Link
-                                                href={`/stocks/research/${stock.ticker}`}
+                                                href={`/markets/research/${stock.ticker}`}
                                                 className="text-emerald-600 hover:text-emerald-700 font-semibold"
                                               >
                                                 {stock.ticker}

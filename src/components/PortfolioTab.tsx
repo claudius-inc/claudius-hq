@@ -48,7 +48,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
     setLoadingPrices(true);
     try {
       const tickers = holdings.map((h) => h.ticker).join(",");
-      const res = await fetch(`/api/stocks/prices?tickers=${tickers}`);
+      const res = await fetch(`/api/markets/prices?tickers=${tickers}`);
       const data = await res.json();
       if (data.prices) {
         setPrices(data.prices);
@@ -369,7 +369,7 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
                         />
                       ) : (
                         <Link
-                          href={`/stocks/research/${holding.ticker}`}
+                          href={`/markets/research/${holding.ticker}`}
                           className="text-emerald-600 hover:text-emerald-700 font-semibold"
                         >
                           {holding.ticker}

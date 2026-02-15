@@ -43,7 +43,7 @@ export function ResearchStatusBadge({
 
     setTriggering(true);
     try {
-      const res = await fetch("/api/stocks/research", {
+      const res = await fetch("/api/markets/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker: ticker.toUpperCase() }),
@@ -73,7 +73,7 @@ export function ResearchStatusBadge({
     if (compact) {
       return (
         <Link
-          href={`/stocks/research/${ticker}`}
+          href={`/markets/research/${ticker}`}
           className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-xs rounded ${
             isStale
               ? "bg-amber-50 text-amber-600 hover:bg-amber-100"
@@ -90,7 +90,7 @@ export function ResearchStatusBadge({
 
     return (
       <Link
-        href={`/stocks/research/${ticker}`}
+        href={`/markets/research/${ticker}`}
         className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs rounded-full ${
           isStale
             ? "bg-amber-50 text-amber-600 hover:bg-amber-100"

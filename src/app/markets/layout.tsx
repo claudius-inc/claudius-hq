@@ -1,7 +1,7 @@
 import { Nav } from "@/components/Nav";
-import { StocksTabs } from "@/components/StocksTabs";
+import { MarketsTabs } from "@/components/MarketsTabs";
 
-export default function StocksLayout({
+export default function MarketsLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -10,7 +10,7 @@ export default function StocksLayout({
     <div className="min-h-screen">
       <Nav />
       <main className="max-w-6xl mx-auto px-4 py-6">
-        <StocksTabs />
+        <MarketsTabs />
         {children}
       </main>
     </div>

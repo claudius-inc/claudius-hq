@@ -26,7 +26,7 @@ export async function handlePortfolio(): Promise<string> {
     .orderBy(desc(portfolioHoldings.targetAllocation));
 
   if (holdings.length === 0) {
-    return "📊 <b>Portfolio</b>\n\nNo holdings yet. Add them at claudiusinc.com/stocks/portfolio";
+    return "📊 <b>Portfolio</b>\n\nNo holdings yet. Add them at claudiusinc.com/markets/portfolio";
   }
 
   const lines: string[] = ["📊 <b>Portfolio</b>\n"];
@@ -42,7 +42,7 @@ export async function handlePortfolio(): Promise<string> {
     }
   }
 
-  lines.push(`\nclaudiusinc.com/stocks/portfolio`);
+  lines.push(`\nclaudiusinc.com/markets/portfolio`);
   return lines.join("\n");
 }
 
@@ -54,7 +54,7 @@ export async function handleThemes(period: TimePeriod = "1m"): Promise<ThemesRes
 
   if (allThemes.length === 0) {
     return {
-      text: "📈 <b>Themes</b>\n\nNo themes yet. Create them at claudiusinc.com/stocks/themes",
+      text: "📈 <b>Themes</b>\n\nNo themes yet. Create them at claudiusinc.com/markets/themes",
       keyboard: [],
     };
   }
@@ -108,7 +108,7 @@ export async function handleThemes(period: TimePeriod = "1m"): Promise<ThemesRes
     lines.push(`${theme.name} (${tickers.length})  ${formatPercent(avgPerf)} ${getEmoji(avgPerf)}`);
   }
 
-  lines.push(`\nclaudiusinc.com/stocks/themes`);
+  lines.push(`\nclaudiusinc.com/markets/themes`);
   
   return {
     text: lines.join("\n"),
@@ -166,7 +166,7 @@ export async function handleResearch(ticker: string): Promise<{ text: string; re
     .limit(1);
 
   if (report) {
-    const url = `https://www.claudiusinc.com/stocks/research/${upperTicker}`;
+    const url = `https://www.claudiusinc.com/markets/research/${upperTicker}`;
     return {
       text: `📚 <b>Research: ${upperTicker}</b>\n\n${report.title || "Sun Tzu Report"}\n\n${url}`,
       reportId: report.id,
@@ -174,7 +174,7 @@ export async function handleResearch(ticker: string): Promise<{ text: string; re
   }
 
   return {
-    text: `📚 No research found for ${upperTicker}.\n\nGenerate one at claudiusinc.com/stocks`,
+    text: `📚 No research found for ${upperTicker}.\n\nGenerate one at claudiusinc.com/markets`,
   };
 }
 
@@ -340,7 +340,7 @@ export async function handleSectors(period: TimePeriod = "1w"): Promise<SectorsR
     lines.push(`${r.name}  ${formatPercent(r.perf)} ${getEmoji(r.perf)}`);
   }
 
-  lines.push(`\nclaudiusinc.com/stocks/sectors`);
+  lines.push(`\nclaudiusinc.com/markets/sectors`);
 
   return {
     text: lines.join("\n"),
@@ -357,7 +357,7 @@ export async function handleWatchlist(): Promise<string> {
     .orderBy(desc(watchlist.addedAt));
 
   if (items.length === 0) {
-    return "👀 <b>Watchlist</b>\n\nNo items yet. Add them at claudiusinc.com/stocks/watchlist";
+    return "👀 <b>Watchlist</b>\n\nNo items yet. Add them at claudiusinc.com/markets/watchlist";
   }
 
   const lines: string[] = ["👀 <b>Watchlist</b>\n"];
@@ -380,6 +380,6 @@ export async function handleWatchlist(): Promise<string> {
     }
   }
 
-  lines.push(`\nclaudiusinc.com/stocks/watchlist`);
+  lines.push(`\nclaudiusinc.com/markets/watchlist`);
   return lines.join("\n");
 }

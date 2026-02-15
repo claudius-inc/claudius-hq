@@ -47,7 +47,7 @@ export function PreviousReportsDropdown({ reports, currentReportId }: PreviousRe
 
     setDeletingId(reportId);
     try {
-      const response = await fetch(`/api/stocks/reports?id=${reportId}`, {
+      const response = await fetch(`/api/markets/reports?id=${reportId}`, {
         method: "DELETE",
       });
 
@@ -91,7 +91,7 @@ export function PreviousReportsDropdown({ reports, currentReportId }: PreviousRe
         <div key={report.id} className="group">
           <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-50">
             <button
-              onClick={() => router.push(`/stocks/research/${encodeURIComponent(report.ticker)}?report=${report.id}`)}
+              onClick={() => router.push(`/markets/research/${encodeURIComponent(report.ticker)}?report=${report.id}`)}
               className="flex-1 text-left"
             >
               <div className="text-sm font-medium text-gray-900 line-clamp-1">

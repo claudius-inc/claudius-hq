@@ -213,7 +213,7 @@ export function AlertsPageContent() {
                     <tr key={alert.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
                         <Link
-                          href={`/stocks/${alert.ticker.toLowerCase()}`}
+                          href={`/markets/${alert.ticker.toLowerCase()}`}
                           className="flex flex-col hover:text-blue-600"
                         >
                           <span className="font-medium">{alert.ticker}</span>

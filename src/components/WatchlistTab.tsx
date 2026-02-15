@@ -49,7 +49,7 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
     setLoadingPrices(true);
     try {
       const tickers = items.map((i) => i.ticker).join(",");
-      const res = await fetch(`/api/stocks/prices?tickers=${tickers}`);
+      const res = await fetch(`/api/markets/prices?tickers=${tickers}`);
       const data = await res.json();
       if (data.prices) {
         setPrices(data.prices);
@@ -273,7 +273,7 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
                   <tr key={item.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <Link
-                        href={`/stocks/research/${item.ticker}`}
+                        href={`/markets/research/${item.ticker}`}
                         className="text-emerald-600 hover:text-emerald-700 font-semibold"
                       >
                         {item.ticker}

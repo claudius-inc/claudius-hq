@@ -158,7 +158,7 @@ function QuickResearchForm() {
     setMessage("");
 
     try {
-      const res = await fetch("/api/stocks/research", {
+      const res = await fetch("/api/markets/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker: ticker.toUpperCase().trim() }),
@@ -171,7 +171,7 @@ function QuickResearchForm() {
         setMessage(`Research queued for ${ticker.toUpperCase()}`);
         setTicker("");
         setTimeout(() => {
-          router.push("/stocks/research");
+          router.push("/markets/research");
         }, 1000);
       } else {
         setStatus("error");
@@ -269,7 +269,7 @@ export default function StocksDashboard() {
       .finally(() => setLoading((prev) => ({ ...prev, macro: false })));
 
     // Fetch recent reports
-    fetch("/api/stocks/reports")
+    fetch("/api/markets/reports")
       .then((res) => res.json())
       .then((data) => {
         setRecentReports((data.reports || []).slice(0, 5));
@@ -308,7 +308,7 @@ export default function StocksDashboard() {
         <DashboardCard
           title="Portfolio Summary"
           icon="💼"
-          href="/stocks/portfolio"
+          href="/markets/portfolio"
           loading={loading.portfolio}
         >
           {portfolioData?.summary ? (
@@ -362,7 +362,7 @@ export default function StocksDashboard() {
             <div className="text-sm text-gray-500">
               <p>No portfolio data yet.</p>
               <Link
-                href="/stocks/portfolio"
+                href="/markets/portfolio"
                 className="text-blue-600 hover:underline text-xs"
               >
                 Import IBKR statement →
@@ -382,7 +382,7 @@ export default function StocksDashboard() {
               {watchlist.slice(0, 5).map((item) => (
                 <Link
                   key={item.id}
-                  href={`/stocks/${item.ticker.toLowerCase()}`}
+                  href={`/markets/${item.ticker.toLowerCase()}`}
                   className="flex items-center justify-between py-1.5 hover:bg-gray-50 -mx-2 px-2 rounded"
                 >
                   <div className="flex items-center gap-2">
@@ -425,7 +425,7 @@ export default function StocksDashboard() {
         <DashboardCard
           title="Macro Signals"
           icon="🌍"
-          href="/stocks/macro"
+          href="/markets/macro"
           loading={loading.macro}
         >
           {keyMacroIndicators.length > 0 ? (
@@ -473,7 +473,7 @@ export default function StocksDashboard() {
         <DashboardCard
           title="Recent Research"
           icon="📄"
-          href="/stocks/research"
+          href="/markets/research"
           loading={loading.reports}
         >
           {recentReports.length > 0 ? (
@@ -481,7 +481,7 @@ export default function StocksDashboard() {
               {recentReports.map((report) => (
                 <Link
                   key={report.id}
-                  href={`/stocks/${report.ticker.toLowerCase()}`}
+                  href={`/markets/${report.ticker.toLowerCase()}`}
                   className="block py-1.5 hover:bg-gray-50 -mx-2 px-2 rounded"
                 >
                   <div className="flex items-center gap-2">
@@ -515,28 +515,28 @@ export default function StocksDashboard() {
         <DashboardCard title="Quick Actions" icon="⚡">
           <div className="grid grid-cols-2 gap-2">
             <Link
-              href="/stocks/themes"
+              href="/markets/themes"
               className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <span>🎯</span>
               <span className="text-sm font-medium">Themes</span>
             </Link>
             <Link
-              href="/stocks/sectors"
+              href="/markets/sectors"
               className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <span>📊</span>
               <span className="text-sm font-medium">Sectors</span>
             </Link>
             <Link
-              href="/stocks/macro"
+              href="/markets/macro"
               className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <span>🌍</span>
               <span className="text-sm font-medium">Macro</span>
             </Link>
             <Link
-              href="/stocks/portfolio"
+              href="/markets/portfolio"
               className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <span>💼</span>

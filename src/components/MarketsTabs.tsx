@@ -4,16 +4,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const tabs: Array<{ href: string; label: string; exact?: boolean }> = [
-  { href: "/stocks", label: "Dashboard", exact: true },
-  { href: "/stocks/research", label: "Research" },
-  { href: "/stocks/portfolio", label: "Portfolio" },
-  { href: "/stocks/themes", label: "Themes" },
-  { href: "/stocks/sectors", label: "Sectors" },
-  { href: "/stocks/macro", label: "Macro" },
-  { href: "/stocks/alerts", label: "Alerts" },
+  { href: "/markets", label: "Dashboard", exact: true },
+  { href: "/markets/research", label: "Research" },
+  { href: "/markets/portfolio", label: "Portfolio" },
+  { href: "/markets/themes", label: "Themes" },
+  { href: "/markets/sectors", label: "Sectors" },
+  { href: "/markets/macro", label: "Macro" },
+  { href: "/markets/alerts", label: "Alerts" },
 ];
 
-export function StocksTabs() {
+export function MarketsTabs() {
   const pathname = usePathname();
 
   // Determine active tab based on pathname

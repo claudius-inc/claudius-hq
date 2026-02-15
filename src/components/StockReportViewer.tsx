@@ -55,7 +55,7 @@ export function StockReportViewer({ report }: { report: StockReport }) {
     setIsDeleting(true);
     setShowDeleteDialog(false);
     try {
-      const response = await fetch(`/api/stocks/reports?id=${report.id}`, {
+      const response = await fetch(`/api/markets/reports?id=${report.id}`, {
         method: "DELETE",
       });
       if (response.ok) {
@@ -108,7 +108,7 @@ export function StockReportViewer({ report }: { report: StockReport }) {
       <div className="flex items-start justify-between mb-3 pr-8">
         <div>
           <Link 
-            href={`/stocks/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
+            href={`/markets/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
             className="font-semibold text-gray-900 hover:text-emerald-600 transition-colors"
           >
             {report.title || `Sun Tzu Report: ${report.ticker}`}
@@ -121,7 +121,7 @@ export function StockReportViewer({ report }: { report: StockReport }) {
           </div>
         </div>
         <Link
-          href={`/stocks/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
+          href={`/markets/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
           className="font-mono text-sm font-medium text-emerald-600 hover:text-emerald-700"
         >
           {report.ticker}
@@ -140,7 +140,7 @@ export function StockReportViewer({ report }: { report: StockReport }) {
             {expanded ? "Show less" : "Show more"}
           </button>
           <Link
-            href={`/stocks/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
+            href={`/markets/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
             className="text-sm text-emerald-600 hover:text-emerald-700"
           >
             View full report →

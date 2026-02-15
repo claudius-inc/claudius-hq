@@ -96,7 +96,7 @@ export default async function Dashboard() {
               </div>
             </div>
           </Link>
-          <Link href="/stocks" className="card-hover group">
+          <Link href="/markets" className="card-hover group">
             <div className="flex items-center gap-3">
               <div className="text-2xl">📈</div>
               <div>

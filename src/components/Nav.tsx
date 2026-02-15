@@ -5,7 +5,7 @@ import { MobileMenu } from "./MobileMenu";
 const links = [
   { href: "/projects", label: "Projects" },
   { href: "/ideas", label: "Ideas" },
-  { href: "/stocks", label: "Stocks" },
+  { href: "/markets", label: "Markets" },
 ];
 
 export async function Nav() {
