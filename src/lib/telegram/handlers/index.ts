@@ -2,7 +2,7 @@
 // Consolidated handlers using Drizzle ORM
 
 import { db, portfolioHoldings, themes, themeStocks, stockReports, telegramUsers, watchlist } from "@/db";
-import { eq, desc, like } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
 import { formatPrice, formatPercent, getEmoji, getPeriodKeyboard } from "../utils";
 import type { QuoteResult, TimePeriod, InlineKeyboardButton, ThemesResult, SectorsResult } from "../types";
