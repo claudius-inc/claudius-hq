@@ -26,6 +26,20 @@ interface GoldFlow {
   source: string | null;
 }
 
+interface DxyData {
+  price: number;
+  change: number;
+  changePercent: number;
+}
+
+interface RealYieldsData {
+  value: number;
+  tnx: number;
+  cpi: number;
+  change: number;
+  changePercent: number;
+}
+
 interface GoldData {
   analysis: {
     id: number;
@@ -46,6 +60,8 @@ interface GoldData {
     change: number | null;
     changePercent: number | null;
   } | null;
+  dxy: DxyData | null;
+  realYields: RealYieldsData | null;
   flows: GoldFlow[];
 }
 
@@ -316,6 +332,107 @@ export function GoldContent() {
           </div>
         </div>
       </div>
+
+      {/* Gold Drivers - DXY and Real Yields */}
+      {(data?.dxy || data?.realYields) && (
+        <div className="card p-6 mb-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">📊 Gold Drivers</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* DXY */}
+            <div className={`rounded-lg p-4 border-2 ${
+              data?.dxy 
+                ? (data.dxy.price < 100 || data.dxy.changePercent < 0)
+                  ? "bg-emerald-50 border-emerald-200"
+                  : "bg-red-50 border-red-200"
+                : "bg-gray-50 border-gray-200"
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                  DXY (Dollar Index)
+                </h3>
+                {data?.dxy && (
+                  <span className={`text-lg ${
+                    data.dxy.price < 100 || data.dxy.changePercent < 0 
+                      ? "text-emerald-600" 
+                      : "text-red-600"
+                  }`}>
+                    {data.dxy.price < 100 || data.dxy.changePercent < 0 ? "🟢" : "🔴"}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900">
+                  {data?.dxy?.price?.toFixed(2) || "—"}
+                </span>
+                {data?.dxy && (
+                  <span className={`text-sm font-medium ${
+                    data.dxy.changePercent >= 0 ? "text-red-600" : "text-emerald-600"
+                  }`}>
+                    {data.dxy.changePercent >= 0 ? "↑" : "↓"} {Math.abs(data.dxy.changePercent).toFixed(2)}%
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {data?.dxy 
+                  ? (data.dxy.price < 100 || data.dxy.changePercent < 0)
+                    ? "Supportive — Weaker dollar bullish for gold"
+                    : "Headwind — Strong dollar pressures gold"
+                  : "Inverse correlation with gold"
+                }
+              </p>
+            </div>
+
+            {/* Real Yields */}
+            <div className={`rounded-lg p-4 border-2 ${
+              data?.realYields 
+                ? (data.realYields.value < 1 || data.realYields.change < 0)
+                  ? "bg-emerald-50 border-emerald-200"
+                  : "bg-red-50 border-red-200"
+                : "bg-gray-50 border-gray-200"
+            }`}>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                  Real Yields (10Y−CPI)
+                </h3>
+                {data?.realYields && (
+                  <span className={`text-lg ${
+                    data.realYields.value < 1 || data.realYields.change < 0 
+                      ? "text-emerald-600" 
+                      : "text-red-600"
+                  }`}>
+                    {data.realYields.value < 1 || data.realYields.change < 0 ? "🟢" : "🔴"}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900">
+                  {data?.realYields?.value?.toFixed(2) || "—"}%
+                </span>
+                {data?.realYields && (
+                  <span className={`text-sm font-medium ${
+                    data.realYields.change >= 0 ? "text-red-600" : "text-emerald-600"
+                  }`}>
+                    {data.realYields.change >= 0 ? "↑" : "↓"} {Math.abs(data.realYields.change * 100).toFixed(0)}bp
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {data?.realYields 
+                  ? (data.realYields.value < 1 || data.realYields.change < 0)
+                    ? "Supportive — Lower opportunity cost for gold"
+                    : "Headwind — Higher yields compete with gold"
+                  : "Gold's valuation anchor"
+                }
+              </p>
+              {data?.realYields && (
+                <p className="text-xs text-gray-400 mt-1">
+                  TNX: {data.realYields.tnx.toFixed(2)}% − CPI: {data.realYields.cpi.toFixed(1)}%
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         {/* Key Levels */}
