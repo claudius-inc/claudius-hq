@@ -485,6 +485,26 @@ export default function StocksDashboard() {
           >
             {macroIndicators.length > 0 ? (
               <div className="space-y-4">
+                {/* Legend */}
+                <div className="flex flex-wrap items-center gap-3 text-[10px] pb-2 border-b border-gray-100">
+                  <span className="text-gray-400 font-medium">Legend:</span>
+                  <div className="flex items-center gap-1">
+                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Healthy</span>
+                    <span className="text-gray-400">On target</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Accommodative</span>
+                    <span className="text-gray-400">Supportive</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Elevated</span>
+                    <span className="text-gray-400">Caution</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700">High</span>
+                    <span className="text-gray-400">Stress</span>
+                  </div>
+                </div>
                 {categoryOrder.map((category) => {
                   const indicators = macroByCategory[category];
                   if (!indicators?.length) return null;
@@ -494,7 +514,7 @@ export default function StocksDashboard() {
                         <span>{categoryIcons[category]}</span>
                         {category}
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                         {indicators.map((indicator) => (
                           <div
                             key={indicator.id}
@@ -560,13 +580,13 @@ export default function StocksDashboard() {
               {recentReports.map((report) => (
                 <Link
                   key={report.id}
-                  href={`/markets/${report.ticker.toLowerCase()}`}
+                  href={`/markets/research/${report.ticker.toLowerCase()}`}
                   className="block py-1.5 hover:bg-gray-50 -mx-2 px-2 rounded"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm">{report.ticker}</span>
                     {report.companyName && (
-                      <span className="text-xs text-gray-500 truncate max-w-[150px]">
+                      <span className="text-xs text-gray-500 truncate md:whitespace-normal md:overflow-visible">
                         {report.companyName}
                       </span>
                     )}
