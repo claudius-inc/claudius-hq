@@ -478,7 +478,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                           e.stopPropagation();
                           handleDeleteTheme(theme.id, theme.name);
                         }}
-                        className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        className="p-2 -m-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg touch-manipulation"
                         title="Delete theme"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -596,20 +596,20 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
                                           {formatPercent(stock.performance_3m)}
                                         </td>
                                         <td className="px-4 py-2 text-right">
-                                          <div className="flex items-center justify-end gap-1">
+                                          <div className="flex items-center justify-end gap-0.5">
                                             <button
                                               onClick={() => handleEditStock(theme.id, stock)}
-                                              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                              className="p-2 -m-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg touch-manipulation"
                                               title="Edit"
                                             >
-                                              <Edit2 className="w-3 h-3" />
+                                              <Edit2 className="w-3.5 h-3.5" />
                                             </button>
                                             <button
                                               onClick={() => handleRemoveStock(theme.id, stock.ticker)}
-                                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                              className="p-2 -m-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg touch-manipulation"
                                               title="Remove"
                                             >
-                                              <X className="w-3 h-3" />
+                                              <X className="w-3.5 h-3.5" />
                                             </button>
                                           </div>
                                         </td>

@@ -422,19 +422,19 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
                       )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-0.5">
                         {isEditing ? (
                           <>
                             <button
                               onClick={() => saveEdit(holding.id)}
-                              className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                              className="p-2 -m-1 text-emerald-600 hover:bg-emerald-50 rounded-lg touch-manipulation"
                               title="Save"
                             >
                               <Check className="w-4 h-4" />
                             </button>
                             <button
                               onClick={cancelEdit}
-                              className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                              className="p-2 -m-1 text-gray-400 hover:bg-gray-100 rounded-lg touch-manipulation"
                               title="Cancel"
                             >
                               <X className="w-4 h-4" />
@@ -444,14 +444,14 @@ export function PortfolioTab({ initialHoldings, initialReports }: PortfolioTabPr
                           <>
                             <button
                               onClick={() => startEdit(holding)}
-                              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                              className="p-2 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg touch-manipulation"
                               title="Edit"
                             >
                               <Pencil className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => setDeleteConfirm({ id: holding.id, ticker: holding.ticker })}
-                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                              className="p-2 -m-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg touch-manipulation"
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />
