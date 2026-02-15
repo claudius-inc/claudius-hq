@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { macroInsights } from "@/db/schema";
+import { fetchMacroData } from "@/lib/fetch-macro-data";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_ENDPOINT =
@@ -15,42 +16,19 @@ export async function POST() {
   }
 
   try {
-    // Fetch current macro data
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    const macroRes = await fetch(
-      `${baseUrl}/api/macro`,
-      { cache: "no-store" }
-    );
-
-    if (!macroRes.ok) {
-      return NextResponse.json(
-        { error: "Failed to fetch macro data" },
-        { status: 500 }
-      );
-    }
-
-    const macroData = await macroRes.json();
+    // Fetch current macro data directly (no API self-call)
+    const macroData = await fetchMacroData();
 
     // Build indicator summary for the prompt
     const indicatorSummary = macroData.indicators
-      .filter((ind: { data: unknown }) => ind.data)
-      .map(
-        (ind: {
-          name: string;
-          data: { current: number };
-          unit: string;
-          interpretation?: { label: string; meaning: string };
-          percentile?: number;
-        }) => ({
-          name: ind.name,
-          currentValue: `${ind.data.current}${ind.unit === "%" || ind.unit === "% YoY" ? "%" : ind.unit === "bps" ? " bps" : ""}`,
-          interpretation: ind.interpretation?.label || "N/A",
-          meaning: ind.interpretation?.meaning || "N/A",
-          percentile: ind.percentile ? `${ind.percentile}th percentile` : "N/A",
-        })
-      );
+      .filter((ind) => ind.data)
+      .map((ind) => ({
+        name: ind.name,
+        currentValue: `${ind.data!.current}${ind.unit === "%" || ind.unit === "% YoY" ? "%" : ind.unit === "bps" ? " bps" : ""}`,
+        interpretation: ind.interpretation?.label || "N/A",
+        meaning: ind.interpretation?.meaning || "N/A",
+        percentile: ind.percentile ? `${ind.percentile}th percentile` : "N/A",
+      }));
 
     const prompt = `You are a macro analyst. Analyze the following economic indicators and provide concise, actionable insights for investors.
 
@@ -59,23 +37,26 @@ ${JSON.stringify(indicatorSummary, null, 2)}
 
 Provide your analysis in the following format (use markdown):
 
-## Overall Market Regime
+## 🎯 Market Regime
 (2-3 sentences describing the current macro environment)
 
-## Key Risks
+## ⚠️ Key Risks
 - (bullet point)
 - (bullet point)
 - (bullet point)
 
-## Opportunities
+## 💡 Opportunities
 - (bullet point)
 - (bullet point)
 - (bullet point)
 
-## What to Watch This Week
+## 👀 Watch This Week
 - (bullet point)
 - (bullet point)
 - (bullet point)
+
+## 🔥 Notable
+(One standout observation that connects multiple indicators)
 
 Keep it concise and data-driven. No fluff. Reference specific indicator values when relevant.`;
 
