@@ -30,6 +30,12 @@ const PERIOD_CONFIG: Record<TimePeriod, { label: string }> = {
 };
 
 export async function POST(request: NextRequest) {
+  // Verify Telegram webhook secret token
+  const secretToken = request.headers.get("x-telegram-bot-api-secret-token");
+  if (process.env.TELEGRAM_WEBHOOK_SECRET && secretToken !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const update: TelegramUpdate = await request.json();
     
