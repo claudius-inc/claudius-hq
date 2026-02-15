@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MACRO_INDICATORS } from "@/lib/macro-indicators";
+import { formatDate, formatTimestamp } from "@/lib/format-date";
 import ReactMarkdown from "react-markdown";
 
 // Color coding for interpretation
@@ -149,16 +150,6 @@ export function MacroContent() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -200,7 +191,7 @@ export function MacroContent() {
           )}
           {lastUpdated && status === "live" && (
             <div className="text-xs text-gray-400">
-              Updated: {new Date(lastUpdated).toLocaleString()}
+              Updated: {formatTimestamp(lastUpdated)}
             </div>
           )}
         </div>

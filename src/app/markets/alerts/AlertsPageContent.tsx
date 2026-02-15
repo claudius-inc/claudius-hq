@@ -12,6 +12,7 @@ import {
   X,
   AlertTriangle,
 } from "lucide-react";
+import { formatDate } from "@/lib/format-date";
 
 interface StockAlert {
   id: number;
@@ -91,16 +92,6 @@ export function AlertsPageContent() {
     if (value === null) return "—";
     const sign = value >= 0 ? "+" : "";
     return `${sign}${value.toFixed(2)}%`;
-  };
-
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return "Never";
-    return new Date(dateStr).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
   };
 
   const getZoneStatus = (alert: StockAlert) => {

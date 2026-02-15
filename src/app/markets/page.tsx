@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
+import { formatDate } from "@/lib/format-date";
 
 // Types
 interface Position {
@@ -231,7 +232,7 @@ function QuickResearchForm() {
 }
 
 // Sentiment level color helpers
-function getSentimentColor(level: string | null): string {
+function getSentimentColor(level: string | null | undefined): string {
   switch (level) {
     case "low":
     case "greedy":
@@ -248,7 +249,7 @@ function getSentimentColor(level: string | null): string {
   }
 }
 
-function getSentimentBgColor(level: string | null): string {
+function getSentimentBgColor(level: string | null | undefined): string {
   switch (level) {
     case "low":
     case "greedy":
@@ -265,7 +266,7 @@ function getSentimentBgColor(level: string | null): string {
   }
 }
 
-function formatSentimentLevel(level: string | null): string {
+function formatSentimentLevel(level: string | null | undefined): string {
   if (!level) return "—";
   return level.charAt(0).toUpperCase() + level.slice(1);
 }
@@ -395,7 +396,7 @@ export default function StocksDashboard() {
               <span className={`text-lg font-bold ${getSentimentColor(sentimentData?.vix.level)}`}>
                 {sentimentData?.vix.value?.toFixed(1) ?? "—"}
               </span>
-              {sentimentData?.vix.change !== null && (
+              {sentimentData?.vix?.change != null && (
                 <span className={`text-xs ${sentimentData.vix.change >= 0 ? "text-red-500" : "text-green-500"}`}>
                   ({sentimentData.vix.change >= 0 ? "+" : ""}{sentimentData.vix.change.toFixed(1)})
                 </span>
@@ -642,10 +643,7 @@ export default function StocksDashboard() {
                     )}
                   </div>
                   <div className="text-xs text-gray-400">
-                    {new Date(report.createdAt).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                    })}
+                    {formatDate(report.createdAt, { style: 'date-only' })}
                   </div>
                 </Link>
               ))}

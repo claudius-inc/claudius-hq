@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { marked } from "marked";
+import { formatDate } from "@/lib/format-date";
 
 interface KeyLevel {
   level: number;
@@ -735,7 +736,7 @@ export function GoldContent() {
       {/* Last Updated */}
       {data?.analysis?.updatedAt && (
         <div className="text-center text-xs text-gray-400 mt-6">
-          Analysis updated: {new Date(data.analysis.updatedAt).toLocaleString()}
+          Analysis updated: {formatDate(data.analysis.updatedAt)}
         </div>
       )}
     </>
