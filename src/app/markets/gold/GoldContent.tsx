@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { marked } from "marked";
 
 interface KeyLevel {
   level: number;
@@ -565,9 +566,10 @@ export function GoldContent() {
             placeholder="Your gold thesis in markdown..."
           />
         ) : thesisNotes ? (
-          <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">
-            {thesisNotes}
-          </div>
+          <div 
+            className="prose prose-sm max-w-none text-gray-700"
+            dangerouslySetInnerHTML={{ __html: marked(thesisNotes) as string }}
+          />
         ) : (
           <p className="text-gray-400 text-sm">No thesis notes. Click Edit to add.</p>
         )}
