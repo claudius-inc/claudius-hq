@@ -3,17 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
-
-type ResearchJob = {
-  id: string;
-  ticker: string;
-  status: "pending" | "processing" | "complete" | "failed";
-  progress: number | null;
-  errorMessage: string | null;
-  reportId: number | null;
-  createdAt: string | null;
-  updatedAt: string | null;
-};
+import type { ResearchJob } from "@/db/schema";
 
 interface ResearchJobsProps {
   initialJobs: ResearchJob[];

@@ -6,23 +6,13 @@ import { ResearchForm } from "@/components/ResearchForm";
 import { ResearchJobs } from "@/components/ResearchJobs";
 import { StockFilters } from "@/components/StockFilters";
 import { Skeleton } from "@/components/Skeleton";
+import type { ResearchJob } from "@/db/schema";
 
 export const metadata: Metadata = {
   title: "Research | Stocks",
 };
 
 export const revalidate = 60;
-
-type ResearchJob = {
-  id: string;
-  ticker: string;
-  status: "pending" | "processing" | "complete" | "failed";
-  progress: number;
-  error_message: string | null;
-  report_id: number | null;
-  created_at: string;
-  updated_at: string;
-};
 
 async function getReports(): Promise<StockReport[]> {
   try {
