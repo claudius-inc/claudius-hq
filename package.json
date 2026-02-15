@@ -12,7 +12,8 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --fix"
+      "eslint --fix",
+      "tsc-files --noEmit"
     ]
   },
   "dependencies": {
@@ -42,6 +43,7 @@
     "lint-staged": "^16.2.7",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsc-files": "^1.1.4",
     "typescript": "^5"
   }
 }
