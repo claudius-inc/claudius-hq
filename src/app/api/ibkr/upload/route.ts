@@ -6,6 +6,8 @@ import { getHistoricalFxRates, getFxRateFromCache } from '@/lib/historical-fx';
 
 export const runtime = 'nodejs';
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -13,6 +15,11 @@ export async function POST(request: NextRequest) {
     
     if (!file) {
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
+
+    // Security: limit file size
+    if (file.size > MAX_FILE_SIZE) {
+      return NextResponse.json({ error: 'File too large (max 10MB)' }, { status: 400 });
     }
 
     // Read file buffer

@@ -2,7 +2,8 @@ import { cookies } from "next/headers";
 import { NextRequest } from "next/server";
 
 const SESSION_COOKIE = "hq_session";
-const SESSION_VALUE = "authenticated";
+// Use env secret or fallback (should be set in production)
+const SESSION_VALUE = process.env.HQ_SESSION_SECRET || "authenticated";
 
 export async function isAuthenticated(): Promise<boolean> {
   const cookieStore = await cookies();

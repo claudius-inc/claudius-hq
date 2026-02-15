@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+// Use env secret or fallback (should be set in production)
+const SESSION_VALUE = process.env.HQ_SESSION_SECRET || "authenticated";
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -17,7 +20,7 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith("/api/")) {
     const apiKey = request.headers.get("x-api-key") || request.headers.get("authorization")?.replace("Bearer ", "");
     const session = request.cookies.get("hq_session");
-    if (apiKey !== process.env.HQ_API_KEY && session?.value !== "authenticated") {
+    if (apiKey !== process.env.HQ_API_KEY && session?.value !== SESSION_VALUE) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.next();
@@ -35,7 +38,7 @@ export function middleware(request: NextRequest) {
 
   // All other pages: check session cookie
   const session = request.cookies.get("hq_session");
-  if (session?.value !== "authenticated") {
+  if (session?.value !== SESSION_VALUE) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
