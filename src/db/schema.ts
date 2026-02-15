@@ -163,6 +163,27 @@ export const themeStocks = sqliteTable("theme_stocks", {
 });
 
 // ============================================================================
+// Stock Alerts
+// ============================================================================
+
+export const ALERT_STATUSES = ["watching", "triggered", "paused"] as const;
+export type AlertStatus = (typeof ALERT_STATUSES)[number];
+
+export const stockAlerts = sqliteTable("stock_alerts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ticker: text("ticker").notNull(),
+  accumulateLow: real("accumulate_low"),
+  accumulateHigh: real("accumulate_high"),
+  strongBuyLow: real("strong_buy_low"),
+  strongBuyHigh: real("strong_buy_high"),
+  status: text("status").default("watching"),
+  lastTriggered: text("last_triggered"),
+  notes: text("notes"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+// ============================================================================
 // Telegram Bot
 // ============================================================================
 
@@ -322,3 +343,6 @@ export type NewIbkrPosition = typeof ibkrPositions.$inferInsert;
 
 export type IbkrPortfolioMeta = typeof ibkrPortfolioMeta.$inferSelect;
 export type NewIbkrPortfolioMeta = typeof ibkrPortfolioMeta.$inferInsert;
+
+export type StockAlert = typeof stockAlerts.$inferSelect;
+export type NewStockAlert = typeof stockAlerts.$inferInsert;
