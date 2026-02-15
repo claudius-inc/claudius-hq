@@ -4,7 +4,7 @@ export interface MacroIndicator {
   id: string;
   name: string;
   fredCode: string;
-  category: "rates" | "inflation" | "employment" | "growth" | "sentiment" | "credit";
+  category: "rates" | "inflation" | "employment" | "growth" | "sentiment" | "credit" | "fx" | "foreign-yields";
   unit: string;
   frequency: "daily" | "weekly" | "monthly" | "quarterly";
   
@@ -246,6 +246,116 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
       { level: 800, significance: "Crisis levels (2008, 2020)" },
     ],
     affectedAssets: ["High yield bonds", "Leveraged companies", "Banks", "Risk assets broadly"],
+  },
+
+  // === FX RATES ===
+  {
+    id: "usdjpy",
+    name: "USD/JPY",
+    fredCode: "DEXJPUS",
+    category: "fx",
+    unit: "",
+    frequency: "daily",
+    description: "US Dollar to Japanese Yen exchange rate. Key currency pair reflecting relative monetary policy and risk appetite.",
+    whyItMatters: "USD/JPY is a 'risk barometer' - rises during risk-on (Yen weakens) and falls during risk-off (Yen strengthens). Also critical for carry trade dynamics where investors borrow cheap Yen to invest in higher-yielding USD assets.",
+    ranges: [
+      { label: "Yen Strength", min: null, max: 120, meaning: "Strong Yen, risk-off or BoJ tightening", marketImpact: "Japanese exporters hurt, carry trades unwinding" },
+      { label: "Balanced", min: 120, max: 140, meaning: "Historical normal range", marketImpact: "Stable environment for cross-border flows" },
+      { label: "Yen Weakness", min: 140, max: 155, meaning: "Weak Yen, divergent monetary policy", marketImpact: "Carry trades attractive, Japanese imports expensive" },
+      { label: "Extreme Weakness", min: 155, max: null, meaning: "BoJ intervention risk", marketImpact: "Watch for BoJ action, volatility risk" },
+    ],
+    keyLevels: [
+      { level: 150, significance: "Psychological level, past intervention zone" },
+      { level: 160, significance: "Multi-decade high, intervention highly likely" },
+    ],
+    affectedAssets: ["Japanese exporters", "Carry trades", "EM currencies", "US multinationals"],
+  },
+  {
+    id: "eurusd",
+    name: "EUR/USD",
+    fredCode: "DEXUSEU",
+    category: "fx",
+    unit: "",
+    frequency: "daily",
+    description: "Euro to US Dollar exchange rate. The most traded currency pair globally.",
+    whyItMatters: "EUR/USD reflects relative economic strength and monetary policy between the two largest economies. A strong Euro helps US exporters but hurts European competitiveness.",
+    ranges: [
+      { label: "Dollar Strength", min: null, max: 1.05, meaning: "Strong USD, weak Euro", marketImpact: "US multinationals hurt, European exporters benefit" },
+      { label: "Balanced", min: 1.05, max: 1.15, meaning: "Normal trading range", marketImpact: "Stable cross-Atlantic trade conditions" },
+      { label: "Euro Strength", min: 1.15, max: 1.25, meaning: "Strong Euro vs Dollar", marketImpact: "European imports cheaper, US exporters benefit" },
+      { label: "Extreme Euro Strength", min: 1.25, max: null, meaning: "ECB may push back", marketImpact: "European competitiveness concerns" },
+    ],
+    keyLevels: [
+      { level: 1.00, significance: "Parity - major psychological level" },
+      { level: 1.10, significance: "Key technical level" },
+    ],
+    affectedAssets: ["European exporters", "US multinationals", "Commodities (inverse to USD)"],
+  },
+  {
+    id: "dxy",
+    name: "DXY Index",
+    fredCode: "DTWEXBGS",
+    category: "fx",
+    unit: "",
+    frequency: "daily",
+    description: "Trade-weighted US Dollar Index measuring USD strength against a basket of major currencies.",
+    whyItMatters: "The DXY is THE measure of USD strength. A strong dollar is a headwind for EM economies (dollar-denominated debt), commodities (priced in USD), and US multinationals (translation effects).",
+    ranges: [
+      { label: "Weak Dollar", min: null, max: 100, meaning: "USD weakness vs majors", marketImpact: "Tailwind for EM, commodities, US exporters" },
+      { label: "Neutral", min: 100, max: 105, meaning: "Balanced conditions", marketImpact: "Mixed, fundamentals matter more" },
+      { label: "Strong Dollar", min: 105, max: 115, meaning: "USD strength pressuring global assets", marketImpact: "Headwind for EM, commodities; supports US importers" },
+      { label: "Very Strong Dollar", min: 115, max: null, meaning: "Global financial stress risk", marketImpact: "EM debt concerns, commodity crash risk" },
+    ],
+    keyLevels: [
+      { level: 100, significance: "Psychological level, weak/strong threshold" },
+      { level: 105, significance: "Strong dollar zone begins" },
+      { level: 110, significance: "2022 highs, stress levels" },
+    ],
+    affectedAssets: ["Emerging markets", "Commodities", "Gold (inverse)", "US multinationals"],
+  },
+
+  // === FOREIGN YIELDS (for carry trade detection) ===
+  {
+    id: "japan-10y",
+    name: "Japan 10Y Yield",
+    fredCode: "IRLTLT01JPM156N",
+    category: "foreign-yields",
+    unit: "%",
+    frequency: "monthly",
+    description: "Japanese 10-year government bond yield. Historically near zero due to BoJ yield curve control.",
+    whyItMatters: "Japan's ultra-low rates make Yen the funding currency for global carry trades. When Japanese yields rise, carry trades unwind violently, causing global risk-off moves.",
+    ranges: [
+      { label: "YCC Zone", min: null, max: 0.5, meaning: "BoJ yield curve control active", marketImpact: "Carry trades stable, Yen funding cheap" },
+      { label: "Transition", min: 0.5, max: 1.0, meaning: "BoJ loosening YCC", marketImpact: "Carry trade uncertainty, watch for Yen strength" },
+      { label: "Normalization", min: 1.0, max: 2.0, meaning: "Japan normalizing policy", marketImpact: "Major carry trade unwind risk, Yen appreciation" },
+      { label: "Elevated", min: 2.0, max: null, meaning: "Japan fully normalized", marketImpact: "Fundamental shift in global capital flows" },
+    ],
+    keyLevels: [
+      { level: 0.5, significance: "Former YCC ceiling" },
+      { level: 1.0, significance: "Key psychological level for normalization" },
+    ],
+    affectedAssets: ["Carry trades", "Japanese banks", "Global risk assets", "Yen"],
+  },
+  {
+    id: "germany-10y",
+    name: "Germany 10Y Yield",
+    fredCode: "IRLTLT01DEM156N",
+    category: "foreign-yields",
+    unit: "%",
+    frequency: "monthly",
+    description: "German 10-year Bund yield. The benchmark 'risk-free' rate for Europe.",
+    whyItMatters: "German Bunds are Europe's safe haven. The spread between US and German yields affects EUR/USD and capital flows. Negative yields (pre-2022) forced European capital into US assets.",
+    ranges: [
+      { label: "Negative/ZIRP", min: null, max: 0.5, meaning: "Crisis or deflation mode", marketImpact: "Capital flight to US, EUR weakness" },
+      { label: "Low", min: 0.5, max: 2.0, meaning: "Accommodative ECB policy", marketImpact: "Search for yield, supportive for risk" },
+      { label: "Moderate", min: 2.0, max: 3.5, meaning: "ECB normalization", marketImpact: "EUR may strengthen, rebalancing flows" },
+      { label: "Elevated", min: 3.5, max: null, meaning: "Tight ECB policy", marketImpact: "European growth concerns, risk-off" },
+    ],
+    keyLevels: [
+      { level: 0, significance: "Zero boundary - historically significant" },
+      { level: 2.5, significance: "Pre-crisis normal levels" },
+    ],
+    affectedAssets: ["European equities", "EUR/USD", "European banks", "Periphery spreads"],
   },
 ];
 

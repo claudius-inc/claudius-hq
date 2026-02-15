@@ -14,6 +14,7 @@ function getStatusColor(label: string): string {
     "Normal": "bg-emerald-100 text-emerald-700",
     "Full Employment": "bg-emerald-100 text-emerald-700",
     "Expansion": "bg-emerald-100 text-emerald-700",
+    "Balanced": "bg-emerald-100 text-emerald-700",
     "Accommodative": "bg-blue-100 text-blue-700",
     "Neutral": "bg-gray-100 text-gray-700",
     "Moderate": "bg-gray-100 text-gray-700",
@@ -39,8 +40,54 @@ function getStatusColor(label: string): string {
     "Extremely Low": "bg-blue-100 text-blue-700",
     "Very Low": "bg-blue-100 text-blue-700",
     "Very Tight": "bg-amber-100 text-amber-700",
+    // FX-specific labels
+    "Yen Strength": "bg-blue-100 text-blue-700",
+    "Yen Weakness": "bg-amber-100 text-amber-700",
+    "Extreme Weakness": "bg-red-100 text-red-700",
+    "Dollar Strength": "bg-amber-100 text-amber-700",
+    "Euro Strength": "bg-blue-100 text-blue-700",
+    "Extreme Euro Strength": "bg-amber-100 text-amber-700",
+    "Weak Dollar": "bg-emerald-100 text-emerald-700",
+    "Strong Dollar": "bg-amber-100 text-amber-700",
+    "Very Strong Dollar": "bg-red-100 text-red-700",
+    // Foreign yields labels
+    "YCC Zone": "bg-blue-100 text-blue-700",
+    "Transition": "bg-amber-100 text-amber-700",
+    "Normalization": "bg-amber-100 text-amber-700",
+    "Negative/ZIRP": "bg-purple-100 text-purple-700",
   };
   return colors[label] || "bg-gray-100 text-gray-700";
+}
+
+// Get trend indicator for FX rates
+function getTrendArrow(current: number, avg: number): { arrow: string; color: string } {
+  const pctChange = ((current - avg) / avg) * 100;
+  if (pctChange > 2) return { arrow: "↑", color: "text-emerald-600" };
+  if (pctChange < -2) return { arrow: "↓", color: "text-red-600" };
+  return { arrow: "→", color: "text-gray-500" };
+}
+
+// Interpret DXY levels
+function getDxyInterpretation(value: number): { label: string; description: string; color: string } {
+  if (value > 105) {
+    return { 
+      label: "Strong Dollar", 
+      description: "Headwind for EM & commodities",
+      color: "text-amber-600"
+    };
+  }
+  if (value >= 100) {
+    return { 
+      label: "Neutral", 
+      description: "Balanced conditions",
+      color: "text-gray-600"
+    };
+  }
+  return { 
+    label: "Weak Dollar", 
+    description: "Tailwind for EM & commodities",
+    color: "text-emerald-600"
+  };
 }
 
 const categoryIcons: Record<string, string> = {
@@ -50,6 +97,8 @@ const categoryIcons: Record<string, string> = {
   growth: "🏭",
   sentiment: "🎭",
   credit: "💳",
+  fx: "💱",
+  "foreign-yields": "🌍",
 };
 
 const categoryLabels: Record<string, string> = {
@@ -59,6 +108,8 @@ const categoryLabels: Record<string, string> = {
   growth: "Economic Growth",
   sentiment: "Sentiment",
   credit: "Credit Markets",
+  fx: "FX Rates",
+  "foreign-yields": "Foreign Yields",
 };
 
 interface MacroIndicator {
@@ -82,11 +133,19 @@ interface InsightsData {
   indicatorSnapshot: unknown;
 }
 
+interface YieldSpread {
+  name: string;
+  value: number | null;
+  interpretation: string;
+  color: "green" | "amber" | "gray";
+}
+
 export function MacroContent() {
   const [indicators, setIndicators] = useState<MacroIndicator[]>([]);
   const [status, setStatus] = useState<string>("loading");
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [yieldSpreads, setYieldSpreads] = useState<YieldSpread[]>([]);
   
   // AI Insights state
   const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
@@ -106,6 +165,7 @@ export function MacroContent() {
           setIndicators(data.indicators || []);
           setStatus(data.status || "offline");
           setLastUpdated(data.lastUpdated || null);
+          setYieldSpreads(data.yieldSpreads || []);
         }
         
         if (insightsRes.ok) {
@@ -171,7 +231,7 @@ export function MacroContent() {
     return acc;
   }, {});
 
-  const categoryOrder = ["rates", "inflation", "employment", "growth", "credit"];
+  const categoryOrder = ["rates", "inflation", "employment", "growth", "credit", "fx", "foreign-yields"];
 
   return (
     <>
@@ -284,19 +344,33 @@ export function MacroContent() {
                     <div className="text-right flex-shrink-0">
                       {indicator.data ? (
                         <>
-                          <div className="text-2xl font-bold text-gray-900">
+                          <div className="text-2xl font-bold text-gray-900 flex items-center justify-end gap-2">
                             {typeof indicator.data.current === 'number' 
                               ? indicator.data.current.toLocaleString(undefined, { maximumFractionDigits: 2 })
                               : indicator.data.current}
                             {indicator.unit === "%" || indicator.unit === "% YoY" ? "%" : ""}
                             {indicator.unit === "bps" && " bps"}
                             {indicator.unit === "thousands" && "K"}
+                            {/* Trend arrow for FX indicators */}
+                            {indicator.category === "fx" && (() => {
+                              const trend = getTrendArrow(indicator.data!.current, indicator.data!.avg);
+                              return <span className={`text-lg ${trend.color}`}>{trend.arrow}</span>;
+                            })()}
                           </div>
                           {indicator.interpretation && (
                             <span className={`inline-block mt-1 text-xs px-2 py-0.5 rounded-full ${getStatusColor(indicator.interpretation.label)}`}>
                               {indicator.interpretation.label}
                             </span>
                           )}
+                          {/* DXY special interpretation */}
+                          {indicator.id === "dxy" && (() => {
+                            const dxyInfo = getDxyInterpretation(indicator.data!.current);
+                            return (
+                              <div className={`text-xs mt-1 ${dxyInfo.color}`}>
+                                {dxyInfo.description}
+                              </div>
+                            );
+                          })()}
                           {indicator.percentile !== null && (
                             <div className="text-xs text-gray-400 mt-1">
                               {indicator.percentile}th percentile (5yr)
@@ -401,6 +475,62 @@ export function MacroContent() {
           </div>
         );
       })}
+
+      {/* Yield Spreads Section */}
+      {yieldSpreads.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <span>📊</span>
+            Yield Spreads (Carry Trade Signals)
+          </h2>
+          <div className="card p-5">
+            <p className="text-sm text-gray-600 mb-4">
+              Yield spreads measure the difference between US Treasury yields and foreign government bonds. 
+              Higher spreads attract capital to USD-denominated assets and make carry trades more attractive.
+            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {yieldSpreads.map((spread) => {
+                const colorClasses = {
+                  green: "bg-emerald-100 text-emerald-700 border-emerald-300",
+                  amber: "bg-amber-100 text-amber-700 border-amber-300",
+                  gray: "bg-gray-100 text-gray-600 border-gray-300",
+                };
+                return (
+                  <div key={spread.name} className={`p-4 rounded-lg border ${colorClasses[spread.color]}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{spread.name}</span>
+                      <span className="text-2xl font-bold">
+                        {spread.value !== null ? `${spread.value}%` : "N/A"}
+                      </span>
+                    </div>
+                    <div className="mt-2 text-sm font-medium">
+                      {spread.color === "green" && "🟢 "}
+                      {spread.color === "amber" && "🟡 "}
+                      {spread.color === "gray" && "⚪ "}
+                      {spread.interpretation}
+                    </div>
+                    <p className="text-xs mt-2 opacity-80">
+                      {spread.name === "US-Japan Spread" 
+                        ? "Yen carry trade attractiveness. Higher = more capital flows to USD."
+                        : "EUR carry trade attractiveness. Reflects US-Europe policy divergence."}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                How to Read
+              </h4>
+              <div className="flex flex-wrap gap-3 text-xs">
+                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded">&gt;3% = Attractive Carry</span>
+                <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded">2-3% = Moderate Carry</span>
+                <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded">&lt;2% = Unattractive</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Data Sources */}
       <div className="card p-4 mt-8">
