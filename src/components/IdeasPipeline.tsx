@@ -4,6 +4,7 @@ import { Idea, IdeaStatus } from "@/lib/types";
 import { EmptyState } from "@/components/EmptyState";
 import { useState } from "react";
 import { IdeaForm } from "@/components/IdeaForm";
+import { Lightbulb, MapPin } from "lucide-react";
 
 const statusColumns: { key: IdeaStatus; label: string; color: string }[] = [
   { key: "new", label: "New", color: "bg-blue-100 text-blue-700" },
@@ -43,7 +44,7 @@ export function IdeasPipeline({ ideas }: { ideas: Idea[] }) {
   if (ideas.length === 0) {
     return (
       <EmptyState
-        icon="💡"
+        icon={<Lightbulb className="w-8 h-8" />}
         title="No ideas yet"
         description="Click &quot;Add New Idea&quot; above to start building your pipeline."
       />
@@ -191,7 +192,7 @@ function IdeaCard({ idea, onEdit }: { idea: Idea; onEdit: (id: number) => void }
         </div>
       )}
       {idea.source && (
-        <p className="text-xs text-gray-400 mt-2">📍 {idea.source}</p>
+        <p className="text-xs text-gray-400 mt-2 inline-flex items-center gap-1"><MapPin className="w-3 h-3" /> {idea.source}</p>
       )}
     </div>
   );
