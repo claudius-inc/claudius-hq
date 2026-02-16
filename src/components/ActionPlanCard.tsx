@@ -54,7 +54,7 @@ export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, de
     <div className="card mb-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
           <ClipboardList className="w-5 h-5" /> Action Plan
         </h2>
         {researchCount > 0 && (

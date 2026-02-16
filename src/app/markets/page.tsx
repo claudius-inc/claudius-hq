@@ -386,7 +386,7 @@ export default function StocksDashboard() {
                   <div
                     className={`text-lg font-semibold ${
                       portfolioData.summary.dayPnl >= 0
-                        ? "text-green-600"
+                        ? "text-emerald-600"
                         : "text-red-600"
                     }`}
                   >
@@ -401,7 +401,7 @@ export default function StocksDashboard() {
                   <div
                     className={`text-lg font-semibold ${
                       portfolioData.summary.totalUnrealizedPnl >= 0
-                        ? "text-green-600"
+                        ? "text-emerald-600"
                         : "text-red-600"
                     }`}
                   >
@@ -459,7 +459,7 @@ export default function StocksDashboard() {
                           {sentimentData?.vix.value?.toFixed(1) ?? "—"}
                         </span>
                         {sentimentData?.vix?.change != null && (
-                          <span className={`text-[10px] ${sentimentData.vix.change >= 0 ? "text-red-500" : "text-green-500"}`}>
+                          <span className={`text-[10px] ${sentimentData.vix.change >= 0 ? "text-red-500" : "text-emerald-600"}`}>
                             {sentimentData.vix.change >= 0 ? "+" : ""}{sentimentData.vix.change.toFixed(1)}
                           </span>
                         )}

@@ -120,7 +120,7 @@ export function AnalystsPageContent() {
 
       {/* Analyst Cards */}
       <section>
-        <h2 className="text-lg font-semibold text-gray-800 mb-4">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Tracked Analysts
         </h2>
         {analysts.length === 0 ? (
@@ -157,7 +157,7 @@ export function AnalystsPageContent() {
       {/* Recent Calls Table */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-800">Recent Calls</h2>
+          <h2 className="text-lg font-semibold text-gray-900">Recent Calls</h2>
           <AnalystFilters
             analysts={analysts}
             filterAnalyst={filterAnalyst}

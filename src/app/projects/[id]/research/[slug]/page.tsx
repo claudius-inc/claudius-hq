@@ -77,7 +77,7 @@ export default async function ResearchPageDetail({ params }: { params: { id: str
             prose-h3:text-lg prose-h3:mt-6
             prose-p:text-gray-600 prose-p:leading-relaxed
             prose-a:text-emerald-600 prose-a:no-underline hover:prose-a:underline
-            prose-strong:text-gray-800
+            prose-strong:text-gray-900
             prose-blockquote:border-emerald-200 prose-blockquote:bg-emerald-50/50 prose-blockquote:rounded-r-lg prose-blockquote:py-1 prose-blockquote:text-gray-600
             prose-code:text-emerald-700 prose-code:bg-gray-100 prose-code:rounded prose-code:px-1.5 prose-code:py-0.5 prose-code:text-sm prose-code:before:content-none prose-code:after:content-none
             prose-pre:bg-gray-900 prose-pre:rounded-lg

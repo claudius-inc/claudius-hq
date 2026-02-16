@@ -235,7 +235,7 @@ export default function IBKRPortfolio() {
             </label>
             
             {uploadResult && (
-              <div className={`p-3 rounded-lg text-sm ${uploadResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+              <div className={`p-3 rounded-lg text-sm ${uploadResult.success ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                 {uploadResult.message}
               </div>
             )}
@@ -263,19 +263,19 @@ export default function IBKRPortfolio() {
             </div>
             <div>
               <div className="text-sm text-gray-500">Day P&L</div>
-              <div className={`text-xl font-semibold ${summary.dayPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`text-xl font-semibold ${summary.dayPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {formatCurrency(summary.dayPnl, baseCurrency)} ({formatPct(summary.dayPnlPct)})
               </div>
             </div>
             <div>
               <div className="text-sm text-gray-500">Unrealized P&L</div>
-              <div className={`text-xl font-semibold ${summary.totalUnrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`text-xl font-semibold ${summary.totalUnrealizedPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {formatCurrency(summary.totalUnrealizedPnl, baseCurrency)} ({formatPct(summary.totalUnrealizedPnlPct)})
               </div>
             </div>
             <div>
               <div className="text-sm text-gray-500">Realized P&L</div>
-              <div className={`text-xl font-semibold ${summary.totalRealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`text-xl font-semibold ${summary.totalRealizedPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {formatCurrency(summary.totalRealizedPnl, baseCurrency)}
               </div>
             </div>
@@ -386,7 +386,7 @@ export default function IBKRPortfolio() {
                       <td className="px-4 py-3 text-right">{pos.quantity.toFixed(2)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(pos.avgCost, displayCurrency)}</td>
                       <td className="px-4 py-3 text-right">{formatCurrency(pos.currentPrice, displayCurrency)}</td>
-                      <td className={`px-4 py-3 text-right ${pos.dayChangePct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <td className={`px-4 py-3 text-right ${pos.dayChangePct >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         <div className="flex items-center justify-end gap-1">
                           {pos.dayChangePct >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                           {formatPct(pos.dayChangePct)}
@@ -402,7 +402,7 @@ export default function IBKRPortfolio() {
                           <div>{formatCurrency(pos.marketValue, displayCurrency)}</div>
                         )}
                       </td>
-                      <td className={`px-4 py-3 text-right font-medium ${pos.unrealizedPnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <td className={`px-4 py-3 text-right font-medium ${pos.unrealizedPnl >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {isNonBase && pos.unrealizedPnlBase ? (
                           <>
                             <div>{formatCurrency(pos.unrealizedPnlBase, baseCurrency)}</div>
@@ -414,7 +414,7 @@ export default function IBKRPortfolio() {
                           <div>{formatCurrency(pos.unrealizedPnl, displayCurrency)}</div>
                         )}
                       </td>
-                      <td className={`px-4 py-3 text-right ${(isNonBase ? (pos.unrealizedPnlBasePct ?? 0) : pos.unrealizedPnlPct) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <td className={`px-4 py-3 text-right ${(isNonBase ? (pos.unrealizedPnlBasePct ?? 0) : pos.unrealizedPnlPct) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                         {formatPct(isNonBase && pos.unrealizedPnlBasePct !== undefined ? pos.unrealizedPnlBasePct : pos.unrealizedPnlPct)}
                       </td>
                     </tr>
@@ -454,7 +454,7 @@ export default function IBKRPortfolio() {
                       <td className="px-4 py-3 font-medium">{trade.symbol}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          trade.action === 'BUY' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          trade.action === 'BUY' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                         }`}>
                           {trade.action}
                         </span>

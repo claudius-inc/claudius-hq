@@ -23,8 +23,8 @@ const potentialColors: Record<string, string> = {
 };
 
 const effortColors: Record<string, string> = {
-  tiny: "bg-green-50 text-green-600",
-  small: "bg-green-50 text-green-600",
+  tiny: "bg-emerald-50 text-emerald-600",
+  small: "bg-emerald-50 text-emerald-600",
   medium: "bg-yellow-50 text-yellow-600",
   large: "bg-orange-50 text-orange-600",
   huge: "bg-red-50 text-red-600",

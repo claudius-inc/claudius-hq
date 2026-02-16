@@ -261,7 +261,7 @@ export function MacroContent() {
       {/* AI Insights Section */}
       <div className="card mb-6 p-5 border-l-4 border-blue-500">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
             AI Market Insights
           </h2>
           <div className="flex items-center gap-3">
@@ -297,7 +297,7 @@ export function MacroContent() {
             <span>Analyzing macro indicators...</span>
           </div>
         ) : insightsData?.insights ? (
-          <div className="prose prose-sm max-w-none prose-headings:text-gray-800 prose-headings:font-semibold prose-h2:text-base prose-h2:mt-4 prose-h2:mb-2 prose-ul:my-2 prose-li:my-0.5">
+          <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-headings:font-semibold prose-h2:text-base prose-h2:mt-4 prose-h2:mb-2 prose-ul:my-2 prose-li:my-0.5">
             <ReactMarkdown>{insightsData.insights}</ReactMarkdown>
           </div>
         ) : (
@@ -326,7 +326,7 @@ export function MacroContent() {
 
         return (
           <div key={category} className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <span className="flex items-center">{categoryIcons[category]}</span>
               {categoryLabels[category]}
             </h2>
@@ -480,7 +480,7 @@ export function MacroContent() {
       {/* Yield Spreads Section */}
       {yieldSpreads.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             Yield Spreads (Carry Trade Signals)
           </h2>
           <div className="card p-5">

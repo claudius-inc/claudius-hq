@@ -27,7 +27,7 @@ const INVESTOR_INFO: Record<string, { philosophy: string; color: string }> = {
   },
   "Peter Lynch": {
     philosophy: "GARP, invest in what you know, PEG ratios",
-    color: "border-green-200 bg-green-50",
+    color: "border-green-200 bg-emerald-50",
   },
   "Ray Dalio": {
     philosophy: "Macro risks, correlation, diversification",
@@ -75,7 +75,7 @@ function InvestorCard({ critique }: { critique: InvestorCritique }) {
           <div className="flex gap-4 text-xs">
             {critique.wouldOwn.length > 0 && (
               <div>
-                <span className="font-medium text-green-700">Would own: </span>
+                <span className="font-medium text-emerald-700">Would own: </span>
                 <span className="text-gray-600">{critique.wouldOwn.join(", ")}</span>
               </div>
             )}

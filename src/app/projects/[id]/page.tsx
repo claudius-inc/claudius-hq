@@ -98,7 +98,7 @@ export default async function ProjectOverviewPage({ params }: { params: { id: st
       {/* Target Audience */}
       {project.target_audience && (
         <div className="card mb-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Target className="w-5 h-5 text-gray-500" /> Target Audience
           </h2>
           <p className="text-gray-700 whitespace-pre-wrap">{project.target_audience}</p>
@@ -108,7 +108,7 @@ export default async function ProjectOverviewPage({ params }: { params: { id: st
       {/* Project Details Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Project Details</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Project Details</h2>
           <dl className="space-y-3">
             <div>
               <dt className="text-xs text-gray-400 uppercase tracking-wide">Status</dt>
@@ -150,7 +150,7 @@ export default async function ProjectOverviewPage({ params }: { params: { id: st
         </div>
 
         <div className="card">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Build Status</h2>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Build Status</h2>
           {project.repo_url ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">

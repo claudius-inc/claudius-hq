@@ -43,7 +43,7 @@ export function AlertCard({
         <div className="font-medium">{formatPrice(alert.currentPrice)}</div>
         <div
           className={`text-xs ${
-            (alert.dayChange ?? 0) >= 0 ? "text-green-600" : "text-red-600"
+            (alert.dayChange ?? 0) >= 0 ? "text-emerald-600" : "text-red-600"
           }`}
         >
           {formatPct(alert.dayChange)}

@@ -98,7 +98,7 @@ export function AnalystTable({ calls, onEdit, onDelete }: AnalystTableProps) {
                     {ret !== null ? (
                       <span
                         className={`flex items-center justify-end gap-1 ${
-                          ret >= 0 ? "text-green-600" : "text-red-600"
+                          ret >= 0 ? "text-emerald-600" : "text-red-600"
                         }`}
                       >
                         {ret >= 0 ? (

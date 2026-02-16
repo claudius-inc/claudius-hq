@@ -71,7 +71,7 @@ export default async function Dashboard() {
         {/* Projects */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-800">Projects</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Projects</h2>
             <Link href="/projects" className="text-sm text-gray-400 hover:text-gray-700">
               View all →
             </Link>
