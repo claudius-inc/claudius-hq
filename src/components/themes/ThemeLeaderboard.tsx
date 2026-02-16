@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { EmptyState } from "@/components/EmptyState";
 import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { ThemeExpandedRow } from "./ThemeExpandedRow";
@@ -36,11 +37,11 @@ export function ThemeLeaderboard({
 }: ThemeLeaderboardProps) {
   if (themes.length === 0) {
     return (
-      <div className="card text-center py-12">
-        <div className="text-4xl mb-3">📊</div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-1">No themes yet</h3>
-        <p className="text-sm text-gray-500">Create investment themes to track baskets of related stocks</p>
-      </div>
+      <EmptyState
+        icon="📊"
+        title="No themes yet"
+        description="Create investment themes to track baskets of related stocks"
+      />
     );
   }
 

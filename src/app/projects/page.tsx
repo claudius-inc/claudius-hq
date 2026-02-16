@@ -3,6 +3,7 @@ import db from "@/lib/db";
 import { Project } from "@/lib/types";
 import { ProjectFilters } from "@/components/ProjectFilters";
 import { Nav } from "@/components/Nav";
+import { EmptyState } from "@/components/EmptyState";
 
 export const metadata: Metadata = {
   title: "Projects",
@@ -26,9 +27,11 @@ export default async function ProjectsPage() {
         {projects.length > 0 ? (
           <ProjectFilters projects={projects} />
         ) : (
-          <div className="card text-center py-12 text-gray-400">
-            No projects yet. They&apos;ll appear here once Claudius creates them.
-          </div>
+          <EmptyState
+            icon="🚀"
+            title="No projects yet"
+            description="They'll appear here once Claudius creates them."
+          />
         )}
       </main>
     </div>

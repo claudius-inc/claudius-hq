@@ -1,4 +1,5 @@
 import { Project } from "@/lib/types";
+import { EmptyState } from "@/components/EmptyState";
 import { formatDate } from "@/lib/date";
 import Link from "next/link";
 
@@ -45,9 +46,11 @@ const statusLabels: Record<string, string> = {
 export function ProjectCards({ projects }: { projects: Project[] }) {
   if (projects.length === 0) {
     return (
-      <div className="card text-center py-12 text-gray-400">
-        No projects yet. They&apos;ll appear here once Claudius creates them.
-      </div>
+      <EmptyState
+        icon="🚀"
+        title="No projects yet"
+        description="They'll appear here once Claudius creates them."
+      />
     );
   }
 

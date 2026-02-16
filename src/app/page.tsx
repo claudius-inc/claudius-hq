@@ -3,6 +3,7 @@ import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
 import { ProjectCards } from "@/components/ProjectCards";
 import { Nav } from "@/components/Nav";
+import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -77,9 +78,11 @@ export default async function Dashboard() {
           {projects.length > 0 ? (
             <ProjectCards projects={projects} />
           ) : (
-            <div className="card text-center py-12 text-gray-400">
-              No projects yet. Add them via the API.
-            </div>
+            <EmptyState
+              icon="🚀"
+              title="No projects yet"
+              description="Add them via the API."
+            />
           )}
         </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
 import { Pencil, Trash2, ArrowRight, Plus, X, Check } from "lucide-react";
 import { WatchlistItem, WatchlistStatus } from "@/lib/types";
@@ -410,15 +411,11 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
           </table>
         </div>
       ) : (
-        <div className="card text-center py-12">
-          <div className="text-4xl mb-3">👀</div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">
-            Watchlist is empty
-          </h3>
-          <p className="text-sm text-gray-500">
-            Add stocks you&apos;re monitoring before buying
-          </p>
-        </div>
+        <EmptyState
+          icon="👀"
+          title="Watchlist is empty"
+          description="Add stocks you're monitoring before buying"
+        />
       )}
     </div>
   );

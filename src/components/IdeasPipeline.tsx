@@ -1,6 +1,7 @@
 "use client";
 
 import { Idea, IdeaStatus } from "@/lib/types";
+import { EmptyState } from "@/components/EmptyState";
 import { useState } from "react";
 import { IdeaForm } from "@/components/IdeaForm";
 
@@ -41,9 +42,11 @@ export function IdeasPipeline({ ideas }: { ideas: Idea[] }) {
 
   if (ideas.length === 0) {
     return (
-      <div className="card text-center py-12 text-gray-400">
-        No ideas yet. Click &quot;Add New Idea&quot; above to start building your pipeline.
-      </div>
+      <EmptyState
+        icon="💡"
+        title="No ideas yet"
+        description="Click &quot;Add New Idea&quot; above to start building your pipeline."
+      />
     );
   }
 
