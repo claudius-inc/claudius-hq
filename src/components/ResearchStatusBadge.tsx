@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FileSearch, Loader2 } from "lucide-react";
+import { AlertTriangle, FileSearch, Loader2 } from "lucide-react";
 
 interface ResearchStatus {
   lastResearchDate: string;

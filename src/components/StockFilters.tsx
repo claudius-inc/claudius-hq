@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { StockReport } from "@/lib/types";
 import { StockReportViewer } from "./StockReportViewer";
 import { Select } from "./ui/Select";
@@ -354,7 +355,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
       {/* Empty state */}
       {sortedTickers.length === 0 && filteredComparisons.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <div className="text-4xl mb-3">🔍</div>
+          <div className="mb-3 flex justify-center text-gray-400"><Search className="w-8 h-8" /></div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">No matching reports</h3>
           <p className="text-sm text-gray-500">
             Try adjusting your filters or search term

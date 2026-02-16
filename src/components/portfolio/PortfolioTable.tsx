@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { EmptyState } from "@/components/EmptyState";
+import { Briefcase } from "lucide-react";
 import { PortfolioHolding } from "@/lib/types";
 import { HoldingRow } from "./HoldingRow";
 
@@ -66,7 +67,7 @@ export function PortfolioTable({
   if (holdings.length === 0) {
     return (
       <EmptyState
-        icon="💼"
+        icon={<Briefcase className="w-8 h-8" />}
         title="Portfolio is empty"
         description="Add your first holding to start tracking"
       />

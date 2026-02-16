@@ -142,7 +142,7 @@ export function parseCritiquesFromMarkdown(content: string): InvestorCritique[] 
   for (const name of investorNames) {
     // Look for section with investor name
     const regex = new RegExp(
-      `###?\\s*(?:🎯|🔥|📈|🌊|🚀|🏔️)?\\s*${name}['']?s?\\s*(?:View|Perspective|Take)?[\\s\\S]*?(?=###|$)`,
+      `###?\\s*${name}['\\u2019]?s?\\s*(?:View|Perspective|Take)?[\\s\\S]*?(?=###|$)`,
       "i"
     );
     const match = content.match(regex);
