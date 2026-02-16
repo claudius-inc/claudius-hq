@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, researchJobs } from "@/db";
 import { eq, desc, inArray } from "drizzle-orm";
+import { rateLimit } from "@/lib/rate-limit";
+
+const limiter = rateLimit({ interval: 60_000, uniqueTokenPerInterval: 500 });
 
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for") || "anonymous";
+  const { success } = limiter.check(5, ip);
+  if (!success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   try {
     const body = await request.json();
     const { ticker } = body;
