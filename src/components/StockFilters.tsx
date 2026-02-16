@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Trophy, Search } from "lucide-react";
 import { StockReport } from "@/lib/types";
 import { StockReportViewer } from "./StockReportViewer";
 import { Select } from "./ui/Select";
@@ -264,7 +264,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
       {showComparisonsSection && filteredComparisons.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-            <span>🏆</span> Comparisons
+            <Trophy className="w-4 h-4" /> Comparisons
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filteredComparisons.map((report) => {

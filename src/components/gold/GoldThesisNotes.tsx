@@ -13,7 +13,7 @@ export function GoldThesisNotes({
 }: GoldThesisNotesProps) {
   return (
     <div className="card p-6 mb-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">📝 Thesis Notes</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Thesis Notes</h2>
       {editMode ? (
         <textarea
           value={thesisNotes}

@@ -22,7 +22,7 @@ export function GoldFlowsChart({ flows }: GoldFlowsChartProps) {
 
   return (
     <div className="card p-6 mb-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">📈 GLD ETF Flows</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">GLD ETF Flows</h2>
       {flows && flows.length > 0 ? (
         <>
           {/* Quick Stats */}

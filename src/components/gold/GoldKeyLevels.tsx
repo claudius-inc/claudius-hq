@@ -20,7 +20,7 @@ export function GoldKeyLevels({
   return (
     <div className="card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">📊 Key Levels</h2>
+        <h2 className="text-lg font-semibold text-gray-900">Key Levels</h2>
         {editMode && (
           <button
             onClick={onAdd}

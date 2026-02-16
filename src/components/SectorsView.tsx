@@ -31,7 +31,7 @@ export function SectorsView() {
               : "text-gray-600 hover:text-gray-900"
           }`}
         >
-          🌍 Global Markets
+          Global Markets
         </button>
       </div>
 

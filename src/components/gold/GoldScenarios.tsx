@@ -13,7 +13,7 @@ export function GoldScenarios({
 }: GoldScenariosProps) {
   return (
     <div className="card p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">🎯 Scenarios</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Scenarios</h2>
       <div className="space-y-4">
         {scenarios.length === 0 ? (
           <p className="text-sm text-gray-400">No scenarios set</p>

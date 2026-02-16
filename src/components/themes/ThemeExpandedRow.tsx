@@ -92,7 +92,9 @@ export function ThemeExpandedRow({
                                 {stock.ticker}
                               </Link>
                               {stock.notes && (
-                                <StickyNote className="w-3.5 h-3.5 text-gray-400" title={stock.notes} />
+                                <span title={stock.notes}>
+                                  <StickyNote className="w-3.5 h-3.5 text-gray-400" />
+                                </span>
                               )}
                             </div>
                             {stock.name && (

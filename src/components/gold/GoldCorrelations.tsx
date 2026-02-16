@@ -1,3 +1,4 @@
+import { CircleDot } from "lucide-react";
 import { DxyData, RealYieldsData } from "./types";
 
 interface GoldCorrelationsProps {
@@ -10,7 +11,7 @@ export function GoldCorrelations({ dxy, realYields }: GoldCorrelationsProps) {
 
   return (
     <div className="card p-6 mb-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">📊 Gold Drivers</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Gold Drivers</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* DXY */}
         <div className={`rounded-lg p-4 border-2 ${
@@ -25,12 +26,12 @@ export function GoldCorrelations({ dxy, realYields }: GoldCorrelationsProps) {
               DXY (Dollar Index)
             </h3>
             {dxy && (
-              <span className={`text-lg ${
+              <span className={`
                 dxy.price < 100 || dxy.changePercent < 0 
                   ? "text-emerald-600" 
                   : "text-red-600"
               }`}>
-                {dxy.price < 100 || dxy.changePercent < 0 ? "🟢" : "🔴"}
+                <CircleDot className={`w-5 h-5 ${dxy.price < 100 || dxy.changePercent < 0 ? "text-emerald-500" : "text-red-500"}`} />
               </span>
             )}
           </div>
@@ -69,12 +70,12 @@ export function GoldCorrelations({ dxy, realYields }: GoldCorrelationsProps) {
               Real Yields (10Y−CPI)
             </h3>
             {realYields && (
-              <span className={`text-lg ${
+              <span className={`
                 realYields.value < 1 || realYields.change < 0 
                   ? "text-emerald-600" 
                   : "text-red-600"
               }`}>
-                {realYields.value < 1 || realYields.change < 0 ? "🟢" : "🔴"}
+                <CircleDot className={`w-5 h-5 ${realYields.value < 1 || realYields.change < 0 ? "text-emerald-500" : "text-red-500"}`} />
               </span>
             )}
           </div>

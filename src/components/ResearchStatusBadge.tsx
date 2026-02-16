@@ -100,7 +100,7 @@ export function ResearchStatusBadge({
       >
         <FileSearch className="w-3.5 h-3.5" />
         <span>
-          {isStale ? "⚠️ " : ""}
+          {isStale && <AlertTriangle className="w-3.5 h-3.5 inline mr-0.5" />}
           {formatDate(status.lastResearchDate)}
         </span>
       </Link>

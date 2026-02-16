@@ -13,7 +13,7 @@ interface GoldQuickStatsProps {
 export function GoldQuickStats({ gld, flows }: GoldQuickStatsProps) {
   return (
     <div className="card p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">📊 Quick Stats</h2>
+      <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gray-50 rounded-lg p-4">
           <div className="text-xs text-gray-500 font-medium uppercase">GLD AUM (est)</div>
