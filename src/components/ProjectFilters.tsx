@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
+import { Hammer, Globe, Package, Search } from "lucide-react";
 import { Project } from "@/lib/types";
 
 type Phase = "all" | "build" | "live";
@@ -20,9 +21,9 @@ const phaseColors: Record<string, string> = {
   live: "bg-emerald-100 text-emerald-700",
 };
 
-const phaseEmojis: Record<string, string> = {
-  build: "🔨",
-  live: "🌐",
+const phaseIcons: Record<string, React.ReactNode> = {
+  build: <Hammer className="w-3.5 h-3.5" />,
+  live: <Globe className="w-3.5 h-3.5" />,
 };
 
 const statusLabels: Record<string, string> = {
@@ -99,8 +100,8 @@ export function ProjectFilters({ projects }: ProjectFiltersProps) {
           className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
         >
           <option value="all">All Phases</option>
-          <option value="build">🔨 Build</option>
-          <option value="live">🌐 Live</option>
+          <option value="build">Build</option>
+          <option value="live">Live</option>
         </select>
 
         {/* Status */}
@@ -144,8 +145,8 @@ export function ProjectFilters({ projects }: ProjectFiltersProps) {
                     {project.name}
                   </h3>
                   <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                    <span className={`status-badge ${phaseColors[projectPhase]}`}>
-                      {phaseEmojis[projectPhase]} {projectPhase}
+                    <span className={`status-badge ${phaseColors[projectPhase]} inline-flex items-center gap-1`}>
+                      {phaseIcons[projectPhase]} {projectPhase}
                     </span>
                     <span className={`status-badge ${statusColors[project.status] || statusColors.backlog}`}>
                       {statusLabels[project.status] || project.status}
@@ -159,10 +160,10 @@ export function ProjectFilters({ projects }: ProjectFiltersProps) {
 
                 <div className="flex gap-2 mt-3">
                   {project.repo_url && (
-                    <span className="text-xs text-gray-400">📦 Repo</span>
+                    <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Package className="w-3 h-3" /> Repo</span>
                   )}
                   {project.deploy_url && (
-                    <span className="text-xs text-gray-400">🌐 Live</span>
+                    <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Globe className="w-3 h-3" /> Live</span>
                   )}
                 </div>
               </Link>
@@ -171,7 +172,7 @@ export function ProjectFilters({ projects }: ProjectFiltersProps) {
         </div>
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <div className="text-4xl mb-3">🔍</div>
+          <div className="mb-3 flex justify-center text-gray-400"><Search className="w-8 h-8" /></div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">No matching projects</h3>
           <p className="text-sm text-gray-500">
             Try adjusting your filters

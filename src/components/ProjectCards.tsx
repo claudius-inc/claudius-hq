@@ -86,10 +86,10 @@ export function ProjectCards({ projects }: { projects: Project[] }) {
                 </span>
               )}
               {project.test_count > 0 && (
-                <span>🧪 {project.test_count} tests</span>
+                <span className="inline-flex items-center gap-1"><FlaskConical className="w-3 h-3" /> {project.test_count} tests</span>
               )}
               {project.last_deploy_time && (
-                <span>🚀 {formatDate(project.last_deploy_time)}</span>
+                <span className="inline-flex items-center gap-1"><Rocket className="w-3 h-3" /> {formatDate(project.last_deploy_time)}</span>
               )}
             </div>
 

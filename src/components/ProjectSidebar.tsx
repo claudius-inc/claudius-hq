@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ClipboardList, Microscope, Map, Wrench, Megaphone, Target } from "lucide-react";
 
 interface ResearchPage {
   id: number;
@@ -39,7 +40,7 @@ export function ProjectSidebar({
   const basePath = `/projects/${projectId}`;
 
   const navItems = [
-    { href: basePath, label: "Overview", icon: "📋" },
+    { href: basePath, label: "Overview", icon: "clipboard" },
   ];
 
   return (
@@ -61,7 +62,7 @@ export function ProjectSidebar({
               : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
           }`}
         >
-          <span>📋</span>
+          <ClipboardList className="w-4 h-4" />
           <span>Overview</span>
         </Link>
 
@@ -77,7 +78,7 @@ export function ProjectSidebar({
               }`}
             >
               <div className="flex items-center gap-2">
-                <span>🔬</span>
+                <Microscope className="w-4 h-4" />
                 <span>Research</span>
                 <span className="text-xs text-gray-400">({researchPages.length})</span>
               </div>
@@ -123,7 +124,7 @@ export function ProjectSidebar({
               }`}
             >
               <div className="flex items-center gap-2">
-                <span>🗺️</span>
+                <Map className="w-4 h-4" />
                 <span>Plan</span>
               </div>
               <svg
@@ -146,7 +147,7 @@ export function ProjectSidebar({
                         : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
                     }`}
                   >
-                    🛠️ Tech Stack
+                    Tech Stack
                   </Link>
                 )}
                 {hasPlanDistribution && (
@@ -158,7 +159,7 @@ export function ProjectSidebar({
                         : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
                     }`}
                   >
-                    📣 Distribution
+                    Distribution
                   </Link>
                 )}
               </div>
@@ -175,7 +176,7 @@ export function ProjectSidebar({
               : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
           }`}
         >
-          <span>🎯</span>
+          <Target className="w-4 h-4" />
           <span>Action Plan</span>
         </Link>
       </nav>
@@ -226,7 +227,7 @@ export function ProjectMobileTOC({
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                📋 Overview
+                Overview
               </Link>
 
               {researchPages.length > 0 && (
@@ -266,7 +267,7 @@ export function ProjectMobileTOC({
                           : "text-gray-600 hover:bg-gray-100"
                       }`}
                     >
-                      🛠️ Tech Stack
+                      Tech Stack
                     </Link>
                   )}
                   {hasPlanDistribution && (
@@ -279,7 +280,7 @@ export function ProjectMobileTOC({
                           : "text-gray-600 hover:bg-gray-100"
                       }`}
                     >
-                      📣 Distribution
+                      Distribution
                     </Link>
                   )}
                 </>
@@ -294,7 +295,7 @@ export function ProjectMobileTOC({
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
-                🎯 Action Plan
+                Action Plan
               </Link>
             </div>
           </div>

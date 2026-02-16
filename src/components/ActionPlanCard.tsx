@@ -1,5 +1,7 @@
 "use client";
 
+import { ClipboardList, Microscope, MapPin, Zap, ChevronRight, Calendar, CalendarDays, Megaphone, DollarSign, Timer, Rocket, Construction, Pin, Link as LinkIcon } from "lucide-react";
+
 interface ActionPlanCardProps {
   phase: string;
   actionPlan: string;
@@ -53,14 +55,14 @@ export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, de
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-          <span>📋</span> Action Plan
+          <ClipboardList className="w-5 h-5" /> Action Plan
         </h2>
         {researchCount > 0 && (
           <a
             href={`/projects/${projectId}/research`}
             className="text-sm text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
           >
-            🔬 {researchCount} Research Pages →
+            <Microscope className="w-4 h-4" /> {researchCount} Research Pages
           </a>
         )}
       </div>
@@ -130,7 +132,7 @@ export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, de
           <div key={i} className={section.type === "header" ? "pt-2" : ""}>
             {section.type === "header" ? (
               <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide flex items-center gap-2">
-                {section.icon && <span>{section.icon}</span>}
+                {section.icon}
                 {section.content}
               </h3>
             ) : section.type === "list" ? (
@@ -160,7 +162,7 @@ export function ActionPlanCard({ phase, actionPlan, researchCount, projectId, de
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700"
               >
-                🔗 {section.content}
+                <LinkIcon className="w-3.5 h-3.5" /> {section.content}
               </a>
             ) : (
               <p className="text-sm text-gray-700">{section.content}</p>
@@ -176,7 +178,7 @@ interface Section {
   type: "header" | "list" | "numbered" | "text" | "link";
   content?: string;
   items?: string[];
-  icon?: string;
+  icon?: React.ReactNode;
   url?: string;
 }
 
@@ -242,18 +244,19 @@ function parseActionPlan(text: string): Section[] {
   return sections;
 }
 
-function getHeaderIcon(header: string): string {
+function getHeaderIcon(header: string): React.ReactNode {
   const h = header.toLowerCase();
-  if (h.includes("current") || h.includes("status")) return "📍";
-  if (h.includes("immediate") || h.includes("urgent")) return "⚡";
-  if (h.includes("next") || h.includes("step")) return "👉";
-  if (h.includes("week")) return "📅";
-  if (h.includes("month")) return "🗓️";
-  if (h.includes("research")) return "🔬";
-  if (h.includes("outreach") || h.includes("marketing")) return "📣";
-  if (h.includes("monetization") || h.includes("pricing") || h.includes("revenue")) return "💰";
-  if (h.includes("timeline")) return "⏱️";
-  if (h.includes("deploy") || h.includes("launch")) return "🚀";
-  if (h.includes("blocked") || h.includes("blocker")) return "🚧";
-  return "📌";
+  const cls = "w-4 h-4";
+  if (h.includes("current") || h.includes("status")) return <MapPin className={cls} />;
+  if (h.includes("immediate") || h.includes("urgent")) return <Zap className={cls} />;
+  if (h.includes("next") || h.includes("step")) return <ChevronRight className={cls} />;
+  if (h.includes("week")) return <Calendar className={cls} />;
+  if (h.includes("month")) return <CalendarDays className={cls} />;
+  if (h.includes("research")) return <Microscope className={cls} />;
+  if (h.includes("outreach") || h.includes("marketing")) return <Megaphone className={cls} />;
+  if (h.includes("monetization") || h.includes("pricing") || h.includes("revenue")) return <DollarSign className={cls} />;
+  if (h.includes("timeline")) return <Timer className={cls} />;
+  if (h.includes("deploy") || h.includes("launch")) return <Rocket className={cls} />;
+  if (h.includes("blocked") || h.includes("blocker")) return <Construction className={cls} />;
+  return <Pin className={cls} />;
 }
