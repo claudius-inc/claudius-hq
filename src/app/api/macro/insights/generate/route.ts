@@ -1,13 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { macroInsights } from "@/db/schema";
 import { fetchMacroData } from "@/lib/fetch-macro-data";
+import { rateLimit } from "@/lib/rate-limit";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_ENDPOINT =
   "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
 
-export async function POST() {
+const limiter = rateLimit({ interval: 60_000, uniqueTokenPerInterval: 500 });
+
+export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for") || "anonymous";
+  const { success } = limiter.check(3, ip);
+  if (!success) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
   if (!GEMINI_API_KEY) {
     return NextResponse.json(
       { error: "GEMINI_API_KEY not configured" },

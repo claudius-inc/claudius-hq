@@ -161,7 +161,7 @@ function QuickResearchForm() {
     setMessage("");
 
     try {
-      const res = await fetch("/api/markets/research", {
+      const res = await fetch("/api/stocks/research", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker: ticker.toUpperCase().trim() }),
@@ -352,54 +352,6 @@ export default function StocksDashboard() {
         </p>
       </div>
 
-      {/* Market Pulse - Sentiment Card */}
-      <div className={`mb-6 p-4 rounded-xl border ${
-        loading.sentiment 
-          ? "bg-gray-50 border-gray-200" 
-          : getSentimentBgColor(sentimentData?.vix.level || sentimentData?.putCall.level)
-      }`}>
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-lg">🌡️</span>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wider">
-            Market Pulse
-          </h2>
-        </div>
-        {loading.sentiment ? (
-          <div className="flex gap-6">
-            <Skeleton className="h-6 w-32" />
-            <Skeleton className="h-6 w-32" />
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-6">
-            {/* VIX */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 font-medium">VIX:</span>
-              <span className={`text-lg font-bold ${getSentimentColor(sentimentData?.vix.level)}`}>
-                {sentimentData?.vix.value?.toFixed(1) ?? "—"}
-              </span>
-              {sentimentData?.vix?.change != null && (
-                <span className={`text-xs ${sentimentData.vix.change >= 0 ? "text-red-500" : "text-green-500"}`}>
-                  ({sentimentData.vix.change >= 0 ? "+" : ""}{sentimentData.vix.change.toFixed(1)})
-                </span>
-              )}
-              <span className={`text-sm font-medium ${getSentimentColor(sentimentData?.vix.level)}`}>
-                ({formatSentimentLevel(sentimentData?.vix.level)})
-              </span>
-            </div>
-            {/* Put/Call */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600 font-medium">Put/Call:</span>
-              <span className={`text-lg font-bold ${getSentimentColor(sentimentData?.putCall.level)}`}>
-                {sentimentData?.putCall.value?.toFixed(2) ?? "—"}
-              </span>
-              <span className={`text-sm font-medium ${getSentimentColor(sentimentData?.putCall.level)}`}>
-                ({formatSentimentLevel(sentimentData?.putCall.level)})
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Quick Research */}
@@ -483,30 +435,92 @@ export default function StocksDashboard() {
             title="Macro Signals"
             icon="🌍"
             href="/markets/macro"
-            loading={loading.macro}
+            loading={loading.macro && loading.sentiment}
           >
-            {macroIndicators.length > 0 ? (
-              <div className="space-y-4">
-                {/* Legend */}
-                <div className="flex flex-wrap items-center gap-3 text-[10px] pb-2 border-b border-gray-100">
-                  <span className="text-gray-400 font-medium">Legend:</span>
-                  <div className="flex items-center gap-1">
-                    <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Healthy</span>
-                    <span className="text-gray-400">On target</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Accommodative</span>
-                    <span className="text-gray-400">Supportive</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Elevated</span>
-                    <span className="text-gray-400">Caution</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700">High</span>
-                    <span className="text-gray-400">Stress</span>
-                  </div>
+            <div className="space-y-4">
+              {/* Market Pulse (Sentiment) */}
+              <div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <span>🌡️</span>
+                  sentiment
                 </div>
+                {loading.sentiment ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    <div className={`flex items-center justify-between p-2 rounded-lg border ${getSentimentBgColor(sentimentData?.vix.level)}`}>
+                      <span className="text-xs text-gray-600 mr-2">VIX</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`text-xs font-medium ${getSentimentColor(sentimentData?.vix.level)}`}>
+                          {sentimentData?.vix.value?.toFixed(1) ?? "—"}
+                        </span>
+                        {sentimentData?.vix?.change != null && (
+                          <span className={`text-[10px] ${sentimentData.vix.change >= 0 ? "text-red-500" : "text-green-500"}`}>
+                            {sentimentData.vix.change >= 0 ? "+" : ""}{sentimentData.vix.change.toFixed(1)}
+                          </span>
+                        )}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                          sentimentData?.vix.level === "low" || sentimentData?.vix.level === "moderate" 
+                            ? "bg-emerald-100 text-emerald-700"
+                            : sentimentData?.vix.level === "elevated"
+                            ? "bg-amber-100 text-amber-700"
+                            : sentimentData?.vix.level === "fear"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}>
+                          {formatSentimentLevel(sentimentData?.vix.level)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={`flex items-center justify-between p-2 rounded-lg border ${getSentimentBgColor(sentimentData?.putCall.level)}`}>
+                      <span className="text-xs text-gray-600 mr-2">Put/Call</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`text-xs font-medium ${getSentimentColor(sentimentData?.putCall.level)}`}>
+                          {sentimentData?.putCall.value?.toFixed(2) ?? "—"}
+                        </span>
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                          sentimentData?.putCall.level === "greedy"
+                            ? "bg-amber-100 text-amber-700"
+                            : sentimentData?.putCall.level === "neutral"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : sentimentData?.putCall.level === "fearful"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}>
+                          {formatSentimentLevel(sentimentData?.putCall.level)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Legend */}
+              <div className="flex flex-wrap items-center gap-3 text-[10px] pb-2 border-b border-gray-100">
+                <span className="text-gray-400 font-medium">Legend:</span>
+                <div className="flex items-center gap-1">
+                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Healthy</span>
+                  <span className="text-gray-400">On target</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Accommodative</span>
+                  <span className="text-gray-400">Supportive</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Elevated</span>
+                  <span className="text-gray-400">Caution</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700">High</span>
+                  <span className="text-gray-400">Stress</span>
+                </div>
+              </div>
+
+            {macroIndicators.length > 0 ? (
+              <>
                 {categoryOrder.map((category) => {
                   const indicators = macroByCategory[category];
                   if (!indicators?.length) return null;
@@ -558,7 +572,7 @@ export default function StocksDashboard() {
                     </div>
                   );
                 })}
-              </div>
+              </>
             ) : (
               <div className="text-sm text-gray-500">
                 <p>No macro data available.</p>
@@ -567,6 +581,7 @@ export default function StocksDashboard() {
                 </p>
               </div>
             )}
+            </div>
           </DashboardCard>
         </div>
 
@@ -609,39 +624,6 @@ export default function StocksDashboard() {
           )}
         </DashboardCard>
 
-        {/* Quick Links */}
-        <DashboardCard title="Quick Actions" icon="⚡">
-          <div className="grid grid-cols-2 gap-2">
-            <Link
-              href="/markets/themes"
-              className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <span>🎯</span>
-              <span className="text-sm font-medium">Themes</span>
-            </Link>
-            <Link
-              href="/markets/sectors"
-              className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <span>📊</span>
-              <span className="text-sm font-medium">Sectors</span>
-            </Link>
-            <Link
-              href="/markets/macro"
-              className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <span>🌍</span>
-              <span className="text-sm font-medium">Macro</span>
-            </Link>
-            <Link
-              href="/markets/portfolio"
-              className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <span>💼</span>
-              <span className="text-sm font-medium">Portfolio</span>
-            </Link>
-          </div>
-        </DashboardCard>
       </div>
     </>
   );
