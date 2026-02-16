@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
-import { Pencil, Trash2, ArrowRight, Plus, X, Check } from "lucide-react";
+import { Pencil, Trash2, ArrowRight, Plus, X, Check, Eye, TrendingUp, CheckCircle } from "lucide-react";
 import { WatchlistItem, WatchlistStatus } from "@/lib/types";
 import { formatDate } from "@/lib/date";
 import { useResearchStatus } from "@/hooks/useResearchStatus";
@@ -14,10 +14,16 @@ interface WatchlistTabProps {
   onPromoteToPortfolio: (item: WatchlistItem) => void;
 }
 
-const STATUS_CONFIG: Record<WatchlistStatus, { icon: string; label: string; className: string }> = {
-  watching: { icon: "👀", label: "Watching", className: "bg-gray-100 text-gray-700" },
-  accumulating: { icon: "📈", label: "Accumulating", className: "bg-amber-100 text-amber-700" },
-  graduated: { icon: "✅", label: "Graduated", className: "bg-emerald-100 text-emerald-700" },
+const STATUS_ICONS: Record<WatchlistStatus, React.ReactNode> = {
+  watching: <Eye className="w-3.5 h-3.5" />,
+  accumulating: <TrendingUp className="w-3.5 h-3.5" />,
+  graduated: <CheckCircle className="w-3.5 h-3.5" />,
+};
+
+const STATUS_CONFIG: Record<WatchlistStatus, { label: string; className: string }> = {
+  watching: { label: "Watching", className: "bg-gray-100 text-gray-700" },
+  accumulating: { label: "Accumulating", className: "bg-amber-100 text-amber-700" },
+  graduated: { label: "Graduated", className: "bg-emerald-100 text-emerald-700" },
 };
 
 export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTabProps) {
@@ -331,15 +337,15 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
                           }
                           className="input text-sm"
                         >
-                          <option value="watching">👀 Watching</option>
-                          <option value="accumulating">📈 Accumulating</option>
-                          <option value="graduated">✅ Graduated</option>
+                          <option value="watching">Watching</option>
+                          <option value="accumulating">Accumulating</option>
+                          <option value="graduated">Graduated</option>
                         </select>
                       ) : (
                         <span
                           className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_CONFIG[item.status].className}`}
                         >
-                          <span>{STATUS_CONFIG[item.status].icon}</span>
+                          {STATUS_ICONS[item.status]}
                           <span>{STATUS_CONFIG[item.status].label}</span>
                         </span>
                       )}
@@ -412,7 +418,7 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
         </div>
       ) : (
         <EmptyState
-          icon="👀"
+          icon={<Eye className="w-8 h-8" />}
           title="Watchlist is empty"
           description="Add stocks you're monitoring before buying"
         />

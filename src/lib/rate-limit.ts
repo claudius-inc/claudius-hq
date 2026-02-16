@@ -7,15 +7,17 @@ export function rateLimit(options: {
   // Cleanup old entries every interval
   const cleanup = setInterval(() => {
     const now = Date.now();
-    for (const [key, timestamps] of tokenCache.entries()) {
-      const valid = timestamps.filter((t) => now - t < options.interval);
+    tokenCache.forEach((timestamps, key) => {
+      const valid = timestamps.filter((t: number) => now - t < options.interval);
       if (valid.length === 0) tokenCache.delete(key);
       else tokenCache.set(key, valid);
-    }
+    });
   }, options.interval);
 
   // Allow garbage collection in non-server contexts
-  if (cleanup.unref) cleanup.unref();
+  if (typeof cleanup === "object" && "unref" in cleanup) {
+    (cleanup as NodeJS.Timeout).unref();
+  }
 
   return {
     check: (limit: number, token: string) => {

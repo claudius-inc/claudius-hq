@@ -5,6 +5,7 @@ import { ProjectCards } from "@/components/ProjectCards";
 import { Nav } from "@/components/Nav";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
+import { Rocket, Lightbulb, TrendingUp } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -79,7 +80,7 @@ export default async function Dashboard() {
             <ProjectCards projects={projects} />
           ) : (
             <EmptyState
-              icon="🚀"
+              icon={<Rocket className="w-6 h-6 text-gray-400" />}
               title="No projects yet"
               description="Add them via the API."
             />
@@ -90,7 +91,7 @@ export default async function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link href="/ideas" className="card-hover group">
             <div className="flex items-center gap-3">
-              <div className="text-2xl">💡</div>
+              <Lightbulb className="w-6 h-6 text-amber-500" />
               <div>
                 <h3 className="font-medium text-gray-900 group-hover:text-emerald-600 transition-colors">
                   Ideas Pipeline
@@ -101,7 +102,7 @@ export default async function Dashboard() {
           </Link>
           <Link href="/markets" className="card-hover group">
             <div className="flex items-center gap-3">
-              <div className="text-2xl">📈</div>
+              <TrendingUp className="w-6 h-6 text-emerald-500" />
               <div>
                 <h3 className="font-medium text-gray-900 group-hover:text-emerald-600 transition-colors">
                   Stock Research

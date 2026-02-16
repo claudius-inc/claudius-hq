@@ -63,7 +63,7 @@ export default async function ResearchPage() {
         <StockFilters reports={reports} />
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <div className="text-4xl mb-3">📈</div>
+          <div className="text-4xl mb-3"></div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">
             No reports yet
           </h3>

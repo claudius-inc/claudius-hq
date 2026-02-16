@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { X, Edit2, Target } from "lucide-react";
+import { X, Edit2, Target, StickyNote } from "lucide-react";
 import { SkeletonTableRow } from "@/components/Skeleton";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { SuggestedStocks } from "./SuggestedStocks";
@@ -92,7 +92,7 @@ export function ThemeExpandedRow({
                                 {stock.ticker}
                               </Link>
                               {stock.notes && (
-                                <span className="text-gray-400" title={stock.notes}>📝</span>
+                                <StickyNote className="w-3.5 h-3.5 text-gray-400" title={stock.notes} />
                               )}
                             </div>
                             {stock.name && (

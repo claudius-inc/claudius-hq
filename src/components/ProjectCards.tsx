@@ -2,6 +2,7 @@ import { Project } from "@/lib/types";
 import { EmptyState } from "@/components/EmptyState";
 import { formatDate } from "@/lib/date";
 import Link from "next/link";
+import { Lightbulb, Search, Hammer, Rocket, TrendingUp, RefreshCw, Shield, FlaskConical, Package, Globe } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   backlog: "bg-gray-200 text-gray-700",
@@ -20,14 +21,14 @@ const phaseColors: Record<string, string> = {
   maintain: "bg-gray-200 text-gray-600",
 };
 
-const phaseEmojis: Record<string, string> = {
-  idea: "💡",
-  research: "🔍",
-  build: "🔨",
-  launch: "🚀",
-  grow: "📈",
-  iterate: "🔄",
-  maintain: "🛡️",
+const phaseIcons: Record<string, React.ReactNode> = {
+  idea: <Lightbulb className="w-3.5 h-3.5" />,
+  research: <Search className="w-3.5 h-3.5" />,
+  build: <Hammer className="w-3.5 h-3.5" />,
+  launch: <Rocket className="w-3.5 h-3.5" />,
+  grow: <TrendingUp className="w-3.5 h-3.5" />,
+  iterate: <RefreshCw className="w-3.5 h-3.5" />,
+  maintain: <Shield className="w-3.5 h-3.5" />,
 };
 
 const buildColors: Record<string, string> = {
@@ -47,7 +48,7 @@ export function ProjectCards({ projects }: { projects: Project[] }) {
   if (projects.length === 0) {
     return (
       <EmptyState
-        icon="🚀"
+        icon={<Rocket className="w-8 h-8" />}
         title="No projects yet"
         description="They'll appear here once Claudius creates them."
       />
@@ -65,8 +66,8 @@ export function ProjectCards({ projects }: { projects: Project[] }) {
                 {project.name}
               </h3>
               <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                <span className={`status-badge ${phaseColors[phase]}`}>
-                  {phaseEmojis[phase]} {phase}
+                <span className={`status-badge ${phaseColors[phase]} inline-flex items-center gap-1`}>
+                  {phaseIcons[phase]} {phase}
                 </span>
                 <span className={`status-badge ${statusColors[project.status] || statusColors.backlog}`}>
                   {statusLabels[project.status] || project.status}
@@ -94,10 +95,10 @@ export function ProjectCards({ projects }: { projects: Project[] }) {
 
             <div className="flex gap-2 mt-3">
               {project.repo_url && (
-                <span className="text-xs text-gray-400">📦 Repo</span>
+                <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Package className="w-3 h-3" /> Repo</span>
               )}
               {project.deploy_url && (
-                <span className="text-xs text-gray-400">🌐 Live</span>
+                <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Globe className="w-3 h-3" /> Live</span>
               )}
             </div>
           </Link>

@@ -4,6 +4,7 @@ import { formatDate, formatDateTime } from "@/lib/date";
 import { Project } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { FlaskConical, Globe, Package, Target } from "lucide-react";
 
 // Revalidate project detail every 60 seconds
 export const revalidate = 60;
@@ -75,19 +76,19 @@ export default async function ProjectOverviewPage({ params }: { params: { id: st
           )}
           {project.test_count > 0 && (
             <div className="card flex items-center gap-2 px-3 py-2">
-              <span className="text-sm">🧪</span>
+              <FlaskConical className="w-4 h-4 text-gray-500" />
               <span className="text-sm text-gray-700">{project.test_count} tests</span>
             </div>
           )}
           {project.deploy_url && (
             <a href={project.deploy_url} target="_blank" rel="noopener noreferrer" className="card-hover flex items-center gap-2 px-3 py-2">
-              <span className="text-sm">🌐</span>
+              <Globe className="w-4 h-4 text-emerald-500" />
               <span className="text-sm text-emerald-600">Live</span>
             </a>
           )}
           {project.repo_url && (
             <a href={project.repo_url} target="_blank" rel="noopener noreferrer" className="card-hover flex items-center gap-2 px-3 py-2">
-              <span className="text-sm">📦</span>
+              <Package className="w-4 h-4 text-gray-500" />
               <span className="text-sm text-gray-500">Repo</span>
             </a>
           )}
@@ -98,7 +99,7 @@ export default async function ProjectOverviewPage({ params }: { params: { id: st
       {project.target_audience && (
         <div className="card mb-6">
           <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <span>🎯</span> Target Audience
+            <Target className="w-5 h-5 text-gray-500" /> Target Audience
           </h2>
           <p className="text-gray-700 whitespace-pre-wrap">{project.target_audience}</p>
         </div>

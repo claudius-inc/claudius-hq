@@ -37,9 +37,9 @@ export function EditStockModal({
               onChange={(e) => onChange({ ...editingStock, status: e.target.value as ThemeStockStatus })}
               className="input w-full"
             >
-              <option value="watching">👀 Watching</option>
-              <option value="accumulating">📈 Accumulating</option>
-              <option value="holding">💎 Holding</option>
+              <option value="watching">Watching</option>
+              <option value="accumulating">Accumulating</option>
+              <option value="holding">Holding</option>
             </select>
           </div>
 

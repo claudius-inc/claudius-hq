@@ -5,6 +5,7 @@ import Link from "next/link";
 import { marked } from "marked";
 import { ReportTOC } from "@/components/ReportTOC";
 import { PreviousReportsDropdown } from "@/components/PreviousReportsDropdown";
+import { AlertTriangle } from "lucide-react";
 
 // Cache stock reports for 1 hour - they don't change once generated
 export const revalidate = 3600;
@@ -172,8 +173,8 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
                   const daysSinceReport = Math.floor((Date.now() - reportDate.getTime()) / (1000 * 60 * 60 * 24));
                   if (daysSinceReport > 90) {
                     return (
-                      <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full" title="This report may be outdated">
-                        ⚠️ {daysSinceReport}d old
+                      <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full inline-flex items-center gap-1" title="This report may be outdated">
+                        <AlertTriangle className="w-3 h-3" /> {daysSinceReport}d old
                       </span>
                     );
                   }
@@ -209,7 +210,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
       ) : (
         <main className="max-w-6xl mx-auto px-4 pb-6">
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-            <div className="text-4xl mb-3">🔍</div>
+            <div className="text-4xl mb-3"></div>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">No reports found</h3>
             <p className="text-sm text-gray-500">No research reports for {decodedTicker} yet</p>
             <Link href="/markets" className="text-sm text-emerald-600 hover:underline mt-3 inline-block">

@@ -1,3 +1,4 @@
+import { Eye, TrendingUp, Gem } from "lucide-react";
 import { ThemeStockStatus } from "@/lib/types";
 
 export function formatPercent(value: number | null | undefined): string {
@@ -29,14 +30,14 @@ export function StatusBadge({ status }: { status: ThemeStockStatus }) {
     accumulating: "bg-amber-100 text-amber-700",
     holding: "bg-emerald-100 text-emerald-700",
   };
-  const labels: Record<ThemeStockStatus, string> = {
-    watching: "👀",
-    accumulating: "📈",
-    holding: "💎",
+  const icons: Record<ThemeStockStatus, React.ReactNode> = {
+    watching: <Eye className="w-3.5 h-3.5" />,
+    accumulating: <TrendingUp className="w-3.5 h-3.5" />,
+    holding: <Gem className="w-3.5 h-3.5" />,
   };
   return (
     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${styles[status]}`} title={status}>
-      {labels[status]}
+      {icons[status]}
     </span>
   );
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
-import { ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { ThemeExpandedRow } from "./ThemeExpandedRow";
 import { SuggestedStock } from "./types";
@@ -38,7 +38,7 @@ export function ThemeLeaderboard({
   if (themes.length === 0) {
     return (
       <EmptyState
-        icon="📊"
+        icon={<BarChart3 className="w-8 h-8" />}
         title="No themes yet"
         description="Create investment themes to track baskets of related stocks"
       />

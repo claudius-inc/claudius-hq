@@ -45,25 +45,25 @@ ${JSON.stringify(indicatorSummary, null, 2)}
 
 Provide your analysis in the following format (use markdown):
 
-## 🎯 Market Regime
+## Market Regime
 (2-3 sentences describing the current macro environment)
 
-## ⚠️ Key Risks
+## Key Risks
 - (bullet point)
 - (bullet point)
 - (bullet point)
 
-## 💡 Opportunities
+## Opportunities
 - (bullet point)
 - (bullet point)
 - (bullet point)
 
-## 👀 Watch This Week
+## Watch This Week
 - (bullet point)
 - (bullet point)
 - (bullet point)
 
-## 🔥 Notable
+## Notable
 (One standout observation that connects multiple indicators)
 
 Keep it concise and data-driven. No fluff. Reference specific indicator values when relevant.`;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Edit2, Pause, Play, Trash2 } from "lucide-react";
+import { Bell, Edit2, Eye, Pause, Play, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/format-date";
 import {
   StockAlert,
@@ -93,9 +93,9 @@ export function AlertCard({
                 : "bg-gray-100 text-gray-500"
           }`}
         >
-          {alert.status === "watching" && "👁️ Watching"}
-          {alert.status === "triggered" && "🔔 Triggered"}
-          {alert.status === "paused" && "⏸️ Paused"}
+          {alert.status === "watching" && <><Eye className="w-3.5 h-3.5 inline mr-1" />Watching</>}
+          {alert.status === "triggered" && <><Bell className="w-3.5 h-3.5 inline mr-1" />Triggered</>}
+          {alert.status === "paused" && <><Pause className="w-3.5 h-3.5 inline mr-1" />Paused</>}
         </span>
       </td>
       <td className="px-4 py-3 text-gray-600 text-sm">

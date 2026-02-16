@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { MACRO_INDICATORS } from "@/lib/macro-indicators";
 import { formatDate, formatTimestamp } from "@/lib/format-date";
 import ReactMarkdown from "react-markdown";
+import { TrendingUp, Flame, HardHat, Factory, Drama, CreditCard, ArrowLeftRight, Globe } from "lucide-react";
 
 // Color coding for interpretation
 function getStatusColor(label: string): string {
@@ -90,15 +91,15 @@ function getDxyInterpretation(value: number): { label: string; description: stri
   };
 }
 
-const categoryIcons: Record<string, string> = {
-  rates: "📈",
-  inflation: "🔥",
-  employment: "👷",
-  growth: "🏭",
-  sentiment: "🎭",
-  credit: "💳",
-  fx: "💱",
-  "foreign-yields": "🌍",
+const categoryIcons: Record<string, React.ReactNode> = {
+  rates: <TrendingUp className="w-4 h-4" />,
+  inflation: <Flame className="w-4 h-4" />,
+  employment: <HardHat className="w-4 h-4" />,
+  growth: <Factory className="w-4 h-4" />,
+  sentiment: <Drama className="w-4 h-4" />,
+  credit: <CreditCard className="w-4 h-4" />,
+  fx: <ArrowLeftRight className="w-4 h-4" />,
+  "foreign-yields": <Globe className="w-4 h-4" />,
 };
 
 const categoryLabels: Record<string, string> = {
@@ -239,14 +240,14 @@ export function MacroContent() {
       <div className="mb-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">🌍 Macro Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Macro Dashboard</h1>
             <p className="text-sm text-gray-500 mt-1">
               Key economic indicators and what they mean for markets
             </p>
           </div>
           {status === "demo" && (
             <div className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
-              ⚠️ Demo Mode — Add FRED_API_KEY for live data
+              Demo Mode — Add FRED_API_KEY for live data
             </div>
           )}
           {lastUpdated && status === "live" && (
@@ -261,7 +262,7 @@ export function MacroContent() {
       <div className="card mb-6 p-5 border-l-4 border-blue-500">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            🧠 AI Market Insights
+            AI Market Insights
           </h2>
           <div className="flex items-center gap-3">
             {insightsData?.generatedAt && (
@@ -274,7 +275,7 @@ export function MacroContent() {
               disabled={generating}
               className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {generating ? "Generating..." : "🔄 Regenerate"}
+              {generating ? "Generating..." : "Regenerate"}
             </button>
           </div>
         </div>
@@ -310,11 +311,11 @@ export function MacroContent() {
       <div className="card mb-6 p-4">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">How to Read This Dashboard</h2>
         <div className="flex flex-wrap gap-3 text-xs">
-          <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded">🟢 Favorable / Goldilocks</span>
-          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">🔵 Accommodative / Supportive</span>
-          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">⚪ Neutral</span>
-          <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded">🟡 Caution / Watch</span>
-          <span className="bg-red-100 text-red-700 px-2 py-1 rounded">🔴 Concern / Restrictive</span>
+          <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Favorable / Goldilocks</span>
+          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">Accommodative / Supportive</span>
+          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">Neutral</span>
+          <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded">Caution / Watch</span>
+          <span className="bg-red-100 text-red-700 px-2 py-1 rounded">Concern / Restrictive</span>
         </div>
       </div>
 
@@ -326,7 +327,7 @@ export function MacroContent() {
         return (
           <div key={category} className="mb-8">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <span>{categoryIcons[category]}</span>
+              <span className="flex items-center">{categoryIcons[category]}</span>
               {categoryLabels[category]}
             </h2>
             
@@ -480,7 +481,6 @@ export function MacroContent() {
       {yieldSpreads.length > 0 && (
         <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <span>📊</span>
             Yield Spreads (Carry Trade Signals)
           </h2>
           <div className="card p-5">
@@ -504,9 +504,6 @@ export function MacroContent() {
                       </span>
                     </div>
                     <div className="mt-2 text-sm font-medium">
-                      {spread.color === "green" && "🟢 "}
-                      {spread.color === "amber" && "🟡 "}
-                      {spread.color === "gray" && "⚪ "}
                       {spread.interpretation}
                     </div>
                     <p className="text-xs mt-2 opacity-80">

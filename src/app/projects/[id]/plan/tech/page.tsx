@@ -44,7 +44,7 @@ export default async function TechPlanPage({ params }: { params: { id: string } 
       </div>
 
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">🛠️ Tech Stack Plan</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Tech Stack Plan</h1>
       </div>
 
       {htmlContent ? (

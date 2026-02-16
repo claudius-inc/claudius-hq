@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
+import { Search, Briefcase, Globe, FileText, TrendingUp, Flame, HardHat, Factory, CreditCard, Thermometer, FlaskConical } from "lucide-react";
 import { formatDate } from "@/lib/format-date";
 
 // Types
@@ -105,7 +106,7 @@ function DashboardCard({
   loading,
 }: {
   title: string;
-  icon: string;
+  icon: React.ReactNode;
   children: React.ReactNode;
   href?: string;
   loading?: boolean;
@@ -114,7 +115,7 @@ function DashboardCard({
     <div className="card p-5 h-full">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-          <span>{icon}</span>
+          <span className="flex items-center">{icon}</span>
           {title}
         </h2>
         {href && (
@@ -205,7 +206,7 @@ function QuickResearchForm() {
           className="shrink-0 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
         >
           {status === "loading" && <Spinner size="sm" className="text-white" />}
-          {status === "loading" ? "..." : "🔬"}
+          {status === "loading" ? "..." : <FlaskConical className="w-4 h-4" />}
         </button>
       </div>
       {message && (
@@ -334,19 +335,19 @@ export default function StocksDashboard() {
   }, {} as Record<string, MacroIndicator[]>);
   
   const categoryOrder = ["rates", "inflation", "employment", "growth", "credit"];
-  const categoryIcons: Record<string, string> = {
-    rates: "📈",
-    inflation: "🔥",
-    employment: "👷",
-    growth: "🏭",
-    credit: "💳",
+  const categoryIcons: Record<string, React.ReactNode> = {
+    rates: <TrendingUp className="w-4 h-4" />,
+    inflation: <Flame className="w-4 h-4" />,
+    employment: <HardHat className="w-4 h-4" />,
+    growth: <Factory className="w-4 h-4" />,
+    credit: <CreditCard className="w-4 h-4" />,
   };
 
   return (
     <>
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">📊 Markets Dashboard</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Markets Dashboard</h1>
         <p className="text-sm text-gray-500 mt-1">
           Portfolio overview, research, and market signals
         </p>
@@ -355,7 +356,7 @@ export default function StocksDashboard() {
       {/* Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Quick Research */}
-        <DashboardCard title="Quick Research" icon="🔬">
+        <DashboardCard title="Quick Research" icon={<Search className="w-4 h-4" />}>
           <QuickResearchForm />
           <p className="text-xs text-gray-400 mt-3">
             Start a Sun Tzu-style research report for any ticker
@@ -365,7 +366,7 @@ export default function StocksDashboard() {
         {/* Portfolio Summary */}
         <DashboardCard
           title="Portfolio Summary"
-          icon="💼"
+          icon={<Briefcase className="w-4 h-4" />}
           href="/markets/portfolio"
           loading={loading.portfolio}
         >
@@ -433,7 +434,7 @@ export default function StocksDashboard() {
         <div className="md:col-span-2">
           <DashboardCard
             title="Macro Signals"
-            icon="🌍"
+            icon={<Globe className="w-4 h-4" />}
             href="/markets/macro"
             loading={loading.macro && loading.sentiment}
           >
@@ -441,7 +442,7 @@ export default function StocksDashboard() {
               {/* Market Pulse (Sentiment) */}
               <div>
                 <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <span>🌡️</span>
+                  <Thermometer className="w-4 h-4" />
                   sentiment
                 </div>
                 {loading.sentiment ? (
@@ -527,7 +528,7 @@ export default function StocksDashboard() {
                   return (
                     <div key={category}>
                       <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <span>{categoryIcons[category]}</span>
+                        <span className="flex items-center">{categoryIcons[category]}</span>
                         {category}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -588,7 +589,7 @@ export default function StocksDashboard() {
         {/* Recent Research */}
         <DashboardCard
           title="Recent Research"
-          icon="📄"
+          icon={<FileText className="w-4 h-4" />}
           href="/markets/research"
           loading={loading.reports}
         >

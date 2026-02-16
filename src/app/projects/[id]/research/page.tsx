@@ -46,7 +46,7 @@ export default async function ResearchIndexPage({ params }: { params: { id: stri
       </div>
 
       <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">🔬 Research</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Research</h1>
         <span className="text-sm text-gray-400">{pages.length} pages</span>
       </div>
 

@@ -4,6 +4,7 @@ import { Project } from "@/lib/types";
 import { ProjectFilters } from "@/components/ProjectFilters";
 import { Nav } from "@/components/Nav";
 import { EmptyState } from "@/components/EmptyState";
+import { Rocket } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Projects",
@@ -28,7 +29,7 @@ export default async function ProjectsPage() {
           <ProjectFilters projects={projects} />
         ) : (
           <EmptyState
-            icon="🚀"
+            icon={<Rocket className="w-6 h-6" />}
             title="No projects yet"
             description="They'll appear here once Claudius creates them."
           />

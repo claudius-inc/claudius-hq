@@ -113,15 +113,15 @@ export function GoldContent() {
       <div className="mb-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">🥇 Gold Analysis</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Gold Analysis</h1>
             <p className="text-sm text-gray-500 mt-1">Track gold prices, ETF flows, and key levels</p>
           </div>
           <div className="flex gap-2">
             <button onClick={syncFlows} disabled={syncing} className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-200 disabled:opacity-50">
-              {syncing ? "Syncing..." : "🔄 Sync GLD Data"}
+              {syncing ? "Syncing..." : "Sync GLD Data"}
             </button>
             <button onClick={() => (editMode ? saveAnalysis() : setEditMode(true))} disabled={saving} className={`px-4 py-2 rounded-lg text-sm font-medium ${editMode ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"} disabled:opacity-50`}>
-              {saving ? "Saving..." : editMode ? "✓ Save" : "✏️ Edit"}
+              {saving ? "Saving..." : editMode ? "Save" : "Edit"}
             </button>
             {editMode && (
               <button onClick={() => setEditMode(false)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
