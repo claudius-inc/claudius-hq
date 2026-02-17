@@ -431,7 +431,7 @@ export function BtcContent() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={yearlyPeakMayer}>
               <XAxis dataKey="year" stroke="#6b7280" tick={{ fontSize: 11 }} />
-              <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} domain={[0, "auto"]} />
+              <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} domain={[0, 4]} />
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (!active || !payload?.length) return null;

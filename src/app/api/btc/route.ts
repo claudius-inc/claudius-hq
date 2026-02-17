@@ -31,22 +31,7 @@ const MAYER_BACKTEST = [
   { date: "Nov 2022", price: 15800, mayer: 0.55, return6mo: 51, return12mo: 137 },
 ];
 
-// Historical yearly peak Mayer Multiples (hardcoded for past years)
-const YEARLY_PEAK_MAYER: { year: number; peak: number }[] = [
-  { year: 2012, peak: 5.72 },
-  { year: 2013, peak: 12.58 },
-  { year: 2014, peak: 2.96 },
-  { year: 2015, peak: 1.75 },
-  { year: 2016, peak: 1.83 },
-  { year: 2017, peak: 3.78 },
-  { year: 2018, peak: 1.52 },
-  { year: 2019, peak: 2.44 },
-  { year: 2020, peak: 2.16 },
-  { year: 2021, peak: 2.96 },
-  { year: 2022, peak: 1.21 },
-  { year: 2023, peak: 1.60 },
-  { year: 2024, peak: 1.75 },
-];
+// Yearly peak Mayer Multiples will be calculated from actual data
 
 const BACKTEST_TOUCHES = [
   { date: "Jan 2015", price: 200, duration: "Weeks at MA", peakPrice: 20000, returnPct: 9600 },
@@ -113,12 +98,12 @@ export async function GET() {
 
     const distancePercent = wma200 > 0 ? ((livePrice - wma200) / wma200) * 100 : 0;
 
-    // Fetch daily data for 200-day SMA (Mayer Multiple)
+    // Fetch full daily history for Mayer Multiple (200-day SMA)
     let sma200d = 0;
     let mayerMultiple = 0;
+    const yearlyPeakMayer: { year: number; peak: number }[] = [];
     try {
-      const dailyStart = new Date();
-      dailyStart.setDate(dailyStart.getDate() - 300); // fetch extra buffer
+      const dailyStart = new Date("2012-01-01");
       const dailyHistory = (await yahooFinance.historical("BTC-USD", {
         period1: dailyStart,
         period2: endDate,
@@ -126,23 +111,37 @@ export async function GET() {
       })) as HistoricalRow[];
 
       dailyHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      const dailyCloses = dailyHistory.map((h) => h.close ?? 0).filter((c) => c > 0);
 
-      if (dailyCloses.length >= 200) {
-        const last200 = dailyCloses.slice(-200);
-        sma200d = Math.round(last200.reduce((a, b) => a + b, 0) / 200);
-        mayerMultiple = sma200d > 0 ? livePrice / sma200d : 0;
+      // Calculate Mayer Multiple for every day with 200+ days of data
+      const peakByYear: Record<number, number> = {};
+      for (let i = 199; i < dailyHistory.length; i++) {
+        const close = dailyHistory[i].close ?? 0;
+        if (close <= 0) continue;
+        let sum = 0;
+        for (let j = i - 199; j <= i; j++) {
+          sum += dailyHistory[j].close ?? 0;
+        }
+        const sma = sum / 200;
+        if (sma <= 0) continue;
+        const mayer = close / sma;
+        const year = new Date(dailyHistory[i].date).getFullYear();
+        if (!peakByYear[year] || mayer > peakByYear[year]) {
+          peakByYear[year] = mayer;
+        }
+        // Last data point = current
+        if (i === dailyHistory.length - 1) {
+          sma200d = Math.round(sma);
+          mayerMultiple = mayer;
+        }
       }
+
+      // Build sorted yearly peaks (start from 2012)
+      for (const [year, peak] of Object.entries(peakByYear)) {
+        yearlyPeakMayer.push({ year: parseInt(year), peak: Math.round(peak * 100) / 100 });
+      }
+      yearlyPeakMayer.sort((a, b) => a.year - b.year);
     } catch (e) {
       console.error("Error fetching daily BTC data for Mayer:", e);
-    }
-
-    // Build yearly peak Mayer data including current year
-    const currentYear = new Date().getFullYear();
-    const yearlyPeakMayer = [...YEARLY_PEAK_MAYER];
-    // Add current year if not already there
-    if (!yearlyPeakMayer.find((y) => y.year === currentYear)) {
-      yearlyPeakMayer.push({ year: currentYear, peak: Math.round(mayerMultiple * 100) / 100 });
     }
 
     const data = {
