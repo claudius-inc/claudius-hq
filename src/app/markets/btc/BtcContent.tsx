@@ -433,10 +433,15 @@ export function BtcContent() {
               <XAxis dataKey="year" stroke="#6b7280" tick={{ fontSize: 11 }} />
               <YAxis stroke="#6b7280" tick={{ fontSize: 11 }} domain={[0, "auto"]} />
               <Tooltip
-                contentStyle={{ backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: 8, fontSize: 13 }}
-                labelStyle={{ color: "#9ca3af" }}
-                itemStyle={{ color: "#ffffff" }}
-                formatter={(value: string | number) => [`${Number(value).toFixed(2)}`, "Peak Mayer"] as [string, string]}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload?.length) return null;
+                  return (
+                    <div className="bg-gray-800 border border-gray-700 rounded-lg p-3 text-sm">
+                      <div className="text-gray-400">{label}</div>
+                      <div className="text-white font-medium">Peak Mayer: {Number(payload[0].value).toFixed(2)}</div>
+                    </div>
+                  );
+                }}
               />
               <ReferenceLine y={2.4} stroke="#ef4444" strokeDasharray="6 3" label={{ value: "SELL >2.4", fill: "#ef4444", fontSize: 11, position: "right" }} />
               <ReferenceLine y={0.8} stroke="#22c55e" strokeDasharray="6 3" label={{ value: "BUY <0.8", fill: "#22c55e", fontSize: 11, position: "right" }} />
