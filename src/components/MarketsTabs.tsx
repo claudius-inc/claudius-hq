@@ -46,11 +46,6 @@ const primaryTabs: PrimaryTab[] = [
     ],
   },
   {
-    label: "Trade Journal",
-    href: "/markets/trade-journal",
-    activePaths: ["/markets/trade-journal"],
-  },
-  {
     label: "Markets",
     href: "/markets/macro",
     activePaths: [
