@@ -348,6 +348,39 @@ export type StockAlert = typeof stockAlerts.$inferSelect;
 export type NewStockAlert = typeof stockAlerts.$inferInsert;
 
 // ============================================================================
+// Trade Journal
+// ============================================================================
+
+export const TRADE_JOURNAL_ACTIONS = ["buy", "sell", "trim", "add"] as const;
+export type TradeJournalAction = (typeof TRADE_JOURNAL_ACTIONS)[number];
+
+export const TRADE_JOURNAL_OUTCOMES = ["win", "loss", "breakeven", "open"] as const;
+export type TradeJournalOutcome = (typeof TRADE_JOURNAL_OUTCOMES)[number];
+
+export const tradeJournal = sqliteTable("trade_journal", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ticker: text("ticker").notNull(),
+  action: text("action").notNull(),
+  price: real("price").notNull(),
+  shares: real("shares"),
+  date: text("date").notNull(),
+  thesis: text("thesis").notNull(),
+  catalysts: text("catalysts"),
+  invalidators: text("invalidators"),
+  outcome: text("outcome").default("open"),
+  exitPrice: real("exit_price"),
+  exitDate: text("exit_date"),
+  lessonsLearned: text("lessons_learned"),
+  emotionalState: text("emotional_state"),
+  tags: text("tags").default("[]"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export type TradeJournalEntry = typeof tradeJournal.$inferSelect;
+export type NewTradeJournalEntry = typeof tradeJournal.$inferInsert;
+
+// ============================================================================
 // Gold Analysis
 // ============================================================================
 
