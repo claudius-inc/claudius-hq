@@ -88,10 +88,10 @@ export function MarketsTabs() {
   };
 
   return (
-    <div className="mb-6 space-y-2">
+    <div className="mb-4 space-y-1">
       {/* Primary tabs */}
-      <div className="overflow-x-auto overflow-y-hidden scrollbar-hide">
-        <nav className="flex space-x-2 min-w-max">
+      <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
+        <nav className="flex space-x-1.5 min-w-max">
           {primaryTabs.map((tab) => {
             const active = tab.exact
               ? pathname === tab.href
@@ -101,7 +101,7 @@ export function MarketsTabs() {
                 key={tab.label}
                 href={tab.href}
                 className={`
-                  py-2 px-5 font-semibold text-sm transition-colors whitespace-nowrap rounded-full
+                  min-h-[44px] flex items-center py-2 px-4 md:px-5 font-semibold text-sm transition-colors whitespace-nowrap rounded-full
                   ${
                     active
                       ? "bg-gray-900 text-white"
@@ -118,8 +118,8 @@ export function MarketsTabs() {
 
       {/* Secondary tabs */}
       {subTabs && subTabs.length > 0 && (
-        <div className="overflow-x-auto overflow-y-hidden scrollbar-hide">
-          <nav className="flex space-x-4 min-w-max border-b border-gray-200">
+        <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
+          <nav className="flex space-x-3 min-w-max border-b border-gray-200">
             {subTabs.map((sub) => {
               const active = isSubActive(sub);
               return (
@@ -127,7 +127,7 @@ export function MarketsTabs() {
                   key={sub.href}
                   href={sub.href}
                   className={`
-                    pb-2 text-sm transition-colors whitespace-nowrap border-b-2
+                    min-h-[44px] flex items-center pb-2 text-sm transition-colors whitespace-nowrap border-b-2
                     ${
                       active
                         ? "border-gray-900 text-gray-900 font-medium"

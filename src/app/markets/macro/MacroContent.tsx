@@ -335,14 +335,14 @@ export function MacroContent() {
               {categoryIndicators.map((indicator) => (
                 <div key={indicator.id} className="card p-5">
                   {/* Header */}
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div className="flex-1">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4 mb-4">
+                    <div className="flex-1 min-w-0">
                       <h3 className="font-semibold text-gray-900">{indicator.name}</h3>
                       <p className="text-sm text-gray-500 mt-1">{indicator.description}</p>
                     </div>
                     
                     {/* Current Value + Status */}
-                    <div className="text-right flex-shrink-0">
+                    <div className="text-left sm:text-right flex-shrink-0">
                       {indicator.data ? (
                         <>
                           <div className="text-2xl font-bold text-gray-900 flex items-center justify-end gap-2">
@@ -416,17 +416,17 @@ export function MacroContent() {
                       {indicator.ranges.map((range, idx) => (
                         <div 
                           key={idx} 
-                          className={`flex items-center gap-3 text-sm p-2 rounded ${
+                          className={`flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-1 sm:gap-3 text-sm p-2 rounded ${
                             indicator.interpretation?.label === range.label 
                               ? getStatusColor(range.label) + " ring-2 ring-offset-1 ring-gray-300" 
                               : "bg-gray-50"
                           }`}
                         >
-                          <span className="font-medium w-32 flex-shrink-0">{range.label}</span>
-                          <span className="text-gray-500 w-24 flex-shrink-0">
+                          <span className="font-medium w-auto sm:w-32 sm:flex-shrink-0">{range.label}</span>
+                          <span className="text-gray-500 w-auto sm:w-24 sm:flex-shrink-0">
                             {range.min !== null ? range.min : "<"}{range.min !== null && range.max !== null ? " – " : ""}{range.max !== null ? range.max : "+"}
                           </span>
-                          <span className="text-gray-600 flex-1">{range.meaning}</span>
+                          <span className="text-gray-600 flex-1 w-full sm:w-auto">{range.meaning}</span>
                         </div>
                       ))}
                     </div>

@@ -260,7 +260,7 @@ export function BtcContent() {
       {/* 200WMA Chart */}
       <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 p-6 mb-6">
         <h2 className="text-lg font-bold text-white mb-4">BTC Price vs 200-Week Moving Average</h2>
-        <div className="h-[400px]">
+        <div className="h-[250px] md:h-[400px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <XAxis
@@ -404,7 +404,7 @@ export function BtcContent() {
 
         <div className="bg-white rounded-xl shadow-sm border p-6 col-span-1 md:col-span-2">
           <div className="text-sm font-medium text-gray-500 mb-3">Zone Guide</div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="text-center p-3 bg-emerald-50 rounded-lg">
               <div className="text-2xl font-bold text-emerald-600">&lt; 0.8</div>
               <div className="text-sm text-emerald-700 font-medium">Buy Zone</div>
@@ -427,7 +427,7 @@ export function BtcContent() {
       {/* Mayer Multiple Bar Chart */}
       <div className="bg-gray-900 rounded-xl shadow-sm border border-gray-800 p-6 mb-6">
         <h2 className="text-lg font-bold text-white mb-4">Yearly Peak Mayer Multiple</h2>
-        <div className="h-[350px]">
+        <div className="h-[250px] md:h-[350px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={yearlyPeakMayer}>
               <XAxis dataKey="year" stroke="#6b7280" tick={{ fontSize: 11 }} />
