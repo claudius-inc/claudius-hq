@@ -79,12 +79,18 @@ export function MarketsTabs() {
 
   const subTabs = activeSection?.subTabs;
 
-  const isSubActive = (sub: SubTab) => {
+  const isSubActive = (sub: SubTab, allSubs: SubTab[]) => {
+    // For hash links, only active if no other exact sub-tab matches first
+    if (sub.href.includes("#")) {
+      // If we're on the base path AND no exact sub-tab claims it, this one is never auto-active
+      // Hash tabs need client-side hash detection
+      if (typeof window !== "undefined" && window.location.hash) {
+        return sub.href.includes(window.location.hash);
+      }
+      return false;
+    }
     if (sub.exact) return pathname === sub.href;
-    // For hash links, match on path portion only
-    const subPath = sub.href.split("#")[0];
-    if (sub.href.includes("#")) return pathname === subPath;
-    return pathname.startsWith(subPath);
+    return pathname.startsWith(sub.href);
   };
 
   return (
@@ -121,7 +127,7 @@ export function MarketsTabs() {
         <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
           <nav className="flex space-x-3 min-w-max border-b border-gray-200">
             {subTabs.map((sub) => {
-              const active = isSubActive(sub);
+              const active = isSubActive(sub, subTabs);
               return (
                 <Link
                   key={sub.href}
