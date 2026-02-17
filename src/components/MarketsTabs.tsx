@@ -122,10 +122,10 @@ export function MarketsTabs() {
         </nav>
       </div>
 
-      {/* Secondary tabs */}
+      {/* Secondary tabs — segmented control */}
       {subTabs && subTabs.length > 0 && (
-        <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
-          <nav className="flex space-x-3 min-w-max border-b border-gray-200">
+        <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1 pt-1">
+          <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-0.5 min-w-max">
             {subTabs.map((sub) => {
               const active = isSubActive(sub, subTabs);
               return (
@@ -133,11 +133,11 @@ export function MarketsTabs() {
                   key={sub.href}
                   href={sub.href}
                   className={`
-                    min-h-[44px] flex items-center pb-2 text-sm transition-colors whitespace-nowrap border-b-2
+                    min-h-[36px] flex items-center px-3.5 text-sm transition-all whitespace-nowrap rounded-md
                     ${
                       active
-                        ? "border-gray-900 text-gray-900 font-medium"
-                        : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                        ? "bg-white text-gray-900 font-medium shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
                     }
                   `}
                 >
@@ -145,7 +145,7 @@ export function MarketsTabs() {
                 </Link>
               );
             })}
-          </nav>
+          </div>
         </div>
       )}
     </div>
