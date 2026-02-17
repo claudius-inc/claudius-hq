@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { RefreshCw, Upload, Trash2, ChevronDown, ChevronRight, TrendingUp, TrendingDown, X } from 'lucide-react';
 import { useResearchStatus } from '@/hooks/useResearchStatus';
 import { ResearchStatusBadge } from '@/components/ResearchStatusBadge';
+import { WatchlistTab } from '@/components/WatchlistTab';
+import { WatchlistItem } from '@/lib/types';
 
 interface Position {
   symbol: string;
@@ -72,7 +74,11 @@ export default function IBKRPortfolio() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [activeSection, setActiveSection] = useState<'positions' | 'trades' | 'imports'>('positions');
+  const [activeSection, setActiveSection] = useState<'positions' | 'watchlist' | 'trades' | 'imports'>(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#watchlist') return 'watchlist';
+    return 'positions';
+  });
+  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
 
@@ -112,9 +118,28 @@ export default function IBKRPortfolio() {
     }
   }, []);
 
+  const fetchWatchlist = useCallback(async () => {
+    try {
+      const res = await fetch('/api/watchlist');
+      const data = await res.json();
+      setWatchlistItems(data.items || []);
+    } catch (err) {
+      console.error('Failed to fetch watchlist:', err);
+    }
+  }, []);
+
   useEffect(() => {
-    Promise.all([fetchPositions(), fetchTrades(), fetchImports()]).finally(() => setLoading(false));
-  }, [fetchPositions, fetchTrades, fetchImports]);
+    Promise.all([fetchPositions(), fetchTrades(), fetchImports(), fetchWatchlist()]).finally(() => setLoading(false));
+  }, [fetchPositions, fetchTrades, fetchImports, fetchWatchlist]);
+
+  // Listen for hash changes
+  useEffect(() => {
+    const onHash = () => {
+      if (window.location.hash === '#watchlist') setActiveSection('watchlist');
+    };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -299,7 +324,7 @@ export default function IBKRPortfolio() {
 
       {/* Section Tabs */}
       <div className="flex gap-2 border-b">
-        {(['positions', 'trades', 'imports'] as const).map((section) => (
+        {(['positions', 'watchlist', 'trades', 'imports'] as const).map((section) => (
           <button
             key={section}
             onClick={() => setActiveSection(section)}
@@ -312,6 +337,9 @@ export default function IBKRPortfolio() {
             {section.charAt(0).toUpperCase() + section.slice(1)}
             {section === 'positions' && positions.length > 0 && (
               <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{positions.length}</span>
+            )}
+            {section === 'watchlist' && watchlistItems.length > 0 && (
+              <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{watchlistItems.length}</span>
             )}
             {section === 'trades' && trades.length > 0 && (
               <span className="ml-2 text-xs bg-gray-100 px-2 py-0.5 rounded-full">{trades.length}</span>
@@ -424,6 +452,17 @@ export default function IBKRPortfolio() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Watchlist */}
+      {activeSection === 'watchlist' && (
+        <WatchlistTab
+          initialItems={watchlistItems}
+          onPromoteToPortfolio={() => {
+            fetchPositions();
+            fetchWatchlist();
+          }}
+        />
       )}
 
       {/* Trades */}
