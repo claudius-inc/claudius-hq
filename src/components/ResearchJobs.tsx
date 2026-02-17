@@ -152,7 +152,7 @@ export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
             
             <div className="flex items-center justify-between text-xs text-gray-500">
               <span>Started {getTimeAgo(job.createdAt)}</span>
-              {job.progress && job.progress > 0 && (
+              {job.progress != null && job.progress > 0 && (
                 <span>{job.progress}%</span>
               )}
             </div>
