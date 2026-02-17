@@ -436,11 +436,7 @@ export function BtcContent() {
                 contentStyle={{ backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: 8, fontSize: 13 }}
                 labelStyle={{ color: "#9ca3af" }}
                 itemStyle={{ color: "#ffffff" }}
-<<<<<<< Updated upstream
-                formatter={(value: number) => [`${value.toFixed(2)}`, "Peak Mayer"]}
-=======
                 formatter={(value: string | number) => [`${Number(value).toFixed(2)}`, "Peak Mayer"] as [string, string]}
->>>>>>> Stashed changes
               />
               <ReferenceLine y={2.4} stroke="#ef4444" strokeDasharray="6 3" label={{ value: "SELL >2.4", fill: "#ef4444", fontSize: 11, position: "right" }} />
               <ReferenceLine y={0.8} stroke="#22c55e" strokeDasharray="6 3" label={{ value: "BUY <0.8", fill: "#22c55e", fontSize: 11, position: "right" }} />
