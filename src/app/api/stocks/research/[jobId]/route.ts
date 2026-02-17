@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db, researchJobs } from "@/db";
 import { eq } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
@@ -57,6 +58,11 @@ export async function PATCH(
     }
 
     await db.update(researchJobs).set(updateData).where(eq(researchJobs.id, jobId));
+
+    // Purge ISR cache when job status changes
+    if (status === "complete" || status === "failed" || status === "processing") {
+      revalidatePath("/markets/research");
+    }
 
     // Fetch updated job
     const [job] = await db

@@ -9,7 +9,7 @@ import { AlertTriangle } from "lucide-react";
 import { ExportMarkdownButton } from "@/components/ExportMarkdownButton";
 
 // Cache stock reports for 1 hour - they don't change once generated
-export const revalidate = 3600;
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: { ticker: string } }): Promise<Metadata> {
   const ticker = params.ticker.toUpperCase();

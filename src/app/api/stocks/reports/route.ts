@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db, stockReports, researchJobs } from "@/db";
 import { desc, eq } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
@@ -94,6 +95,10 @@ export async function POST(req: NextRequest) {
         relatedTickers: relatedTickersJson,
       })
       .returning();
+
+    // Purge ISR cache so the new report appears immediately
+    revalidatePath("/markets/research");
+    revalidatePath(`/markets/research/${cleanTicker}`);
 
     return NextResponse.json({ report: newReport }, { status: 201 });
   } catch (e) {
@@ -193,6 +198,8 @@ export async function DELETE(req: NextRequest) {
 
     // Now delete the report
     await db.delete(stockReports).where(eq(stockReports.id, reportId));
+
+    revalidatePath("/markets/research");
 
     return NextResponse.json({ success: true, deletedId: reportId });
   } catch (e) {
