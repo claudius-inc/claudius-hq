@@ -9,7 +9,7 @@ export default function MarketsLayout({
   return (
     <div className="min-h-screen">
       <Nav />
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-6 overflow-hidden">
         <MarketsTabs />
         {children}
       </main>

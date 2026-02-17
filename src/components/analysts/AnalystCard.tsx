@@ -30,7 +30,7 @@ export function AnalystCard({
   onDelete,
 }: AnalystCardProps) {
   return (
-    <div className="bg-white rounded-lg border border-amber-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-lg border border-amber-200 shadow-sm overflow-hidden min-w-0">
       <div
         className="p-4 cursor-pointer hover:bg-amber-50/50 transition-colors"
         onClick={onToggle}
