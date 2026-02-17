@@ -11,7 +11,9 @@ interface ExportMarkdownButtonProps {
 export function ExportMarkdownButton({ ticker, content, companyName }: ExportMarkdownButtonProps) {
   const handleExport = () => {
     const filename = `${ticker}${companyName ? `-${companyName.replace(/[^a-zA-Z0-9]/g, "-")}` : ""}-research.md`;
-    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const header = `# ${companyName ? `${companyName} (${ticker})` : ticker}\n\n`;
+    const fullContent = header + content;
+    const blob = new Blob([fullContent], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
