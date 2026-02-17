@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db, projects } from "@/db";
 import { desc, eq } from "drizzle-orm";
 
@@ -54,6 +55,9 @@ export async function POST(request: NextRequest) {
       await db.update(projects).set(updateData).where(eq(projects.id, id));
 
       const [updatedProject] = await db.select().from(projects).where(eq(projects.id, id));
+      revalidatePath("/");
+      revalidatePath("/projects");
+      revalidatePath(`/projects/${id}`);
       return NextResponse.json({ project: updatedProject });
     } else {
       // Create new
@@ -76,6 +80,8 @@ export async function POST(request: NextRequest) {
         })
         .returning();
 
+      revalidatePath("/");
+      revalidatePath("/projects");
       return NextResponse.json({ project: newProject }, { status: 201 });
     }
   } catch (error) {

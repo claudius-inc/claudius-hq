@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db, ideas } from "@/db";
 import { and, desc, eq } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest) {
       await db.update(ideas).set(updateData).where(eq(ideas.id, id));
 
       const [updatedIdea] = await db.select().from(ideas).where(eq(ideas.id, id));
+      revalidatePath("/ideas");
       return NextResponse.json({ idea: updatedIdea });
     } else {
       // Create new
@@ -84,6 +86,7 @@ export async function POST(request: NextRequest) {
         })
         .returning();
 
+      revalidatePath("/ideas");
       return NextResponse.json({ idea: newIdea }, { status: 201 });
     }
   } catch (error) {
