@@ -7,9 +7,9 @@ export default function MarketsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-clip">
       <Nav />
-      <main className="max-w-6xl mx-auto px-4 py-6 overflow-hidden">
+      <main className="max-w-6xl mx-auto px-4 py-6">
         <MarketsTabs />
         {children}
       </main>
