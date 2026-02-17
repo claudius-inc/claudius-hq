@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState, useEffect } from "react";
 
 /* ── Primary sections ─────────────────────────────────────── */
 
@@ -15,7 +14,6 @@ interface SubTab {
 interface PrimaryTab {
   label: string;
   href: string;
-  /** Pathnames that make this primary tab active */
   activePaths: string[];
   exact?: boolean;
   subTabs?: SubTab[];
@@ -71,11 +69,7 @@ const primaryTabs: PrimaryTab[] = [
 
 export function MarketsTabs() {
   const pathname = usePathname();
-  const tabRefs = useRef<Record<string, HTMLElement | null>>({});
-  const navRef = useRef<HTMLDivElement>(null);
-  const [caretLeft, setCaretLeft] = useState<number | null>(null);
 
-  // Which primary tab is active?
   const activeSection = primaryTabs.find((tab) => {
     if (tab.exact) return pathname === tab.href;
     return tab.activePaths.some((p) => pathname.startsWith(p));
@@ -95,28 +89,10 @@ export function MarketsTabs() {
     return pathname.startsWith(sub.href);
   };
 
-  // Calculate caret position (centered under active primary tab)
-  useEffect(() => {
-    if (!activeSection || !hasSubTabs) {
-      setCaretLeft(null);
-      return;
-    }
-    const el = tabRefs.current[activeSection.label];
-    const nav = navRef.current;
-    if (el && nav) {
-      const navRect = nav.getBoundingClientRect();
-      const elRect = el.getBoundingClientRect();
-      setCaretLeft(elRect.left - navRect.left + elRect.width / 2);
-    }
-  }, [pathname, activeSection, hasSubTabs]);
-
   return (
-    <div className="mb-4">
+    <div className="mb-4 space-y-2">
       {/* Primary tabs */}
-      <div
-        ref={navRef}
-        className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1"
-      >
+      <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
         <nav className="flex items-center space-x-1.5 min-w-max">
           {primaryTabs.map((tab) => {
             const active = tab.exact
@@ -126,9 +102,6 @@ export function MarketsTabs() {
             return (
               <Link
                 key={tab.label}
-                ref={(el) => {
-                  tabRefs.current[tab.label] = el;
-                }}
                 href={tab.href}
                 className={`
                   min-h-[44px] flex items-center py-2 px-4 md:px-5 font-semibold text-sm transition-colors whitespace-nowrap rounded-full
@@ -146,49 +119,29 @@ export function MarketsTabs() {
         </nav>
       </div>
 
-      {/* Floating sub-tabs beneath active primary tab */}
+      {/* Mini pill sub-tabs */}
       {hasSubTabs && (
-        <div className="relative mt-1.5">
-          {/* Caret connector */}
-          {caretLeft !== null && (
-            <div
-              className="absolute -top-1 w-2 h-2 bg-gray-100 border-t border-l border-gray-200 rotate-45 z-10"
-              style={{ left: `${caretLeft - 4}px` }}
-            />
-          )}
-
-          {/* Sub-tab chips */}
-          <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
-            <div
-              className="flex items-center gap-1 min-w-max"
-              style={
-                caretLeft !== null
-                  ? { paddingLeft: `max(0px, ${caretLeft - 60}px)` }
-                  : undefined
-              }
-            >
-              <div className="inline-flex items-center gap-0.5 bg-gray-100 border border-gray-200 rounded-lg p-0.5">
-                {subTabs.map((sub) => {
-                  const subActive = isSubActive(sub);
-                  return (
-                    <Link
-                      key={sub.href}
-                      href={sub.href}
-                      className={`
-                        min-h-[36px] flex items-center px-3 text-sm whitespace-nowrap rounded-md transition-all
-                        ${
-                          subActive
-                            ? "bg-white text-gray-900 font-medium shadow-sm"
-                            : "text-gray-500 hover:text-gray-700"
-                        }
-                      `}
-                    >
-                      {sub.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
+        <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+          <div className="flex items-center gap-1.5 min-w-max bg-gray-100/80 rounded-full px-1.5 py-1 w-fit">
+            {subTabs.map((sub) => {
+              const subActive = isSubActive(sub);
+              return (
+                <Link
+                  key={sub.href}
+                  href={sub.href}
+                  className={`
+                    min-h-[32px] flex items-center px-3 text-xs whitespace-nowrap rounded-full transition-all
+                    ${
+                      subActive
+                        ? "bg-white text-gray-900 font-medium shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                    }
+                  `}
+                >
+                  {sub.label}
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
