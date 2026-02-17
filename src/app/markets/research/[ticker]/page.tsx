@@ -6,6 +6,7 @@ import { marked } from "marked";
 import { ReportTOC } from "@/components/ReportTOC";
 import { PreviousReportsDropdown } from "@/components/PreviousReportsDropdown";
 import { AlertTriangle } from "lucide-react";
+import { ExportMarkdownButton } from "@/components/ExportMarkdownButton";
 
 // Cache stock reports for 1 hour - they don't change once generated
 export const revalidate = 3600;
@@ -145,6 +146,11 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
                     currentReportId={report.id} 
                   />
                 )}
+                <ExportMarkdownButton
+                  ticker={decodedTicker}
+                  content={report.content}
+                  companyName={report.company_name || undefined}
+                />
                 <Link
                   href={`/markets/research?refresh=${encodeURIComponent(decodedTicker)}`}
                   className="flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
