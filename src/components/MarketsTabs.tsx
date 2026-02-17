@@ -94,60 +94,61 @@ export function MarketsTabs() {
   };
 
   return (
-    <div className="mb-4 space-y-1">
-      {/* Primary tabs */}
+    <div className="mb-4">
       <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
-        <nav className="flex space-x-1.5 min-w-max">
+        <nav className="flex items-center space-x-1.5 min-w-max">
           {primaryTabs.map((tab) => {
             const active = tab.exact
               ? pathname === tab.href
               : tab.activePaths.some((p) => pathname.startsWith(p));
+            const showSubs = active && tab.subTabs && tab.subTabs.length > 0;
+
             return (
-              <Link
-                key={tab.label}
-                href={tab.href}
-                className={`
-                  min-h-[44px] flex items-center py-2 px-4 md:px-5 font-semibold text-sm transition-colors whitespace-nowrap rounded-full
-                  ${
-                    active
-                      ? "bg-gray-900 text-white"
-                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                  }
-                `}
-              >
-                {tab.label}
-              </Link>
+              <div key={tab.label} className="flex items-center">
+                <Link
+                  href={tab.href}
+                  className={`
+                    min-h-[44px] flex items-center py-2 px-4 md:px-5 font-semibold text-sm transition-colors whitespace-nowrap rounded-full
+                    ${
+                      active
+                        ? "bg-gray-900 text-white"
+                        : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                    }
+                  `}
+                >
+                  {tab.label}
+                </Link>
+                {showSubs && (
+                  <div className="flex items-center ml-1">
+                    <span className="text-gray-300 mx-0.5">·</span>
+                    {tab.subTabs!.map((sub, i) => {
+                      const subActive = isSubActive(sub, tab.subTabs!);
+                      return (
+                        <div key={sub.href} className="flex items-center">
+                          {i > 0 && <span className="text-gray-300 mx-0.5">·</span>}
+                          <Link
+                            href={sub.href}
+                            className={`
+                              min-h-[44px] flex items-center px-2 text-sm whitespace-nowrap transition-colors
+                              ${
+                                subActive
+                                  ? "text-gray-900 font-medium"
+                                  : "text-gray-400 hover:text-gray-600"
+                              }
+                            `}
+                          >
+                            {sub.label}
+                          </Link>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
       </div>
-
-      {/* Secondary tabs — segmented control */}
-      {subTabs && subTabs.length > 0 && (
-        <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1 pt-1">
-          <div className="inline-flex rounded-lg border border-gray-200 bg-gray-100 p-0.5 min-w-max">
-            {subTabs.map((sub) => {
-              const active = isSubActive(sub, subTabs);
-              return (
-                <Link
-                  key={sub.href}
-                  href={sub.href}
-                  className={`
-                    min-h-[36px] flex items-center px-3.5 text-sm transition-all whitespace-nowrap rounded-md
-                    ${
-                      active
-                        ? "bg-white text-gray-900 font-medium shadow-sm"
-                        : "text-gray-500 hover:text-gray-700"
-                    }
-                  `}
-                >
-                  {sub.label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
