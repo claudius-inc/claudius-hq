@@ -533,48 +533,33 @@ export default function StocksDashboard() {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                     {marketEtfs.map((etf) => {
-                      const etfBgColor = etf.interpretation?.color === "blue" ? "bg-blue-50 border-blue-200"
-                        : etf.interpretation?.color === "amber" ? "bg-amber-50 border-amber-200"
-                        : etf.interpretation?.color === "red" ? "bg-red-50 border-red-200"
-                        : "bg-gray-50 border-gray-200";
                       const etfLabelColor = etf.interpretation?.color === "blue" ? "bg-blue-100 text-blue-700"
                         : etf.interpretation?.color === "amber" ? "bg-amber-100 text-amber-700"
                         : etf.interpretation?.color === "red" ? "bg-red-100 text-red-700"
                         : "bg-gray-100 text-gray-700";
                       return (
-                        <div key={etf.ticker} className={`p-2 rounded-lg border ${etfBgColor}`}>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600">{etf.ticker}</span>
-                            <div className="flex items-center gap-1.5">
-                              {etf.data && (
-                                <>
-                                  <span className="text-xs font-medium text-gray-900">
-                                    ${etf.data.price.toFixed(2)}
-                                  </span>
-                                  <span className={`text-[10px] ${etf.data.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                    {etf.data.changePercent >= 0 ? "+" : ""}{etf.data.changePercent.toFixed(1)}%
-                                  </span>
-                                </>
-                              )}
-                              {etf.interpretation && (
-                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${etfLabelColor}`}>
-                                  {etf.interpretation.label}
-                                </span>
-                              )}
-                            </div>
+                        <div key={etf.ticker} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                          <span className="text-xs text-gray-600 truncate mr-2">{etf.ticker}</span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {etf.data && (
+                              <span className="text-xs font-medium text-gray-900">
+                                ${etf.data.price.toFixed(2)}
+                              </span>
+                            )}
+                            {etf.data && (
+                              <span className={`text-[10px] ${etf.data.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                {etf.data.changePercent >= 0 ? "+" : ""}{etf.data.changePercent.toFixed(1)}%
+                              </span>
+                            )}
+                            {etf.interpretation && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${etfLabelColor}`}>
+                                {etf.interpretation.label}
+                              </span>
+                            )}
+                            {!etf.data && (
+                              <span className="text-xs text-gray-400">—</span>
+                            )}
                           </div>
-                          {etf.data && (
-                            <div className="mt-1.5">
-                              <div className="relative h-1 bg-gray-200 rounded-full">
-                                <div className="absolute top-0 left-0 h-full bg-blue-400 rounded-full" style={{ width: `${etf.data.rangePosition}%` }} />
-                              </div>
-                              <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
-                                <span>${etf.data.fiftyTwoWeekLow.toFixed(0)}</span>
-                                <span>52W</span>
-                                <span>${etf.data.fiftyTwoWeekHigh.toFixed(0)}</span>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       );
                     })}
