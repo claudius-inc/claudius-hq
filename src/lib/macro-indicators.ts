@@ -204,7 +204,7 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
   {
     id: "pmi-manufacturing",
     name: "ISM Manufacturing PMI",
-    fredCode: "MANEMP", // Note: ISM data not directly on FRED, may need alternative source
+    fredCode: "MANEMP", // Placeholder - ISM PMI not on FRED, fetched separately
     category: "growth",
     unit: "index",
     frequency: "monthly",

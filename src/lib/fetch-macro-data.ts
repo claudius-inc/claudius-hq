@@ -98,7 +98,17 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
   const results = await Promise.all(
     MACRO_INDICATORS.map(async (indicator) => {
       let data;
-      
+
+      // ISM Manufacturing PMI not available on FRED - skip for now
+      if (indicator.id === "pmi-manufacturing") {
+        return {
+          ...indicator,
+          data: null,
+          interpretation: null,
+          percentile: null,
+        };
+      }
+
       if (indicator.id === "yield-curve") {
         data = await fetchYieldCurve();
         if (data) {
@@ -107,6 +117,18 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
         }
       } else {
         data = await fetchFredSeries(indicator.fredCode);
+      }
+
+      // HY credit spread: FRED reports in %, ranges expect bps
+      if (data && indicator.id === "hy-spread") {
+        data.current = data.current * 100;
+        data.history = data.history.map(v => v * 100);
+      }
+
+      // Initial claims: FRED reports raw numbers, ranges expect thousands
+      if (data && indicator.id === "initial-claims") {
+        data.current = data.current / 1000;
+        data.history = data.history.map(v => v / 1000);
       }
 
       // For CPI/PCE, calculate YoY change
