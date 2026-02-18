@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
-import { Search, Briefcase, Globe, FileText, TrendingUp, Flame, HardHat, Factory, CreditCard, Thermometer, FlaskConical } from "lucide-react";
+import { Search, Briefcase, Globe, FileText, TrendingUp, Flame, HardHat, Factory, CreditCard, Thermometer, FlaskConical, BarChart3 } from "lucide-react";
 import { formatDate } from "@/lib/format-date";
 
 // Types
@@ -42,6 +42,20 @@ interface StockReport {
   title: string;
   companyName?: string;
   createdAt: string;
+}
+
+interface MarketEtf {
+  ticker: string;
+  name: string;
+  data: {
+    price: number;
+    change: number;
+    changePercent: number;
+    rangePosition: number;
+    fiftyTwoWeekLow: number;
+    fiftyTwoWeekHigh: number;
+  } | null;
+  interpretation: { label: string; color: string } | null;
 }
 
 interface SentimentData {
@@ -274,11 +288,13 @@ export default function StocksDashboard() {
   const [macroIndicators, setMacroIndicators] = useState<MacroIndicator[]>([]);
   const [recentReports, setRecentReports] = useState<StockReport[]>([]);
   const [sentimentData, setSentimentData] = useState<SentimentData | null>(null);
+  const [marketEtfs, setMarketEtfs] = useState<MarketEtf[]>([]);
   const [loading, setLoading] = useState({
     portfolio: true,
     macro: true,
     reports: true,
     sentiment: true,
+    etfs: true,
   });
 
   // Fetch all data on mount
@@ -313,6 +329,15 @@ export default function StocksDashboard() {
       })
       .catch(console.error)
       .finally(() => setLoading((prev) => ({ ...prev, reports: false })));
+
+    // Fetch market ETFs (TLT etc)
+    fetch("/api/macro/etfs")
+      .then((res) => res.json())
+      .then((data) => {
+        setMarketEtfs(data.etfs || []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, etfs: false })));
 
     // Fetch sentiment data
     fetch("/api/markets/sentiment")
@@ -498,6 +523,64 @@ export default function StocksDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* Market Barometers (TLT etc) */}
+              {marketEtfs.length > 0 && (
+                <div>
+                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <BarChart3 className="w-4 h-4" />
+                    barometers
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                    {marketEtfs.map((etf) => {
+                      const etfBgColor = etf.interpretation?.color === "blue" ? "bg-blue-50 border-blue-200"
+                        : etf.interpretation?.color === "amber" ? "bg-amber-50 border-amber-200"
+                        : etf.interpretation?.color === "red" ? "bg-red-50 border-red-200"
+                        : "bg-gray-50 border-gray-200";
+                      const etfLabelColor = etf.interpretation?.color === "blue" ? "bg-blue-100 text-blue-700"
+                        : etf.interpretation?.color === "amber" ? "bg-amber-100 text-amber-700"
+                        : etf.interpretation?.color === "red" ? "bg-red-100 text-red-700"
+                        : "bg-gray-100 text-gray-700";
+                      return (
+                        <div key={etf.ticker} className={`p-2 rounded-lg border ${etfBgColor}`}>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600">{etf.ticker}</span>
+                            <div className="flex items-center gap-1.5">
+                              {etf.data && (
+                                <>
+                                  <span className="text-xs font-medium text-gray-900">
+                                    ${etf.data.price.toFixed(2)}
+                                  </span>
+                                  <span className={`text-[10px] ${etf.data.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                    {etf.data.changePercent >= 0 ? "+" : ""}{etf.data.changePercent.toFixed(1)}%
+                                  </span>
+                                </>
+                              )}
+                              {etf.interpretation && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded ${etfLabelColor}`}>
+                                  {etf.interpretation.label}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {etf.data && (
+                            <div className="mt-1.5">
+                              <div className="relative h-1 bg-gray-200 rounded-full">
+                                <div className="absolute top-0 left-0 h-full bg-blue-400 rounded-full" style={{ width: `${etf.data.rangePosition}%` }} />
+                              </div>
+                              <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
+                                <span>${etf.data.fiftyTwoWeekLow.toFixed(0)}</span>
+                                <span>52W</span>
+                                <span>${etf.data.fiftyTwoWeekHigh.toFixed(0)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Legend */}
               <div className="flex flex-wrap items-center gap-3 text-[10px] pb-2 border-b border-gray-100">
