@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/db";
+import { rawClient as db } from "@/db";
 
 // Create emails table if not exists
 async function ensureTable() {
