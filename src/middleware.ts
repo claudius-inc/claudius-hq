@@ -12,6 +12,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Email webhook: no auth (Cloudflare Email Worker forwards here)
+  if (pathname === "/api/integrations/email" && request.method === "POST") {
+    return NextResponse.next();
+  }
+
   // API routes: check API key OR session cookie
   if (pathname.startsWith("/api/")) {
     const apiKey = request.headers.get("x-api-key") || request.headers.get("authorization")?.replace("Bearer ", "");
