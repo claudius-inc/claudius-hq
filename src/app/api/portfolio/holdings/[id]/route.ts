@@ -2,6 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, portfolioHoldings } from "@/db";
 import { eq } from "drizzle-orm";
 
+function toSnakeCase(r: Record<string, unknown>) {
+  return {
+    id: r.id,
+    ticker: r.ticker,
+    target_allocation: r.targetAllocation,
+    cost_basis: r.costBasis,
+    shares: r.shares,
+    added_at: r.addedAt,
+    updated_at: r.updatedAt,
+  };
+}
+
 // PUT /api/portfolio/holdings/[id] — Update holding
 export async function PUT(
   req: NextRequest,
@@ -42,7 +54,7 @@ export async function PUT(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ holding: result });
+    return NextResponse.json({ holding: toSnakeCase(result) });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }

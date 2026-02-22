@@ -2,14 +2,28 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, portfolioHoldings, watchlist } from "@/db";
 import { eq, desc } from "drizzle-orm";
 
+function toSnakeCase(r: Record<string, unknown>) {
+  return {
+    id: r.id,
+    ticker: r.ticker,
+    target_allocation: r.targetAllocation,
+    cost_basis: r.costBasis,
+    shares: r.shares,
+    added_at: r.addedAt,
+    updated_at: r.updatedAt,
+  };
+}
+
 // GET /api/portfolio/holdings — List all holdings
 export async function GET() {
   try {
-    const holdings = await db
+    const rows = await db
       .select()
       .from(portfolioHoldings)
       .orderBy(desc(portfolioHoldings.targetAllocation));
     
+    const holdings = rows.map(toSnakeCase);
+
     return NextResponse.json({ holdings });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -64,7 +78,7 @@ export async function POST(req: NextRequest) {
       })
       .where(eq(watchlist.ticker, upperTicker));
 
-    return NextResponse.json({ holding: newHolding }, { status: 201 });
+    return NextResponse.json({ holding: toSnakeCase(newHolding) }, { status: 201 });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
