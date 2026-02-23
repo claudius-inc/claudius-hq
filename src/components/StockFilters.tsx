@@ -49,7 +49,7 @@ function parseRelatedTickers(json: string | null | undefined): string[] {
   }
 }
 
-type ReportType = "all" | "sun-tzu" | "weekly-scan" | "comparison";
+type ReportType = "all" | "sun-tzu" | "weekly-scan" | "comparison" | "thematic";
 type DateRange = "all" | "7d" | "30d";
 type SortBy = "newest" | "alphabetical";
 
@@ -63,29 +63,34 @@ export function StockFilters({ reports }: StockFiltersProps) {
   const [dateRange, setDateRange] = useState<DateRange>("all");
   const [sortBy, setSortBy] = useState<SortBy>("newest");
 
-  // Separate comparison reports from single-ticker reports
-  const { comparisonReports, singleReports } = useMemo(() => {
+  // Separate comparison, thematic, and single-ticker reports
+  const { comparisonReports, thematicReports, singleReports } = useMemo(() => {
     const comparisons: StockReport[] = [];
+    const thematics: StockReport[] = [];
     const singles: StockReport[] = [];
     
     for (const report of reports) {
       if (report.report_type === "comparison") {
         comparisons.push(report);
+      } else if (report.report_type === "thematic") {
+        thematics.push(report);
       } else {
         singles.push(report);
       }
     }
     
-    return { comparisonReports: comparisons, singleReports: singles };
+    return { comparisonReports: comparisons, thematicReports: thematics, singleReports: singles };
   }, [reports]);
 
   const filteredReports = useMemo(() => {
     // Start with appropriate base based on filter
     let filtered = reportType === "comparison" 
       ? [...comparisonReports]
-      : reportType === "all" 
-        ? [...singleReports] // "all" shows single-ticker reports; comparisons shown separately
-        : [...singleReports];
+      : reportType === "thematic"
+        ? [...thematicReports]
+        : reportType === "all" 
+          ? [...singleReports]
+          : [...singleReports];
 
     // Filter by search
     if (search) {
@@ -129,7 +134,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
     }
 
     return filtered;
-  }, [singleReports, comparisonReports, search, reportType, dateRange, sortBy]);
+  }, [singleReports, comparisonReports, thematicReports, search, reportType, dateRange, sortBy]);
 
   // Filter comparison reports by date/search
   const filteredComparisons = useMemo(() => {
@@ -163,6 +168,37 @@ export function StockFilters({ reports }: StockFiltersProps) {
     return filtered;
   }, [comparisonReports, search, dateRange]);
 
+  // Filter thematic reports
+  const filteredThematics = useMemo(() => {
+    let filtered = [...thematicReports];
+
+    if (search) {
+      const q = search.toLowerCase();
+      filtered = filtered.filter(
+        (r) =>
+          r.ticker.toLowerCase().includes(q) ||
+          r.title?.toLowerCase().includes(q)
+      );
+    }
+
+    if (dateRange !== "all") {
+      const now = new Date();
+      const days = dateRange === "7d" ? 7 : 30;
+      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter(
+        (r) => r.created_at && new Date(r.created_at) >= cutoff
+      );
+    }
+
+    filtered.sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime()
+    );
+
+    return filtered;
+  }, [thematicReports, search, dateRange]);
+
   // Group filtered single reports by ticker
   const reportsByTicker = useMemo(() => {
     if (reportType === "comparison") return {};
@@ -187,7 +223,8 @@ export function StockFilters({ reports }: StockFiltersProps) {
   }, [tickers, reportsByTicker, sortBy]);
 
   const showComparisonsSection = reportType === "all" || reportType === "comparison";
-  const showSingleTickerSection = reportType !== "comparison";
+  const showThematicsSection = reportType === "all" || reportType === "thematic";
+  const showSingleTickerSection = reportType !== "comparison" && reportType !== "thematic";
 
   return (
     <div className="space-y-6">
@@ -230,6 +267,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
             { value: "sun-tzu", label: "Sun Tzu" },
             { value: "weekly-scan", label: "Weekly Scan" },
             { value: "comparison", label: "Comparison" },
+            { value: "thematic", label: "Thematic" },
           ]}
         />
 
@@ -256,7 +294,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
 
         {/* Results count */}
         <span className="text-xs text-gray-500 ml-auto">
-          {`${filteredReports.length + (showComparisonsSection ? filteredComparisons.length : 0)} report${filteredReports.length + filteredComparisons.length !== 1 ? "s" : ""}${reportType !== "comparison" ? ` · ${sortedTickers.length} ticker${sortedTickers.length !== 1 ? "s" : ""}` : ""}`}
+          {`${filteredReports.length + (showComparisonsSection ? filteredComparisons.length : 0) + (showThematicsSection ? filteredThematics.length : 0)} reports`}
         </span>
       </div>
 
@@ -299,6 +337,34 @@ export function StockFilters({ reports }: StockFiltersProps) {
                 </Link>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Thematic & Market Research */}
+      {showThematicsSection && filteredThematics.length > 0 && (
+        <div className="space-y-4">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+            🌍 Thematic &amp; Market Research
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredThematics.map((report) => (
+              <Link
+                key={report.id}
+                href={`/markets/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
+                className="card-hover"
+              >
+                <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-2 py-0.5">
+                  {report.ticker}
+                </span>
+                <div className="text-sm font-semibold text-gray-900 mt-2 line-clamp-2">
+                  {report.title || "Thematic Report"}
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  {formatDateTime(report.created_at)}
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       )}
@@ -353,7 +419,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
       )}
 
       {/* Empty state */}
-      {sortedTickers.length === 0 && filteredComparisons.length === 0 && (
+      {sortedTickers.length === 0 && filteredComparisons.length === 0 && filteredThematics.length === 0 && (
         <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
           <div className="mb-3 flex justify-center text-gray-400"><Search className="w-8 h-8" /></div>
           <h3 className="text-lg font-semibold text-gray-900 mb-1">No matching reports</h3>
