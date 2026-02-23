@@ -143,7 +143,7 @@ export function ReportTOC({ content }: ReportTOCProps) {
       </div>
 
       {/* Mobile: Floating button */}
-      <div className="lg:hidden fixed bottom-4 left-4 z-50">
+      <div className="lg:hidden fixed bottom-4 right-4 z-50">
         <div className="relative">
           <button
             onClick={() => setIsExpanded(!isExpanded)}
@@ -162,7 +162,7 @@ export function ReportTOC({ content }: ReportTOCProps) {
 
           {/* Mobile dropdown */}
           {isExpanded && (
-            <div className="absolute bottom-14 left-0 w-64 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
+            <div className="absolute bottom-14 right-0 w-64 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-y-auto">
               <div className="p-2">
                 <p className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">
                   Contents
