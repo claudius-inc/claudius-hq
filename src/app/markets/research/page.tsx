@@ -43,12 +43,15 @@ export default async function ResearchPage() {
 
   return (
     <>
-      {/* Research Form */}
+      {/* Research Launcher */}
       <div className="mb-8">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-          New Research
-        </h2>
-        <div className="card">
+        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-6">
+          <h2 className="text-lg font-bold text-gray-900 mb-1">
+            Launch Research
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Enter a ticker, theme, or comparison to generate a report
+          </p>
           <Suspense fallback={<Skeleton className="h-12 w-full" />}>
             <ResearchForm />
           </Suspense>

@@ -2,10 +2,8 @@
 
 import { useState, useMemo } from "react";
 import Link from "next/link";
-import { Trophy, Search } from "lucide-react";
+import { Search, ChevronDown, ChevronRight } from "lucide-react";
 import { StockReport } from "@/lib/types";
-import { StockReportViewer } from "./StockReportViewer";
-import { Select } from "./ui/Select";
 
 // Extract company name from title patterns like "Sun Tzu Report: Company Name (TICKER)"
 function extractCompanyName(title: string | null | undefined): string {
@@ -38,213 +36,102 @@ function formatDateTime(dateStr: string | null | undefined): string {
   });
 }
 
-// Parse related_tickers JSON safely
-function parseRelatedTickers(json: string | null | undefined): string[] {
-  if (!json) return [];
-  try {
-    const parsed = JSON.parse(json);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-type ReportType = "all" | "sun-tzu" | "weekly-scan" | "comparison" | "thematic";
-type DateRange = "all" | "7d" | "30d";
-type SortBy = "newest" | "alphabetical";
-
 interface StockFiltersProps {
   reports: StockReport[];
 }
 
 export function StockFilters({ reports }: StockFiltersProps) {
   const [search, setSearch] = useState("");
-  const [reportType, setReportType] = useState<ReportType>("all");
-  const [dateRange, setDateRange] = useState<DateRange>("all");
-  const [sortBy, setSortBy] = useState<SortBy>("newest");
+  const [showThematic, setShowThematic] = useState(false);
 
-  // Separate comparison, thematic, and single-ticker reports
-  const { comparisonReports, thematicReports, singleReports } = useMemo(() => {
-    const comparisons: StockReport[] = [];
-    const thematics: StockReport[] = [];
-    const singles: StockReport[] = [];
-    
+  // Split into ticker reports vs thematic/comparison/weekly-scan
+  const { tickerReports, thematicReports } = useMemo(() => {
+    const ticker: StockReport[] = [];
+    const thematic: StockReport[] = [];
+
     for (const report of reports) {
-      if (report.report_type === "comparison") {
-        comparisons.push(report);
-      } else if (report.report_type === "thematic") {
-        thematics.push(report);
+      if (report.report_type === "comparison" || report.report_type === "thematic" || report.report_type === "weekly-scan") {
+        thematic.push(report);
       } else {
-        singles.push(report);
+        ticker.push(report);
       }
     }
-    
-    return { comparisonReports: comparisons, thematicReports: thematics, singleReports: singles };
+
+    // Sort thematic by newest first
+    thematic.sort(
+      (a, b) =>
+        new Date(b.created_at || 0).getTime() -
+        new Date(a.created_at || 0).getTime()
+    );
+
+    return { tickerReports: ticker, thematicReports: thematic };
   }, [reports]);
 
-  const filteredReports = useMemo(() => {
-    // Start with appropriate base based on filter
-    let filtered = reportType === "comparison" 
-      ? [...comparisonReports]
-      : reportType === "thematic"
-        ? [...thematicReports]
-        : reportType === "all" 
-          ? [...singleReports]
-          : [...singleReports];
+  // Group ticker reports by ticker, filter by search, sort by newest
+  const { sortedTickers, reportsByTicker } = useMemo(() => {
+    let filtered = tickerReports;
 
-    // Filter by search
     if (search) {
       const q = search.toLowerCase();
       filtered = filtered.filter(
         (r) =>
           r.ticker.toLowerCase().includes(q) ||
-          r.title?.toLowerCase().includes(q) ||
-          parseRelatedTickers(r.related_tickers).some(t => t.toLowerCase().includes(q))
+          r.company_name?.toLowerCase().includes(q) ||
+          extractCompanyName(r.title).toLowerCase().includes(q)
       );
     }
 
-    // Filter by report type (for non-comparison)
-    if (reportType === "sun-tzu") {
-      filtered = filtered.filter(
-        (r) => !r.report_type || r.report_type === "sun-tzu"
-      );
-    } else if (reportType === "weekly-scan") {
-      filtered = filtered.filter((r) => r.report_type === "weekly-scan");
+    const grouped: Record<string, StockReport[]> = {};
+    for (const report of filtered) {
+      if (!grouped[report.ticker]) grouped[report.ticker] = [];
+      grouped[report.ticker].push(report);
     }
 
-    // Filter by date range
-    if (dateRange !== "all") {
-      const now = new Date();
-      const days = dateRange === "7d" ? 7 : 30;
-      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-      filtered = filtered.filter(
-        (r) => r.created_at && new Date(r.created_at) >= cutoff
-      );
-    }
-
-    // Sort
-    if (sortBy === "alphabetical") {
-      filtered.sort((a, b) => a.ticker.localeCompare(b.ticker));
-    } else {
-      filtered.sort(
+    // Sort each group by newest first
+    for (const ticker in grouped) {
+      grouped[ticker].sort(
         (a, b) =>
           new Date(b.created_at || 0).getTime() -
           new Date(a.created_at || 0).getTime()
       );
     }
 
-    return filtered;
-  }, [singleReports, comparisonReports, thematicReports, search, reportType, dateRange, sortBy]);
-
-  // Filter comparison reports by date/search
-  const filteredComparisons = useMemo(() => {
-    let filtered = [...comparisonReports];
-
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(
-        (r) =>
-          r.ticker.toLowerCase().includes(q) ||
-          r.title?.toLowerCase().includes(q) ||
-          parseRelatedTickers(r.related_tickers).some(t => t.toLowerCase().includes(q))
-      );
-    }
-
-    if (dateRange !== "all") {
-      const now = new Date();
-      const days = dateRange === "7d" ? 7 : 30;
-      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-      filtered = filtered.filter(
-        (r) => r.created_at && new Date(r.created_at) >= cutoff
-      );
-    }
-
-    filtered.sort(
-      (a, b) =>
-        new Date(b.created_at || 0).getTime() -
-        new Date(a.created_at || 0).getTime()
-    );
-
-    return filtered;
-  }, [comparisonReports, search, dateRange]);
-
-  // Filter thematic reports
-  const filteredThematics = useMemo(() => {
-    let filtered = [...thematicReports];
-
-    if (search) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(
-        (r) =>
-          r.ticker.toLowerCase().includes(q) ||
-          r.title?.toLowerCase().includes(q)
-      );
-    }
-
-    if (dateRange !== "all") {
-      const now = new Date();
-      const days = dateRange === "7d" ? 7 : 30;
-      const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-      filtered = filtered.filter(
-        (r) => r.created_at && new Date(r.created_at) >= cutoff
-      );
-    }
-
-    filtered.sort(
-      (a, b) =>
-        new Date(b.created_at || 0).getTime() -
-        new Date(a.created_at || 0).getTime()
-    );
-
-    return filtered;
-  }, [thematicReports, search, dateRange]);
-
-  // Group filtered single reports by ticker
-  const reportsByTicker = useMemo(() => {
-    if (reportType === "comparison") return {};
-    return filteredReports.reduce((acc, report) => {
-      if (!acc[report.ticker]) acc[report.ticker] = [];
-      acc[report.ticker].push(report);
-      return acc;
-    }, {} as Record<string, StockReport[]>);
-  }, [filteredReports, reportType]);
-
-  const tickers = Object.keys(reportsByTicker);
-
-  const sortedTickers = useMemo(() => {
-    if (sortBy === "alphabetical") {
-      return [...tickers].sort();
-    }
-    return [...tickers].sort((a, b) => {
-      const aDate = new Date(reportsByTicker[a][0]?.created_at || 0);
-      const bDate = new Date(reportsByTicker[b][0]?.created_at || 0);
+    // Sort tickers by latest report date (newest first)
+    const sorted = Object.keys(grouped).sort((a, b) => {
+      const aDate = new Date(grouped[a][0]?.created_at || 0);
+      const bDate = new Date(grouped[b][0]?.created_at || 0);
       return bDate.getTime() - aDate.getTime();
     });
-  }, [tickers, reportsByTicker, sortBy]);
 
-  const showComparisonsSection = reportType === "all" || reportType === "comparison";
-  const showThematicsSection = reportType === "all" || reportType === "thematic";
-  const showSingleTickerSection = reportType !== "comparison" && reportType !== "thematic";
+    return { sortedTickers: sorted, reportsByTicker: grouped };
+  }, [tickerReports, search]);
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-center">
-        {/* Ticker Search */}
+      {/* Reports by Ticker */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3">
+          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+            Reports by Ticker
+          </h2>
+          <span className="text-xs text-gray-400 ml-auto">
+            {sortedTickers.length} ticker{sortedTickers.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {/* Search */}
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-            <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-400" />
           </div>
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value.toUpperCase())}
-            placeholder="Filter by ticker..."
+            placeholder="Search by ticker or company..."
             autoCapitalize="characters"
             autoComplete="off"
-            className="pl-8 pr-8 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none w-40"
+            className="w-full pl-9 pr-9 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
           />
           {search && (
             <button
@@ -258,127 +145,12 @@ export function StockFilters({ reports }: StockFiltersProps) {
           )}
         </div>
 
-        {/* Report Type */}
-        <Select
-          value={reportType}
-          onChange={(val) => setReportType(val as ReportType)}
-          options={[
-            { value: "all", label: "All Types" },
-            { value: "sun-tzu", label: "Sun Tzu" },
-            { value: "weekly-scan", label: "Weekly Scan" },
-            { value: "comparison", label: "Comparison" },
-            { value: "thematic", label: "Thematic" },
-          ]}
-        />
-
-        {/* Date Range */}
-        <Select
-          value={dateRange}
-          onChange={(val) => setDateRange(val as DateRange)}
-          options={[
-            { value: "all", label: "All Time" },
-            { value: "7d", label: "Last 7 Days" },
-            { value: "30d", label: "Last 30 Days" },
-          ]}
-        />
-
-        {/* Sort */}
-        <Select
-          value={sortBy}
-          onChange={(val) => setSortBy(val as SortBy)}
-          options={[
-            { value: "newest", label: "Newest First" },
-            { value: "alphabetical", label: "A-Z" },
-          ]}
-        />
-
-        {/* Results count */}
-        <span className="text-xs text-gray-500 ml-auto">
-          {`${filteredReports.length + (showComparisonsSection ? filteredComparisons.length : 0) + (showThematicsSection ? filteredThematics.length : 0)} reports`}
-        </span>
-      </div>
-
-      {/* Comparisons Section */}
-      {showComparisonsSection && filteredComparisons.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-            <Trophy className="w-4 h-4" /> Comparisons
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredComparisons.map((report) => {
-              const relatedTickers = parseRelatedTickers(report.related_tickers);
-              const allTickers = [report.ticker, ...relatedTickers.filter(t => t !== report.ticker)];
-              
-              return (
-                <Link
-                  key={report.id}
-                  href={`/markets/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
-                  className="card-hover"
-                >
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {allTickers.slice(0, 6).map((t) => (
-                      <span
-                        key={t}
-                        className="text-xs font-medium text-emerald-600 bg-emerald-50 rounded px-2 py-0.5"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                    {allTickers.length > 6 && (
-                      <span className="text-xs text-gray-400">+{allTickers.length - 6} more</span>
-                    )}
-                  </div>
-                  <div className="text-sm font-semibold text-gray-900 line-clamp-2">
-                    {report.title || "Comparison Report"}
-                  </div>
-                  <div className="text-xs text-gray-400 mt-2">
-                    {formatDateTime(report.created_at)}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Thematic & Market Research */}
-      {showThematicsSection && filteredThematics.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-            🌍 Thematic &amp; Market Research
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredThematics.map((report) => (
-              <Link
-                key={report.id}
-                href={`/markets/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
-                className="card-hover"
-              >
-                <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-2 py-0.5">
-                  {report.ticker}
-                </span>
-                <div className="text-sm font-semibold text-gray-900 mt-2 line-clamp-2">
-                  {report.title || "Thematic Report"}
-                </div>
-                <div className="text-xs text-gray-400 mt-2">
-                  {formatDateTime(report.created_at)}
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Single-Ticker Reports by Ticker */}
-      {showSingleTickerSection && sortedTickers.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
-            Reports by Ticker
-          </h2>
+        {/* Ticker Grid */}
+        {sortedTickers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {sortedTickers.map((ticker) => {
-              const tickerReports = reportsByTicker[ticker];
-              const latestReport = tickerReports[0];
+              const tickerRpts = reportsByTicker[ticker];
+              const latestReport = tickerRpts[0];
               return (
                 <Link
                   key={ticker}
@@ -393,7 +165,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
                       </div>
                     </div>
                     <div className="text-xs text-gray-400">
-                      {tickerReports.length} report{tickerReports.length !== 1 ? "s" : ""}
+                      {tickerRpts.length} report{tickerRpts.length !== 1 ? "s" : ""}
                     </div>
                   </div>
                   <div className="text-xs text-gray-400 mt-2">
@@ -403,29 +175,54 @@ export function StockFilters({ reports }: StockFiltersProps) {
               );
             })}
           </div>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
+            <div className="mb-3 flex justify-center text-gray-400"><Search className="w-8 h-8" /></div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">No matching reports</h3>
+            <p className="text-sm text-gray-500">
+              Try a different search term
+            </p>
+          </div>
+        )}
+      </div>
 
-          {/* Latest Reports */}
-          <div>
-            <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-              Latest Reports
-            </h2>
-            <div className="space-y-4">
-              {filteredReports.slice(0, 5).map((report) => (
-                <StockReportViewer key={report.id} report={report} />
+      {/* Thematic & Other Reports */}
+      {thematicReports.length > 0 && (
+        <div className="space-y-3">
+          <button
+            onClick={() => setShowThematic(!showThematic)}
+            className="flex items-center gap-2 text-sm font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-600 transition-colors"
+          >
+            {showThematic ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            Show thematic &amp; other reports ({thematicReports.length})
+          </button>
+
+          {showThematic && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {thematicReports.map((report) => (
+                <Link
+                  key={report.id}
+                  href={`/markets/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
+                  className="card-hover"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-medium text-blue-600 bg-blue-50 rounded px-2 py-0.5">
+                      {report.report_type === "comparison" ? "Comparison" : report.report_type === "weekly-scan" ? "Weekly Scan" : "Thematic"}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {report.ticker}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-900 line-clamp-2">
+                    {report.title || "Report"}
+                  </div>
+                  <div className="text-xs text-gray-400 mt-2">
+                    {formatDateTime(report.created_at)}
+                  </div>
+                </Link>
               ))}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Empty state */}
-      {sortedTickers.length === 0 && filteredComparisons.length === 0 && filteredThematics.length === 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-          <div className="mb-3 flex justify-center text-gray-400"><Search className="w-8 h-8" /></div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">No matching reports</h3>
-          <p className="text-sm text-gray-500">
-            Try adjusting your filters or search term
-          </p>
+          )}
         </div>
       )}
     </div>
