@@ -143,7 +143,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
     <>
       {/* Sticky header - top-12 to sit below Nav (h-12) */}
       <div className="sticky top-12 z-30 bg-gray-50 border-b border-gray-200 -mx-4 px-4">
-        <div className="max-w-6xl mx-auto px-4 py-2 md:py-3">
+        <div className="max-w-6xl mx-auto py-2 md:py-3">
           {/* Row 1: Breadcrumb + Actions */}
           <div className="flex items-center justify-between gap-2 text-sm mb-1">
             <div className="flex items-center gap-2 text-gray-400">
