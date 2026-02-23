@@ -190,7 +190,7 @@ export default async function ReportDetailPage({ params, searchParams }: PagePro
       {/* Report content */}
       {report ? (
         <main className="-mx-4 lg:mx-0 lg:max-w-6xl lg:mx-auto lg:px-4 py-4 md:py-6">
-          <div className="flex gap-4">
+          <div className="flex lg:gap-4">
             <ReportTOC content={report.content} />
 
             <div className="flex-1 min-w-0">

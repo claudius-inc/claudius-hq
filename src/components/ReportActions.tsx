@@ -75,9 +75,9 @@ export function ReportActions({ olderReports, currentReportId, ticker, content, 
           aria-label="Actions"
         >
           <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-            <circle cx="10" cy="4" r="1.5" />
+            <circle cx="4" cy="10" r="1.5" />
             <circle cx="10" cy="10" r="1.5" />
-            <circle cx="10" cy="16" r="1.5" />
+            <circle cx="16" cy="10" r="1.5" />
           </svg>
         </button>
 
