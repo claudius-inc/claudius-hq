@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { MACRO_INDICATORS } from "@/lib/macro-indicators";
 import { formatDate, formatTimestamp } from "@/lib/format-date";
+import { PageHero } from "@/components/PageHero";
 import ReactMarkdown from "react-markdown";
 import { TrendingUp, Flame, HardHat, Factory, Drama, CreditCard, ArrowLeftRight, Globe, BarChart3 } from "lucide-react";
 
@@ -264,27 +265,21 @@ export function MacroContent() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Macro Dashboard</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Key economic indicators and what they mean for markets
-            </p>
-          </div>
-          {status === "demo" && (
-            <div className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
+      <PageHero
+        title="Macro Dashboard"
+        subtitle="Key economic indicators and what they mean for markets"
+        badge={
+          status === "demo" ? (
+            <span className="text-xs bg-amber-100 text-amber-700 px-3 py-1 rounded-full">
               Demo Mode — Add FRED_API_KEY for live data
-            </div>
-          )}
-          {lastUpdated && status === "live" && (
-            <div className="text-xs text-gray-400">
+            </span>
+          ) : lastUpdated && status === "live" ? (
+            <span className="text-xs text-gray-400">
               Updated: {formatTimestamp(lastUpdated)}
-            </div>
-          )}
-        </div>
-      </div>
+            </span>
+          ) : undefined
+        }
+      />
 
       {/* AI Insights Section */}
       <div className="card mb-6 p-5 border-l-4 border-blue-500">

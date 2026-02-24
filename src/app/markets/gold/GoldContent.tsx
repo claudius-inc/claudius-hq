@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { formatDate } from "@/lib/format-date";
+import { PageHero } from "@/components/PageHero";
+import { Pencil } from "lucide-react";
 import {
   GoldData,
   KeyLevel,
@@ -109,28 +111,15 @@ export function GoldContent() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gold Analysis</h1>
-            <p className="text-sm text-gray-500 mt-1">Track gold prices, ETF flows, and key levels</p>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={syncFlows} disabled={syncing} className="px-4 py-2 bg-amber-100 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-200 disabled:opacity-50">
-              {syncing ? "Syncing..." : "Sync GLD Data"}
-            </button>
-            <button onClick={() => (editMode ? saveAnalysis() : setEditMode(true))} disabled={saving} className={`px-4 py-2 rounded-lg text-sm font-medium ${editMode ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"} disabled:opacity-50`}>
-              {saving ? "Saving..." : editMode ? "Save" : "Edit"}
-            </button>
-            {editMode && (
-              <button onClick={() => setEditMode(false)} className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200">
-                Cancel
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      <PageHero
+        title="Gold Analysis"
+        subtitle="Track gold prices, ETF flows, and key levels"
+        actions={[
+          { label: syncing ? "Syncing..." : "Sync GLD Data", onClick: syncFlows, disabled: syncing },
+          { label: saving ? "Saving..." : editMode ? "Save" : "Edit", onClick: () => (editMode ? saveAnalysis() : setEditMode(true)), disabled: saving, variant: editMode ? "primary" : "default", icon: !editMode ? <Pencil className="w-3.5 h-3.5" /> : undefined },
+          ...(editMode ? [{ label: "Cancel", onClick: () => setEditMode(false) }] : []),
+        ]}
+      />
 
       <GoldPriceCard
         livePrice={livePrice}

@@ -3,6 +3,7 @@ import db from "@/lib/db";
 import { Project } from "@/lib/types";
 import { ProjectFilters } from "@/components/ProjectFilters";
 import { EmptyState } from "@/components/EmptyState";
+import { PageHero } from "@/components/PageHero";
 import { Rocket } from "lucide-react";
 
 export const metadata: Metadata = {
@@ -20,7 +21,7 @@ export default async function ProjectsPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">All Projects</h1>
+      <PageHero title="All Projects" subtitle={`${projects.length} projects`} />
       {projects.length > 0 ? (
         <ProjectFilters projects={projects} />
       ) : (

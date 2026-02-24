@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { RefreshCw, Plus } from "lucide-react";
+import { PageHero } from "@/components/PageHero";
 import {
   AlertsTable,
   AlertForm,
@@ -78,22 +79,13 @@ export function AlertsPageContent() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <h2 className="text-lg font-bold text-gray-900">Price Alerts</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Monitor stocks for accumulation and buying opportunities
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn-primary flex items-center gap-2 text-sm px-3 py-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          Add Alert
-        </button>
-      </div>
+      <PageHero
+        title="Price Alerts"
+        subtitle="Monitor stocks for accumulation and buying opportunities"
+        actions={[
+          { label: "Add Alert", onClick: () => setShowAddModal(true), icon: <Plus className="w-4 h-4" />, variant: "primary" },
+        ]}
+      />
 
       {/* Alerts Table */}
       <AlertsTable

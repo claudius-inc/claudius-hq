@@ -3,6 +3,7 @@ import db, { ensureDB } from "@/lib/db";
 import { Idea } from "@/lib/types";
 import { IdeasPipeline } from "@/components/IdeasPipeline";
 import { IdeaForm } from "@/components/IdeaForm";
+import { PageHero } from "@/components/PageHero";
 
 export const metadata: Metadata = {
   title: "Ideas",
@@ -20,12 +21,7 @@ export default async function IdeasPage() {
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Ideas Pipeline</h1>
-        <div className="flex items-center gap-2 text-sm text-gray-400">
-          <span>{ideas.length} ideas</span>
-        </div>
-      </div>
+      <PageHero title="Ideas Pipeline" subtitle={`${ideas.length} ideas`} />
 
       <div className="mb-8">
         <details className="group">

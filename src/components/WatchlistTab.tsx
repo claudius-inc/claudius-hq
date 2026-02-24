@@ -14,6 +14,7 @@ import {
   TrendingUp,
   CheckCircle,
 } from "lucide-react";
+import { PageHero } from "@/components/PageHero";
 import { WatchlistItem, WatchlistStatus } from "@/lib/types";
 import { formatDate } from "@/lib/date";
 import { useResearchStatus } from "@/hooks/useResearchStatus";
@@ -190,17 +191,12 @@ export function WatchlistTab({
 
   return (
     <div className="space-y-6">
-      {/* Add Button */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-900">Watchlist</h2>
-        <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="btn-primary flex items-center gap-2 text-sm px-3 py-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          Add to Watchlist
-        </button>
-      </div>
+      <PageHero
+        title="Watchlist"
+        actions={[
+          { label: "Add to Watchlist", onClick: () => setShowAddForm(!showAddForm), icon: <Plus className="w-4 h-4" />, variant: "primary" },
+        ]}
+      />
 
       {/* Add Form */}
       {showAddForm && (

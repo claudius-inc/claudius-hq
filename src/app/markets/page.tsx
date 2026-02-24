@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/Skeleton";
+import { PageHero } from "@/components/PageHero";
 import { Spinner } from "@/components/ui/Spinner";
 import {
   Search,
@@ -432,13 +433,10 @@ export default function StocksDashboard() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Markets Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Portfolio overview, research, and market signals
-        </p>
-      </div>
+      <PageHero
+        title="Markets Dashboard"
+        subtitle="Portfolio overview, research, and market signals"
+      />
 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { PageHero } from "@/components/PageHero";
 import {
   LineChart,
   Line,
@@ -169,13 +170,10 @@ export function BtcContent() {
 
   return (
     <>
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">BTC 200-Week Moving Average</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Cycle floor indicator — 4/4 historical touches marked generational bottoms
-        </p>
-      </div>
+      <PageHero
+        title="BTC 200-Week Moving Average"
+        subtitle="Cycle floor indicator — 4/4 historical touches marked generational bottoms"
+      />
 
       {/* Alert Zone */}
       <div className="mb-6">
