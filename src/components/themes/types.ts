@@ -2,6 +2,7 @@ import { ThemeStockStatus } from "@/lib/types";
 
 export interface SuggestedStock {
   ticker: string;
+  name?: string;
   adding?: boolean;
 }
 

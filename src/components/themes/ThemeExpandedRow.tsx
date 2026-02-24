@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { X, Edit2, Target, StickyNote } from "lucide-react";
+import { X, Edit2, StickyNote } from "lucide-react";
 import { SkeletonTableRow } from "@/components/Skeleton";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { SuggestedStocks } from "./SuggestedStocks";
 import { SuggestedStock } from "./types";
-import { formatPercent, getPercentColor, formatPrice, getTradingViewUrl, StatusBadge, GapIndicator } from "./utils";
+import { formatPercent, getPercentColor, formatPrice, getTradingViewUrl, StatusBadge } from "./utils";
 
 interface ThemeExpandedRowProps {
   themeId: number;
@@ -43,8 +43,6 @@ export function ThemeExpandedRow({
                     <th className="px-4 py-2 text-left font-medium uppercase">Ticker</th>
                     <th className="px-4 py-2 text-center font-medium uppercase w-8"></th>
                     <th className="px-4 py-2 text-right font-medium uppercase">Price</th>
-                    <th className="px-4 py-2 text-right font-medium uppercase">Target</th>
-                    <th className="px-4 py-2 text-right font-medium uppercase">Gap</th>
                     <th className="px-4 py-2 text-right font-medium uppercase">1W</th>
                     <th className="px-4 py-2 text-right font-medium uppercase">1M</th>
                     <th className="px-4 py-2 text-right font-medium uppercase">3M</th>
@@ -53,7 +51,7 @@ export function ThemeExpandedRow({
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {Array.from({ length: 4 }).map((_, i) => (
-                    <SkeletonTableRow key={i} cols={10} />
+                    <SkeletonTableRow key={i} cols={8} />
                   ))}
                 </tbody>
               </table>
@@ -68,8 +66,6 @@ export function ThemeExpandedRow({
                       <th className="px-4 py-2 text-left font-medium uppercase">Ticker</th>
                       <th className="px-4 py-2 text-center font-medium uppercase w-8"></th>
                       <th className="px-4 py-2 text-right font-medium uppercase">Price</th>
-                      <th className="px-4 py-2 text-right font-medium uppercase">Target</th>
-                      <th className="px-4 py-2 text-right font-medium uppercase">Gap</th>
                       <th className="px-4 py-2 text-right font-medium uppercase">1W</th>
                       <th className="px-4 py-2 text-right font-medium uppercase">1M</th>
                       <th className="px-4 py-2 text-right font-medium uppercase">3M</th>
@@ -118,19 +114,7 @@ export function ThemeExpandedRow({
                         <td className="px-4 py-2 text-right text-sm font-medium">
                           {formatPrice(stock.current_price)}
                         </td>
-                        <td className="px-4 py-2 text-right text-sm text-gray-600">
-                          {stock.target_price ? (
-                            <span className="flex items-center justify-end gap-1">
-                              <Target className="w-3 h-3 text-gray-400" />
-                              {formatPrice(stock.target_price)}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">-</span>
-                          )}
-                        </td>
-                        <td className="px-4 py-2 text-right">
-                          <GapIndicator gap={stock.price_gap_percent} hasTarget={stock.target_price !== null} />
-                        </td>
+
                         <td className={`px-4 py-2 text-right text-sm font-medium ${getPercentColor(stock.performance_1w)}`}>
                           {formatPercent(stock.performance_1w)}
                         </td>

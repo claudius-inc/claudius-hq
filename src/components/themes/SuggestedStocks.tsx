@@ -45,7 +45,10 @@ export function SuggestedStocks({
               ) : (
                 <Plus className="w-3 h-3" />
               )}
-              {s.ticker}
+              <span>{s.ticker}</span>
+              {s.name && (
+                <span className="text-gray-400 font-normal">{s.name}</span>
+              )}
             </button>
           ))}
         </div>
