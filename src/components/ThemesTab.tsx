@@ -157,7 +157,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
     ));
 
     try {
-      const res = await fetch(`/api/themes/${themeId}/markets`, {
+      const res = await fetch(`/api/themes/${themeId}/stocks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker }),
