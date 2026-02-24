@@ -124,20 +124,8 @@ export async function GET(request: NextRequest) {
         .slice(0, 10)
         .map(([ticker]) => ticker);
 
-      // Fetch names for suggested tickers (parallel, best-effort)
-      const suggestionsWithNames = await Promise.all(
-        sorted.map(async (ticker) => {
-          try {
-            const q = await yahooFinance.quote(ticker) as { shortName?: string };
-            return { ticker, name: q?.shortName || undefined };
-          } catch {
-            return { ticker };
-          }
-        })
-      );
-
       return NextResponse.json({
-        suggestions: suggestionsWithNames,
+        suggestions: sorted,
         basedOn: tickerList,
       });
     }

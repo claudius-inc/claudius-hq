@@ -102,9 +102,7 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
       const res = await fetch(`/api/themes/suggestions?tickers=${tickers.join(",")}`);
       const data = await res.json();
       if (data.suggestions) {
-        setSuggestions(data.suggestions.map((s: string | { ticker: string; name?: string }) =>
-          typeof s === "string" ? { ticker: s } : { ticker: s.ticker, name: s.name }
-        ));
+        setSuggestions(data.suggestions.map((t: string) => ({ ticker: t })));
       }
     } catch {
       setSuggestions([]);
