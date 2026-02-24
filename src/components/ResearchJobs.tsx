@@ -1,16 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2, CheckCircle, XCircle, Clock } from "lucide-react";
 import type { ResearchJob } from "@/db/schema";
 
 interface ResearchJobsProps {
   initialJobs: ResearchJob[];
+  onJobsComplete?: () => void;
 }
 
-export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
-  const router = useRouter();
+export function ResearchJobs({ initialJobs, onJobsComplete }: ResearchJobsProps) {
   const [jobs, setJobs] = useState<ResearchJob[]>(initialJobs);
   const [polling, setPolling] = useState(true);
   const [prevActiveCount, setPrevActiveCount] = useState(initialJobs.filter(
@@ -35,12 +34,10 @@ export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
             (j: ResearchJob) => j.status === "pending" || j.status === "processing"
           );
           
-          // If we had active jobs and now they're all done, hard reload to show new reports
-          // (router.refresh() can hit stale ISR cache; full reload guarantees fresh data)
+          // If we had active jobs and now they're all done, fetch fresh reports client-side
           if (stillActive.length === 0 && prevActiveCount > 0) {
             setPrevActiveCount(0);
-            setTimeout(() => window.location.reload(), 1000);
-            return;
+            onJobsComplete?.();
           } else if (stillActive.length > 0) {
             setPrevActiveCount(stillActive.length);
           }
@@ -54,7 +51,7 @@ export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
     const interval = setInterval(fetchJobs, 3000); // Poll every 3 seconds
 
     return () => clearInterval(interval);
-  }, [router, prevActiveCount]);
+  }, [onJobsComplete, prevActiveCount]);
 
   if (activeJobs.length === 0) {
     return null;
