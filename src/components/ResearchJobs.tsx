@@ -34,13 +34,11 @@ export function ResearchJobs({ initialJobs, onJobsComplete }: ResearchJobsProps)
             (j: ResearchJob) => j.status === "pending" || j.status === "processing"
           );
           
-          // If we had active jobs and now they're all done, fetch fresh reports client-side
-          if (stillActive.length === 0 && prevActiveCount > 0) {
-            setPrevActiveCount(0);
+          // If any job just completed (active count decreased), refresh reports
+          if (stillActive.length < prevActiveCount) {
             onJobsComplete?.();
-          } else if (stillActive.length > 0) {
-            setPrevActiveCount(stillActive.length);
           }
+          setPrevActiveCount(stillActive.length);
         }
       } catch (error) {
         console.error("Failed to poll jobs:", error);
