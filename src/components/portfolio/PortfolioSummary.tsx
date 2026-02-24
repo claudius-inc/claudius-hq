@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Sparkles, Loader2 } from "lucide-react";
+import { PageHero } from "@/components/PageHero";
 import { PortfolioHolding } from "@/lib/types";
 import { AllocationBar } from "../AllocationBar";
 
@@ -49,33 +50,23 @@ export function PortfolioSummary({
 
   return (
     <>
-      {/* Header */}
-      <div className="flex justify-between items-start sm:items-center gap-4">
-        <h2 className="text-lg font-semibold text-gray-900">
-          Portfolio Holdings
-        </h2>
-        <div className="flex gap-2">
-          <button
-            onClick={handleAnalyze}
-            disabled={analyzing || holdings.length === 0}
-            className="btn-secondary flex items-center gap-1.5 text-sm px-3 py-1.5 disabled:opacity-50"
-          >
-            {analyzing ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Sparkles className="w-3.5 h-3.5" />
-            )}
-            {analyzing ? "Starting..." : "Analyze"}
-          </button>
-          <button
-            onClick={onToggleAddForm}
-            className="btn-primary flex items-center gap-1.5 text-sm px-3 py-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add
-          </button>
-        </div>
-      </div>
+      <PageHero
+        title="Portfolio Holdings"
+        actions={[
+          {
+            label: analyzing ? "Starting..." : "Analyze",
+            onClick: handleAnalyze,
+            disabled: analyzing || holdings.length === 0,
+            icon: analyzing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />,
+          },
+          {
+            label: "Add",
+            onClick: onToggleAddForm,
+            icon: <Plus className="w-3.5 h-3.5" />,
+            variant: "primary" as const,
+          },
+        ]}
+      />
 
       {/* Analysis Status Message */}
       {analyzeMessage && (

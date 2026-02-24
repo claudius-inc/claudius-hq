@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus } from "lucide-react";
+import { PageHero } from "@/components/PageHero";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import {
   ThemeLeaderboard,
@@ -336,17 +337,13 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-900">Investment Themes</h2>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="btn-primary flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Add Theme
-        </button>
-      </div>
+      <PageHero
+        title="Investment Themes"
+        subtitle="Track thematic baskets and their performance"
+        actions={[
+          { label: "Add Theme", onClick: () => setShowAddModal(true), icon: <Plus className="w-4 h-4" />, variant: "primary" },
+        ]}
+      />
 
       {/* Theme Leaderboard */}
       <ThemeLeaderboard
