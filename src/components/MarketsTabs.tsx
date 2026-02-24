@@ -29,7 +29,11 @@ const primaryTabs: PrimaryTab[] = [
   {
     label: "Portfolio",
     href: "/markets/portfolio",
-    activePaths: ["/markets/portfolio", "/markets/portfolio/watchlist", "/markets/alerts"],
+    activePaths: [
+      "/markets/portfolio",
+      "/markets/portfolio/watchlist",
+      "/markets/alerts",
+    ],
     subTabs: [
       { href: "/markets/portfolio", label: "Holdings", exact: true },
       { href: "/markets/portfolio/watchlist", label: "Watchlist" },
@@ -86,46 +90,52 @@ export function MarketsTabs() {
   };
 
   return (
-    <div className="mb-4 space-y-2">
-      {/* Primary tabs */}
-      <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
-        <nav className="flex items-center space-x-1.5 min-w-max">
-          {primaryTabs.map((tab) => {
-            const active = tab.exact
-              ? pathname === tab.href
-              : tab.activePaths.some((p) => pathname.startsWith(p));
+    <div className="space-y-2 bg-white/90 backdrop-blur-sm border-b border-gray-200">
+      <div className="max-w-6xl mx-auto px-4">
+        {/* Primary tabs */}
+        <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
+          <nav className="flex items-center space-x-4 min-w-max">
+            {primaryTabs.map((tab) => {
+              const active = tab.exact
+                ? pathname === tab.href
+                : tab.activePaths.some((p) => pathname.startsWith(p));
 
-            return (
-              <Link
-                key={tab.label}
-                href={tab.href}
-                className={`
-                  min-h-[44px] flex items-center py-2 px-4 md:px-5 font-semibold text-sm transition-colors whitespace-nowrap rounded-full
-                  ${
-                    active
-                      ? "bg-gray-900 text-white"
-                      : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                  }
-                `}
-              >
-                {tab.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      {/* Mini pill sub-tabs */}
-      {hasSubTabs && (
-        <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
-          <div className="flex items-center gap-1.5 min-w-max bg-gray-100/80 rounded-full px-1.5 py-1 w-fit">
-            {subTabs.map((sub) => {
-              const subActive = isSubActive(sub);
               return (
                 <Link
-                  key={sub.href}
-                  href={sub.href}
+                  key={tab.label}
+                  href={tab.href}
                   className={`
+                  min-h-[38px] flex items-end py-2 text-sm whitespace-nowrap
+                  ${
+                    active
+                      ? "font-semibold text-gray-900"
+                      : "text-gray-400 hover:text-gray-700"
+                  }
+                `}
+                >
+                  {tab.label}
+                  {active && (
+                    <span className="flex flex-col items-start gap-0.5 -ml-0.5">
+                      <span className="w-1.5 h-[1px] bg-gray-900" />
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Mini pill sub-tabs */}
+        {hasSubTabs && (
+          <div className="overflow-x-auto scrollbar-hide -mx-1 px-1 py-2">
+            <div className="flex items-center gap-1.5 min-w-max bg-gray-100/80 rounded-full px-1.5 py-1 w-fit">
+              {subTabs.map((sub) => {
+                const subActive = isSubActive(sub);
+                return (
+                  <Link
+                    key={sub.href}
+                    href={sub.href}
+                    className={`
                     min-h-[32px] flex items-center px-3 text-xs whitespace-nowrap rounded-full transition-all
                     ${
                       subActive
@@ -133,14 +143,15 @@ export function MarketsTabs() {
                         : "text-gray-500 hover:text-gray-700"
                     }
                   `}
-                >
-                  {sub.label}
-                </Link>
-              );
-            })}
+                  >
+                    {sub.label}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

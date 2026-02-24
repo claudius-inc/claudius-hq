@@ -3,7 +3,17 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";
-import { Pencil, Trash2, ArrowRight, Plus, X, Check, Eye, TrendingUp, CheckCircle } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  ArrowRight,
+  Plus,
+  X,
+  Check,
+  Eye,
+  TrendingUp,
+  CheckCircle,
+} from "lucide-react";
 import { WatchlistItem, WatchlistStatus } from "@/lib/types";
 import { formatDate } from "@/lib/date";
 import { useResearchStatus } from "@/hooks/useResearchStatus";
@@ -20,19 +30,31 @@ const STATUS_ICONS: Record<WatchlistStatus, React.ReactNode> = {
   graduated: <CheckCircle className="w-3.5 h-3.5" />,
 };
 
-const STATUS_CONFIG: Record<WatchlistStatus, { label: string; className: string }> = {
+const STATUS_CONFIG: Record<
+  WatchlistStatus,
+  { label: string; className: string }
+> = {
   watching: { label: "Watching", className: "bg-gray-100 text-gray-700" },
-  accumulating: { label: "Accumulating", className: "bg-amber-100 text-amber-700" },
-  graduated: { label: "Graduated", className: "bg-emerald-100 text-emerald-700" },
+  accumulating: {
+    label: "Accumulating",
+    className: "bg-amber-100 text-amber-700",
+  },
+  graduated: {
+    label: "Graduated",
+    className: "bg-emerald-100 text-emerald-700",
+  },
 };
 
-export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTabProps) {
+export function WatchlistTab({
+  initialItems,
+  onPromoteToPortfolio,
+}: WatchlistTabProps) {
   const [items, setItems] = useState<WatchlistItem[]>(initialItems);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [loadingPrices, setLoadingPrices] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  
+
   // Form state
   const [newTicker, setNewTicker] = useState("");
   const [newTargetPrice, setNewTargetPrice] = useState("");
@@ -47,12 +69,13 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
 
   // Research status for watchlist items
   const watchlistTickers = useMemo(() => items.map((i) => i.ticker), [items]);
-  const { statuses: researchStatuses, refetch: refetchResearch } = useResearchStatus(watchlistTickers);
+  const { statuses: researchStatuses, refetch: refetchResearch } =
+    useResearchStatus(watchlistTickers);
 
   // Fetch prices for all tickers
   const fetchPrices = useCallback(async () => {
     if (items.length === 0) return;
-    
+
     setLoadingPrices(true);
     try {
       const tickers = items.map((i) => i.ticker).join(",");
@@ -172,7 +195,7 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
         <h2 className="text-lg font-semibold text-gray-900">Watchlist</h2>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
-          className="btn-primary flex items-center gap-2"
+          className="btn-primary flex items-center gap-2 text-sm px-3 py-1.5"
         >
           <Plus className="w-4 h-4" />
           Add to Watchlist
@@ -289,7 +312,9 @@ export function WatchlistTab({ initialItems, onPromoteToPortfolio }: WatchlistTa
                     <td className="px-4 py-3 whitespace-nowrap text-center">
                       <ResearchStatusBadge
                         ticker={item.ticker}
-                        status={researchStatuses[item.ticker.toUpperCase()] ?? null}
+                        status={
+                          researchStatuses[item.ticker.toUpperCase()] ?? null
+                        }
                         compact
                         onResearchTriggered={refetchResearch}
                       />

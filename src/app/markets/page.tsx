@@ -5,7 +5,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/ui/Spinner";
-import { Search, Briefcase, Globe, FileText, TrendingUp, Flame, HardHat, Factory, CreditCard, Thermometer, FlaskConical, BarChart3 } from "lucide-react";
+import {
+  Search,
+  Globe,
+  FileText,
+  FlaskConical,
+  TrendingUp,
+  Flame,
+  HardHat,
+  Factory,
+  CreditCard,
+  Activity,
+} from "lucide-react";
 import { formatDate } from "@/lib/format-date";
 
 // Types
@@ -70,48 +81,95 @@ interface SentimentData {
   };
 }
 
-// Helper functions
-function formatCurrency(value: number, currency = "SGD") {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatPct(value: number) {
-  const sign = value >= 0 ? "+" : "";
-  return `${sign}${value.toFixed(2)}%`;
-}
+// ── Helpers ──────────────────────────────────────────
 
 function getStatusColor(label: string): string {
   const colors: Record<string, string> = {
     "Target Zone": "bg-emerald-100 text-emerald-700",
     "At Target": "bg-emerald-100 text-emerald-700",
-    "Healthy": "bg-emerald-100 text-emerald-700",
-    "Normal": "bg-emerald-100 text-emerald-700",
+    Healthy: "bg-emerald-100 text-emerald-700",
+    Normal: "bg-emerald-100 text-emerald-700",
     "Full Employment": "bg-emerald-100 text-emerald-700",
-    "Expansion": "bg-emerald-100 text-emerald-700",
-    "Accommodative": "bg-blue-100 text-blue-700",
-    "Neutral": "bg-gray-100 text-gray-700",
-    "Moderate": "bg-gray-100 text-gray-700",
-    "Low": "bg-blue-100 text-blue-700",
+    Expansion: "bg-emerald-100 text-emerald-700",
+    Accommodative: "bg-blue-100 text-blue-700",
+    Neutral: "bg-gray-100 text-gray-700",
+    Moderate: "bg-gray-100 text-gray-700",
+    Low: "bg-blue-100 text-blue-700",
     "Above Target": "bg-amber-100 text-amber-700",
-    "Elevated": "bg-amber-100 text-amber-700",
-    "Softening": "bg-amber-100 text-amber-700",
-    "Restrictive": "bg-amber-100 text-amber-700",
-    "Inverted": "bg-amber-100 text-amber-700",
-    "Contraction": "bg-amber-100 text-amber-700",
-    "High": "bg-red-100 text-red-700",
+    Elevated: "bg-amber-100 text-amber-700",
+    Softening: "bg-amber-100 text-amber-700",
+    Restrictive: "bg-amber-100 text-amber-700",
+    Inverted: "bg-amber-100 text-amber-700",
+    Contraction: "bg-amber-100 text-amber-700",
+    High: "bg-red-100 text-red-700",
     "Very Restrictive": "bg-red-100 text-red-700",
     "Deeply Inverted": "bg-red-100 text-red-700",
-    "Crisis": "bg-red-100 text-red-700",
+    Crisis: "bg-red-100 text-red-700",
   };
   return colors[label] || "bg-gray-100 text-gray-700";
 }
 
-// Dashboard Card Component
+function getStatusTileBg(label: string): string {
+  const colors: Record<string, string> = {
+    "Target Zone": "bg-emerald-50",
+    "At Target": "bg-emerald-50",
+    Healthy: "bg-emerald-50",
+    Normal: "bg-emerald-50",
+    "Full Employment": "bg-emerald-50",
+    Expansion: "bg-emerald-50",
+    Accommodative: "bg-blue-50",
+    Neutral: "bg-gray-50",
+    Moderate: "bg-gray-50",
+    Low: "bg-blue-50",
+    "Above Target": "bg-amber-50",
+    Elevated: "bg-amber-50",
+    Softening: "bg-amber-50",
+    Restrictive: "bg-amber-50",
+    Inverted: "bg-amber-50",
+    Contraction: "bg-amber-50",
+    High: "bg-red-50",
+    "Very Restrictive": "bg-red-50",
+    "Deeply Inverted": "bg-red-50",
+    Crisis: "bg-red-50",
+  };
+  return colors[label] || "bg-gray-50";
+}
+
+function formatSentimentLevel(level: string | null | undefined): string {
+  if (!level) return "—";
+  return level.charAt(0).toUpperCase() + level.slice(1);
+}
+
+function formatIndicatorValue(indicator: MacroIndicator): string {
+  if (!indicator.data) return "—";
+  const val = indicator.data.current;
+  if (indicator.id === "initial-claims") return `${(val / 1000).toFixed(0)}K`;
+  if (indicator.id === "pmi-manufacturing") return val.toLocaleString();
+  if (indicator.id === "hy-spread") return `${val.toFixed(0)}bp`;
+  if (indicator.id === "yield-curve") return `${val.toFixed(0)}bp`;
+  return `${val.toFixed(1)}%`;
+}
+
+const categoryOrder = ["rates", "inflation", "employment", "growth", "credit"];
+
+const categoryLabels: Record<string, string> = {
+  rates: "Rates",
+  inflation: "Inflation",
+  employment: "Employment",
+  growth: "Growth",
+  credit: "Credit",
+};
+
+const categoryIcons: Record<string, React.ReactNode> = {
+  rates: <TrendingUp className="w-3 h-3" />,
+  inflation: <Flame className="w-3 h-3" />,
+  employment: <HardHat className="w-3 h-3" />,
+  growth: <Factory className="w-3 h-3" />,
+  credit: <CreditCard className="w-3 h-3" />,
+};
+
+// ── Dashboard Card ───────────────────────────────────
+
 function DashboardCard({
   title,
   icon,
@@ -161,11 +219,14 @@ function DashboardCard({
   return content;
 }
 
-// Quick Research Form Component
+// ── Quick Research Form ──────────────────────────────
+
 function QuickResearchForm() {
   const router = useRouter();
   const [ticker, setTicker] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [message, setMessage] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
@@ -238,45 +299,45 @@ function QuickResearchForm() {
   );
 }
 
-// Sentiment level color helpers
-function getSentimentColor(level: string | null | undefined): string {
-  switch (level) {
-    case "low":
-    case "greedy":
-      return "text-amber-600"; // Caution - could be complacent
-    case "moderate":
-    case "neutral":
-      return "text-emerald-600"; // Healthy
-    case "elevated":
-    case "fearful":
-    case "fear":
-      return "text-red-600"; // Stress
-    default:
-      return "text-gray-500";
-  }
+// ── Macro Indicator Tile ─────────────────────────────
+
+function IndicatorTile({ indicator }: { indicator: MacroIndicator }) {
+  const label = indicator.interpretation?.label;
+  const tileBg = label ? getStatusTileBg(label) : "bg-gray-50";
+  const pillColor = label ? getStatusColor(label) : "bg-gray-100 text-gray-500";
+
+  return (
+    <div
+      className={`rounded-xl p-3 ${tileBg} border border-white/60 transition-transform hover:scale-[1.02]`}
+    >
+      <div className="flex items-center gap-1 mb-1.5">
+        <span className="flex items-center text-gray-400">
+          {categoryIcons[indicator.category]}
+        </span>
+        <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">
+          {categoryLabels[indicator.category] || indicator.category}
+        </span>
+      </div>
+      <div className="text-xs text-gray-600 mb-1 leading-tight">
+        {indicator.name.replace(" (YoY)", "").replace(" Rate", "")}
+      </div>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-lg font-bold text-gray-900">
+          {formatIndicatorValue(indicator)}
+        </span>
+        {label && (
+          <span
+            className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${pillColor}`}
+          >
+            {label}
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
-function getSentimentBgColor(level: string | null | undefined): string {
-  switch (level) {
-    case "low":
-    case "greedy":
-      return "bg-amber-50 border-amber-200";
-    case "moderate":
-    case "neutral":
-      return "bg-emerald-50 border-emerald-200";
-    case "elevated":
-    case "fearful":
-    case "fear":
-      return "bg-red-50 border-red-200";
-    default:
-      return "bg-gray-50 border-gray-200";
-  }
-}
-
-function formatSentimentLevel(level: string | null | undefined): string {
-  if (!level) return "—";
-  return level.charAt(0).toUpperCase() + level.slice(1);
-}
+// ── Main Dashboard ───────────────────────────────────
 
 export default function StocksDashboard() {
   // State
@@ -287,7 +348,9 @@ export default function StocksDashboard() {
   } | null>(null);
   const [macroIndicators, setMacroIndicators] = useState<MacroIndicator[]>([]);
   const [recentReports, setRecentReports] = useState<StockReport[]>([]);
-  const [sentimentData, setSentimentData] = useState<SentimentData | null>(null);
+  const [sentimentData, setSentimentData] = useState<SentimentData | null>(
+    null,
+  );
   const [marketEtfs, setMarketEtfs] = useState<MarketEtf[]>([]);
   const [loading, setLoading] = useState({
     portfolio: true,
@@ -352,21 +415,20 @@ export default function StocksDashboard() {
       .finally(() => setLoading((prev) => ({ ...prev, sentiment: false })));
   }, []);
 
-  // Group macro indicators by category for organized display
-  const macroByCategory = macroIndicators.reduce((acc, ind) => {
-    if (!acc[ind.category]) acc[ind.category] = [];
-    acc[ind.category].push(ind);
-    return acc;
-  }, {} as Record<string, MacroIndicator[]>);
-  
-  const categoryOrder = ["rates", "inflation", "employment", "growth", "credit"];
-  const categoryIcons: Record<string, React.ReactNode> = {
-    rates: <TrendingUp className="w-4 h-4" />,
-    inflation: <Flame className="w-4 h-4" />,
-    employment: <HardHat className="w-4 h-4" />,
-    growth: <Factory className="w-4 h-4" />,
-    credit: <CreditCard className="w-4 h-4" />,
-  };
+  // Group and flatten macro indicators
+  const macroByCategory = macroIndicators.reduce(
+    (acc, ind) => {
+      if (!acc[ind.category]) acc[ind.category] = [];
+      acc[ind.category].push(ind);
+      return acc;
+    },
+    {} as Record<string, MacroIndicator[]>,
+  );
+
+  const allIndicators: MacroIndicator[] = [];
+  categoryOrder.forEach((cat) => {
+    if (macroByCategory[cat]) allIndicators.push(...macroByCategory[cat]);
+  });
 
   return (
     <>
@@ -381,278 +443,209 @@ export default function StocksDashboard() {
       {/* Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Quick Research */}
-        <DashboardCard title="Quick Research" icon={<Search className="w-4 h-4" />}>
+        <DashboardCard
+          title="Quick Research"
+          icon={<Search className="w-4 h-4" />}
+        >
           <QuickResearchForm />
           <p className="text-xs text-gray-400 mt-3">
             Start a Sun Tzu-style research report for any ticker
           </p>
         </DashboardCard>
 
-        {/* Portfolio Summary */}
+        {/* Macro Signals */}
+
         <DashboardCard
-          title="Portfolio Summary"
-          icon={<Briefcase className="w-4 h-4" />}
-          href="/markets/portfolio"
-          loading={loading.portfolio}
+          title="Macro Signals"
+          icon={<Globe className="w-4 h-4" />}
+          href="/markets/macro"
         >
-          {portfolioData?.summary ? (
-            <div className="space-y-3">
-              <div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {formatCurrency(
-                    portfolioData.summary.totalMarketValue,
-                    portfolioData.baseCurrency
-                  )}
-                </div>
-                <div className="text-xs text-gray-500">Total Market Value</div>
-              </div>
-              <div className="flex gap-4">
-                <div>
-                  <div
-                    className={`text-lg font-semibold ${
-                      portfolioData.summary.dayPnl >= 0
-                        ? "text-emerald-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {formatCurrency(
-                      portfolioData.summary.dayPnl,
-                      portfolioData.baseCurrency
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500">Day P&L</div>
-                </div>
-                <div>
-                  <div
-                    className={`text-lg font-semibold ${
-                      portfolioData.summary.totalUnrealizedPnl >= 0
-                        ? "text-emerald-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {formatPct(portfolioData.summary.totalUnrealizedPnlPct)}
-                  </div>
-                  <div className="text-xs text-gray-500">Unrealized</div>
-                </div>
-              </div>
-              {portfolioData.positions.length > 0 && (
-                <div className="text-xs text-gray-400 pt-2 border-t">
-                  {portfolioData.positions.length} position
-                  {portfolioData.positions.length !== 1 ? "s" : ""}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-sm text-gray-500">
-              <p>No portfolio data yet.</p>
-              <Link
-                href="/markets/portfolio"
-                className="text-blue-600 hover:underline text-xs"
-              >
-                Import IBKR statement →
-              </Link>
-            </div>
-          )}
-        </DashboardCard>
-
-        {/* Macro Signals - Full Width */}
-        <div className="md:col-span-2">
-          <DashboardCard
-            title="Macro Signals"
-            icon={<Globe className="w-4 h-4" />}
-            href="/markets/macro"
-            loading={loading.macro && loading.sentiment}
-          >
-            <div className="space-y-4">
-              {/* Market Pulse (Sentiment) */}
-              <div>
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <Thermometer className="w-4 h-4" />
-                  sentiment
-                </div>
-                {loading.sentiment ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                    <Skeleton className="h-10 w-full rounded-lg" />
-                    <Skeleton className="h-10 w-full rounded-lg" />
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                    <div className={`flex items-center justify-between p-2 rounded-lg border ${getSentimentBgColor(sentimentData?.vix.level)}`}>
-                      <span className="text-xs text-gray-600 mr-2">VIX</span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`text-xs font-medium ${getSentimentColor(sentimentData?.vix.level)}`}>
-                          {sentimentData?.vix.value?.toFixed(1) ?? "—"}
-                        </span>
-                        {sentimentData?.vix?.change != null && (
-                          <span className={`text-[10px] ${sentimentData.vix.change >= 0 ? "text-red-500" : "text-emerald-600"}`}>
-                            {sentimentData.vix.change >= 0 ? "+" : ""}{sentimentData.vix.change.toFixed(1)}
-                          </span>
-                        )}
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          sentimentData?.vix.level === "low" || sentimentData?.vix.level === "moderate" 
-                            ? "bg-emerald-100 text-emerald-700"
-                            : sentimentData?.vix.level === "elevated"
-                            ? "bg-amber-100 text-amber-700"
-                            : sentimentData?.vix.level === "fear"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}>
-                          {formatSentimentLevel(sentimentData?.vix.level)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className={`flex items-center justify-between p-2 rounded-lg border ${getSentimentBgColor(sentimentData?.putCall.level)}`}>
-                      <span className="text-xs text-gray-600 mr-2">Put/Call</span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`text-xs font-medium ${getSentimentColor(sentimentData?.putCall.level)}`}>
-                          {sentimentData?.putCall.value?.toFixed(2) ?? "—"}
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                          sentimentData?.putCall.level === "greedy"
-                            ? "bg-amber-100 text-amber-700"
-                            : sentimentData?.putCall.level === "neutral"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : sentimentData?.putCall.level === "fearful"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-100 text-gray-700"
-                        }`}>
-                          {formatSentimentLevel(sentimentData?.putCall.level)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Market Barometers (TLT etc) */}
-              {marketEtfs.length > 0 && (
-                <div>
-                  <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <BarChart3 className="w-4 h-4" />
-                    barometers
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                    {marketEtfs.map((etf) => {
-                      const etfLabelColor = etf.interpretation?.color === "blue" ? "bg-blue-100 text-blue-700"
-                        : etf.interpretation?.color === "amber" ? "bg-amber-100 text-amber-700"
-                        : etf.interpretation?.color === "red" ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 text-gray-700";
-                      return (
-                        <div key={etf.ticker} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                          <span className="text-xs text-gray-600 truncate mr-2">{etf.ticker}</span>
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {etf.data && (
-                              <span className="text-xs font-medium text-gray-900">
-                                ${etf.data.price.toFixed(2)}
-                              </span>
-                            )}
-                            {etf.data && (
-                              <span className={`text-[10px] ${etf.data.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                                {etf.data.changePercent >= 0 ? "+" : ""}{etf.data.changePercent.toFixed(1)}%
-                              </span>
-                            )}
-                            {etf.interpretation && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded ${etfLabelColor}`}>
-                                {etf.interpretation.label}
-                              </span>
-                            )}
-                            {!etf.data && (
-                              <span className="text-xs text-gray-400">—</span>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Legend */}
-              <div className="flex flex-wrap items-center gap-3 text-[10px] pb-2 border-b border-gray-100">
-                <span className="text-gray-400 font-medium">Legend:</span>
-                <div className="flex items-center gap-1">
-                  <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">Healthy</span>
-                  <span className="text-gray-400">On target</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Accommodative</span>
-                  <span className="text-gray-400">Supportive</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">Elevated</span>
-                  <span className="text-gray-400">Caution</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700">High</span>
-                  <span className="text-gray-400">Stress</span>
-                </div>
-              </div>
-
-            {macroIndicators.length > 0 ? (
-              <>
-                {categoryOrder.map((category) => {
-                  const indicators = macroByCategory[category];
-                  if (!indicators?.length) return null;
-                  return (
-                    <div key={category}>
-                      <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                        <span className="flex items-center">{categoryIcons[category]}</span>
-                        {category}
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                        {indicators.map((indicator) => (
-                          <div
-                            key={indicator.id}
-                            className="flex items-center justify-between p-2 bg-gray-50 rounded-lg"
-                          >
-                            <span className="text-xs text-gray-600 truncate mr-2">
-                              {indicator.name.replace(" (YoY)", "").replace(" Rate", "")}
-                            </span>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              {indicator.data && (
-                                <span className="text-xs font-medium text-gray-900">
-                                  {indicator.id === "initial-claims" 
-                                    ? `${(indicator.data.current / 1000).toFixed(0)}K`
-                                    : indicator.id === "pmi-manufacturing"
-                                    ? indicator.data.current.toLocaleString()
-                                    : indicator.id === "hy-spread"
-                                    ? `${indicator.data.current.toFixed(0)}bp`
-                                    : indicator.id === "yield-curve"
-                                    ? `${indicator.data.current.toFixed(0)}bp`
-                                    : `${indicator.data.current.toFixed(1)}%`}
-                                </span>
-                              )}
-                              {indicator.interpretation && (
-                                <span
-                                  className={`text-[10px] px-1.5 py-0.5 rounded ${getStatusColor(
-                                    indicator.interpretation.label
-                                  )}`}
-                                >
-                                  {indicator.interpretation.label}
-                                </span>
-                              )}
-                              {!indicator.data && (
-                                <span className="text-xs text-gray-400">—</span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </>
+          <div className="space-y-4">
+            {/* Sentiment Status Bar */}
+            {loading.sentiment ? (
+              <Skeleton className="h-14 rounded-xl" />
             ) : (
-              <div className="text-sm text-gray-500">
+              <div className="rounded-xl bg-gray-900 p-3 sm:p-4">
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <Activity className="w-4 h-4" />
+                    <span className="text-xs font-medium uppercase tracking-wider">
+                      Market Pulse
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4 sm:gap-6">
+                    {/* VIX */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">VIX</span>
+                      <span
+                        className={`text-lg font-bold ${
+                          sentimentData?.vix.level === "low" ||
+                          sentimentData?.vix.level === "moderate"
+                            ? "text-emerald-400"
+                            : sentimentData?.vix.level === "elevated"
+                              ? "text-amber-400"
+                              : sentimentData?.vix.level === "fear"
+                                ? "text-red-400"
+                                : "text-gray-400"
+                        }`}
+                      >
+                        {sentimentData?.vix.value?.toFixed(1) ?? "—"}
+                      </span>
+                      {sentimentData?.vix?.change != null && (
+                        <span
+                          className={`text-xs ${sentimentData.vix.change >= 0 ? "text-red-400" : "text-emerald-400"}`}
+                        >
+                          {sentimentData.vix.change >= 0 ? "▲" : "▼"}
+                          {Math.abs(sentimentData.vix.change).toFixed(1)}
+                        </span>
+                      )}
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          sentimentData?.vix.level === "low" ||
+                          sentimentData?.vix.level === "moderate"
+                            ? "bg-emerald-900/50 text-emerald-300"
+                            : sentimentData?.vix.level === "elevated"
+                              ? "bg-amber-900/50 text-amber-300"
+                              : sentimentData?.vix.level === "fear"
+                                ? "bg-red-900/50 text-red-300"
+                                : "bg-gray-700 text-gray-400"
+                        }`}
+                      >
+                        {formatSentimentLevel(sentimentData?.vix.level)}
+                      </span>
+                    </div>
+
+                    <div className="w-px h-6 bg-gray-700" />
+
+                    {/* Put/Call */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">P/C</span>
+                      <span
+                        className={`text-lg font-bold ${
+                          sentimentData?.putCall.level === "greedy"
+                            ? "text-amber-400"
+                            : sentimentData?.putCall.level === "neutral"
+                              ? "text-emerald-400"
+                              : sentimentData?.putCall.level === "fearful"
+                                ? "text-red-400"
+                                : "text-gray-400"
+                        }`}
+                      >
+                        {sentimentData?.putCall.value?.toFixed(2) ?? "—"}
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          sentimentData?.putCall.level === "greedy"
+                            ? "bg-amber-900/50 text-amber-300"
+                            : sentimentData?.putCall.level === "neutral"
+                              ? "bg-emerald-900/50 text-emerald-300"
+                              : sentimentData?.putCall.level === "fearful"
+                                ? "bg-red-900/50 text-red-300"
+                                : "bg-gray-700 text-gray-400"
+                        }`}
+                      >
+                        {formatSentimentLevel(sentimentData?.putCall.level)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Heatmap Grid */}
+            {loading.macro ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                  <Skeleton key={i} className="h-24 rounded-xl" />
+                ))}
+              </div>
+            ) : allIndicators.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                {allIndicators.map((indicator) => (
+                  <IndicatorTile key={indicator.id} indicator={indicator} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-sm text-gray-500">
                 <p>No macro data available.</p>
                 <p className="text-xs text-gray-400 mt-1">
                   Add FRED_API_KEY for live data
                 </p>
               </div>
             )}
-            </div>
-          </DashboardCard>
-        </div>
+
+            {/* Barometers */}
+            {marketEtfs.length > 0 && (
+              <div>
+                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
+                  Barometers
+                </div>
+                {loading.etfs ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {[1, 2, 3].map((i) => (
+                      <Skeleton key={i} className="h-16 rounded-xl" />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                    {marketEtfs.map((etf) => {
+                      const etfBg =
+                        etf.interpretation?.color === "blue"
+                          ? "bg-blue-50"
+                          : etf.interpretation?.color === "amber"
+                            ? "bg-amber-50"
+                            : etf.interpretation?.color === "red"
+                              ? "bg-red-50"
+                              : "bg-gray-50";
+                      const etfLabelColor =
+                        etf.interpretation?.color === "blue"
+                          ? "bg-blue-100 text-blue-700"
+                          : etf.interpretation?.color === "amber"
+                            ? "bg-amber-100 text-amber-700"
+                            : etf.interpretation?.color === "red"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-100 text-gray-700";
+                      return (
+                        <div
+                          key={etf.ticker}
+                          className={`rounded-xl p-3 ${etfBg} border border-white/60`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-semibold text-gray-900">
+                              {etf.ticker}
+                            </span>
+                            {etf.interpretation && (
+                              <span
+                                className={`text-[10px] px-1.5 py-0.5 rounded-full ${etfLabelColor}`}
+                              >
+                                {etf.interpretation.label}
+                              </span>
+                            )}
+                          </div>
+                          {etf.data ? (
+                            <div className="flex items-baseline gap-1.5">
+                              <span className="text-sm font-bold text-gray-900">
+                                ${etf.data.price.toFixed(2)}
+                              </span>
+                              <span
+                                className={`text-xs font-medium ${etf.data.change >= 0 ? "text-emerald-600" : "text-red-600"}`}
+                              >
+                                {etf.data.changePercent >= 0 ? "+" : ""}
+                                {etf.data.changePercent.toFixed(1)}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-gray-400">—</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DashboardCard>
 
         {/* Recent Research */}
         <DashboardCard
@@ -664,10 +657,9 @@ export default function StocksDashboard() {
           {recentReports.length > 0 ? (
             <div className="space-y-2">
               {recentReports.map((report) => (
-                <Link
+                <div
                   key={report.id}
-                  href={`/markets/research/${report.ticker.toLowerCase()}`}
-                  className="block py-1.5 hover:bg-gray-50 -mx-2 px-2 rounded"
+                  className="block py-1.5 -mx-2 px-2 rounded"
                 >
                   <div className="flex items-center gap-2">
                     <span className="font-medium text-sm">{report.ticker}</span>
@@ -678,9 +670,9 @@ export default function StocksDashboard() {
                     )}
                   </div>
                   <div className="text-xs text-gray-400">
-                    {formatDate(report.createdAt, { style: 'date-only' })}
+                    {formatDate(report.createdAt, { style: "date-only" })}
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           ) : (
@@ -692,7 +684,6 @@ export default function StocksDashboard() {
             </div>
           )}
         </DashboardCard>
-
       </div>
     </>
   );

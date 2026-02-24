@@ -37,7 +37,9 @@ export function PortfolioSummary({
         return;
       }
 
-      setAnalyzeMessage("Analysis started! Will take 5-8 minutes. Refresh page to see results.");
+      setAnalyzeMessage(
+        "Analysis started! Will take 5-8 minutes. Refresh page to see results.",
+      );
     } catch {
       setAnalyzeMessage("Network error");
     } finally {
@@ -48,8 +50,10 @@ export function PortfolioSummary({
   return (
     <>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-lg font-semibold text-gray-900">Portfolio Holdings</h2>
+      <div className="flex justify-between items-start sm:items-center gap-4">
+        <h2 className="text-lg font-semibold text-gray-900">
+          Portfolio Holdings
+        </h2>
         <div className="flex gap-2">
           <button
             onClick={handleAnalyze}
@@ -75,11 +79,13 @@ export function PortfolioSummary({
 
       {/* Analysis Status Message */}
       {analyzeMessage && (
-        <div className={`p-3 rounded-lg text-sm ${
-          analyzeMessage.includes("started") 
-            ? "bg-emerald-50 text-emerald-700" 
-            : "bg-amber-50 text-amber-700"
-        }`}>
+        <div
+          className={`p-3 rounded-lg text-sm ${
+            analyzeMessage.includes("started")
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-amber-50 text-amber-700"
+          }`}
+        >
           {analyzeMessage}
         </div>
       )}

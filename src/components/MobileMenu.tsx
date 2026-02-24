@@ -22,12 +22,32 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
         aria-label="Toggle menu"
       >
         {open ? (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
           </svg>
         ) : (
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
           </svg>
         )}
       </button>
@@ -42,7 +62,7 @@ export function MobileMenu({ links }: { links: NavLink[] }) {
                 onClick={() => setOpen(false)}
                 className={`flex items-center justify-between px-3 py-2.5 rounded-lg text-sm transition-colors ${
                   pathname === link.href
-                    ? "bg-emerald-50 text-emerald-700 font-medium"
+                    ? "bg-gray-800 text-gray-100 font-medium"
                     : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                 }`}
               >
