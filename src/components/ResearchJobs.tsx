@@ -35,10 +35,12 @@ export function ResearchJobs({ initialJobs }: ResearchJobsProps) {
             (j: ResearchJob) => j.status === "pending" || j.status === "processing"
           );
           
-          // If we had active jobs and now they're all done, refresh to show new reports
+          // If we had active jobs and now they're all done, hard reload to show new reports
+          // (router.refresh() can hit stale ISR cache; full reload guarantees fresh data)
           if (stillActive.length === 0 && prevActiveCount > 0) {
             setPrevActiveCount(0);
-            router.refresh();
+            setTimeout(() => window.location.reload(), 1000);
+            return;
           } else if (stillActive.length > 0) {
             setPrevActiveCount(stillActive.length);
           }
