@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import db from "@/lib/db";
 import { Project } from "@/lib/types";
 import { ProjectFilters } from "@/components/ProjectFilters";
-import { Nav } from "@/components/Nav";
 import { EmptyState } from "@/components/EmptyState";
 import { Rocket } from "lucide-react";
 
@@ -10,7 +9,6 @@ export const metadata: Metadata = {
   title: "Projects",
 };
 
-// Revalidate project list every 60 seconds
 export const revalidate = 60;
 
 export default async function ProjectsPage() {
@@ -21,20 +19,17 @@ export default async function ProjectsPage() {
   } catch { /* DB not initialized yet */ }
 
   return (
-    <div className="min-h-screen">
-      <Nav />
-      <main className="max-w-6xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">All Projects</h1>
-        {projects.length > 0 ? (
-          <ProjectFilters projects={projects} />
-        ) : (
-          <EmptyState
-            icon={<Rocket className="w-6 h-6" />}
-            title="No projects yet"
-            description="They'll appear here once Claudius creates them."
-          />
-        )}
-      </main>
-    </div>
+    <>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">All Projects</h1>
+      {projects.length > 0 ? (
+        <ProjectFilters projects={projects} />
+      ) : (
+        <EmptyState
+          icon={<Rocket className="w-6 h-6" />}
+          title="No projects yet"
+          description="They'll appear here once Claudius creates them."
+        />
+      )}
+    </>
   );
 }

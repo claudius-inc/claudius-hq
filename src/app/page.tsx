@@ -89,7 +89,7 @@ export default async function Dashboard() {
 
         {/* Quick Links */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link href="/ideas" className="card-hover group">
+          <Link href="/projects/ideas" className="card-hover group">
             <div className="flex items-center gap-3">
               <Lightbulb className="w-6 h-6 text-amber-500" />
               <div>
