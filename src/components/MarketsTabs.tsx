@@ -60,7 +60,7 @@ const primaryTabs: PrimaryTab[] = [
       { href: "/markets/sectors", label: "Sectors" },
       { href: "/markets/themes", label: "Themes" },
       { href: "/markets/gold", label: "Gold" },
-      { href: "/markets/btc", label: "BTC" },
+      { href: "/markets/btc", label: "Crypto" },
     ],
   },
 ];

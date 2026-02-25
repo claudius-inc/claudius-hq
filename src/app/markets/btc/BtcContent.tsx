@@ -171,9 +171,15 @@ export function BtcContent() {
   return (
     <>
       <PageHero
-        title="BTC 200-Week Moving Average"
-        subtitle="Cycle floor indicator — 4/4 historical touches marked generational bottoms"
+        title="Crypto Monitor"
+        subtitle="BTC cycle indicators, quantum risk assessment, and altcoin thesis tracking"
       />
+
+      {/* BTC Section Header */}
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-gray-900">BTC 200-Week Moving Average</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Cycle floor indicator — 4/4 historical touches marked generational bottoms</p>
+      </div>
 
       {/* Alert Zone */}
       <div className="mb-6">
@@ -492,6 +498,218 @@ export function BtcContent() {
         </div>
         <div className="mt-4 pt-3 border-t text-xs text-gray-500">
           Buy &lt;0.8 · Normal 0.8–2.4 · Sell &gt;2.4 · Hit rate at ≤0.6: <span className="font-bold text-emerald-600">100%</span>
+        </div>
+      </div>
+
+      {/* ═══ QUANTUM RISK SECTION ═══ */}
+      <div className="mb-6 mt-12 pt-8 border-t-2 border-gray-200">
+        <h2 className="text-xl font-bold text-gray-900">Quantum Risk Assessment</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Timeline and implications for Bitcoin&apos;s cryptographic security
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Vulnerability Summary */}
+        <div className="card p-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">What&apos;s Vulnerable</h3>
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded">HIGH</span>
+              <div>
+                <div className="text-sm font-medium text-gray-900">ECDSA Signatures</div>
+                <div className="text-xs text-gray-500">Used for all BTC transactions. ~2,000-4,000 logical qubits needed to break. Exposed public keys are at risk.</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-bold rounded">LOW</span>
+              <div>
+                <div className="text-sm font-medium text-gray-900">SHA-256 (Mining)</div>
+                <div className="text-xs text-gray-500">Grover&apos;s algorithm only provides square-root speedup. Still impractical even with quantum computers.</div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded">KEY</span>
+              <div>
+                <div className="text-sm font-medium text-gray-900">Satoshi&apos;s ~1.1M BTC</div>
+                <div className="text-xs text-gray-500">Uses old P2PK format with exposed public keys. First target of any quantum attack. Systemic risk if stolen.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Timeline */}
+        <div className="card p-6">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Threat Timeline</h3>
+          <div className="space-y-3">
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">Current State</span>
+                <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Safe</span>
+              </div>
+              <div className="text-xs text-gray-400 mt-0.5">~100 physical qubits (Google Willow). Need millions for crypto-relevant attacks.</div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">2030–2035 (Optimistic)</span>
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Watch</span>
+              </div>
+              <div className="text-xs text-gray-400 mt-0.5">CRQCs could emerge if quantum tech advances faster than expected. ECDSA becomes vulnerable.</div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-700">2035–2040 (Consensus)</span>
+                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">Threat</span>
+              </div>
+              <div className="text-xs text-gray-400 mt-0.5">Conservative expert estimate for cryptographically relevant quantum computers.</div>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-3 border-t">
+            <h4 className="text-xs font-semibold text-gray-900 mb-1">BIP-360: Bitcoin&apos;s Defense</h4>
+            <p className="text-xs text-gray-500">
+              Proposed soft fork for quantum-resistant output types. Co-author estimates 5-7 years to implement. 
+              The race: can Bitcoin upgrade before quantum catches up?
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Portfolio Implications */}
+      <div className="card p-6 mb-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Portfolio Implication</h3>
+        <p className="text-sm text-gray-600 mb-4">
+          Quantum risk is a real tail risk with a 5-15 year fuse. Not a reason to avoid BTC entirely, 
+          but a reason to size positions accordingly. Gold has zero quantum risk — this is one reason 
+          Dalio frames his 15% hard money allocation as &ldquo;gold or alternative money&rdquo; rather than purely BTC.
+        </p>
+        <div className="text-xs text-gray-400">
+          Monitor: BIP-360 progress, Google/IBM qubit milestones, NIST post-quantum standard adoption
+        </div>
+      </div>
+
+      {/* ═══ ALTCOIN THESIS TRACKER ═══ */}
+      <div className="mb-6 mt-12 pt-8 border-t-2 border-gray-200">
+        <h2 className="text-xl font-bold text-gray-900">Altcoin Thesis Tracker</h2>
+        <p className="text-sm text-gray-500 mt-0.5">
+          Non-BTC positions with distinct investment theses
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* ZEC Card */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">ZEC (Zcash)</h3>
+              <div className="text-xs text-gray-400">Privacy + Quantum Resistance</div>
+            </div>
+            <span className="px-2 py-0.5 bg-violet-100 text-violet-700 text-xs font-medium rounded-full">Speculative</span>
+          </div>
+
+          <div className="space-y-2 mb-4">
+            <div className="text-xs font-semibold text-emerald-600">Bull Case</div>
+            <ul className="text-xs text-gray-600 space-y-1">
+              <li className="flex gap-1.5"><span className="text-emerald-500 shrink-0">+</span>zk-SNARKs inherently more quantum-resistant (no exposed public keys)</li>
+              <li className="flex gap-1.5"><span className="text-emerald-500 shrink-0">+</span>Project Tachyon: quantum resilience + scalability upgrade</li>
+              <li className="flex gap-1.5"><span className="text-emerald-500 shrink-0">+</span>Institutional interest (Cypherpunk Holdings multi-million purchase)</li>
+              <li className="flex gap-1.5"><span className="text-emerald-500 shrink-0">+</span>Structural privacy demand growing (surveillance, CBDCs)</li>
+            </ul>
+          </div>
+
+          <div className="space-y-2 mb-4">
+            <div className="text-xs font-semibold text-red-600">Bear Case</div>
+            <ul className="text-xs text-gray-600 space-y-1">
+              <li className="flex gap-1.5"><span className="text-red-500 shrink-0">&minus;</span>Chronic underperformer vs BTC over most of its history</li>
+              <li className="flex gap-1.5"><span className="text-red-500 shrink-0">&minus;</span>Regulatory headwinds — delisted from Binance, OKX in some jurisdictions</li>
+              <li className="flex gap-1.5"><span className="text-red-500 shrink-0">&minus;</span>Most ZEC transactions are transparent, not shielded</li>
+              <li className="flex gap-1.5"><span className="text-red-500 shrink-0">&minus;</span>If BTC implements BIP-360, ZEC&apos;s quantum edge evaporates</li>
+            </ul>
+          </div>
+
+          <div className="pt-3 border-t">
+            <div className="text-xs text-gray-500">
+              <span className="font-medium text-gray-900">Verdict:</span> Narrative trade, not core. 0-1% of crypto allocation only if you believe quantum arrives before BTC upgrades.
+            </div>
+          </div>
+        </div>
+
+        {/* HYPE Card */}
+        <div className="card p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">HYPE (Hyperliquid)</h3>
+              <div className="text-xs text-gray-400">Productive Crypto / Protocol Equity</div>
+            </div>
+            <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">Revenue-Driven</span>
+          </div>
+
+          <div className="space-y-2 mb-4">
+            <div className="text-xs font-semibold text-emerald-600">Bull Case</div>
+            <ul className="text-xs text-gray-600 space-y-1">
+              <li className="flex gap-1.5"><span className="text-emerald-500 shrink-0">+</span>75%+ market share in decentralized perpetuals</li>
+              <li className="flex gap-1.5"><span className="text-emerald-500 shrink-0">+</span>97% of trading fees buy back HYPE (aggressive share repurchase)</li>
+              <li className="flex gap-1.5"><span className="text-emerald-500 shrink-0">+</span>Artemis fair value: $51-60 (currently ~$28) — FDV ~$28B / 1B supply</li>
+              <li className="flex gap-1.5"><span className="text-emerald-500 shrink-0">+</span>Expanding: HIP-3 (permissionless perps), HIP-4 (prediction markets)</li>
+            </ul>
+          </div>
+
+          <div className="space-y-2 mb-4">
+            <div className="text-xs font-semibold text-red-600">Bear Case</div>
+            <ul className="text-xs text-gray-600 space-y-1">
+              <li className="flex gap-1.5"><span className="text-red-500 shrink-0">&minus;</span>CFTC regulatory scrutiny of DeFi perps</li>
+              <li className="flex gap-1.5"><span className="text-red-500 shrink-0">&minus;</span>Coinbase + Robinhood entering perps market</li>
+              <li className="flex gap-1.5"><span className="text-red-500 shrink-0">&minus;</span>75% share in a niche that could shrink in bear markets</li>
+              <li className="flex gap-1.5"><span className="text-red-500 shrink-0">&minus;</span>Smart contract / bridge risk inherent in DeFi</li>
+            </ul>
+          </div>
+
+          <div className="pt-3 border-t">
+            <div className="text-xs text-gray-500">
+              <span className="font-medium text-gray-900">Verdict:</span> Not a store of value — it&apos;s protocol equity (think Coinbase stock, not digital gold). 0-3% of crypto allocation. Revenue-driven, not narrative-driven.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Allocation Framework */}
+      <div className="card p-6 mb-6">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Crypto Allocation Framework</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left">
+                <th className="pb-2 font-medium text-gray-500">Asset</th>
+                <th className="pb-2 font-medium text-gray-500">Role</th>
+                <th className="pb-2 font-medium text-gray-500">Allocation</th>
+                <th className="pb-2 font-medium text-gray-500">Quantum Risk</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              <tr className="border-b">
+                <td className="py-2.5 font-medium">BTC</td>
+                <td className="py-2.5 text-gray-600">Digital hard money, network effect</td>
+                <td className="py-2.5 text-gray-600">3-8% of total portfolio</td>
+                <td className="py-2.5"><span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded">5-15yr fuse</span></td>
+              </tr>
+              <tr className="border-b">
+                <td className="py-2.5 font-medium">ZEC</td>
+                <td className="py-2.5 text-gray-600">Quantum hedge, privacy bet</td>
+                <td className="py-2.5 text-gray-600">0-1% speculative</td>
+                <td className="py-2.5"><span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded">Lower</span></td>
+              </tr>
+              <tr>
+                <td className="py-2.5 font-medium">HYPE</td>
+                <td className="py-2.5 text-gray-600">Protocol equity, revenue-driven</td>
+                <td className="py-2.5 text-gray-600">0-3% of crypto alloc</td>
+                <td className="py-2.5"><span className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">N/A</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 pt-3 border-t text-xs text-gray-400">
+          Within Dalio&apos;s 10-15% &ldquo;hard money&rdquo; bucket. Gold carries zero technology risk and 5,000 years of track record.
+          BTC has superior portability and fixed supply math but carries quantum risk and is 15 years old.
         </div>
       </div>
     </>

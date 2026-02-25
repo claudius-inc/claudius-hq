@@ -15,6 +15,7 @@ import {
   GoldFlowsChart,
   GoldThesisNotes,
   GoldQuickStats,
+  GoldDalioFramework,
 } from "@/components/gold";
 
 export function GoldContent() {
@@ -134,6 +135,8 @@ export function GoldContent() {
       />
 
       <GoldCorrelations dxy={data?.dxy || null} realYields={data?.realYields || null} />
+
+      <GoldDalioFramework />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
         <GoldKeyLevels
