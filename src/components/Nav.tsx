@@ -5,6 +5,7 @@ import { NavSectionSwitcher } from "./NavSectionSwitcher";
 const sections = [
   { href: "/projects", label: "Projects" },
   { href: "/markets", label: "Markets" },
+  { href: "/acp/showcase", label: "ACP" },
 ];
 
 export async function Nav() {

@@ -88,7 +88,7 @@ export default async function Dashboard() {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link href="/projects/ideas" className="card-hover group">
             <div className="flex items-center gap-3">
               <Lightbulb className="w-6 h-6 text-amber-500" />
@@ -108,6 +108,17 @@ export default async function Dashboard() {
                   Stock Research
                 </h3>
                 <p className="text-sm text-gray-500">{reportsCount} Sun Tzu reports</p>
+              </div>
+            </div>
+          </Link>
+          <Link href="/acp/showcase" className="card-hover group">
+            <div className="flex items-center gap-3">
+              <Rocket className="w-6 h-6 text-purple-500" />
+              <div>
+                <h3 className="font-medium text-gray-900 group-hover:text-purple-600 transition-colors">
+                  ACP Marketplace
+                </h3>
+                <p className="text-sm text-gray-500">31+ AI-powered offerings</p>
               </div>
             </div>
           </Link>
