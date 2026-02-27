@@ -13,7 +13,12 @@ export const metadata: Metadata = {
   description: "Mission Control for Claudius Inc",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/icon-192x192.png",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "32x32" },
+      { url: "/icons/icon-192x192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512x512.png", type: "image/png", sizes: "512x512" },
+    ],
     apple: "/apple-touch-icon.png",
   },
   appleWebApp: {
