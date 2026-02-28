@@ -428,6 +428,25 @@ export type MacroInsight = typeof macroInsights.$inferSelect;
 export type NewMacroInsight = typeof macroInsights.$inferInsert;
 
 // ============================================================================
+// Stock Scans
+// ============================================================================
+
+export const SCAN_TYPES = ["structural-inflection", "sun-tzu-sgx"] as const;
+export type ScanType = (typeof SCAN_TYPES)[number];
+
+export const stockScans = sqliteTable("stock_scans", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  scanType: text("scan_type").notNull(),
+  scannedAt: text("scanned_at").default(sql`(datetime('now'))`),
+  results: text("results").notNull(), // JSON array of stocks
+  summary: text("summary"), // JSON counts by tier
+  stockCount: integer("stock_count").default(0),
+});
+
+export type StockScan = typeof stockScans.$inferSelect;
+export type NewStockScan = typeof stockScans.$inferInsert;
+
+// ============================================================================
 // Analyst Tracker
 // ============================================================================
 
