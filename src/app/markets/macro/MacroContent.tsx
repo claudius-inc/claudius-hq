@@ -243,11 +243,65 @@ export function MacroContent() {
   if (loading) {
     return (
       <div className="space-y-6">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="card p-6 animate-pulse">
-            <div className="h-6 bg-gray-200 rounded w-1/3 mb-4" />
-            <div className="h-4 bg-gray-200 rounded w-2/3 mb-2" />
-            <div className="h-4 bg-gray-200 rounded w-1/2" />
+        {/* AI Insights skeleton */}
+        <div className="card p-5 border-l-4 border-blue-500 animate-pulse">
+          <div className="flex items-center justify-between mb-4">
+            <div className="h-5 bg-gray-200 rounded w-36" />
+            <div className="h-8 bg-gray-200 rounded w-24" />
+          </div>
+          <div className="space-y-2">
+            <div className="h-4 bg-gray-200 rounded w-full" />
+            <div className="h-4 bg-gray-200 rounded w-5/6" />
+            <div className="h-4 bg-gray-200 rounded w-4/5" />
+          </div>
+        </div>
+        
+        {/* Market Barometers skeleton */}
+        <div className="animate-pulse">
+          <div className="h-5 bg-gray-200 rounded w-40 mb-4" />
+          <div className="grid gap-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="card p-5">
+                <div className="flex justify-between mb-4">
+                  <div>
+                    <div className="h-5 bg-gray-200 rounded w-32 mb-2" />
+                    <div className="h-4 bg-gray-200 rounded w-48" />
+                  </div>
+                  <div className="text-right">
+                    <div className="h-8 bg-gray-200 rounded w-24 mb-1" />
+                    <div className="h-4 bg-gray-200 rounded w-20" />
+                  </div>
+                </div>
+                {/* Range bar skeleton */}
+                <div className="h-2 bg-gray-200 rounded-full mb-2" />
+                <div className="flex justify-between">
+                  <div className="h-3 bg-gray-200 rounded w-12" />
+                  <div className="h-3 bg-gray-200 rounded w-12" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* Indicator categories skeleton */}
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="animate-pulse">
+            <div className="h-5 bg-gray-200 rounded w-24 mb-4" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2].map((j) => (
+                <div key={j} className="card p-5">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="h-5 bg-gray-200 rounded w-36 mb-1" />
+                      <div className="h-4 bg-gray-200 rounded w-24" />
+                    </div>
+                    <div className="h-6 bg-gray-200 rounded-full w-20" />
+                  </div>
+                  <div className="h-4 bg-gray-200 rounded w-full mb-2" />
+                  <div className="h-4 bg-gray-200 rounded w-3/4" />
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>

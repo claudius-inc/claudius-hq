@@ -137,13 +137,62 @@ export function BtcContent() {
   if (loading) {
     return (
       <div className="space-y-6">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="card p-6 animate-pulse">
-            <div className="h-6 bg-gray-200 rounded w-1/3 mb-4" />
-            <div className="h-4 bg-gray-200 rounded w-2/3 mb-2" />
-            <div className="h-4 bg-gray-200 rounded w-1/2" />
+        {/* Section header skeleton */}
+        <div className="animate-pulse">
+          <div className="h-6 bg-gray-200 rounded w-64 mb-2" />
+          <div className="h-4 bg-gray-200 rounded w-96" />
+        </div>
+        
+        {/* Alert zone skeleton */}
+        <div className="card p-4 animate-pulse">
+          <div className="h-5 bg-gray-200 rounded w-48" />
+        </div>
+        
+        {/* 3-column stats grid skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Price Card */}
+          <div className="card p-6 animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-20 mb-2" />
+            <div className="h-10 bg-gray-200 rounded w-36 mb-2" />
+            <div className="h-4 bg-gray-200 rounded w-28 mb-4" />
+            <div className="pt-3 border-t space-y-2">
+              <div className="h-4 bg-gray-200 rounded w-16" />
+              <div className="h-6 bg-gray-200 rounded w-24" />
+            </div>
           </div>
-        ))}
+          {/* Key Stats */}
+          <div className="card p-6 animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-20 mb-4" />
+            <div className="space-y-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i}>
+                  <div className="h-3 bg-gray-200 rounded w-24 mb-1" />
+                  <div className="h-7 bg-gray-200 rounded w-32" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {/* Current Status */}
+          <div className="card p-6 animate-pulse">
+            <div className="h-4 bg-gray-200 rounded w-28 mb-4" />
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex justify-between">
+                  <div className="h-4 bg-gray-200 rounded w-20" />
+                  <div className="h-4 bg-gray-200 rounded w-24" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        {/* Chart skeleton (dark bg) */}
+        <div className="bg-gray-900 rounded-xl p-6 animate-pulse">
+          <div className="h-5 bg-gray-700 rounded w-72 mb-4" />
+          <div className="h-[250px] md:h-[400px] bg-gray-800 rounded flex items-center justify-center">
+            <div className="h-4 bg-gray-700 rounded w-32" />
+          </div>
+        </div>
       </div>
     );
   }

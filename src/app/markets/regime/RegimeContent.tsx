@@ -150,12 +150,53 @@ export function RegimeContent() {
   if (loading) {
     return (
       <div className="space-y-6">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="card p-6 animate-pulse">
-            <div className="h-6 bg-gray-200 rounded w-1/3 mb-4" />
-            <div className="h-4 bg-gray-200 rounded w-2/3" />
+        {/* Regime Banner skeleton */}
+        <div className="card p-6 animate-pulse border-2 border-gray-200">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-6 h-6 bg-gray-200 rounded" />
+            <div>
+              <div className="h-6 bg-gray-200 rounded w-48 mb-2" />
+              <div className="h-4 bg-gray-200 rounded w-64" />
+            </div>
           </div>
-        ))}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-8 bg-gray-100 rounded" />
+            ))}
+          </div>
+        </div>
+        
+        {/* Indicators card skeleton */}
+        <div className="card p-6 animate-pulse">
+          <div className="h-5 bg-gray-200 rounded w-56 mb-4" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-gray-50 rounded-lg p-4">
+                <div className="h-3 bg-gray-200 rounded w-16 mb-2" />
+                <div className="h-8 bg-gray-200 rounded w-20 mb-1" />
+                <div className="h-3 bg-gray-200 rounded w-24" />
+              </div>
+            ))}
+          </div>
+          {/* Meter skeleton */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="flex justify-between mb-2">
+              <div className="h-4 bg-gray-200 rounded w-32" />
+              <div className="h-4 bg-gray-200 rounded w-16" />
+            </div>
+            <div className="h-3 bg-gray-200 rounded-full" />
+          </div>
+        </div>
+        
+        {/* Historical + Asset Performance skeleton */}
+        <div className="card p-6 animate-pulse">
+          <div className="h-5 bg-gray-200 rounded w-40 mb-4" />
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-4 bg-gray-200 rounded w-full" />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
