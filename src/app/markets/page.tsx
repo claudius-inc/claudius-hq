@@ -159,8 +159,9 @@ function formatSentimentLevel(level: string | null | undefined): string {
 function formatIndicatorValue(indicator: MacroIndicator): string {
   if (!indicator.data) return "—";
   const val = indicator.data.current;
-  if (indicator.id === "initial-claims") return `${(val / 1000).toFixed(0)}K`;
-  if (indicator.id === "pmi-manufacturing") return val.toLocaleString();
+  // Initial claims already converted to thousands in fetch-macro-data.ts
+  if (indicator.id === "initial-claims") return `${val.toFixed(0)}K`;
+  if (indicator.id === "pmi-manufacturing") return val.toFixed(1);
   if (indicator.id === "hy-spread") return `${val.toFixed(0)}bp`;
   if (indicator.id === "yield-curve") return `${val.toFixed(0)}bp`;
   return `${val.toFixed(1)}%`;
@@ -779,29 +780,29 @@ export default function StocksDashboard() {
                             : etf.interpretation?.color === "red"
                               ? "bg-red-50"
                               : "bg-gray-50";
-                      const etfLabelColor =
-                        etf.interpretation?.color === "blue"
-                          ? "bg-blue-100 text-blue-700"
-                          : etf.interpretation?.color === "amber"
-                            ? "bg-amber-100 text-amber-700"
-                            : etf.interpretation?.color === "red"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-gray-100 text-gray-700";
+                      const label = etf.interpretation?.label;
+                      const severity = label ? getSeverityDots(label) : { dots: 0, color: "text-gray-300" };
                       return (
                         <div
                           key={etf.ticker}
                           className={`rounded-xl p-3 ${etfBg} border border-white/60`}
+                          title={label || undefined}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-xs font-semibold text-gray-900">
                               {etf.ticker}
                             </span>
-                            {etf.interpretation && (
-                              <span
-                                className={`text-[10px] px-1.5 py-0.5 rounded-full ${etfLabelColor}`}
-                              >
-                                {etf.interpretation.label}
-                              </span>
+                            {label && (
+                              <div className="flex gap-0.5" title={label}>
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                  <span
+                                    key={i}
+                                    className={`w-1.5 h-1.5 rounded-full ${
+                                      i <= severity.dots ? severity.color : "text-gray-200"
+                                    } ${i <= severity.dots ? "bg-current" : "bg-gray-200"}`}
+                                  />
+                                ))}
+                              </div>
                             )}
                           </div>
                           {etf.data ? (

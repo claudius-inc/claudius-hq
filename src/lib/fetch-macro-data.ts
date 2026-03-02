@@ -99,15 +99,7 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
     MACRO_INDICATORS.map(async (indicator) => {
       let data;
 
-      // ISM Manufacturing PMI not available on FRED - skip for now
-      if (indicator.id === "pmi-manufacturing") {
-        return {
-          ...indicator,
-          data: null,
-          interpretation: null,
-          percentile: null,
-        };
-      }
+      
 
       if (indicator.id === "yield-curve") {
         data = await fetchYieldCurve();
@@ -131,8 +123,8 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
         data.history = data.history.map(v => v / 1000);
       }
 
-      // For CPI/PCE, calculate YoY change
-      if (data && (indicator.id === "cpi" || indicator.id === "core-pce")) {
+      // For CPI/PCE/Industrial Production, calculate YoY change
+      if (data && (indicator.id === "cpi" || indicator.id === "core-pce" || indicator.id === "industrial-production")) {
         if (data.history.length >= 13) {
           const current = data.history[0];
           const yearAgo = data.history[12];

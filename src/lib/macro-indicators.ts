@@ -202,24 +202,24 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
 
   // === GROWTH ===
   {
-    id: "pmi-manufacturing",
-    name: "ISM Manufacturing PMI",
-    fredCode: "MANEMP", // Placeholder - ISM PMI not on FRED, fetched separately
+    id: "industrial-production",
+    name: "Industrial Production (YoY)",
+    fredCode: "INDPRO",
     category: "growth",
-    unit: "index",
+    unit: "%",
     frequency: "monthly",
-    description: "Purchasing Managers' Index for manufacturing. Based on surveys of supply chain managers about orders, production, employment.",
-    whyItMatters: "Leading indicator of economic activity. Above 50 = expansion, below 50 = contraction. Manufacturing often leads the broader economy by 3-6 months.",
+    description: "Year-over-year change in industrial production output. Covers manufacturing, mining, and utilities.",
+    whyItMatters: "Direct measure of manufacturing activity (not a survey). Negative YoY = contraction. Strong correlation with earnings for industrial companies and broader economic cycles.",
     ranges: [
-      { label: "Deep Contraction", min: null, max: 45, meaning: "Severe manufacturing recession", marketImpact: "Risk-off, industrials suffer" },
-      { label: "Contraction", min: 45, max: 50, meaning: "Manufacturing shrinking", marketImpact: "Caution, watch for bottoming" },
-      { label: "Expansion", min: 50, max: 55, meaning: "Modest growth", marketImpact: "Generally supportive" },
-      { label: "Strong Expansion", min: 55, max: 60, meaning: "Robust manufacturing growth", marketImpact: "Bullish for industrials, cyclicals" },
-      { label: "Overheating", min: 60, max: null, meaning: "Supply constraints likely", marketImpact: "Inflation risk, capacity concerns" },
+      { label: "Contraction", min: null, max: -2, meaning: "Industrial recession", marketImpact: "Risk-off, industrials suffer" },
+      { label: "Weakness", min: -2, max: 0, meaning: "Slowing/flat production", marketImpact: "Caution, watch for recovery" },
+      { label: "Moderate Growth", min: 0, max: 3, meaning: "Healthy expansion", marketImpact: "Generally supportive" },
+      { label: "Strong Growth", min: 3, max: 6, meaning: "Robust industrial activity", marketImpact: "Bullish for industrials, cyclicals" },
+      { label: "Overheating", min: 6, max: null, meaning: "Capacity constraints likely", marketImpact: "Inflation risk, supply chain stress" },
     ],
     keyLevels: [
-      { level: 50, significance: "Expansion/contraction threshold" },
-      { level: 45, significance: "Often correlates with recession" },
+      { level: 0, significance: "Growth/contraction threshold" },
+      { level: -5, significance: "Recession-level decline" },
     ],
     affectedAssets: ["Industrials", "Materials", "Cyclicals", "Transports"],
   },
