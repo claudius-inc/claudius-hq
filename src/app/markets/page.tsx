@@ -274,13 +274,23 @@ function DashboardCard({
   children,
   href,
   loading,
+  loadingSkeleton,
 }: {
   title: string;
   icon: React.ReactNode;
   children: React.ReactNode;
   href?: string;
   loading?: boolean;
+  loadingSkeleton?: React.ReactNode;
 }) {
+  const defaultSkeleton = (
+    <div className="space-y-3">
+      <Skeleton className="h-6 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-4 w-2/3" />
+    </div>
+  );
+
   const content = (
     <div className="card p-5 h-full">
       <div className="flex items-center justify-between mb-4">
@@ -294,15 +304,7 @@ function DashboardCard({
           </span>
         )}
       </div>
-      {loading ? (
-        <div className="space-y-3">
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-4 w-1/2" />
-          <Skeleton className="h-4 w-2/3" />
-        </div>
-      ) : (
-        children
-      )}
+      {loading ? (loadingSkeleton || defaultSkeleton) : children}
     </div>
   );
 
@@ -825,6 +827,26 @@ export default function StocksDashboard() {
           icon={<FileText className="w-4 h-4" />}
           href="/markets/research"
           loading={loading.reports}
+          loadingSkeleton={
+            <>
+              {/* Quick Research Form - always visible */}
+              <div className="mb-4 pb-4 border-b border-gray-100">
+                <QuickResearchForm />
+              </div>
+              {/* Skeleton report items */}
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="py-1.5">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-3 w-14" />
+                  </div>
+                ))}
+              </div>
+            </>
+          }
         >
           {/* Quick Research Form */}
           <div className="mb-4 pb-4 border-b border-gray-100">
