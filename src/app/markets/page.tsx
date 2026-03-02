@@ -166,6 +166,43 @@ function formatIndicatorValue(indicator: MacroIndicator): string {
   return `${val.toFixed(1)}%`;
 }
 
+// Map status labels to 5-dot severity scale
+function getSeverityDots(label: string): { dots: number; color: string } {
+  const mapping: Record<string, { dots: number; color: string }> = {
+    // Green - healthy (1 dot = at target)
+    "Target Zone": { dots: 1, color: "text-emerald-500" },
+    "At Target": { dots: 1, color: "text-emerald-500" },
+    "Healthy": { dots: 1, color: "text-emerald-500" },
+    "Normal": { dots: 1, color: "text-emerald-500" },
+    "Full Employment": { dots: 1, color: "text-emerald-500" },
+    "Expansion": { dots: 1, color: "text-emerald-500" },
+    
+    // Blue - accommodative (2 dots)
+    "Accommodative": { dots: 2, color: "text-blue-500" },
+    "Low": { dots: 2, color: "text-blue-500" },
+    
+    // Gray - neutral (2 dots)
+    "Neutral": { dots: 2, color: "text-gray-400" },
+    "Moderate": { dots: 2, color: "text-gray-400" },
+    
+    // Amber - warning (3-4 dots)
+    "Above Target": { dots: 3, color: "text-amber-500" },
+    "Elevated": { dots: 3, color: "text-amber-500" },
+    "Softening": { dots: 3, color: "text-amber-500" },
+    "Restrictive": { dots: 3, color: "text-amber-500" },
+    "Inverted": { dots: 4, color: "text-amber-500" },
+    "Contraction": { dots: 4, color: "text-amber-500" },
+    
+    // Red - danger (4-5 dots)
+    "High": { dots: 4, color: "text-red-500" },
+    "Very Restrictive": { dots: 5, color: "text-red-500" },
+    "Deeply Inverted": { dots: 5, color: "text-red-500" },
+    "Crisis": { dots: 5, color: "text-red-500" },
+  };
+  
+  return mapping[label] || { dots: 2, color: "text-gray-400" };
+}
+
 // Regime detection logic
 function detectRegime(realYield: number | null, debtToGdp: number | null): RegimeData {
   // Financial Repression: negative real rates + high debt
@@ -364,11 +401,12 @@ function QuickResearchForm() {
 function IndicatorTile({ indicator }: { indicator: MacroIndicator }) {
   const label = indicator.interpretation?.label;
   const tileBg = label ? getStatusTileBg(label) : "bg-gray-50";
-  const pillColor = label ? getStatusColor(label) : "bg-gray-100 text-gray-500";
+  const severity = label ? getSeverityDots(label) : { dots: 0, color: "text-gray-300" };
 
   return (
     <div
       className={`rounded-xl p-3 ${tileBg} border border-white/60 transition-transform hover:scale-[1.02]`}
+      title={label || undefined}
     >
       <div className="flex items-center gap-1 mb-1.5">
         <span className="flex items-center text-gray-400">
@@ -386,11 +424,16 @@ function IndicatorTile({ indicator }: { indicator: MacroIndicator }) {
           {formatIndicatorValue(indicator)}
         </span>
         {label && (
-          <span
-            className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium shrink-0 ${pillColor}`}
-          >
-            {label}
-          </span>
+          <div className="flex gap-0.5 shrink-0" title={label}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <span
+                key={i}
+                className={`w-1.5 h-1.5 rounded-full ${
+                  i <= severity.dots ? severity.color : "text-gray-200"
+                } ${i <= severity.dots ? "bg-current" : "bg-gray-200"}`}
+              />
+            ))}
+          </div>
         )}
       </div>
     </div>
