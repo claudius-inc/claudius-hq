@@ -17,6 +17,8 @@ import {
   Factory,
   CreditCard,
   Activity,
+  Landmark,
+  ArrowRight,
 } from "lucide-react";
 import { formatDate } from "@/lib/format-date";
 
@@ -68,6 +70,19 @@ interface MarketEtf {
     fiftyTwoWeekHigh: number;
   } | null;
   interpretation: { label: string; color: string } | null;
+}
+
+interface RegimeData {
+  name: string;
+  description: string;
+  color: string;
+  indicators: {
+    realYield: number | null;
+    debtToGdp: number | null;
+    deficitToGdp: number | null;
+    dxy: number | null;
+  };
+  implications: string[];
 }
 
 interface SentimentData {
@@ -149,6 +164,50 @@ function formatIndicatorValue(indicator: MacroIndicator): string {
   if (indicator.id === "hy-spread") return `${val.toFixed(0)}bp`;
   if (indicator.id === "yield-curve") return `${val.toFixed(0)}bp`;
   return `${val.toFixed(1)}%`;
+}
+
+// Regime detection logic
+function detectRegime(realYield: number | null, debtToGdp: number | null): RegimeData {
+  // Financial Repression: negative real rates + high debt
+  if (realYield !== null && realYield < 0 && debtToGdp !== null && debtToGdp > 100) {
+    return {
+      name: "Financial Repression",
+      description: "Negative real rates inflating away debt",
+      color: "bg-amber-100 border-amber-300 text-amber-800",
+      indicators: { realYield, debtToGdp, deficitToGdp: null, dxy: null },
+      implications: ["Gold outperforms", "Bonds lose purchasing power", "Real assets favored"],
+    };
+  }
+  
+  // Fiscal Dominance: high debt + large deficits forcing easy money
+  if (debtToGdp !== null && debtToGdp > 120) {
+    return {
+      name: "Fiscal Dominance",
+      description: "Debt levels constraining monetary policy",
+      color: "bg-red-100 border-red-300 text-red-800",
+      indicators: { realYield, debtToGdp, deficitToGdp: null, dxy: null },
+      implications: ["Currency debasement risk", "Hard assets critical", "Bond vigilantes watching"],
+    };
+  }
+  
+  // Monetary Tightening
+  if (realYield !== null && realYield > 2) {
+    return {
+      name: "Restrictive Policy",
+      description: "Real rates positive, liquidity tightening",
+      color: "bg-blue-100 border-blue-300 text-blue-800",
+      indicators: { realYield, debtToGdp, deficitToGdp: null, dxy: null },
+      implications: ["Bonds may outperform", "Gold faces headwinds", "Cash competitive"],
+    };
+  }
+  
+  return {
+    name: "Transitional",
+    description: "Mixed signals, regime unclear",
+    color: "bg-gray-100 border-gray-300 text-gray-700",
+    indicators: { realYield, debtToGdp, deficitToGdp: null, dxy: null },
+    implications: ["Diversification key", "Watch for regime signals"],
+  };
 }
 
 const categoryOrder = ["rates", "inflation", "employment", "growth", "credit"];
@@ -353,12 +412,14 @@ export default function StocksDashboard() {
     null,
   );
   const [marketEtfs, setMarketEtfs] = useState<MarketEtf[]>([]);
+  const [regimeData, setRegimeData] = useState<RegimeData | null>(null);
   const [loading, setLoading] = useState({
     portfolio: true,
     macro: true,
     reports: true,
     sentiment: true,
     etfs: true,
+    regime: true,
   });
 
   // Fetch all data on mount
@@ -414,6 +475,33 @@ export default function StocksDashboard() {
       })
       .catch(console.error)
       .finally(() => setLoading((prev) => ({ ...prev, sentiment: false })));
+
+    // Fetch regime data (from macro + gold endpoints)
+    Promise.all([
+      fetch("/api/macro").then(res => res.ok ? res.json() : null),
+      fetch("/api/gold").then(res => res.ok ? res.json() : null),
+    ])
+      .then(([macroData, goldData]: [
+        { indicators?: { id: string; data?: { current: number } }[] } | null,
+        { realYields?: { value: number }; dxy?: { price: number } } | null
+      ]) => {
+        const indicators = macroData?.indicators || [];
+        const findIndicator = (id: string) => {
+          const ind = indicators.find((i) => i.id === id);
+          return ind?.data?.current ?? null;
+        };
+        
+        const realYield = goldData?.realYields?.value ?? null;
+        const debtToGdp = findIndicator("debt-to-gdp");
+        const deficitToGdp = findIndicator("deficit-to-gdp");
+        const dxy = goldData?.dxy?.price ?? null;
+        
+        const regime = detectRegime(realYield, debtToGdp);
+        regime.indicators = { realYield, debtToGdp, deficitToGdp: deficitToGdp ? Math.abs(deficitToGdp) : null, dxy };
+        setRegimeData(regime);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, regime: false })));
   }, []);
 
   // Group and flatten macro indicators
@@ -437,6 +525,59 @@ export default function StocksDashboard() {
         title="Markets Dashboard"
         subtitle="Portfolio overview, research, and market signals"
       />
+
+      {/* Current Regime Banner */}
+      {loading.regime ? (
+        <Skeleton className="h-24 rounded-xl mb-6" />
+      ) : regimeData && (
+        <Link 
+          href="/markets/regime"
+          className={`block mb-6 rounded-xl border-2 p-4 transition-all hover:shadow-md ${regimeData.color}`}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-white/50">
+                <Landmark className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium uppercase tracking-wider opacity-70">Current Regime</span>
+                </div>
+                <h3 className="text-lg font-bold">{regimeData.name}</h3>
+                <p className="text-sm opacity-80">{regimeData.description}</p>
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center gap-6 text-sm">
+              {regimeData.indicators.realYield !== null && (
+                <div className="text-center">
+                  <div className="text-xs opacity-60">Real Yield</div>
+                  <div className="font-bold">{regimeData.indicators.realYield.toFixed(2)}%</div>
+                </div>
+              )}
+              {regimeData.indicators.debtToGdp !== null && (
+                <div className="text-center">
+                  <div className="text-xs opacity-60">Debt/GDP</div>
+                  <div className="font-bold">{regimeData.indicators.debtToGdp.toFixed(0)}%</div>
+                </div>
+              )}
+              {regimeData.indicators.deficitToGdp !== null && (
+                <div className="text-center">
+                  <div className="text-xs opacity-60">Deficit/GDP</div>
+                  <div className="font-bold">{regimeData.indicators.deficitToGdp.toFixed(1)}%</div>
+                </div>
+              )}
+              <ArrowRight className="w-5 h-5 opacity-50" />
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {regimeData.implications.slice(0, 3).map((impl, i) => (
+              <span key={i} className="text-xs px-2 py-1 rounded-full bg-white/40 font-medium">
+                {impl}
+              </span>
+            ))}
+          </div>
+        </Link>
+      )}
 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
