@@ -129,11 +129,11 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { company_name, ticker } = body;
+    const { company_name, ticker, report_type } = body;
 
-    if (company_name === undefined && ticker === undefined) {
+    if (company_name === undefined && ticker === undefined && report_type === undefined) {
       return NextResponse.json(
-        { error: "At least one field (company_name or ticker) is required" },
+        { error: "At least one field (company_name, ticker, or report_type) is required" },
         { status: 400 }
       );
     }
@@ -146,6 +146,10 @@ export async function PATCH(req: NextRequest) {
 
     if (ticker !== undefined) {
       updateData.ticker = ticker.toUpperCase();
+    }
+
+    if (report_type !== undefined) {
+      updateData.reportType = report_type;
     }
 
     await db.update(stockReports).set(updateData).where(eq(stockReports.id, reportId));
