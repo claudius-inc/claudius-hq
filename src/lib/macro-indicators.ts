@@ -357,6 +357,53 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
     ],
     affectedAssets: ["European equities", "EUR/USD", "European banks", "Periphery spreads"],
   },
+
+  // === FISCAL INDICATORS ===
+  {
+    id: "debt-to-gdp",
+    name: "Federal Debt/GDP",
+    fredCode: "GFDEGDQ188S",
+    category: "growth",
+    unit: "%",
+    frequency: "quarterly",
+    description: "Total US federal public debt as a percentage of GDP. Measures government leverage relative to economic output.",
+    whyItMatters: "High debt/GDP constrains fiscal flexibility and increases interest burden. Above 100%, governments often resort to financial repression (keeping rates below inflation) to inflate away debt. This is structurally bullish for gold and real assets.",
+    ranges: [
+      { label: "Sustainable", min: null, max: 60, meaning: "Healthy fiscal position", marketImpact: "Full policy flexibility, bonds trusted" },
+      { label: "Elevated", min: 60, max: 90, meaning: "Manageable but concerning", marketImpact: "Bond vigilantes watching, fiscal space limited" },
+      { label: "High", min: 90, max: 120, meaning: "Japan/Italy territory", marketImpact: "Financial repression likely, gold tailwind" },
+      { label: "Extreme", min: 120, max: null, meaning: "Debt spiral risk", marketImpact: "Currency debasement, hard assets outperform" },
+    ],
+    keyLevels: [
+      { level: 60, significance: "Maastricht Treaty limit (EU rule)" },
+      { level: 100, significance: "Debt equals one year of GDP" },
+      { level: 120, significance: "Financial repression threshold" },
+    ],
+    affectedAssets: ["Gold (positive at high levels)", "Long-term bonds (negative)", "Real assets", "Inflation hedges"],
+  },
+  {
+    id: "deficit-to-gdp",
+    name: "Federal Deficit/GDP",
+    fredCode: "FYFSGDA188S",
+    category: "growth",
+    unit: "%",
+    frequency: "quarterly",
+    description: "Annual federal budget deficit as a percentage of GDP. Negative values indicate deficit (spending > revenue).",
+    whyItMatters: "Persistent deficits add to debt pile and require financing. Large deficits outside recessions (like 6%+ in expansion) signal structural fiscal problems. Markets eventually demand higher yields or currency weakens.",
+    ranges: [
+      { label: "Surplus", min: 0, max: null, meaning: "Government running surplus", marketImpact: "Rare, very bullish for bonds, dollar strength" },
+      { label: "Balanced", min: -2, max: 0, meaning: "Near balanced budget", marketImpact: "Healthy fiscal dynamics" },
+      { label: "Moderate Deficit", min: -4, max: -2, meaning: "Typical expansion deficit", marketImpact: "Sustainable, normal fiscal stimulus" },
+      { label: "Large Deficit", min: -6, max: -4, meaning: "Elevated spending/weak revenue", marketImpact: "Inflation risk, bond supply concerns" },
+      { label: "Crisis Deficit", min: null, max: -6, meaning: "Recession or war-time spending", marketImpact: "Debt monetization risk, gold/inflation hedges" },
+    ],
+    keyLevels: [
+      { level: 0, significance: "Balanced budget" },
+      { level: -3, significance: "EU Maastricht limit" },
+      { level: -6, significance: "Structural crisis threshold" },
+    ],
+    affectedAssets: ["Treasury supply (more deficits = more bonds)", "Gold", "Inflation expectations", "Dollar"],
+  },
 ];
 
 // Helper to get current interpretation

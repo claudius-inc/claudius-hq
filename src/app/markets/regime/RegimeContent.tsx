@@ -110,12 +110,16 @@ export function RegimeContent() {
         return ind?.data?.current ?? null;
       };
       
+      // FRED deficit data is negative (surplus positive), convert to positive deficit
+      const rawDeficit = findIndicator("deficit-to-gdp");
+      const deficitAsPositive = rawDeficit !== null ? Math.abs(rawDeficit) : null;
+      
       setData({
         indicators: {
           realYield: goldData.realYields?.value ?? null,
           nominalGrowth: findIndicator("gdp_growth"),
-          debtToGdp: 125, // Hardcoded current US level - could fetch from FRED
-          deficitToGdp: 6.5, // Hardcoded current US level
+          debtToGdp: findIndicator("debt-to-gdp"),
+          deficitToGdp: deficitAsPositive,
           m2Growth: findIndicator("m2_growth"),
           dxy: goldData.dxy?.price ?? null,
         },
