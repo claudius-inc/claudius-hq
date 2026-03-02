@@ -640,19 +640,19 @@ export default function StocksDashboard() {
               <Skeleton className="h-14 rounded-xl" />
             ) : (
               <div className="rounded-xl bg-gray-900 p-3 sm:p-4">
-                <div className="flex items-center justify-between flex-wrap gap-3">
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <Activity className="w-4 h-4" />
-                    <span className="text-xs font-medium uppercase tracking-wider">
-                      Market Pulse
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 sm:gap-6">
+                <div className="flex items-center gap-2 text-gray-400 mb-3 sm:mb-0 sm:absolute sm:left-4 sm:top-4">
+                  <Activity className="w-4 h-4" />
+                  <span className="text-xs font-medium uppercase tracking-wider">
+                    Market Pulse
+                  </span>
+                </div>
+                <div className="sm:relative sm:pt-0">
+                  <div className="flex items-center justify-between sm:justify-center gap-4 sm:gap-6">
                     {/* VIX */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <span className="text-xs text-gray-500">VIX</span>
                       <span
-                        className={`text-lg font-bold ${
+                        className={`text-base sm:text-lg font-bold ${
                           sentimentData?.vix.level === "low" ||
                           sentimentData?.vix.level === "moderate"
                             ? "text-emerald-400"
@@ -665,14 +665,16 @@ export default function StocksDashboard() {
                       >
                         {sentimentData?.vix.value?.toFixed(1) ?? "—"}
                       </span>
-                      {sentimentData?.vix?.change != null && (
-                        <span
-                          className={`text-xs ${sentimentData.vix.change >= 0 ? "text-red-400" : "text-emerald-400"}`}
-                        >
-                          {sentimentData.vix.change >= 0 ? "▲" : "▼"}
-                          {Math.abs(sentimentData.vix.change).toFixed(1)}
-                        </span>
-                      )}
+                      <span
+                        className={`hidden sm:inline text-xs ${sentimentData?.vix?.change != null && sentimentData.vix.change >= 0 ? "text-red-400" : "text-emerald-400"}`}
+                      >
+                        {sentimentData?.vix?.change != null && (
+                          <>
+                            {sentimentData.vix.change >= 0 ? "▲" : "▼"}
+                            {Math.abs(sentimentData.vix.change).toFixed(1)}
+                          </>
+                        )}
+                      </span>
                       <span
                         className={`text-[10px] px-1.5 py-0.5 rounded-full ${
                           sentimentData?.vix.level === "low" ||
@@ -692,10 +694,10 @@ export default function StocksDashboard() {
                     <div className="w-px h-6 bg-gray-700" />
 
                     {/* Put/Call */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <span className="text-xs text-gray-500">P/C</span>
                       <span
-                        className={`text-lg font-bold ${
+                        className={`text-base sm:text-lg font-bold ${
                           sentimentData?.putCall.level === "greedy"
                             ? "text-amber-400"
                             : sentimentData?.putCall.level === "neutral"
