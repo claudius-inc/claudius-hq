@@ -568,17 +568,7 @@ export default function StocksDashboard() {
       <PageHero
         title="Markets Dashboard"
         subtitle="Portfolio overview, research, and market signals"
-        actionSlot={
-          <div className="hidden sm:block">
-            <QuickResearchForm compact />
-          </div>
-        }
       />
-      
-      {/* Mobile Quick Research */}
-      <div className="sm:hidden mb-4">
-        <QuickResearchForm />
-      </div>
 
       {/* Current Regime Banner */}
       {loading.regime ? (
@@ -633,8 +623,8 @@ export default function StocksDashboard() {
         </Link>
       )}
 
-      {/* Grid Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Grid Layout - items-start for natural heights */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         {/* Macro Signals */}
 
         <DashboardCard
@@ -836,6 +826,11 @@ export default function StocksDashboard() {
           href="/markets/research"
           loading={loading.reports}
         >
+          {/* Quick Research Form */}
+          <div className="mb-4 pb-4 border-b border-gray-100">
+            <QuickResearchForm />
+          </div>
+          
           {recentReports.length > 0 ? (
             <div className="space-y-2">
               {recentReports.map((report) => (
@@ -861,7 +856,7 @@ export default function StocksDashboard() {
             <div className="text-sm text-gray-500">
               <p>No research reports yet.</p>
               <p className="text-xs text-gray-400 mt-1">
-                Use the form above to start one
+                Enter a ticker above to start
               </p>
             </div>
           )}
