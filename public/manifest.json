@@ -2,7 +2,7 @@
   "name": "Claudius HQ",
   "short_name": "Claudius HQ",
   "description": "Mission Control for Claudius Inc",
-  "start_url": "/",
+  "start_url": "/markets",
   "display": "standalone",
   "background_color": "#f9fafb",
   "theme_color": "#f9fafb",
