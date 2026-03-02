@@ -203,7 +203,7 @@ export function RegimeContent() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <IndicatorCard
             label="Real Yield"
-            value={data?.indicators.realYield}
+            value={data?.indicators.realYield ?? null}
             format={(v) => `${v.toFixed(2)}%`}
             threshold={{ danger: 0, warning: 1 }}
             inverse
@@ -211,21 +211,21 @@ export function RegimeContent() {
           />
           <IndicatorCard
             label="Debt/GDP"
-            value={data?.indicators.debtToGdp}
+            value={data?.indicators.debtToGdp ?? null}
             format={(v) => `${v.toFixed(0)}%`}
             threshold={{ danger: 120, warning: 100 }}
             description="US federal debt"
           />
           <IndicatorCard
             label="Deficit/GDP"
-            value={data?.indicators.deficitToGdp}
+            value={data?.indicators.deficitToGdp ?? null}
             format={(v) => `${v.toFixed(1)}%`}
             threshold={{ danger: 6, warning: 4 }}
             description="Annual fiscal deficit"
           />
           <IndicatorCard
             label="DXY"
-            value={data?.indicators.dxy}
+            value={data?.indicators.dxy ?? null}
             format={(v) => v.toFixed(1)}
             threshold={{ danger: 90, warning: 95 }}
             inverse

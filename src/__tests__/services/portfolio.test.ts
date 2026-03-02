@@ -47,7 +47,7 @@ describe("portfolio.service", () => {
 
       vi.mocked(db.select().from).mockImplementation(() => ({
         orderBy: vi.fn().mockResolvedValue(mockHoldings),
-      }) as unknown as ReturnType<typeof db.select>);
+      }) as any);
 
       const result = await listHoldings();
       expect(result).toEqual(mockHoldings);
@@ -61,7 +61,7 @@ describe("portfolio.service", () => {
       const whereMock = vi.fn().mockResolvedValue([mockHolding]);
       vi.mocked(db.select().from).mockImplementation(() => ({
         where: whereMock,
-      }) as unknown as ReturnType<typeof db.select>);
+      }) as any);
 
       await getHoldingByTicker("aapl");
       expect(whereMock).toHaveBeenCalled();
@@ -70,7 +70,7 @@ describe("portfolio.service", () => {
     it("should return null when not found", async () => {
       vi.mocked(db.select().from).mockImplementation(() => ({
         where: vi.fn().mockResolvedValue([]),
-      }) as unknown as ReturnType<typeof db.select>);
+      }) as any);
 
       const result = await getHoldingByTicker("NOTEXIST");
       expect(result).toBeNull();
@@ -83,7 +83,7 @@ describe("portfolio.service", () => {
 
       vi.mocked(db.select().from).mockImplementation(() => ({
         where: vi.fn().mockResolvedValue([mockExisting]),
-      }) as unknown as ReturnType<typeof db.select>);
+      }) as any);
 
       const result = await createHolding({
         ticker: "AAPL",

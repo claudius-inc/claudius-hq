@@ -16,8 +16,7 @@ export function rateLimit(options: {
 
   // Allow garbage collection in non-server contexts
   if (typeof cleanup === "object" && "unref" in cleanup) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (cleanup as any).unref();
+    (cleanup as NodeJS.Timeout).unref();
   }
 
   return {

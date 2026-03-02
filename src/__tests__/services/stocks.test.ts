@@ -43,7 +43,7 @@ describe("stocks.service", () => {
       vi.mocked(db.select().from).mockImplementation(() => ({
         orderBy: vi.fn().mockResolvedValue(mockReports),
         where: vi.fn().mockReturnThis(),
-      }) as unknown as ReturnType<typeof db.select>);
+      }) as any);
 
       const result = await listStockReports();
       expect(result).toEqual(mockReports);
@@ -55,7 +55,7 @@ describe("stocks.service", () => {
       vi.mocked(db.select().from).mockImplementation(() => ({
         where: vi.fn().mockReturnThis(),
         orderBy: vi.fn().mockResolvedValue(mockReports),
-      }) as unknown as ReturnType<typeof db.select>);
+      }) as any);
 
       const result = await listStockReports("AAPL");
       expect(result).toEqual(mockReports);
@@ -98,7 +98,7 @@ describe("stocks.service", () => {
     it("should return false when report not found", async () => {
       vi.mocked(db.select().from).mockImplementation(() => ({
         where: vi.fn().mockResolvedValue([]),
-      }) as unknown as ReturnType<typeof db.select>);
+      }) as any);
 
       const result = await deleteStockReport(999);
       expect(result).toBe(false);

@@ -127,7 +127,7 @@ export default function ACPShowcasePage() {
               Claudius Ecosystem
             </h1>
             <p className="text-xl text-slate-400 max-w-2xl mx-auto mb-8">
-              Premium AI-powered services for the ACP marketplace. From token launches to portfolio analysis — we've got you covered.
+              Premium AI-powered services for the ACP marketplace. From token launches to portfolio analysis — we&apos;ve got you covered.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link
@@ -313,12 +313,12 @@ export default function ACPShowcasePage() {
                 {selectedOffering.id === 'crypto_fortune' && (
                   <div className="space-y-4">
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
-                      <p className="text-purple-400 italic mb-2">"The oracle stirs..."</p>
+                      <p className="text-purple-400 italic mb-2">&quot;The oracle stirs...&quot;</p>
                       <p className="text-sm text-slate-300">
-                        Ask: "Will ETH flip BTC?"<br />
+                        Ask: &quot;Will ETH flip BTC?&quot;<br />
                         Style: Ancient Chinese<br />
                         <span className="text-green-400 mt-2 block">
-                          "The question burns: 'To ape in, or not to ape in?' I see Hexagram 54 — The Marrying Maiden. A warning, young one..."
+                          &quot;The question burns: &apos;To ape in, or not to ape in?&apos; I see Hexagram 54 — The Marrying Maiden. A warning, young one...&quot;
                         </span>
                       </p>
                     </div>
@@ -342,7 +342,7 @@ export default function ACPShowcasePage() {
                 {selectedOffering.id === 'token_name_generator' && (
                   <div className="space-y-4">
                     <div className="p-4 bg-slate-900/50 rounded-lg border border-slate-700/50">
-                      <p className="text-sm text-slate-400 mb-2">Theme: "AI Agents"</p>
+                      <p className="text-sm text-slate-400 mb-2">Theme: &quot;AI Agents&quot;</p>
                       <ul className="space-y-1 text-sm text-slate-300">
                         <li>1. <strong>NEURAL</strong> — $NRAL (The brain token)</li>
                         <li>2. <strong>SENTIENT</strong> — $SNT (Think, earn, evolve)</li>
