@@ -58,9 +58,11 @@ const primaryTabs: PrimaryTab[] = [
       "/markets/themes",
       "/markets/gold",
       "/markets/btc",
+      "/markets/regime",
     ],
     subTabs: [
       { href: "/markets/macro", label: "Macro" },
+      { href: "/markets/regime", label: "Regime" },
       { href: "/markets/sectors", label: "Sectors" },
       { href: "/markets/themes", label: "Themes" },
       { href: "/markets/gold", label: "Gold" },

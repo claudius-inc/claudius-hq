@@ -7,3 +7,4 @@ export * from "./GoldFlowsChart";
 export * from "./GoldThesisNotes";
 export * from "./GoldQuickStats";
 export * from "./GoldDalioFramework";
+export * from "./GoldBondsComparison";
