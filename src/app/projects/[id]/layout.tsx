@@ -1,4 +1,3 @@
-import { Nav } from "@/components/Nav";
 import { ProjectSidebar, ProjectMobileTOC } from "@/components/ProjectSidebar";
 import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
@@ -40,7 +39,6 @@ export default async function ProjectLayout({
 
   return (
     <div className="min-h-screen">
-      <Nav />
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex gap-8">
           {/* Desktop Sidebar */}
