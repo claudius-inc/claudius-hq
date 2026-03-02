@@ -319,7 +319,7 @@ function DashboardCard({
 
 // ── Quick Research Form ──────────────────────────────
 
-function QuickResearchForm() {
+function QuickResearchForm({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [ticker, setTicker] = useState("");
   const [status, setStatus] = useState<
@@ -367,10 +367,10 @@ function QuickResearchForm() {
           type="text"
           value={ticker}
           onChange={(e) => setTicker(e.target.value.toUpperCase())}
-          placeholder="Enter ticker (e.g., AAPL)"
+          placeholder={compact ? "Ticker" : "Enter ticker (e.g., AAPL)"}
           autoCapitalize="characters"
           autoComplete="off"
-          className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+          className={`${compact ? "w-24" : "flex-1 min-w-0"} px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none`}
           disabled={status === "loading"}
         />
         <button
@@ -382,7 +382,7 @@ function QuickResearchForm() {
           {status === "loading" ? "..." : <FlaskConical className="w-4 h-4" />}
         </button>
       </div>
-      {message && (
+      {message && !compact && (
         <div
           className={`text-xs mt-2 p-2 rounded ${
             status === "success"
@@ -568,7 +568,17 @@ export default function StocksDashboard() {
       <PageHero
         title="Markets Dashboard"
         subtitle="Portfolio overview, research, and market signals"
+        actionSlot={
+          <div className="hidden sm:block">
+            <QuickResearchForm compact />
+          </div>
+        }
       />
+      
+      {/* Mobile Quick Research */}
+      <div className="sm:hidden mb-4">
+        <QuickResearchForm />
+      </div>
 
       {/* Current Regime Banner */}
       {loading.regime ? (
@@ -625,17 +635,6 @@ export default function StocksDashboard() {
 
       {/* Grid Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Quick Research */}
-        <DashboardCard
-          title="Quick Research"
-          icon={<Search className="w-4 h-4" />}
-        >
-          <QuickResearchForm />
-          <p className="text-xs text-gray-400 mt-3">
-            Start a Sun Tzu-style research report for any ticker
-          </p>
-        </DashboardCard>
-
         {/* Macro Signals */}
 
         <DashboardCard
