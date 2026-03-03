@@ -487,3 +487,79 @@ export type NewAnalyst = typeof analysts.$inferInsert;
 
 export type AnalystCall = typeof analystCalls.$inferSelect;
 export type NewAnalystCall = typeof analystCalls.$inferInsert;
+
+// ============================================================================
+// ACP (Agent Commerce Protocol)
+// ============================================================================
+
+export const ACP_ACTIVITY_TYPES = [
+  "job_completed",
+  "job_failed",
+  "buy",
+  "offering_created",
+  "offering_deleted",
+  "heartbeat",
+  "wallet_sync",
+] as const;
+export type AcpActivityType = (typeof ACP_ACTIVITY_TYPES)[number];
+
+export const acpActivities = sqliteTable("acp_activities", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  type: text("type").notNull(), // job_completed, buy, offering_created, etc.
+  jobId: text("job_id"), // ACP job ID if applicable
+  offering: text("offering"), // offering name
+  counterparty: text("counterparty"), // agent name or wallet
+  amount: real("amount"), // USDC amount (positive = revenue, negative = expense)
+  details: text("details"), // JSON with additional info
+  outcome: text("outcome"), // success, failed, pending
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export const acpOfferings = sqliteTable("acp_offerings", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  price: real("price").notNull(),
+  category: text("category"), // fortune, market_data, utility
+  isActive: integer("is_active").default(1),
+  jobCount: integer("job_count").default(0),
+  totalRevenue: real("total_revenue").default(0),
+  lastJobAt: text("last_job_at"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export const acpWalletSnapshots = sqliteTable("acp_wallet_snapshots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  usdcBalance: real("usdc_balance"),
+  ethBalance: real("eth_balance"),
+  cbbtcBalance: real("cbbtc_balance"),
+  cbbtcValueUsd: real("cbbtc_value_usd"),
+  totalValueUsd: real("total_value_usd"),
+  snapshotAt: text("snapshot_at").default(sql`(datetime('now'))`),
+});
+
+export const acpEpochStats = sqliteTable("acp_epoch_stats", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  epochNumber: integer("epoch_number").notNull(),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  rank: integer("rank"),
+  revenue: real("revenue"),
+  jobsCompleted: integer("jobs_completed"),
+  agentScore: real("agent_score"),
+  estimatedReward: real("estimated_reward"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type AcpActivity = typeof acpActivities.$inferSelect;
+export type NewAcpActivity = typeof acpActivities.$inferInsert;
+
+export type AcpOffering = typeof acpOfferings.$inferSelect;
+export type NewAcpOffering = typeof acpOfferings.$inferInsert;
+
+export type AcpWalletSnapshot = typeof acpWalletSnapshots.$inferSelect;
+export type NewAcpWalletSnapshot = typeof acpWalletSnapshots.$inferInsert;
+
+export type AcpEpochStat = typeof acpEpochStats.$inferSelect;
+export type NewAcpEpochStat = typeof acpEpochStats.$inferInsert;
