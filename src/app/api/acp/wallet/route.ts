@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpWalletSnapshots } from "@/db/schema";
 import { desc } from "drizzle-orm";
@@ -48,6 +49,9 @@ export async function POST(req: NextRequest) {
         totalValueUsd: totalValueUsd ?? null,
       })
       .returning();
+
+    // Invalidate ISR cache for ACP page
+    revalidatePath("/acp");
 
     return NextResponse.json({ success: true, snapshot });
   } catch (error) {

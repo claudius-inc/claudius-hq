@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpActivities, acpOfferings, acpWalletSnapshots } from "@/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
@@ -72,6 +73,9 @@ export async function POST(req: NextRequest) {
         })
         .where(eq(acpOfferings.name, offering));
     }
+
+    // Invalidate ISR cache for ACP page
+    revalidatePath("/acp");
 
     return NextResponse.json({ success: true, activity });
   } catch (error) {
