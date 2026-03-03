@@ -56,7 +56,14 @@ export default async function AcpPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">ACP Dashboard</h1>
-          <p className="text-sm text-gray-500">Agent Commerce Protocol activity tracker</p>
+          <p className="text-sm text-gray-500">
+            Agent Commerce Protocol activity tracker
+            {wallet?.snapshotAt && (
+              <span className="ml-2 text-xs text-gray-400">
+                • Last sync: {formatDate(wallet.snapshotAt, { style: "relative" })}
+              </span>
+            )}
+          </p>
         </div>
         <Link
           href="https://claudiusinc.com"
