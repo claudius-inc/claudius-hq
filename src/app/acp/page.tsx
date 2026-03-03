@@ -153,6 +153,20 @@ export default async function AcpPage() {
                           {activity.counterparty}
                         </div>
                       )}
+                      {activity.details && (() => {
+                        try {
+                          const details = JSON.parse(activity.details);
+                          return (
+                            <div className="text-xs text-gray-500 mt-1">
+                              {details.action && <span>{details.action}</span>}
+                              {details.pillar && <span className="ml-1">• {details.pillar}</span>}
+                              {details.result && <span className="ml-1">• {details.result}</span>}
+                            </div>
+                          );
+                        } catch {
+                          return <div className="text-xs text-gray-500 mt-1">{activity.details}</div>;
+                        }
+                      })()}
                       <div className="text-xs text-gray-400 mt-1">
                         {activity.createdAt ? formatDate(activity.createdAt, { style: "relative" }) : ""}
                       </div>
