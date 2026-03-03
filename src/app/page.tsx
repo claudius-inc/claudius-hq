@@ -111,7 +111,7 @@ export default async function Dashboard() {
               </div>
             </div>
           </Link>
-          <Link href="/acp/showcase" className="card-hover group">
+          <Link href="/acp" className="card-hover group">
             <div className="flex items-center gap-3">
               <Rocket className="w-6 h-6 text-purple-500" />
               <div>
