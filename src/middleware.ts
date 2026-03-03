@@ -12,6 +12,12 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ACP API: uses its own auth check (Bearer token in route handler)
+  if (pathname.startsWith("/api/acp/")) {
+    logRequest(request, 200);
+    return NextResponse.next();
+  }
+
   // Email webhook: no auth (Cloudflare Email Worker forwards here)
   if (pathname === "/api/integrations/email" && request.method === "POST") {
     return NextResponse.next();
