@@ -563,3 +563,66 @@ export type NewAcpWalletSnapshot = typeof acpWalletSnapshots.$inferInsert;
 
 export type AcpEpochStat = typeof acpEpochStats.$inferSelect;
 export type NewAcpEpochStat = typeof acpEpochStats.$inferInsert;
+
+// ============================================================================
+// Market Indicators - Congress Trades
+// ============================================================================
+
+export const congressTrades = sqliteTable("congress_trades", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  memberName: text("member_name").notNull(),
+  party: text("party"), // R, D, I
+  state: text("state"),
+  chamber: text("chamber"), // house, senate
+  ticker: text("ticker").notNull(),
+  transactionType: text("transaction_type").notNull(), // purchase, sale
+  amountRange: text("amount_range"), // e.g., "$1,001 - $15,000"
+  transactionDate: text("transaction_date").notNull(),
+  filedDate: text("filed_date"),
+  sourceId: text("source_id"), // External ID to prevent duplicates
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type CongressTrade = typeof congressTrades.$inferSelect;
+export type NewCongressTrade = typeof congressTrades.$inferInsert;
+
+// ============================================================================
+// Market Indicators - Insider Trades (SEC Form 4)
+// ============================================================================
+
+export const insiderTrades = sqliteTable("insider_trades", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  company: text("company").notNull(),
+  ticker: text("ticker").notNull(),
+  insiderName: text("insider_name").notNull(),
+  title: text("title"), // CEO, CFO, Director, etc.
+  transactionType: text("transaction_type").notNull(), // buy, sell, exercise
+  shares: real("shares"),
+  price: real("price"),
+  value: real("value"),
+  transactionDate: text("transaction_date").notNull(),
+  filedDate: text("filed_date"),
+  sourceId: text("source_id"), // External ID to prevent duplicates
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type InsiderTrade = typeof insiderTrades.$inferSelect;
+export type NewInsiderTrade = typeof insiderTrades.$inferInsert;
+
+// ============================================================================
+// Market Indicators - Dark Pool Data (FINRA ATS)
+// ============================================================================
+
+export const darkpoolData = sqliteTable("darkpool_data", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  weekEnding: text("week_ending").notNull(),
+  ticker: text("ticker"), // NULL for aggregate data
+  atsVolume: real("ats_volume").notNull(),
+  totalVolume: real("total_volume"),
+  atsPercent: real("ats_percent"),
+  issueType: text("issue_type"), // equity, etf, etc.
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type DarkpoolData = typeof darkpoolData.$inferSelect;
+export type NewDarkpoolData = typeof darkpoolData.$inferInsert;

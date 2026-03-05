@@ -21,6 +21,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { formatDate } from "@/lib/format-date";
+import { HealthDot, labelToHealthLevel, type HealthLevel } from "@/components/HealthDot";
 
 // Types
 interface Position {
@@ -167,41 +168,13 @@ function formatIndicatorValue(indicator: MacroIndicator): string {
   return `${val.toFixed(1)}%`;
 }
 
-// Map status labels to 5-dot severity scale
-function getSeverityDots(label: string): { dots: number; color: string } {
-  const mapping: Record<string, { dots: number; color: string }> = {
-    // Green - healthy (1 dot = at target)
-    "Target Zone": { dots: 1, color: "text-emerald-500" },
-    "At Target": { dots: 1, color: "text-emerald-500" },
-    "Healthy": { dots: 1, color: "text-emerald-500" },
-    "Normal": { dots: 1, color: "text-emerald-500" },
-    "Full Employment": { dots: 1, color: "text-emerald-500" },
-    "Expansion": { dots: 1, color: "text-emerald-500" },
-    
-    // Blue - accommodative (2 dots)
-    "Accommodative": { dots: 2, color: "text-blue-500" },
-    "Low": { dots: 2, color: "text-blue-500" },
-    
-    // Gray - neutral (2 dots)
-    "Neutral": { dots: 2, color: "text-gray-400" },
-    "Moderate": { dots: 2, color: "text-gray-400" },
-    
-    // Amber - warning (3-4 dots)
-    "Above Target": { dots: 3, color: "text-amber-500" },
-    "Elevated": { dots: 3, color: "text-amber-500" },
-    "Softening": { dots: 3, color: "text-amber-500" },
-    "Restrictive": { dots: 3, color: "text-amber-500" },
-    "Inverted": { dots: 4, color: "text-amber-500" },
-    "Contraction": { dots: 4, color: "text-amber-500" },
-    
-    // Red - danger (4-5 dots)
-    "High": { dots: 4, color: "text-red-500" },
-    "Very Restrictive": { dots: 5, color: "text-red-500" },
-    "Deeply Inverted": { dots: 5, color: "text-red-500" },
-    "Crisis": { dots: 5, color: "text-red-500" },
-  };
-  
-  return mapping[label] || { dots: 2, color: "text-gray-400" };
+// Helper to map ETF color to health level
+function etfColorToHealthLevel(color: string | null | undefined): HealthLevel {
+  if (!color) return "neutral";
+  if (color === "green" || color === "blue") return "healthy";
+  if (color === "amber") return "caution";
+  if (color === "red") return "warning";
+  return "neutral";
 }
 
 // Regime detection logic
@@ -404,7 +377,7 @@ function QuickResearchForm({ compact = false }: { compact?: boolean }) {
 function IndicatorTile({ indicator }: { indicator: MacroIndicator }) {
   const label = indicator.interpretation?.label;
   const tileBg = label ? getStatusTileBg(label) : "bg-gray-50";
-  const severity = label ? getSeverityDots(label) : { dots: 0, color: "text-gray-300" };
+  const healthLevel = labelToHealthLevel(label);
 
   return (
     <div
@@ -427,16 +400,7 @@ function IndicatorTile({ indicator }: { indicator: MacroIndicator }) {
           {formatIndicatorValue(indicator)}
         </span>
         {label && (
-          <div className="flex gap-0.5 shrink-0" title={label}>
-            {[1, 2, 3, 4, 5].map((i) => (
-              <span
-                key={i}
-                className={`w-1.5 h-1.5 rounded-full ${
-                  i <= severity.dots ? severity.color : "text-gray-200"
-                } ${i <= severity.dots ? "bg-current" : "bg-gray-200"}`}
-              />
-            ))}
-          </div>
+          <HealthDot level={healthLevel} size="md" />
         )}
       </div>
     </div>
@@ -774,7 +738,7 @@ export default function StocksDashboard() {
                               ? "bg-red-50"
                               : "bg-gray-50";
                       const label = etf.interpretation?.label;
-                      const severity = label ? getSeverityDots(label) : { dots: 0, color: "text-gray-300" };
+                      const healthLevel = etfColorToHealthLevel(etf.interpretation?.color);
                       return (
                         <div
                           key={etf.ticker}
@@ -786,16 +750,7 @@ export default function StocksDashboard() {
                               {etf.ticker}
                             </span>
                             {label && (
-                              <div className="flex gap-0.5" title={label}>
-                                {[1, 2, 3, 4, 5].map((i) => (
-                                  <span
-                                    key={i}
-                                    className={`w-1.5 h-1.5 rounded-full ${
-                                      i <= severity.dots ? severity.color : "text-gray-200"
-                                    } ${i <= severity.dots ? "bg-current" : "bg-gray-200"}`}
-                                  />
-                                ))}
-                              </div>
+                              <HealthDot level={healthLevel} size="md" />
                             )}
                           </div>
                           {etf.data ? (
