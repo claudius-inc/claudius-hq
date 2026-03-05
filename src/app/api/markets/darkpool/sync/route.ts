@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db, darkpoolData } from "@/db";
-import { sql } from "drizzle-orm";
+import { db, darkpoolData, rawClient } from "@/db";
+import { sql, eq, and } from "drizzle-orm";
 
 // Sync endpoint - called by cron job (weekly)
 export const dynamic = "force-dynamic";
@@ -127,35 +127,35 @@ export async function POST() {
       const tickerValue = row.ticker ?? "AGGREGATE";
       
       // First check if this week/ticker combo already exists
-      const existing = await db.get(sql`
-        SELECT id FROM darkpool_data 
-        WHERE week_ending = ${row.weekEnding} 
-        AND ticker = ${tickerValue}
-        LIMIT 1
-      `);
+      const existing = await db.select({ id: darkpoolData.id })
+        .from(darkpoolData)
+        .where(and(
+          eq(darkpoolData.weekEnding, row.weekEnding),
+          eq(darkpoolData.ticker, tickerValue)
+        ))
+        .limit(1);
       
-      if (existing) {
+      if (existing.length > 0) {
         // Update existing record
-        await db.run(sql`
-          UPDATE darkpool_data SET
-            ats_volume = ${row.atsVolume},
-            total_volume = ${row.totalVolume},
-            ats_percent = ${row.atsPercent}
-          WHERE week_ending = ${row.weekEnding} AND ticker = ${tickerValue}
-        `);
+        await db.update(darkpoolData)
+          .set({
+            atsVolume: row.atsVolume,
+            totalVolume: row.totalVolume,
+            atsPercent: row.atsPercent,
+          })
+          .where(and(
+            eq(darkpoolData.weekEnding, row.weekEnding),
+            eq(darkpoolData.ticker, tickerValue)
+          ));
       } else {
         // Insert new record
-        await db.run(sql`
-          INSERT INTO darkpool_data (
-            week_ending, ticker, ats_volume, total_volume, ats_percent
-          ) VALUES (
-            ${row.weekEnding},
-            ${tickerValue},
-            ${row.atsVolume},
-            ${row.totalVolume},
-            ${row.atsPercent}
-          )
-        `);
+        await db.insert(darkpoolData).values({
+          weekEnding: row.weekEnding,
+          ticker: tickerValue,
+          atsVolume: row.atsVolume,
+          totalVolume: row.totalVolume,
+          atsPercent: row.atsPercent,
+        });
       }
       
       synced++;

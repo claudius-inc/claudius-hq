@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, congressTrades } from "@/db";
-import { sql } from "drizzle-orm";
+import { sql, eq } from "drizzle-orm";
 
 // Sync endpoint - called by cron job
 export const dynamic = "force-dynamic";
@@ -155,35 +155,29 @@ export async function POST() {
       if (!trade.transactionDate || !trade.ticker) continue;
       
       // Check if record already exists
-      const existing = await db.get(sql`
-        SELECT id FROM congress_trades 
-        WHERE source_id = ${trade.sourceId}
-        LIMIT 1
-      `);
+      const existing = await db.select({ id: congressTrades.id })
+        .from(congressTrades)
+        .where(eq(congressTrades.sourceId, trade.sourceId))
+        .limit(1);
       
-      if (existing) {
+      if (existing.length > 0) {
         skipped++;
         continue;
       }
       
       // Insert new record
-      await db.run(sql`
-        INSERT INTO congress_trades (
-          member_name, party, state, chamber, ticker,
-          transaction_type, amount_range, transaction_date, filed_date, source_id
-        ) VALUES (
-          ${trade.memberName},
-          ${trade.party},
-          ${trade.state},
-          ${trade.chamber},
-          ${trade.ticker},
-          ${trade.transactionType},
-          ${trade.amountRange},
-          ${trade.transactionDate},
-          ${trade.filedDate},
-          ${trade.sourceId}
-        )
-      `);
+      await db.insert(congressTrades).values({
+        memberName: trade.memberName,
+        party: trade.party,
+        state: trade.state,
+        chamber: trade.chamber,
+        ticker: trade.ticker,
+        transactionType: trade.transactionType,
+        amountRange: trade.amountRange,
+        transactionDate: trade.transactionDate,
+        filedDate: trade.filedDate,
+        sourceId: trade.sourceId,
+      });
       
       synced++;
     }
