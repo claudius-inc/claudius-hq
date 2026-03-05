@@ -626,3 +626,23 @@ export const darkpoolData = sqliteTable("darkpool_data", {
 
 export type DarkpoolData = typeof darkpoolData.$inferSelect;
 export type NewDarkpoolData = typeof darkpoolData.$inferInsert;
+
+// ============================================================================
+// Market Reference Data
+// ============================================================================
+
+export const marketReference = sqliteTable("market_reference", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  symbol: text("symbol").notNull().unique(), // e.g., "GOLD", "BTC", "SPX", "VIX", "OIL"
+  name: text("name").notNull(), // e.g., "Gold", "Bitcoin", "S&P 500"
+  yahooTicker: text("yahoo_ticker"), // e.g., "GC=F", "BTC-USD", "^GSPC"
+  athPrice: real("ath_price"), // all-time high price
+  athDate: text("ath_date"), // when ATH was hit
+  currentPrice: real("current_price"), // last fetched price
+  keyThresholds: text("key_thresholds"), // JSON: { buy_zone: number, sell_zone: number, ... }
+  notes: text("notes"), // context like "VIX >40 = fear, >50 = panic"
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export type MarketReference = typeof marketReference.$inferSelect;
+export type NewMarketReference = typeof marketReference.$inferInsert;
