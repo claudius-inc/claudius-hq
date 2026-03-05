@@ -123,18 +123,40 @@ export async function POST() {
     let synced = 0;
     
     for (const row of data) {
-      await db.run(sql`
-        INSERT INTO darkpool_data (
-          week_ending, ticker, ats_volume, total_volume, ats_percent
-        ) VALUES (
-          ${row.weekEnding},
-          ${row.ticker},
-          ${row.atsVolume},
-          ${row.totalVolume},
-          ${row.atsPercent}
-        )
-        ON CONFLICT(id) DO NOTHING
+      // Handle NULL ticker for aggregate rows - use 'AGGREGATE' as a placeholder
+      const tickerValue = row.ticker ?? "AGGREGATE";
+      
+      // First check if this week/ticker combo already exists
+      const existing = await db.get(sql`
+        SELECT id FROM darkpool_data 
+        WHERE week_ending = ${row.weekEnding} 
+        AND ticker = ${tickerValue}
+        LIMIT 1
       `);
+      
+      if (existing) {
+        // Update existing record
+        await db.run(sql`
+          UPDATE darkpool_data SET
+            ats_volume = ${row.atsVolume},
+            total_volume = ${row.totalVolume},
+            ats_percent = ${row.atsPercent}
+          WHERE week_ending = ${row.weekEnding} AND ticker = ${tickerValue}
+        `);
+      } else {
+        // Insert new record
+        await db.run(sql`
+          INSERT INTO darkpool_data (
+            week_ending, ticker, ats_volume, total_volume, ats_percent
+          ) VALUES (
+            ${row.weekEnding},
+            ${tickerValue},
+            ${row.atsVolume},
+            ${row.totalVolume},
+            ${row.atsPercent}
+          )
+        `);
+      }
       
       synced++;
     }

@@ -24,7 +24,7 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
       "http://openinsider.com/screener?s=&o=&pl=&ph=&ll=&lh=&fd=7&fdr=&td=0&tdr=&fdlyl=&fdlyh=&dtefrom=&dteto=&xp=1&vl=25000&vh=&ocl=&och=&session=&sid=1&cnt=100",
       {
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; ClaudiusHQ/1.0)",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         },
       }
     );
@@ -37,46 +37,58 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
     const html = await res.text();
     const trades: OpenInsiderTrade[] = [];
     
-    // Parse HTML table - look for tinytable rows
-    const tableMatch = html.match(/<table[^>]*class="[^"]*tinytable[^"]*"[^>]*>([\s\S]*?)<\/table>/i);
-    if (!tableMatch) return [];
+    // Find the tinytable - it has no closing </table> before the data rows end
+    // Look for rows with style="background:#dfffdf" (purchases) or style="background:#ffefef" (sales)
+    const rowRegex = /<tr\s+style="background:#[a-f0-9]+"\s*>([\s\S]*?)<\/tr>/gi;
+    let rowMatch;
     
-    const rows = tableMatch[1].match(/<tr[^>]*>([\s\S]*?)<\/tr>/gi) || [];
+    const extractText = (cellHtml: string) => {
+      return cellHtml
+        .replace(/<[^>]+>/g, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .trim();
+    };
     
-    for (const row of rows) {
-      // Skip header rows
-      if (row.includes("<th")) continue;
+    while ((rowMatch = rowRegex.exec(html)) !== null) {
+      const rowHtml = rowMatch[1];
+      const cells = rowHtml.match(/<td[^>]*>[\s\S]*?<\/td>/gi) || [];
       
-      const cells = row.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [];
+      // OpenInsider columns:
+      // 0: TC code, 1: Filing date, 2: Trade date, 3: Ticker, 4: Company,
+      // 5: Insider, 6: Title, 7: Trade type, 8: Price, 9: Qty, 10: Owned,
+      // 11: Own Chg %, 12: Value, 13-15: Performance
       if (cells.length < 13) continue;
       
-      const extractText = (html: string) => {
-        return html
-          .replace(/<[^>]+>/g, "")
-          .replace(/&nbsp;/g, " ")
-          .replace(/&amp;/g, "&")
-          .trim();
-      };
-      
-      const dateStr = extractText(cells[1] || "");
+      const filingDateStr = extractText(cells[1] || "");
+      const tradeDateStr = extractText(cells[2] || "");
       const ticker = extractText(cells[3] || "");
       const company = extractText(cells[4] || "");
       const insider = extractText(cells[5] || "");
       const title = extractText(cells[6] || "");
       const tradeTypeRaw = extractText(cells[7] || "").toLowerCase();
+      const priceStr = extractText(cells[8] || "");
       const sharesStr = extractText(cells[9] || "");
-      const priceStr = extractText(cells[10] || "");
       const valueStr = extractText(cells[12] || "");
       
-      if (!ticker || ticker.length > 10) continue;
+      // Skip if no valid ticker (may be empty or too long)
+      if (!ticker || ticker.length > 10 || ticker === "TC") continue;
       
-      const shares = parseInt(sharesStr.replace(/[^0-9.-]/g, "")) || 0;
-      const price = parseFloat(priceStr.replace(/[^0-9.-]/g, "")) || 0;
-      const value = parseInt(valueStr.replace(/[^0-9.-]/g, "")) || 0;
+      // Parse date - use trade date, fallback to filing date
+      const dateStr = tradeDateStr || filingDateStr.split(" ")[0] || "";
+      if (!dateStr) continue;
       
+      const shares = Math.abs(parseInt(sharesStr.replace(/[^0-9.-]/g, "")) || 0);
+      const price = parseFloat(priceStr.replace(/[^0-9.$-]/g, "")) || 0;
+      const value = Math.abs(parseInt(valueStr.replace(/[^0-9.-]/g, "")) || 0);
+      
+      // Determine trade type from the raw text
+      // P - Purchase, S - Sale, A - Grant, M - Option Ex, etc.
       let type: "buy" | "sell" | "exercise" = "exercise";
-      if (tradeTypeRaw.includes("p") || tradeTypeRaw === "buy") type = "buy";
-      if (tradeTypeRaw.includes("s") || tradeTypeRaw === "sale") type = "sell";
+      if (tradeTypeRaw.startsWith("p") || tradeTypeRaw.includes("purchase")) type = "buy";
+      else if (tradeTypeRaw.startsWith("s") || tradeTypeRaw.includes("sale")) type = "sell";
       
       trades.push({
         date: dateStr,
@@ -91,6 +103,7 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
       });
     }
     
+    console.log(`OpenInsider: parsed ${trades.length} trades from HTML`);
     return trades;
   } catch (e) {
     console.error("Failed to fetch OpenInsider:", e);
