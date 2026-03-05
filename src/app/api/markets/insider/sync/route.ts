@@ -38,7 +38,13 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
     const trades: OpenInsiderTrade[] = [];
     
     const extractText = (cellHtml: string) => {
-      return cellHtml
+      // First remove script content and onmouseover/onmouseout handlers
+      let cleaned = cellHtml
+        .replace(/onmouseover="[^"]*"/gi, "")
+        .replace(/onmouseout="[^"]*"/gi, "")
+        .replace(/<script[\s\S]*?<\/script>/gi, "");
+      
+      return cleaned
         .replace(/<[^>]+>/g, "")
         .replace(/&nbsp;/g, " ")
         .replace(/&amp;/g, "&")
@@ -46,6 +52,20 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
         .replace(/&gt;/g, ">")
         .replace(/\s+/g, " ")
         .trim();
+    };
+    
+    // Extract ticker specifically from the link pattern
+    const extractTicker = (cellHtml: string) => {
+      // Look for pattern: <a href="/TICKER">TICKER</a>
+      const match = cellHtml.match(/<a href="\/([A-Z0-9]+)"[^>]*>[^<]*\1<\/a>/i);
+      if (match) return match[1];
+      
+      // Fallback: look for ticker in bold link
+      const fallback = cellHtml.match(/<b>\s*<a[^>]*>([A-Z0-9]+)<\/a>\s*<\/b>/i);
+      if (fallback) return fallback[1];
+      
+      // Last resort: extract text
+      return extractText(cellHtml);
     };
     
     // Split by row start - rows have style="background:#..." 
@@ -74,7 +94,7 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
       
       const filingDateStr = extractText(cellMatches[1] || "");
       const tradeDateStr = extractText(cellMatches[2] || "");
-      const ticker = extractText(cellMatches[3] || "");
+      const ticker = extractTicker(cellMatches[3] || "");
       const company = extractText(cellMatches[4] || "");
       const insider = extractText(cellMatches[5] || "");
       const title = extractText(cellMatches[6] || "");
