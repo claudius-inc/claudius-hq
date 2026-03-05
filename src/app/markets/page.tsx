@@ -665,8 +665,8 @@ export default function StocksDashboard() {
                     Market Pulse
                   </span>
                 </div>
-                <div className="sm:relative sm:pt-0">
-                  <div className="flex items-center justify-between sm:justify-center gap-4 sm:gap-6">
+                <div className="sm:relative sm:pt-0 overflow-x-auto">
+                  <div className="flex items-center justify-start sm:justify-center gap-3 sm:gap-6 min-w-max">
                     {/* VIX */}
                     <div className="flex items-center gap-1.5 sm:gap-2">
                       <span className="text-xs text-gray-500">VIX</span>
@@ -778,7 +778,8 @@ export default function StocksDashboard() {
 
             {/* Smart Money Mini-Summary */}
             {(congressData || insiderData) && (
-              <div className="rounded-xl bg-gray-50 p-3 flex items-center justify-center gap-6 sm:gap-8">
+              <div className="rounded-xl bg-gray-50 p-3 overflow-x-auto">
+                <div className="flex items-center justify-start sm:justify-center gap-4 sm:gap-8 min-w-max">
                 <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Smart Money</span>
                 
                 {/* Congress */}
@@ -826,6 +827,7 @@ export default function StocksDashboard() {
                 {!congressData?.totalTrades && !insiderData?.totalTrades && (
                   <span className="text-xs text-gray-400">No recent activity</span>
                 )}
+                </div>
               </div>
             )}
 
