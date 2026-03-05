@@ -149,11 +149,24 @@ export async function POST() {
     }
     
     let synced = 0;
+    let skipped = 0;
     
     for (const trade of trades) {
       if (!trade.transactionDate || !trade.ticker) continue;
       
-      // Upsert using ON CONFLICT
+      // Check if record already exists
+      const existing = await db.get(sql`
+        SELECT id FROM congress_trades 
+        WHERE source_id = ${trade.sourceId}
+        LIMIT 1
+      `);
+      
+      if (existing) {
+        skipped++;
+        continue;
+      }
+      
+      // Insert new record
       await db.run(sql`
         INSERT INTO congress_trades (
           member_name, party, state, chamber, ticker,
@@ -170,7 +183,6 @@ export async function POST() {
           ${trade.filedDate},
           ${trade.sourceId}
         )
-        ON CONFLICT(source_id) DO NOTHING
       `);
       
       synced++;
@@ -179,6 +191,7 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       synced,
+      skipped,
       total: trades.length,
       syncedAt: new Date().toISOString(),
     });
