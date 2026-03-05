@@ -83,44 +83,89 @@ async function fetchHouseDisclosures(): Promise<CongressTrade[]> {
   }
 }
 
-// Fallback: Fetch from QuiverQuant (free tier) or similar aggregator
+// Try multiple public data sources for Congress trades
 async function fetchQuiverQuantTrades(): Promise<CongressTrade[]> {
-  try {
-    // QuiverQuant provides congressional trading data
-    const res = await fetch(
-      "https://api.quiverquant.com/beta/live/congresstrading",
-      {
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "ClaudiusHQ/1.0",
-        },
+  const sources = [
+    {
+      name: "QuiverQuant",
+      url: "https://api.quiverquant.com/beta/live/congresstrading",
+      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0 (compatible; ClaudiusHQ/1.0)" },
+    },
+    {
+      name: "CapitolTrades",
+      url: "https://bff.capitoltrades.com/trades?pageSize=100",
+      headers: { "Accept": "application/json", "User-Agent": "Mozilla/5.0" },
+    },
+  ];
+  
+  for (const source of sources) {
+    try {
+      console.log(`Trying ${source.name}...`);
+      const res = await fetch(source.url, {
+        headers: source.headers,
+        signal: AbortSignal.timeout(10000), // 10s timeout
+      });
+      
+      if (!res.ok) {
+        console.log(`${source.name} returned ${res.status}`);
+        continue;
       }
-    );
-
-    if (!res.ok) {
-      console.log("QuiverQuant not available:", res.status);
-      return [];
+      
+      const text = await res.text();
+      // Check if response is HTML (blocked/error page)
+      if (text.startsWith("<!DOCTYPE") || text.startsWith("<html")) {
+        console.log(`${source.name} returned HTML (likely blocked)`);
+        continue;
+      }
+      
+      const data = JSON.parse(text);
+      
+      // Handle QuiverQuant format
+      if (Array.isArray(data) && data.length > 0 && data[0].Representative) {
+        console.log(`${source.name} returned ${data.length} trades`);
+        return data.slice(0, 100).map((row: Record<string, unknown>) => ({
+          memberName: String(row.Representative || row.Senator || "Unknown"),
+          party: row.Party ? String(row.Party).charAt(0) : null,
+          state: row.State ? String(row.State) : null,
+          chamber: String(row.House || "").toLowerCase() === "senate" ? "senate" : "house",
+          ticker: String(row.Ticker || "N/A"),
+          transactionType: String(row.Transaction || "").toLowerCase().includes("purchase") ? "purchase" as const : "sale" as const,
+          amountRange: row.Range ? String(row.Range) : null,
+          transactionDate: String(row.TransactionDate || row.ReportDate || new Date().toISOString().split("T")[0]),
+          filedDate: row.ReportDate ? String(row.ReportDate) : null,
+          sourceId: `quiver-${row.Ticker}-${row.Representative || row.Senator}-${row.TransactionDate}`,
+        }));
+      }
+      
+      // Handle CapitolTrades format
+      if (data.data && Array.isArray(data.data)) {
+        console.log(`${source.name} returned ${data.data.length} trades`);
+        return data.data.slice(0, 100).map((row: Record<string, unknown>) => {
+          const politician = row.politician as Record<string, unknown> | undefined;
+          const issuer = row.issuer as Record<string, unknown> | undefined;
+          return {
+            memberName: String(politician?.name || "Unknown"),
+            party: politician?.party ? String(politician.party).charAt(0) : null,
+            state: politician?.state ? String(politician.state) : null,
+            chamber: String(politician?.chamber || "").toLowerCase() || null,
+            ticker: String(issuer?.ticker || "N/A"),
+            transactionType: String(row.txType || "").toLowerCase().includes("purchase") ? "purchase" as const : "sale" as const,
+            amountRange: row.value ? String(row.value) : null,
+            transactionDate: String(row.txDate || new Date().toISOString().split("T")[0]),
+            filedDate: row.filingDate ? String(row.filingDate) : null,
+            sourceId: `capitol-${row._txId || `${issuer?.ticker}-${politician?.name}-${row.txDate}`}`,
+          };
+        });
+      }
+      
+      console.log(`${source.name} returned unexpected format`);
+    } catch (e) {
+      console.error(`${source.name} failed:`, e);
     }
-
-    const data = await res.json();
-    if (!Array.isArray(data)) return [];
-    
-    return data.slice(0, 100).map((row: Record<string, unknown>) => ({
-      memberName: String(row.Representative || row.Senator || "Unknown"),
-      party: row.Party ? String(row.Party).charAt(0) : null,
-      state: row.State ? String(row.State) : null,
-      chamber: row.House ? "house" : row.Senator ? "senate" : null,
-      ticker: String(row.Ticker || "N/A"),
-      transactionType: String(row.Transaction || "").toLowerCase().includes("purchase") ? "purchase" as const : "sale" as const,
-      amountRange: row.Range ? String(row.Range) : null,
-      transactionDate: String(row.TransactionDate || row.ReportDate || new Date().toISOString().split("T")[0]),
-      filedDate: row.ReportDate ? String(row.ReportDate) : null,
-      sourceId: `quiver-${row.Ticker}-${row.Representative || row.Senator}-${row.TransactionDate}`,
-    }));
-  } catch (e) {
-    console.error("QuiverQuant fetch failed:", e);
-    return [];
   }
+  
+  console.log("All Congress data sources unavailable");
+  return [];
 }
 
 // Combined fetch with fallbacks
