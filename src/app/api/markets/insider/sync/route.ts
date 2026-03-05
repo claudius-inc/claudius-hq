@@ -37,11 +37,6 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
     const html = await res.text();
     const trades: OpenInsiderTrade[] = [];
     
-    // Find the tinytable - it has no closing </table> before the data rows end
-    // Look for rows with style="background:#dfffdf" (purchases) or style="background:#ffefef" (sales)
-    const rowRegex = /<tr\s+style="background:#[a-f0-9]+"\s*>([\s\S]*?)<\/tr>/gi;
-    let rowMatch;
-    
     const extractText = (cellHtml: string) => {
       return cellHtml
         .replace(/<[^>]+>/g, "")
@@ -49,29 +44,44 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
         .replace(/&amp;/g, "&")
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
+        .replace(/\s+/g, " ")
         .trim();
     };
     
-    while ((rowMatch = rowRegex.exec(html)) !== null) {
-      const rowHtml = rowMatch[1];
-      const cells = rowHtml.match(/<td[^>]*>[\s\S]*?<\/td>/gi) || [];
+    // Split by row start - rows have style="background:#..." 
+    // Use a more lenient approach since title attrs contain newlines
+    const rowParts = html.split(/<tr\s+style="background:#[a-f0-9]+"\s*>/i);
+    
+    for (let i = 1; i < rowParts.length; i++) {
+      const rowContent = rowParts[i];
+      
+      // Extract cells - they may span multiple lines due to title attributes
+      // Match from <td to the next </td>, being careful about nested content
+      const cellMatches: string[] = [];
+      let cellRegex = /<td[^>]*>([\s\S]*?)<\/td>/gi;
+      let cellMatch;
+      
+      while ((cellMatch = cellRegex.exec(rowContent)) !== null) {
+        cellMatches.push(cellMatch[1]);
+        if (cellMatches.length >= 16) break; // Max expected columns
+      }
       
       // OpenInsider columns:
       // 0: TC code, 1: Filing date, 2: Trade date, 3: Ticker, 4: Company,
       // 5: Insider, 6: Title, 7: Trade type, 8: Price, 9: Qty, 10: Owned,
       // 11: Own Chg %, 12: Value, 13-15: Performance
-      if (cells.length < 13) continue;
+      if (cellMatches.length < 13) continue;
       
-      const filingDateStr = extractText(cells[1] || "");
-      const tradeDateStr = extractText(cells[2] || "");
-      const ticker = extractText(cells[3] || "");
-      const company = extractText(cells[4] || "");
-      const insider = extractText(cells[5] || "");
-      const title = extractText(cells[6] || "");
-      const tradeTypeRaw = extractText(cells[7] || "").toLowerCase();
-      const priceStr = extractText(cells[8] || "");
-      const sharesStr = extractText(cells[9] || "");
-      const valueStr = extractText(cells[12] || "");
+      const filingDateStr = extractText(cellMatches[1] || "");
+      const tradeDateStr = extractText(cellMatches[2] || "");
+      const ticker = extractText(cellMatches[3] || "");
+      const company = extractText(cellMatches[4] || "");
+      const insider = extractText(cellMatches[5] || "");
+      const title = extractText(cellMatches[6] || "");
+      const tradeTypeRaw = extractText(cellMatches[7] || "").toLowerCase();
+      const priceStr = extractText(cellMatches[8] || "");
+      const sharesStr = extractText(cellMatches[9] || "");
+      const valueStr = extractText(cellMatches[12] || "");
       
       // Skip if no valid ticker (may be empty or too long)
       if (!ticker || ticker.length > 10 || ticker === "TC") continue;
