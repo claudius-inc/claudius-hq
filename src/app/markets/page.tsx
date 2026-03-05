@@ -98,6 +98,28 @@ interface SentimentData {
   };
 }
 
+interface BreadthData {
+  advanceDecline: {
+    ratio: number | null;
+  };
+  level: "bullish" | "neutral" | "bearish";
+  interpretation: string;
+}
+
+interface CongressData {
+  buyCount: number;
+  sellCount: number;
+  level: "bullish" | "neutral" | "bearish";
+  totalTrades: number;
+}
+
+interface InsiderData {
+  buyCount: number;
+  sellCount: number;
+  level: "bullish" | "neutral" | "bearish";
+  totalTrades: number;
+}
+
 // ── Helpers ──────────────────────────────────────────
 
 function getStatusColor(label: string): string {
@@ -423,6 +445,9 @@ export default function StocksDashboard() {
   );
   const [marketEtfs, setMarketEtfs] = useState<MarketEtf[]>([]);
   const [regimeData, setRegimeData] = useState<RegimeData | null>(null);
+  const [breadthData, setBreadthData] = useState<BreadthData | null>(null);
+  const [congressData, setCongressData] = useState<CongressData | null>(null);
+  const [insiderData, setInsiderData] = useState<InsiderData | null>(null);
   const [loading, setLoading] = useState({
     portfolio: true,
     macro: true,
@@ -430,6 +455,9 @@ export default function StocksDashboard() {
     sentiment: true,
     etfs: true,
     regime: true,
+    breadth: true,
+    congress: true,
+    insider: true,
   });
 
   // Fetch all data on mount
@@ -485,6 +513,33 @@ export default function StocksDashboard() {
       })
       .catch(console.error)
       .finally(() => setLoading((prev) => ({ ...prev, sentiment: false })));
+
+    // Fetch breadth data
+    fetch("/api/markets/breadth")
+      .then((res) => res.json())
+      .then((data) => {
+        setBreadthData(data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, breadth: false })));
+
+    // Fetch congress data
+    fetch("/api/markets/congress")
+      .then((res) => res.json())
+      .then((data) => {
+        setCongressData(data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, congress: false })));
+
+    // Fetch insider data
+    fetch("/api/markets/insider")
+      .then((res) => res.json())
+      .then((data) => {
+        setInsiderData(data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, insider: false })));
 
     // Fetch regime data (from macro + gold endpoints)
     Promise.all([
@@ -687,8 +742,90 @@ export default function StocksDashboard() {
                         {formatSentimentLevel(sentimentData?.putCall.level)}
                       </span>
                     </div>
+
+                    <div className="w-px h-6 bg-gray-700" />
+
+                    {/* Breadth */}
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-xs text-gray-500">A/D</span>
+                      <span
+                        className={`text-base sm:text-lg font-bold ${
+                          breadthData?.level === "bullish"
+                            ? "text-emerald-400"
+                            : breadthData?.level === "bearish"
+                              ? "text-red-400"
+                              : "text-gray-400"
+                        }`}
+                      >
+                        {breadthData?.advanceDecline?.ratio?.toFixed(2) ?? "—"}
+                      </span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                          breadthData?.level === "bullish"
+                            ? "bg-emerald-900/50 text-emerald-300"
+                            : breadthData?.level === "bearish"
+                              ? "bg-red-900/50 text-red-300"
+                              : "bg-gray-700 text-gray-400"
+                        }`}
+                      >
+                        {breadthData?.level ? breadthData.level.charAt(0).toUpperCase() + breadthData.level.slice(1) : "—"}
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Smart Money Mini-Summary */}
+            {(congressData || insiderData) && (
+              <div className="rounded-xl bg-gray-50 p-3 flex items-center justify-center gap-6 sm:gap-8">
+                <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Smart Money</span>
+                
+                {/* Congress */}
+                {congressData && congressData.totalTrades > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-500">Congress</span>
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                        congressData.level === "bullish"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : congressData.level === "bearish"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {congressData.level.charAt(0).toUpperCase() + congressData.level.slice(1)}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      ({congressData.buyCount}B/{congressData.sellCount}S)
+                    </span>
+                  </div>
+                )}
+
+                {/* Insider */}
+                {insiderData && insiderData.totalTrades > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-500">Insiders</span>
+                    <span
+                      className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                        insiderData.level === "bullish"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : insiderData.level === "bearish"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-gray-200 text-gray-600"
+                      }`}
+                    >
+                      {insiderData.level.charAt(0).toUpperCase() + insiderData.level.slice(1)}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      ({insiderData.buyCount}B/{insiderData.sellCount}S)
+                    </span>
+                  </div>
+                )}
+
+                {!congressData?.totalTrades && !insiderData?.totalTrades && (
+                  <span className="text-xs text-gray-400">No recent activity</span>
+                )}
               </div>
             )}
 

@@ -32,17 +32,28 @@ function calculateSentiment(trades: { transactionType: string; amountRange: stri
 
 export async function GET() {
   try {
-    // Get trades from last 30 days
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const dateStr = thirtyDaysAgo.toISOString().split("T")[0];
-    
-    const trades = await db
+    // Get all trades first (no date filter) to see what's available
+    // Congress data can be delayed 30-45 days from transaction to filing
+    const allTrades = await db
       .select()
       .from(congressTrades)
-      .where(gte(congressTrades.transactionDate, dateStr))
       .orderBy(desc(congressTrades.transactionDate))
-      .limit(100);
+      .limit(200);
+    
+    // Filter in-memory for last 90 days to account for delayed filings
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const dateStr = ninetyDaysAgo.toISOString().split("T")[0];
+    
+    // Handle various date formats that might be in the DB
+    const trades = allTrades.filter(t => {
+      if (!t.transactionDate) return false;
+      // Try parsing the date - it might be YYYY-MM-DD, MM/DD/YYYY, or timestamp
+      const txDate = t.transactionDate.includes("/") 
+        ? new Date(t.transactionDate).toISOString().split("T")[0]
+        : t.transactionDate.split("T")[0];
+      return txDate >= dateStr;
+    }).slice(0, 100);
     
     const sentiment = calculateSentiment(trades);
     

@@ -1,4 +1,7 @@
 import { MACRO_INDICATORS, interpretValue, calculatePercentile } from "@/lib/macro-indicators";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 interface FredObservation {
   date: string;
@@ -7,6 +10,35 @@ interface FredObservation {
 
 interface FredResponse {
   observations: FredObservation[];
+}
+
+// Fetch DXY from Yahoo Finance (ICE US Dollar Index)
+async function fetchDxyFromYahoo(): Promise<{ current: number; history: number[] } | null> {
+  try {
+    const history = await yahooFinance.historical("DX-Y.NYB", {
+      period1: new Date(Date.now() - 365 * 5 * 24 * 60 * 60 * 1000), // 5 years
+      period2: new Date(),
+      interval: "1d",
+    });
+    
+    if (!history || history.length === 0) return null;
+    
+    // Get closing prices, most recent first
+    const prices = history
+      .map(d => d.close)
+      .filter((p): p is number => p !== null && p !== undefined)
+      .reverse();
+    
+    if (prices.length === 0) return null;
+    
+    return {
+      current: prices[0],
+      history: prices.slice(0, 260), // ~1 year of trading days
+    };
+  } catch (error) {
+    console.error("Error fetching DXY from Yahoo:", error);
+    return null;
+  }
 }
 
 async function fetchFredSeries(seriesId: string, limit = 260): Promise<{ current: number; history: number[] } | null> {
@@ -99,14 +131,15 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
     MACRO_INDICATORS.map(async (indicator) => {
       let data;
 
-      
-
       if (indicator.id === "yield-curve") {
         data = await fetchYieldCurve();
         if (data) {
           data.current = data.current * 100;
           data.history = data.history.map(v => v * 100);
         }
+      } else if (indicator.id === "dxy") {
+        // Use Yahoo Finance for actual ICE DXY instead of FRED Trade-Weighted Index
+        data = await fetchDxyFromYahoo();
       } else {
         data = await fetchFredSeries(indicator.fredCode);
       }

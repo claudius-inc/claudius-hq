@@ -5,7 +5,7 @@ import { MACRO_INDICATORS } from "@/lib/macro-indicators";
 import { formatDate, formatTimestamp } from "@/lib/format-date";
 import { PageHero } from "@/components/PageHero";
 import ReactMarkdown from "react-markdown";
-import { TrendingUp, Flame, HardHat, Factory, Drama, CreditCard, ArrowLeftRight, Globe, BarChart3 } from "lucide-react";
+import { TrendingUp, Flame, HardHat, Factory, Drama, CreditCard, ArrowLeftRight, Globe, BarChart3, Activity, Users, Briefcase, Gauge } from "lucide-react";
 
 // Color coding for interpretation
 function getStatusColor(label: string): string {
@@ -163,6 +163,86 @@ interface YieldSpread {
   color: "green" | "amber" | "gray";
 }
 
+interface BreadthData {
+  advanceDecline: {
+    advances: number | null;
+    declines: number | null;
+    unchanged: number | null;
+    ratio: number | null;
+    netAdvances: number | null;
+  };
+  newHighsLows: {
+    newHighs: number | null;
+    newLows: number | null;
+    ratio: number | null;
+    netHighs: number | null;
+  };
+  level: "bullish" | "neutral" | "bearish";
+  interpretation: string;
+  mcclellan?: { oscillator: number | null; signal: string | null };
+}
+
+interface SentimentData {
+  vix: {
+    value: number | null;
+    change: number | null;
+    changePercent: number | null;
+    level: "low" | "moderate" | "elevated" | "fear" | null;
+  };
+  putCall: {
+    value: number | null;
+    level: "greedy" | "neutral" | "fearful" | null;
+    source: string;
+  };
+  volatilityContext?: {
+    termStructure: number;
+    contango: string;
+    interpretation: string;
+  } | null;
+}
+
+interface CongressData {
+  buyCount: number;
+  sellCount: number;
+  ratio: number;
+  level: "bullish" | "neutral" | "bearish";
+  totalTrades: number;
+  topTickers: Array<{ ticker: string; count: number }>;
+  recentTrades: Array<{
+    date: string;
+    member: string;
+    party: string;
+    state: string;
+    chamber: string;
+    ticker: string;
+    type: string;
+    amount: string;
+  }>;
+}
+
+interface InsiderData {
+  buyCount: number;
+  sellCount: number;
+  buyValue: number;
+  sellValue: number;
+  ratio: number;
+  valueRatio: number;
+  level: "bullish" | "neutral" | "bearish";
+  totalTrades: number;
+  clusterBuys: Array<{ ticker: string; buys: number; buyValue: number }>;
+  recentTrades: Array<{
+    date: string;
+    company: string;
+    ticker: string;
+    insider: string;
+    title: string;
+    type: string;
+    shares: number;
+    price: number;
+    value: number;
+  }>;
+}
+
 export function MacroContent() {
   const [indicators, setIndicators] = useState<MacroIndicator[]>([]);
   const [status, setStatus] = useState<string>("loading");
@@ -170,6 +250,12 @@ export function MacroContent() {
   const [loading, setLoading] = useState(true);
   const [yieldSpreads, setYieldSpreads] = useState<YieldSpread[]>([]);
   const [marketEtfs, setMarketEtfs] = useState<MarketEtf[]>([]);
+  
+  // New market data state
+  const [breadthData, setBreadthData] = useState<BreadthData | null>(null);
+  const [sentimentData, setSentimentData] = useState<SentimentData | null>(null);
+  const [congressData, setCongressData] = useState<CongressData | null>(null);
+  const [insiderData, setInsiderData] = useState<InsiderData | null>(null);
   
   // AI Insights state
   const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
@@ -179,10 +265,14 @@ export function MacroContent() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [macroRes, insightsRes, etfRes] = await Promise.all([
+        const [macroRes, insightsRes, etfRes, breadthRes, sentimentRes, congressRes, insiderRes] = await Promise.all([
           fetch("/api/macro"),
           fetch("/api/macro/insights"),
           fetch("/api/macro/etfs"),
+          fetch("/api/markets/breadth"),
+          fetch("/api/markets/sentiment"),
+          fetch("/api/markets/congress"),
+          fetch("/api/markets/insider"),
         ]);
         
         if (macroRes.ok) {
@@ -201,6 +291,26 @@ export function MacroContent() {
         if (etfRes.ok) {
           const etfData = await etfRes.json();
           setMarketEtfs(etfData.etfs || []);
+        }
+        
+        if (breadthRes.ok) {
+          const breadth = await breadthRes.json();
+          setBreadthData(breadth);
+        }
+        
+        if (sentimentRes.ok) {
+          const sentiment = await sentimentRes.json();
+          setSentimentData(sentiment);
+        }
+        
+        if (congressRes.ok) {
+          const congress = await congressRes.json();
+          setCongressData(congress);
+        }
+        
+        if (insiderRes.ok) {
+          const insider = await insiderRes.json();
+          setInsiderData(insider);
         }
       } catch (e) {
         console.error("Error fetching macro data:", e);
@@ -506,6 +616,264 @@ export function MacroContent() {
           </div>
         </div>
       )}
+
+      {/* Market Sentiment Section */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Gauge className="w-4 h-4" />
+          Market Sentiment
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* VIX & Put/Call Ratio */}
+          <div className="card p-5">
+            <h3 className="font-semibold text-gray-900 mb-3">VIX & Put/Call Ratio</h3>
+            {sentimentData ? (
+              <div className="space-y-4">
+                {/* VIX */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-gray-500">VIX (Fear Index)</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-bold">{sentimentData.vix.value?.toFixed(2) ?? "—"}</span>
+                      {sentimentData.vix.change != null && (
+                        <span className={`text-sm ${sentimentData.vix.change >= 0 ? "text-red-600" : "text-emerald-600"}`}>
+                          {sentimentData.vix.change >= 0 ? "+" : ""}{sentimentData.vix.change.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {sentimentData.vix.level && (
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      sentimentData.vix.level === "low" ? "bg-emerald-100 text-emerald-700" :
+                      sentimentData.vix.level === "moderate" ? "bg-blue-100 text-blue-700" :
+                      sentimentData.vix.level === "elevated" ? "bg-amber-100 text-amber-700" :
+                      "bg-red-100 text-red-700"
+                    }`}>
+                      {sentimentData.vix.level.charAt(0).toUpperCase() + sentimentData.vix.level.slice(1)}
+                    </span>
+                  )}
+                </div>
+                {/* P/C Ratio */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-gray-500">Put/Call Ratio</span>
+                    <div className="text-2xl font-bold">{sentimentData.putCall.value?.toFixed(2) ?? "—"}</div>
+                    <span className="text-xs text-gray-400">Source: {sentimentData.putCall.source}</span>
+                  </div>
+                  {sentimentData.putCall.level && (
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      sentimentData.putCall.level === "greedy" ? "bg-amber-100 text-amber-700" :
+                      sentimentData.putCall.level === "neutral" ? "bg-emerald-100 text-emerald-700" :
+                      "bg-red-100 text-red-700"
+                    }`}>
+                      {sentimentData.putCall.level.charAt(0).toUpperCase() + sentimentData.putCall.level.slice(1)}
+                    </span>
+                  )}
+                </div>
+                {/* Volatility Context */}
+                {sentimentData.volatilityContext && (
+                  <div className="pt-3 border-t border-gray-100">
+                    <div className="text-xs text-gray-500 mb-1">VIX Term Structure</div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-medium ${
+                        sentimentData.volatilityContext.contango === "backwardation" ? "text-amber-600" : "text-emerald-600"
+                      }`}>
+                        {sentimentData.volatilityContext.contango.charAt(0).toUpperCase() + sentimentData.volatilityContext.contango.slice(1)}
+                      </span>
+                      <span className="text-xs text-gray-400">({sentimentData.volatilityContext.termStructure.toFixed(2)}x)</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">{sentimentData.volatilityContext.interpretation}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400">Loading sentiment data...</div>
+            )}
+          </div>
+
+          {/* Market Breadth */}
+          <div className="card p-5">
+            <h3 className="font-semibold text-gray-900 mb-3">Market Breadth</h3>
+            {breadthData ? (
+              <div className="space-y-4">
+                {/* A/D Line */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm text-gray-500">Advance/Decline</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg font-bold text-emerald-600">{breadthData.advanceDecline.advances ?? "—"}</span>
+                      <span className="text-gray-400">/</span>
+                      <span className="text-lg font-bold text-red-600">{breadthData.advanceDecline.declines ?? "—"}</span>
+                    </div>
+                    {breadthData.advanceDecline.ratio && (
+                      <span className="text-xs text-gray-400">Ratio: {breadthData.advanceDecline.ratio.toFixed(2)}</span>
+                    )}
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    breadthData.level === "bullish" ? "bg-emerald-100 text-emerald-700" :
+                    breadthData.level === "bearish" ? "bg-red-100 text-red-700" :
+                    "bg-gray-100 text-gray-700"
+                  }`}>
+                    {breadthData.level.charAt(0).toUpperCase() + breadthData.level.slice(1)}
+                  </span>
+                </div>
+                {/* New Highs/Lows */}
+                <div>
+                  <span className="text-sm text-gray-500">New Highs / New Lows</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold text-emerald-600">{breadthData.newHighsLows.newHighs ?? "—"}</span>
+                    <span className="text-gray-400">/</span>
+                    <span className="text-lg font-bold text-red-600">{breadthData.newHighsLows.newLows ?? "—"}</span>
+                  </div>
+                </div>
+                {/* McClellan Oscillator */}
+                {breadthData.mcclellan?.oscillator !== null && (
+                  <div className="pt-3 border-t border-gray-100">
+                    <div className="text-xs text-gray-500 mb-1">McClellan Oscillator (approx)</div>
+                    <div className={`text-lg font-bold ${
+                      (breadthData.mcclellan?.oscillator ?? 0) > 0 ? "text-emerald-600" : "text-red-600"
+                    }`}>
+                      {breadthData.mcclellan?.oscillator?.toFixed(1) ?? "—"}
+                    </div>
+                  </div>
+                )}
+                <p className="text-xs text-gray-400">{breadthData.interpretation}</p>
+              </div>
+            ) : (
+              <div className="text-sm text-gray-400">Loading breadth data...</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Smart Money Section */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Users className="w-4 h-4" />
+          Smart Money Signals
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Congress Trades */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-gray-400" />
+                Congress Trading
+              </h3>
+              {congressData && congressData.totalTrades > 0 && (
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  congressData.level === "bullish" ? "bg-emerald-100 text-emerald-700" :
+                  congressData.level === "bearish" ? "bg-red-100 text-red-700" :
+                  "bg-gray-100 text-gray-700"
+                }`}>
+                  {congressData.level.charAt(0).toUpperCase() + congressData.level.slice(1)}
+                </span>
+              )}
+            </div>
+            {congressData ? (
+              congressData.totalTrades > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <span className="text-sm text-gray-500">Buys</span>
+                      <div className="text-xl font-bold text-emerald-600">{congressData.buyCount}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Sells</span>
+                      <div className="text-xl font-bold text-red-600">{congressData.sellCount}</div>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Ratio</span>
+                      <div className="text-xl font-bold">{congressData.ratio.toFixed(2)}</div>
+                    </div>
+                  </div>
+                  {congressData.topTickers.length > 0 && (
+                    <div>
+                      <span className="text-xs text-gray-500">Most Traded</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {congressData.topTickers.slice(0, 5).map((t) => (
+                          <span key={t.ticker} className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                            {t.ticker} ({t.count})
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400">STOCK Act filings from House & Senate (last 90 days)</p>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-400">
+                  <p>No Congress trades found in the last 90 days.</p>
+                  <p className="text-xs mt-1">Run sync to fetch latest STOCK Act filings.</p>
+                </div>
+              )
+            ) : (
+              <div className="text-sm text-gray-400">Loading Congress trading data...</div>
+            )}
+          </div>
+
+          {/* Insider Trades */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-gray-400" />
+                Insider Trading
+              </h3>
+              {insiderData && insiderData.totalTrades > 0 && (
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  insiderData.level === "bullish" ? "bg-emerald-100 text-emerald-700" :
+                  insiderData.level === "bearish" ? "bg-red-100 text-red-700" :
+                  "bg-gray-100 text-gray-700"
+                }`}>
+                  {insiderData.level.charAt(0).toUpperCase() + insiderData.level.slice(1)}
+                </span>
+              )}
+            </div>
+            {insiderData ? (
+              insiderData.totalTrades > 0 ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <span className="text-sm text-gray-500">Buys</span>
+                      <div className="text-xl font-bold text-emerald-600">{insiderData.buyCount}</div>
+                      <span className="text-xs text-gray-400">${(insiderData.buyValue / 1e6).toFixed(1)}M</span>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Sells</span>
+                      <div className="text-xl font-bold text-red-600">{insiderData.sellCount}</div>
+                      <span className="text-xs text-gray-400">${(insiderData.sellValue / 1e6).toFixed(1)}M</span>
+                    </div>
+                    <div>
+                      <span className="text-sm text-gray-500">Buy/Sell</span>
+                      <div className="text-xl font-bold">{insiderData.ratio.toFixed(2)}</div>
+                    </div>
+                  </div>
+                  {insiderData.clusterBuys.length > 0 && (
+                    <div>
+                      <span className="text-xs text-gray-500">Cluster Buying (multiple insiders)</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {insiderData.clusterBuys.slice(0, 5).map((t) => (
+                          <span key={t.ticker} className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded">
+                            {t.ticker} ({t.buys} buys)
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <p className="text-xs text-gray-400">SEC Form 4 filings (last 14 days)</p>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-400">
+                  <p>No insider trades found in the last 14 days.</p>
+                  <p className="text-xs mt-1">Run sync to fetch latest SEC Form 4 filings.</p>
+                </div>
+              )
+            ) : (
+              <div className="text-sm text-gray-400">Loading insider trading data...</div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Legend */}
       <div className="card mb-6 p-4">
