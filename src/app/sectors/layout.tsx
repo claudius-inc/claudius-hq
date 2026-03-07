@@ -1,3 +1,4 @@
+import { Nav } from "@/components/Nav";
 import { MarketsTabs } from "@/components/MarketsTabs";
 
 export default function SectorsLayout({
@@ -6,9 +7,10 @@ export default function SectorsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <div className="min-h-screen overflow-x-clip">
+      <Nav />
       <MarketsTabs />
-      <main>{children}</main>
-    </>
+      <main className="mx-auto px-4 py-2 max-w-6xl">{children}</main>
+    </div>
   );
 }
