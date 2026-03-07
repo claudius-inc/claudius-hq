@@ -25,7 +25,7 @@ import {
   AlertTriangle,
   Shield,
 } from "lucide-react";
-import { formatCacheAge } from "@/lib/market-cache";
+import { formatCacheAge } from "@/lib/cache-utils";
 
 // ============================================================================
 // Types

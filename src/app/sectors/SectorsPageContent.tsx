@@ -8,7 +8,7 @@ import { GoldContent } from "@/app/markets/gold/GoldContent";
 import { BtcContent } from "@/app/markets/btc/BtcContent";
 import { OilPriceCard, OilKeyLevels, OilContext, OilData } from "@/components/oil";
 import { RefreshCw, TrendingUp, TrendingDown, Minus, Zap, BarChart3, Layers, Gem, Droplets, Bitcoin } from "lucide-react";
-import { formatCacheAge } from "@/lib/market-cache";
+import { formatCacheAge } from "@/lib/cache-utils";
 import { SectorData, MarketBenchmark, formatPercent, getPercentColor } from "@/components/sectors";
 
 // ============================================================================
