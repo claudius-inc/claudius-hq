@@ -565,6 +565,19 @@ export type AcpEpochStat = typeof acpEpochStats.$inferSelect;
 export type NewAcpEpochStat = typeof acpEpochStats.$inferInsert;
 
 // ============================================================================
+// Market Data Cache (Stale-While-Revalidate Pattern)
+// ============================================================================
+
+export const marketCache = sqliteTable("market_cache", {
+  key: text("key").primaryKey(),
+  data: text("data").notNull(), // JSON stringified data
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export type MarketCacheEntry = typeof marketCache.$inferSelect;
+export type NewMarketCacheEntry = typeof marketCache.$inferInsert;
+
+// ============================================================================
 // Market Indicators - Congress Trades
 // ============================================================================
 
