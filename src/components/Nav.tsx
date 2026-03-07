@@ -3,11 +3,9 @@ import Image from "next/image";
 import { NavSectionSwitcher } from "./NavSectionSwitcher";
 
 const sections = [
-  { href: "/markets", label: "Dashboard" },
-  { href: "/markets/portfolio", label: "Portfolio" },
-  { href: "/markets/research", label: "Research" },
-  { href: "/macro", label: "Macro" },
-  { href: "/sectors", label: "Sectors" },
+  { href: "/projects", label: "Projects" },
+  { href: "/markets", label: "Markets" },
+  { href: "/acp", label: "ACP" },
 ];
 
 export async function Nav() {
