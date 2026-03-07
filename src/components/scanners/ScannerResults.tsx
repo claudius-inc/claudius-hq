@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Search, Filter } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { Select } from "@/components/ui/Select";
 
 interface ScanResult {
   rank: number;
@@ -308,27 +309,27 @@ function ScannerTab({ scan, title }: { scan: ParsedScan | null; title: string })
         </div>
         
         <div className="flex gap-2">
-          <select
+          <Select
             value={tierFilter}
-            onChange={(e) => setTierFilter(e.target.value as TierFilter)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-          >
-            <option value="all">All Tiers</option>
-            <option value="high">🔥 High Conviction</option>
-            <option value="speculative">⚡ Speculative</option>
-            <option value="watchlist">👀 Watchlist</option>
-          </select>
-          
-          <select
+            onChange={(val) => setTierFilter(val as TierFilter)}
+            options={[
+              { value: "all", label: "All Tiers" },
+              { value: "high", label: "High Conviction" },
+              { value: "speculative", label: "Speculative" },
+              { value: "watchlist", label: "Watchlist" },
+            ]}
+          />
+
+          <Select
             value={riskFilter}
-            onChange={(e) => setRiskFilter(e.target.value as RiskFilter)}
-            className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-          >
-            <option value="all">All Risks</option>
-            <option value="TIER 1">Tier 1 (Low)</option>
-            <option value="TIER 2">Tier 2 (Med)</option>
-            <option value="TIER 3">Tier 3 (High)</option>
-          </select>
+            onChange={(val) => setRiskFilter(val as RiskFilter)}
+            options={[
+              { value: "all", label: "All Risks" },
+              { value: "TIER 1", label: "Tier 1 (Low)" },
+              { value: "TIER 2", label: "Tier 2 (Med)" },
+              { value: "TIER 3", label: "Tier 3 (High)" },
+            ]}
+          />
         </div>
       </div>
 

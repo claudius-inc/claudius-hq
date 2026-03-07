@@ -49,11 +49,11 @@ export function Select({ value, onChange, options, placeholder = "Select...", cl
           px-3 py-1.5 text-sm
           bg-white border rounded-lg
           transition-colors
-          ${isOpen 
-            ? "border-emerald-500 ring-2 ring-emerald-500/20" 
+          ${isOpen
+            ? "border-gray-400 ring-2 ring-gray-200"
             : "border-gray-300 hover:border-gray-400"
           }
-          focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20
+          focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200
         `}
       >
         <span className={selectedOption ? "text-gray-900" : "text-gray-500"}>
@@ -75,15 +75,15 @@ export function Select({ value, onChange, options, placeholder = "Select...", cl
                 flex items-center justify-between gap-2
                 px-3 py-2 text-sm cursor-pointer
                 transition-colors
-                ${option.value === value 
-                  ? "bg-emerald-50 text-emerald-700" 
-                  : "text-gray-700 hover:bg-gray-50"
+                ${option.value === value
+                  ? "bg-gray-50 text-gray-900 font-medium"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                 }
               `}
             >
               <span>{option.label}</span>
               {option.value === value && (
-                <Check className="w-4 h-4 text-emerald-600" />
+                <Check className="w-4 h-4 text-gray-900" />
               )}
             </div>
           ))}

@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Hammer, Globe, Package, Search } from "lucide-react";
 import { Project } from "@/lib/types";
+import { Select } from "@/components/ui/Select";
 
 type Phase = "all" | "build" | "live";
 type Status = "all" | "blocked" | "in_progress" | "backlog" | "done";
@@ -94,38 +95,38 @@ export function ProjectFilters({ projects }: ProjectFiltersProps) {
         />
 
         {/* Phase */}
-        <select
+        <Select
           value={phase}
-          onChange={(e) => setPhase(e.target.value as Phase)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
-        >
-          <option value="all">All Phases</option>
-          <option value="build">Build</option>
-          <option value="live">Live</option>
-        </select>
+          onChange={(val) => setPhase(val as Phase)}
+          options={[
+            { value: "all", label: "All Phases" },
+            { value: "build", label: "Build" },
+            { value: "live", label: "Live" },
+          ]}
+        />
 
         {/* Status */}
-        <select
+        <Select
           value={status}
-          onChange={(e) => setStatus(e.target.value as Status)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
-        >
-          <option value="all">All Status</option>
-          <option value="in_progress">In Progress</option>
-          <option value="blocked">Blocked</option>
-          <option value="backlog">Backlog</option>
-          <option value="done">Done</option>
-        </select>
+          onChange={(val) => setStatus(val as Status)}
+          options={[
+            { value: "all", label: "All Status" },
+            { value: "in_progress", label: "In Progress" },
+            { value: "blocked", label: "Blocked" },
+            { value: "backlog", label: "Backlog" },
+            { value: "done", label: "Done" },
+          ]}
+        />
 
         {/* Sort */}
-        <select
+        <Select
           value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortBy)}
-          className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
-        >
-          <option value="recent">Recent</option>
-          <option value="alphabetical">A-Z</option>
-        </select>
+          onChange={(val) => setSortBy(val as SortBy)}
+          options={[
+            { value: "recent", label: "Recent" },
+            { value: "alphabetical", label: "A-Z" },
+          ]}
+        />
 
         {/* Results count */}
         <span className="text-xs text-gray-500 ml-auto">
@@ -144,14 +145,9 @@ export function ProjectFilters({ projects }: ProjectFiltersProps) {
                   <h3 className="font-semibold text-gray-900 group-hover:text-emerald-600 transition-colors truncate">
                     {project.name}
                   </h3>
-                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                    <span className={`status-badge ${phaseColors[projectPhase]} inline-flex items-center gap-1`}>
-                      {phaseIcons[projectPhase]} {projectPhase}
-                    </span>
-                    <span className={`status-badge ${statusColors[project.status] || statusColors.backlog}`}>
-                      {statusLabels[project.status] || project.status}
-                    </span>
-                  </div>
+                  <span className={`status-badge ${statusColors[project.status] || statusColors.backlog} shrink-0 ml-2`}>
+                    {statusLabels[project.status] || project.status}
+                  </span>
                 </div>
 
                 {project.description && (

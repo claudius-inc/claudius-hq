@@ -19,9 +19,11 @@ import {
   Activity,
   Landmark,
   ArrowRight,
+  HelpCircle,
 } from "lucide-react";
 import { formatDate } from "@/lib/format-date";
 import { HealthDot, labelToHealthLevel, type HealthLevel } from "@/components/HealthDot";
+import { RangePopover } from "@/components/ui/RangePopover";
 
 // Types
 interface Position {
@@ -49,6 +51,14 @@ interface MacroIndicator {
   category: string;
   data: { current: number } | null;
   interpretation: { label: string } | null;
+  ranges?: {
+    label: string;
+    min: number | null;
+    max: number | null;
+    meaning: string;
+    marketImpact: string;
+  }[];
+  unit?: string;
 }
 
 interface StockReport {
@@ -198,6 +208,48 @@ function etfColorToHealthLevel(color: string | null | undefined): HealthLevel {
   if (color === "red") return "warning";
   return "neutral";
 }
+
+// Sentiment indicator ranges for Market Pulse popovers
+const vixRanges = [
+  { label: "Low", min: null, max: 15, meaning: "Complacency, low fear", marketImpact: "Bullish but watch for reversal" },
+  { label: "Moderate", min: 15, max: 20, meaning: "Normal market conditions", marketImpact: "Healthy risk appetite" },
+  { label: "Elevated", min: 20, max: 30, meaning: "Rising uncertainty", marketImpact: "Increased hedging activity" },
+  { label: "Fear", min: 30, max: null, meaning: "Panic or crisis conditions", marketImpact: "Potential capitulation/buying opportunity" },
+];
+
+const putCallRanges = [
+  { label: "Greedy", min: null, max: 0.7, meaning: "More calls than puts, bullish bets", marketImpact: "Contrarian bearish signal" },
+  { label: "Neutral", min: 0.7, max: 1.0, meaning: "Balanced options activity", marketImpact: "No strong directional bias" },
+  { label: "Fearful", min: 1.0, max: null, meaning: "More puts than calls, hedging", marketImpact: "Contrarian bullish signal" },
+];
+
+const breadthRanges = [
+  { label: "Bearish", min: null, max: 0.7, meaning: "More declines than advances", marketImpact: "Broad-based selling pressure" },
+  { label: "Neutral", min: 0.7, max: 1.3, meaning: "Balanced market participation", marketImpact: "No strong breadth signal" },
+  { label: "Bullish", min: 1.3, max: null, meaning: "More advances than declines", marketImpact: "Broad-based buying, healthy rally" },
+];
+
+const realYieldRanges = [
+  { label: "Deeply Negative", min: null, max: -1, meaning: "Severe financial repression, savers punished", marketImpact: "Gold & real assets outperform" },
+  { label: "Negative", min: -1, max: 0, meaning: "Accommodative real rates, mild repression", marketImpact: "Risk assets favored, dollar weakens" },
+  { label: "Low Positive", min: 0, max: 1, meaning: "Neutral real rate environment", marketImpact: "Balanced conditions for most assets" },
+  { label: "Moderate", min: 1, max: 2, meaning: "Positive real returns on safe assets", marketImpact: "Cash & bonds competitive, growth headwinds" },
+  { label: "Restrictive", min: 2, max: null, meaning: "Tight policy, high hurdle rate", marketImpact: "Headwind for equities & gold, bonds attractive" },
+];
+
+const debtToGdpRanges = [
+  { label: "Low", min: null, max: 60, meaning: "Healthy fiscal position, room for spending", marketImpact: "Strong sovereign credit, low risk premium" },
+  { label: "Moderate", min: 60, max: 90, meaning: "Manageable debt, some constraints", marketImpact: "Normal market conditions" },
+  { label: "Elevated", min: 90, max: 120, meaning: "High debt burden, sustainability concerns", marketImpact: "Rising risk premium on treasuries" },
+  { label: "Critical", min: 120, max: null, meaning: "Fiscal dominance zone, debt constrains policy", marketImpact: "Currency debasement risk, hard assets favored" },
+];
+
+const deficitToGdpRanges = [
+  { label: "Surplus", min: null, max: 0, meaning: "Government running a budget surplus", marketImpact: "Fiscal tightening, lower bond supply" },
+  { label: "Low", min: 0, max: 3, meaning: "Sustainable deficit level", marketImpact: "Manageable treasury issuance" },
+  { label: "Elevated", min: 3, max: 6, meaning: "Above-normal deficit, expansionary fiscal", marketImpact: "Increased bond supply, rising yields" },
+  { label: "High", min: 6, max: null, meaning: "Unsustainable deficit, funding pressure", marketImpact: "Bond vigilante risk, monetization pressure" },
+];
 
 // Regime detection logic
 function detectRegime(realYield: number | null, debtToGdp: number | null): RegimeData {
@@ -417,13 +469,17 @@ function IndicatorTile({ indicator }: { indicator: MacroIndicator }) {
       <div className="text-xs text-gray-600 mb-1 leading-tight">
         {indicator.name.replace(" (YoY)", "").replace(" Rate", "")}
       </div>
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-lg font-bold text-gray-900">
+      <div className="flex items-baseline justify-between gap-2 overflow-hidden min-w-0">
+        <span className="text-lg font-bold text-gray-900 truncate">
           {formatIndicatorValue(indicator)}
         </span>
-        {label && (
+        {label && indicator.ranges ? (
+          <RangePopover ranges={indicator.ranges} currentLabel={label} unit={indicator.unit}>
+            <HealthDot level={healthLevel} size="md" />
+          </RangePopover>
+        ) : label ? (
           <HealthDot level={healthLevel} size="md" />
-        )}
+        ) : null}
       </div>
     </div>
   );
@@ -591,59 +647,6 @@ export default function StocksDashboard() {
         subtitle="Portfolio overview, research, and market signals"
       />
 
-      {/* Current Regime Banner */}
-      {loading.regime ? (
-        <Skeleton className="h-24 rounded-xl mb-6" />
-      ) : regimeData && (
-        <Link 
-          href="/markets/regime"
-          className={`block mb-6 rounded-xl border-2 p-4 transition-all hover:shadow-md ${regimeData.color}`}
-        >
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-white/50">
-                <Landmark className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium uppercase tracking-wider opacity-70">Current Regime</span>
-                </div>
-                <h3 className="text-lg font-bold">{regimeData.name}</h3>
-                <p className="text-sm opacity-80">{regimeData.description}</p>
-              </div>
-            </div>
-            <div className="hidden sm:flex items-center gap-6 text-sm">
-              {regimeData.indicators.realYield !== null && (
-                <div className="text-center">
-                  <div className="text-xs opacity-60">Real Yield</div>
-                  <div className="font-bold">{regimeData.indicators.realYield.toFixed(2)}%</div>
-                </div>
-              )}
-              {regimeData.indicators.debtToGdp !== null && (
-                <div className="text-center">
-                  <div className="text-xs opacity-60">Debt/GDP</div>
-                  <div className="font-bold">{regimeData.indicators.debtToGdp.toFixed(0)}%</div>
-                </div>
-              )}
-              {regimeData.indicators.deficitToGdp !== null && (
-                <div className="text-center">
-                  <div className="text-xs opacity-60">Deficit/GDP</div>
-                  <div className="font-bold">{regimeData.indicators.deficitToGdp.toFixed(1)}%</div>
-                </div>
-              )}
-              <ArrowRight className="w-5 h-5 opacity-50" />
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {regimeData.implications.slice(0, 3).map((impl, i) => (
-              <span key={i} className="text-xs px-2 py-1 rounded-full bg-white/40 font-medium">
-                {impl}
-              </span>
-            ))}
-          </div>
-        </Link>
-      )}
-
       {/* Grid Layout - items-start for natural heights */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
         {/* Macro Signals */}
@@ -654,264 +657,341 @@ export default function StocksDashboard() {
           href="/markets/macro"
         >
           <div className="space-y-4">
-            {/* Sentiment Status Bar */}
+            {/* Regime + Market Pulse (merged) */}
             {loading.sentiment ? (
               <Skeleton className="h-14 rounded-xl" />
             ) : (
-              <div className="rounded-xl bg-gray-900 p-3 sm:p-4">
-                <div className="flex items-center gap-2 text-gray-400 mb-3 sm:mb-0 sm:absolute sm:left-4 sm:top-4">
-                  <Activity className="w-4 h-4" />
-                  <span className="text-xs font-medium uppercase tracking-wider">
-                    Market Pulse
-                  </span>
-                </div>
-                <div className="sm:relative sm:pt-0 overflow-x-auto">
-                  <div className="flex items-center justify-start sm:justify-center gap-3 sm:gap-6 min-w-max">
-                    {/* VIX */}
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <span className="text-xs text-gray-500">VIX</span>
-                      <span
-                        className={`text-base sm:text-lg font-bold ${
-                          sentimentData?.vix.level === "low" ||
-                          sentimentData?.vix.level === "moderate"
-                            ? "text-emerald-400"
-                            : sentimentData?.vix.level === "elevated"
-                              ? "text-amber-400"
-                              : sentimentData?.vix.level === "fear"
-                                ? "text-red-400"
-                                : "text-gray-400"
-                        }`}
-                      >
-                        {sentimentData?.vix.value?.toFixed(1) ?? "—"}
-                      </span>
-                      <span
-                        className={`hidden sm:inline text-xs ${sentimentData?.vix?.change != null && sentimentData.vix.change >= 0 ? "text-red-400" : "text-emerald-400"}`}
-                      >
-                        {sentimentData?.vix?.change != null && (
-                          <>
-                            {sentimentData.vix.change >= 0 ? "▲" : "▼"}
-                            {Math.abs(sentimentData.vix.change).toFixed(1)}
-                          </>
+              <div className="rounded-xl bg-gray-900 p-3 sm:p-4 space-y-3">
+                {/* Regime strip */}
+                {!loading.regime && regimeData && (
+                  <Link
+                    href="/markets/regime"
+                    className="flex items-center justify-between gap-3 pb-3 border-b border-gray-700/50"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={`p-1 rounded-md ${
+                        regimeData.name === "Fiscal Dominance" ? "bg-red-500/20" :
+                        regimeData.name === "Financial Repression" ? "bg-amber-500/20" :
+                        regimeData.name === "Restrictive Policy" ? "bg-blue-500/20" :
+                        "bg-gray-500/20"
+                      }`}>
+                        <Landmark className={`w-3.5 h-3.5 ${
+                          regimeData.name === "Fiscal Dominance" ? "text-red-400" :
+                          regimeData.name === "Financial Repression" ? "text-amber-400" :
+                          regimeData.name === "Restrictive Policy" ? "text-blue-400" :
+                          "text-gray-400"
+                        }`} />
+                      </div>
+                      <div>
+                        <span className={`text-sm font-bold ${
+                          regimeData.name === "Fiscal Dominance" ? "text-red-400" :
+                          regimeData.name === "Financial Repression" ? "text-amber-400" :
+                          regimeData.name === "Restrictive Policy" ? "text-blue-400" :
+                          "text-gray-300"
+                        }`}>
+                          {regimeData.name}
+                        </span>
+                        <p className="text-[10px] text-gray-500 leading-tight">{regimeData.description}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-[10px] text-gray-400 shrink-0">
+                      {regimeData.indicators.realYield !== null && (
+                        <RangePopover ranges={realYieldRanges} currentLabel={
+                          regimeData.indicators.realYield < -1 ? "Deeply Negative" :
+                          regimeData.indicators.realYield < 0 ? "Negative" :
+                          regimeData.indicators.realYield < 1 ? "Low Positive" :
+                          regimeData.indicators.realYield < 2 ? "Moderate" : "Restrictive"
+                        } unit="%">
+                          <div className="text-center cursor-pointer hover:opacity-80 transition-opacity">
+                            <span className="opacity-60">RY </span>
+                            <span className="font-bold text-gray-300">{regimeData.indicators.realYield.toFixed(2)}%</span>
+                            <HelpCircle className="w-2.5 h-2.5 text-gray-600 hover:text-gray-400 inline-block ml-0.5 -mt-0.5 transition-colors" />
+                          </div>
+                        </RangePopover>
+                      )}
+                      <span className="hidden sm:contents">
+                        {regimeData.indicators.debtToGdp !== null && (
+                          <RangePopover ranges={debtToGdpRanges} currentLabel={
+                            regimeData.indicators.debtToGdp < 60 ? "Low" :
+                            regimeData.indicators.debtToGdp < 90 ? "Moderate" :
+                            regimeData.indicators.debtToGdp < 120 ? "Elevated" : "Critical"
+                          } unit="%">
+                            <div className="text-center cursor-pointer hover:opacity-80 transition-opacity">
+                              <span className="opacity-60">D/G </span>
+                              <span className="font-bold text-gray-300">{regimeData.indicators.debtToGdp.toFixed(0)}%</span>
+                              <HelpCircle className="w-2.5 h-2.5 text-gray-600 hover:text-gray-400 inline-block ml-0.5 -mt-0.5 transition-colors" />
+                            </div>
+                          </RangePopover>
+                        )}
+                        {regimeData.indicators.deficitToGdp !== null && (
+                          <RangePopover ranges={deficitToGdpRanges} currentLabel={
+                            regimeData.indicators.deficitToGdp < 0 ? "Surplus" :
+                            regimeData.indicators.deficitToGdp < 3 ? "Low" :
+                            regimeData.indicators.deficitToGdp < 6 ? "Elevated" : "High"
+                          } unit="%">
+                            <div className="text-center cursor-pointer hover:opacity-80 transition-opacity">
+                              <span className="opacity-60">Def </span>
+                              <span className="font-bold text-gray-300">{regimeData.indicators.deficitToGdp.toFixed(1)}%</span>
+                              <HelpCircle className="w-2.5 h-2.5 text-gray-600 hover:text-gray-400 inline-block ml-0.5 -mt-0.5 transition-colors" />
+                            </div>
+                          </RangePopover>
                         )}
                       </span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                          sentimentData?.vix.level === "low" ||
-                          sentimentData?.vix.level === "moderate"
-                            ? "bg-emerald-900/50 text-emerald-300"
-                            : sentimentData?.vix.level === "elevated"
-                              ? "bg-amber-900/50 text-amber-300"
-                              : sentimentData?.vix.level === "fear"
-                                ? "bg-red-900/50 text-red-300"
-                                : "bg-gray-700 text-gray-400"
-                        }`}
-                      >
-                        {formatSentimentLevel(sentimentData?.vix.level)}
-                      </span>
+                      <ArrowRight className="w-3.5 h-3.5 opacity-40" />
                     </div>
-
-                    <div className="w-px h-6 bg-gray-700" />
+                  </Link>
+                )}
+                {/* Market Pulse: VIX / P/C / A/D */}
+                <div>
+                  <div className="flex items-center gap-2 text-gray-400 mb-2">
+                    <Activity className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-medium uppercase tracking-wider">
+                      Market Pulse
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 sm:gap-6">
+                    {/* VIX */}
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                        VIX
+                        <RangePopover ranges={vixRanges} currentLabel={formatSentimentLevel(sentimentData?.vix.level)}>
+                          <HelpCircle className="w-3 h-3 text-gray-500 hover:text-gray-300 transition-colors" />
+                        </RangePopover>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`text-base sm:text-lg font-bold ${
+                            sentimentData?.vix.level === "low" ||
+                            sentimentData?.vix.level === "moderate"
+                              ? "text-emerald-400"
+                              : sentimentData?.vix.level === "elevated"
+                                ? "text-amber-400"
+                                : sentimentData?.vix.level === "fear"
+                                  ? "text-red-400"
+                                  : "text-gray-400"
+                          }`}
+                        >
+                          {sentimentData?.vix.value?.toFixed(1) ?? "—"}
+                        </span>
+                        <span
+                          className={`text-xs ${sentimentData?.vix?.change != null && sentimentData.vix.change >= 0 ? "text-red-400" : "text-emerald-400"}`}
+                        >
+                          {sentimentData?.vix?.change != null && (
+                            <>
+                              {sentimentData.vix.change >= 0 ? "▲" : "▼"}
+                              {Math.abs(sentimentData.vix.change).toFixed(1)}
+                            </>
+                          )}
+                        </span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                            sentimentData?.vix.level === "low" ||
+                            sentimentData?.vix.level === "moderate"
+                              ? "bg-emerald-900/50 text-emerald-300"
+                              : sentimentData?.vix.level === "elevated"
+                                ? "bg-amber-900/50 text-amber-300"
+                                : sentimentData?.vix.level === "fear"
+                                  ? "bg-red-900/50 text-red-300"
+                                  : "bg-gray-700 text-gray-400"
+                          }`}
+                        >
+                          {formatSentimentLevel(sentimentData?.vix.level)}
+                        </span>
+                      </div>
+                    </div>
 
                     {/* Put/Call */}
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <span className="text-xs text-gray-500">P/C</span>
-                      <span
-                        className={`text-base sm:text-lg font-bold ${
-                          sentimentData?.putCall.level === "greedy"
-                            ? "text-amber-400"
-                            : sentimentData?.putCall.level === "neutral"
-                              ? "text-emerald-400"
-                              : sentimentData?.putCall.level === "fearful"
-                                ? "text-red-400"
-                                : "text-gray-400"
-                        }`}
-                      >
-                        {sentimentData?.putCall.value?.toFixed(2) ?? "—"}
-                      </span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                          sentimentData?.putCall.level === "greedy"
-                            ? "bg-amber-900/50 text-amber-300"
-                            : sentimentData?.putCall.level === "neutral"
-                              ? "bg-emerald-900/50 text-emerald-300"
-                              : sentimentData?.putCall.level === "fearful"
-                                ? "bg-red-900/50 text-red-300"
-                                : "bg-gray-700 text-gray-400"
-                        }`}
-                      >
-                        {formatSentimentLevel(sentimentData?.putCall.level)}
-                      </span>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                        P/C
+                        <RangePopover ranges={putCallRanges} currentLabel={formatSentimentLevel(sentimentData?.putCall.level)}>
+                          <HelpCircle className="w-3 h-3 text-gray-500 hover:text-gray-300 transition-colors" />
+                        </RangePopover>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`text-base sm:text-lg font-bold ${
+                            sentimentData?.putCall.level === "greedy"
+                              ? "text-amber-400"
+                              : sentimentData?.putCall.level === "neutral"
+                                ? "text-emerald-400"
+                                : sentimentData?.putCall.level === "fearful"
+                                  ? "text-red-400"
+                                  : "text-gray-400"
+                          }`}
+                        >
+                          {sentimentData?.putCall.value?.toFixed(2) ?? "—"}
+                        </span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                            sentimentData?.putCall.level === "greedy"
+                              ? "bg-amber-900/50 text-amber-300"
+                              : sentimentData?.putCall.level === "neutral"
+                                ? "bg-emerald-900/50 text-emerald-300"
+                                : sentimentData?.putCall.level === "fearful"
+                                  ? "bg-red-900/50 text-red-300"
+                                  : "bg-gray-700 text-gray-400"
+                          }`}
+                        >
+                          {formatSentimentLevel(sentimentData?.putCall.level)}
+                        </span>
+                      </div>
                     </div>
-
-                    <div className="w-px h-6 bg-gray-700" />
 
                     {/* Breadth */}
-                    <div className="flex items-center gap-1.5 sm:gap-2">
-                      <span className="text-xs text-gray-500">A/D</span>
-                      <span
-                        className={`text-base sm:text-lg font-bold ${
-                          breadthData?.level === "bullish"
-                            ? "text-emerald-400"
-                            : breadthData?.level === "bearish"
-                              ? "text-red-400"
-                              : "text-gray-400"
-                        }`}
-                      >
-                        {breadthData?.advanceDecline?.ratio?.toFixed(2) ?? "—"}
-                      </span>
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                          breadthData?.level === "bullish"
-                            ? "bg-emerald-900/50 text-emerald-300"
-                            : breadthData?.level === "bearish"
-                              ? "bg-red-900/50 text-red-300"
-                              : "bg-gray-700 text-gray-400"
-                        }`}
-                      >
-                        {breadthData?.level ? breadthData.level.charAt(0).toUpperCase() + breadthData.level.slice(1) : "—"}
-                      </span>
+                    <div>
+                      <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                        A/D
+                        <RangePopover ranges={breadthRanges} currentLabel={breadthData?.level ? breadthData.level.charAt(0).toUpperCase() + breadthData.level.slice(1) : null}>
+                          <HelpCircle className="w-3 h-3 text-gray-500 hover:text-gray-300 transition-colors" />
+                        </RangePopover>
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span
+                          className={`text-base sm:text-lg font-bold ${
+                            breadthData?.level === "bullish"
+                              ? "text-emerald-400"
+                              : breadthData?.level === "bearish"
+                                ? "text-red-400"
+                                : "text-gray-400"
+                          }`}
+                        >
+                          {breadthData?.advanceDecline?.ratio?.toFixed(2) ?? "—"}
+                        </span>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                            breadthData?.level === "bullish"
+                              ? "bg-emerald-900/50 text-emerald-300"
+                              : breadthData?.level === "bearish"
+                                ? "bg-red-900/50 text-red-300"
+                                : "bg-gray-700 text-gray-400"
+                          }`}
+                        >
+                          {breadthData?.level ? breadthData.level.charAt(0).toUpperCase() + breadthData.level.slice(1) : "—"}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Smart Money Mini-Summary */}
-            {(congressData || insiderData) && (
-              <div className="rounded-xl bg-gray-50 p-3 overflow-x-auto">
-                <div className="flex items-center justify-start sm:justify-center gap-4 sm:gap-8 min-w-max">
-                <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Smart Money</span>
-                
-                {/* Congress */}
-                {congressData && congressData.totalTrades > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-gray-500">Congress</span>
-                    <span
-                      className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                        congressData.level === "bullish"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : congressData.level === "bearish"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-200 text-gray-600"
-                      }`}
-                    >
-                      {congressData.level.charAt(0).toUpperCase() + congressData.level.slice(1)}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      ({congressData.buyCount}B/{congressData.sellCount}S)
-                    </span>
-                  </div>
-                )}
-
-                {/* Insider */}
-                {insiderData && insiderData.totalTrades > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-gray-500">Insiders</span>
-                    <span
-                      className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
-                        insiderData.level === "bullish"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : insiderData.level === "bearish"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-gray-200 text-gray-600"
-                      }`}
-                    >
-                      {insiderData.level.charAt(0).toUpperCase() + insiderData.level.slice(1)}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      ({insiderData.buyCount}B/{insiderData.sellCount}S)
-                    </span>
-                  </div>
-                )}
-
-                {!congressData?.totalTrades && !insiderData?.totalTrades && (
-                  <span className="text-xs text-gray-400">No recent activity</span>
-                )}
-                </div>
-              </div>
-            )}
-
-            {/* Heatmap Grid */}
+            {/* All Indicator Tiles */}
             {loading.macro ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                   <Skeleton key={i} className="h-24 rounded-xl" />
                 ))}
               </div>
-            ) : allIndicators.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {/* Smart Money tiles */}
+                {congressData && congressData.totalTrades > 0 && (
+                  <div
+                    className={`rounded-xl p-3 border border-white/60 transition-transform hover:scale-[1.02] ${
+                      congressData.level === "bullish"
+                        ? "bg-emerald-50"
+                        : congressData.level === "bearish"
+                          ? "bg-red-50"
+                          : "bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <span className="flex items-center text-gray-400">
+                        <Landmark className="w-3 h-3" />
+                      </span>
+                      <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Smart Money</span>
+                    </div>
+                    <div className="text-xs text-gray-600 mb-1 leading-tight">
+                      Congress ({congressData.buyCount}B/{congressData.sellCount}S)
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2 overflow-hidden min-w-0">
+                      <span className="text-lg font-bold text-gray-900 truncate">
+                        {congressData.level.charAt(0).toUpperCase() + congressData.level.slice(1)}
+                      </span>
+                      <HealthDot level={congressData.level === "bullish" ? "healthy" : congressData.level === "bearish" ? "warning" : "neutral"} size="md" />
+                    </div>
+                  </div>
+                )}
+                {insiderData && insiderData.totalTrades > 0 && (
+                  <div
+                    className={`rounded-xl p-3 border border-white/60 transition-transform hover:scale-[1.02] ${
+                      insiderData.level === "bullish"
+                        ? "bg-emerald-50"
+                        : insiderData.level === "bearish"
+                          ? "bg-red-50"
+                          : "bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1 mb-1.5">
+                      <span className="flex items-center text-gray-400">
+                        <Landmark className="w-3 h-3" />
+                      </span>
+                      <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Smart Money</span>
+                    </div>
+                    <div className="text-xs text-gray-600 mb-1 leading-tight">
+                      Insiders ({insiderData.buyCount}B/{insiderData.sellCount}S)
+                    </div>
+                    <div className="flex items-baseline justify-between gap-2 overflow-hidden min-w-0">
+                      <span className="text-lg font-bold text-gray-900 truncate">
+                        {insiderData.level.charAt(0).toUpperCase() + insiderData.level.slice(1)}
+                      </span>
+                      <HealthDot level={insiderData.level === "bullish" ? "healthy" : insiderData.level === "bearish" ? "warning" : "neutral"} size="md" />
+                    </div>
+                  </div>
+                )}
+
+                {/* Macro indicator tiles */}
                 {allIndicators.map((indicator) => (
                   <IndicatorTile key={indicator.id} indicator={indicator} />
                 ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-sm text-gray-500">
-                <p>No macro data available.</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Add FRED_API_KEY for live data
-                </p>
-              </div>
-            )}
 
-            {/* Barometers */}
-            {marketEtfs.length > 0 && (
-              <div>
-                <div className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">
-                  Barometers
-                </div>
-                {loading.etfs ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                    {[1, 2, 3].map((i) => (
-                      <Skeleton key={i} className="h-16 rounded-xl" />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-                    {marketEtfs.map((etf) => {
-                      const etfBg =
-                        etf.interpretation?.color === "blue"
-                          ? "bg-blue-50"
-                          : etf.interpretation?.color === "amber"
-                            ? "bg-amber-50"
-                            : etf.interpretation?.color === "red"
-                              ? "bg-red-50"
-                              : "bg-gray-50";
-                      const label = etf.interpretation?.label;
-                      const healthLevel = etfColorToHealthLevel(etf.interpretation?.color);
-                      return (
-                        <div
-                          key={etf.ticker}
-                          className={`rounded-xl p-3 ${etfBg} border border-white/60`}
-                          title={label || undefined}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs font-semibold text-gray-900">
-                              {etf.ticker}
-                            </span>
-                            {label && (
-                              <HealthDot level={healthLevel} size="md" />
-                            )}
-                          </div>
-                          {etf.data ? (
-                            <div className="flex items-baseline gap-1.5">
-                              <span className="text-sm font-bold text-gray-900">
-                                ${etf.data.price.toFixed(2)}
-                              </span>
-                              <span
-                                className={`text-xs font-medium ${etf.data.change >= 0 ? "text-emerald-600" : "text-red-600"}`}
-                              >
-                                {etf.data.changePercent >= 0 ? "+" : ""}
-                                {etf.data.changePercent.toFixed(1)}%
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-sm text-gray-400">—</span>
-                          )}
+                {/* Barometer tiles */}
+                {!loading.etfs && marketEtfs.map((etf) => {
+                  const etfBg =
+                    etf.interpretation?.color === "blue"
+                      ? "bg-blue-50"
+                      : etf.interpretation?.color === "amber"
+                        ? "bg-amber-50"
+                        : etf.interpretation?.color === "red"
+                          ? "bg-red-50"
+                          : "bg-gray-50";
+                  const label = etf.interpretation?.label;
+                  const healthLevel = etfColorToHealthLevel(etf.interpretation?.color);
+                  return (
+                    <div
+                      key={etf.ticker}
+                      className={`rounded-xl p-3 ${etfBg} border border-white/60 transition-transform hover:scale-[1.02]`}
+                      title={label || undefined}
+                    >
+                      <div className="flex items-center gap-1 mb-1.5">
+                        <span className="flex items-center text-gray-400">
+                          <Activity className="w-3 h-3" />
+                        </span>
+                        <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Barometer</span>
+                      </div>
+                      <div className="text-xs text-gray-600 mb-1 leading-tight">
+                        {etf.ticker}
+                      </div>
+                      <div className="flex items-baseline justify-between gap-2 overflow-hidden min-w-0">
+                        {etf.data ? (
+                          <span className="text-lg font-bold text-gray-900 truncate">
+                            ${etf.data.price.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-lg font-bold text-gray-400">—</span>
+                        )}
+                        {label && <HealthDot level={healthLevel} size="md" />}
+                      </div>
+                      {etf.data && (
+                        <div className={`text-xs font-medium ${etf.data.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                          {etf.data.changePercent >= 0 ? "+" : ""}{etf.data.changePercent.toFixed(1)}%
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

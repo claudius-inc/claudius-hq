@@ -1,13 +1,11 @@
 import Link from "next/link";
-import Image from "next/image";
+
 import { NavSectionSwitcher } from "./NavSectionSwitcher";
 
 const sections = [
-  { href: "/markets", label: "Dashboard" },
-  { href: "/markets/portfolio", label: "Portfolio" },
-  { href: "/markets/research", label: "Research" },
-  { href: "/macro", label: "Macro" },
-  { href: "/sectors", label: "Sectors" },
+  { href: "/projects", label: "Projects" },
+  { href: "/markets", label: "Markets" },
+  { href: "/acp", label: "ACP" },
 ];
 
 export async function Nav() {
@@ -17,7 +15,8 @@ export async function Nav() {
         <div className="flex items-center justify-between h-12">
           <div className="flex items-center gap-2">
             <Link href="/" className="flex items-center gap-2">
-              <Image
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
                 src="/logo.png"
                 alt="Claudius HQ"
                 width={24}

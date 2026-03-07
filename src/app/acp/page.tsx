@@ -3,6 +3,7 @@ import { acpActivities, acpOfferings, acpWalletSnapshots, acpEpochStats } from "
 import { desc } from "drizzle-orm";
 import { formatDate } from "@/lib/format-date";
 import Link from "next/link";
+import { DollarSign, XCircle, ShoppingCart, Plus, Trash2, Heart, Wallet } from "lucide-react";
 
 export const revalidate = 60; // Revalidate every minute
 
@@ -23,21 +24,22 @@ async function getAcpData() {
 }
 
 function ActivityIcon({ type }: { type: string }) {
+  const size = "w-4 h-4";
   switch (type) {
     case "job_completed":
-      return <span className="text-green-500">💰</span>;
+      return <DollarSign className={`${size} text-green-500`} />;
     case "job_failed":
-      return <span className="text-red-500">❌</span>;
+      return <XCircle className={`${size} text-red-500`} />;
     case "buy":
-      return <span className="text-blue-500">🛒</span>;
+      return <ShoppingCart className={`${size} text-blue-500`} />;
     case "offering_created":
-      return <span className="text-purple-500">➕</span>;
+      return <Plus className={`${size} text-purple-500`} />;
     case "offering_deleted":
-      return <span className="text-orange-500">🗑️</span>;
+      return <Trash2 className={`${size} text-orange-500`} />;
     case "heartbeat":
-      return <span className="text-gray-400">💓</span>;
+      return <Heart className={`${size} text-pink-400 fill-pink-400`} />;
     case "wallet_sync":
-      return <span className="text-yellow-500">💳</span>;
+      return <Wallet className={`${size} text-yellow-500`} />;
     default:
       return <span className="text-gray-400">•</span>;
   }
@@ -65,24 +67,14 @@ export default async function AcpPage() {
             )}
           </p>
         </div>
-        <Link
-          href="https://claudiusinc.com"
-          target="_blank"
-          className="text-sm text-blue-600 hover:underline"
-        >
-          View Public Showcase →
-        </Link>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <div className="text-sm text-gray-500">Wallet Balance</div>
           <div className="text-2xl font-bold text-gray-900">
-            ${wallet?.totalValueUsd?.toFixed(2) || "—"}
-          </div>
-          <div className="text-xs text-gray-400">
-            {wallet?.usdcBalance?.toFixed(2) || 0} USDC
+            ${wallet ? ((wallet.usdcBalance || 0) + (wallet.cbbtcBalance || 0) * (wallet.cbbtcValueUsd || 0)).toFixed(2) : "—"}
           </div>
         </div>
 
@@ -98,16 +90,6 @@ export default async function AcpPage() {
           <div className="text-sm text-gray-500">Active Offerings</div>
           <div className="text-2xl font-bold text-gray-900">{activeOfferings}</div>
           <div className="text-xs text-gray-400">of {offerings.length} total</div>
-        </div>
-
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <div className="text-sm text-gray-500">Epoch Rank</div>
-          <div className="text-2xl font-bold text-gray-900">
-            #{epochStat?.rank || "—"}
-          </div>
-          <div className="text-xs text-gray-400">
-            Epoch {epochStat?.epochNumber || "?"}
-          </div>
         </div>
       </div>
 
@@ -220,7 +202,7 @@ export default async function AcpPage() {
       {wallet && (
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <h2 className="font-semibold text-gray-900 mb-3">Wallet Details</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
             <div>
               <div className="text-gray-500">USDC</div>
               <div className="font-mono">{wallet.usdcBalance?.toFixed(4) || 0}</div>
@@ -231,11 +213,10 @@ export default async function AcpPage() {
             </div>
             <div>
               <div className="text-gray-500">cbBTC</div>
-              <div className="font-mono">{wallet.cbbtcBalance?.toFixed(8) || 0}</div>
-            </div>
-            <div>
-              <div className="text-gray-500">cbBTC Value</div>
-              <div className="font-mono">${wallet.cbbtcValueUsd?.toFixed(2) || 0}</div>
+              <div className="font-mono">
+                {wallet.cbbtcBalance?.toFixed(8) || 0}{" "}
+                <span className="text-gray-400">(${((wallet.cbbtcBalance || 0) * (wallet.cbbtcValueUsd || 0)).toFixed(2)})</span>
+              </div>
             </div>
           </div>
           <div className="text-xs text-gray-400 mt-2">

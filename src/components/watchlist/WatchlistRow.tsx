@@ -6,6 +6,7 @@ import { Pencil, Trash2, ArrowRight, X, Check, Eye, TrendingUp, CheckCircle } fr
 import { WatchlistItem, WatchlistStatus } from "@/lib/types";
 import { ResearchStatusBadge } from "@/components/ResearchStatusBadge";
 import { ResearchStatus } from "@/hooks/useResearchStatus";
+import { Select } from "@/components/ui/Select";
 
 const STATUS_ICONS: Record<WatchlistStatus, React.ReactNode> = {
   watching: <Eye className="w-3.5 h-3.5" />,
@@ -119,15 +120,16 @@ export function WatchlistRow({
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-center">
         {isEditing ? (
-          <select
+          <Select
             value={editStatus}
-            onChange={(e) => setEditStatus(e.target.value as WatchlistStatus)}
-            className="input text-sm"
-          >
-            <option value="watching">Watching</option>
-            <option value="accumulating">Accumulating</option>
-            <option value="graduated">Graduated</option>
-          </select>
+            onChange={(val) => setEditStatus(val as WatchlistStatus)}
+            options={[
+              { value: "watching", label: "Watching" },
+              { value: "accumulating", label: "Accumulating" },
+              { value: "graduated", label: "Graduated" },
+            ]}
+            className="w-full"
+          />
         ) : (
           <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_CONFIG[item.status].className}`}>
             {STATUS_ICONS[item.status]}

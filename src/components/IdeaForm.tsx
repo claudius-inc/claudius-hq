@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Idea, IdeaStatus, IdeaPotential, EffortEstimate } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { Select } from "@/components/ui/Select";
 
 interface IdeaFormProps {
   idea?: Idea;
@@ -103,52 +104,55 @@ export function IdeaForm({ idea, onClose }: IdeaFormProps) {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Status
           </label>
-          <select
+          <Select
             value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value as IdeaStatus })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-          >
-            <option value="new">New</option>
-            <option value="researching">Researching</option>
-            <option value="validated">Validated</option>
-            <option value="promoted">Promoted</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            onChange={(val) => setFormData({ ...formData, status: val as IdeaStatus })}
+            options={[
+              { value: "new", label: "New" },
+              { value: "researching", label: "Researching" },
+              { value: "validated", label: "Validated" },
+              { value: "promoted", label: "Promoted" },
+              { value: "rejected", label: "Rejected" },
+            ]}
+            className="w-full"
+          />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Potential
           </label>
-          <select
+          <Select
             value={formData.potential}
-            onChange={(e) => setFormData({ ...formData, potential: e.target.value as IdeaPotential })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-          >
-            <option value="unknown">Unknown</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="moonshot">Moonshot</option>
-          </select>
+            onChange={(val) => setFormData({ ...formData, potential: val as IdeaPotential })}
+            options={[
+              { value: "unknown", label: "Unknown" },
+              { value: "low", label: "Low" },
+              { value: "medium", label: "Medium" },
+              { value: "high", label: "High" },
+              { value: "moonshot", label: "Moonshot" },
+            ]}
+            className="w-full"
+          />
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Effort
           </label>
-          <select
+          <Select
             value={formData.effort_estimate}
-            onChange={(e) => setFormData({ ...formData, effort_estimate: e.target.value as EffortEstimate })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-          >
-            <option value="unknown">Unknown</option>
-            <option value="tiny">Tiny (hours)</option>
-            <option value="small">Small (days)</option>
-            <option value="medium">Medium (1-2 weeks)</option>
-            <option value="large">Large (weeks)</option>
-            <option value="huge">Huge (months)</option>
-          </select>
+            onChange={(val) => setFormData({ ...formData, effort_estimate: val as EffortEstimate })}
+            options={[
+              { value: "unknown", label: "Unknown" },
+              { value: "tiny", label: "Tiny (hours)" },
+              { value: "small", label: "Small (days)" },
+              { value: "medium", label: "Medium (1-2 weeks)" },
+              { value: "large", label: "Large (weeks)" },
+              { value: "huge", label: "Huge (months)" },
+            ]}
+            className="w-full"
+          />
         </div>
       </div>
 

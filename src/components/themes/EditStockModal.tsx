@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { ThemeStockStatus } from "@/lib/types";
 import { EditingStock } from "./types";
+import { Select } from "@/components/ui/Select";
 
 interface EditStockModalProps {
   editingStock: EditingStock;
@@ -32,15 +33,16 @@ export function EditStockModal({
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select
+            <Select
               value={editingStock.status}
-              onChange={(e) => onChange({ ...editingStock, status: e.target.value as ThemeStockStatus })}
-              className="input w-full"
-            >
-              <option value="watching">Watching</option>
-              <option value="accumulating">Accumulating</option>
-              <option value="holding">Holding</option>
-            </select>
+              onChange={(val) => onChange({ ...editingStock, status: val as ThemeStockStatus })}
+              options={[
+                { value: "watching", label: "Watching" },
+                { value: "accumulating", label: "Accumulating" },
+                { value: "holding", label: "Holding" },
+              ]}
+              className="w-full"
+            />
           </div>
 
           <div>

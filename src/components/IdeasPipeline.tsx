@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useState } from "react";
 import { IdeaForm } from "@/components/IdeaForm";
 import { Lightbulb, MapPin } from "lucide-react";
+import { Select } from "@/components/ui/Select";
 
 const statusColumns: { key: IdeaStatus; label: string; color: string }[] = [
   { key: "new", label: "New", color: "bg-blue-100 text-blue-700" },
@@ -79,16 +80,14 @@ export function IdeasPipeline({ ideas }: { ideas: Idea[] }) {
             List
           </button>
         </div>
-        <select
+        <Select
           value={filter}
-          onChange={(e) => setFilter(e.target.value as IdeaStatus | "all")}
-          className="text-sm border border-gray-200 rounded-md px-2 py-1 text-gray-600 bg-white"
-        >
-          <option value="all">All statuses</option>
-          {statusColumns.map((s) => (
-            <option key={s.key} value={s.key}>{s.label}</option>
-          ))}
-        </select>
+          onChange={(val) => setFilter(val as IdeaStatus | "all")}
+          options={[
+            { value: "all", label: "All statuses" },
+            ...statusColumns.map((s) => ({ value: s.key, label: s.label })),
+          ]}
+        />
       </div>
 
       {view === "kanban" ? (
