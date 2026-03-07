@@ -1016,6 +1016,194 @@ export function MacroPageContent() {
       </div>
 
       {/* ============================================================ */}
+      {/* REGIME HISTORY */}
+      {/* ============================================================ */}
+      <div className="card p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Globe className="w-5 h-5 text-gray-500" />
+          Regime History
+        </h2>
+        
+        <div className="space-y-3">
+          {[
+            {
+              period: "1942-1951",
+              regime: "Financial Repression",
+              realYield: "-3 to -5%",
+              result: "Debt/GDP fell 70pts, bondholders lost 30% real",
+              color: "border-red-300 bg-red-50",
+            },
+            {
+              period: "1980-2000",
+              regime: "Sound Money",
+              realYield: "+3 to +5%",
+              result: "Great bond bull market, 40-year rally",
+              color: "border-emerald-300 bg-emerald-50",
+            },
+            {
+              period: "2008-2021",
+              regime: "ZIRP/QE",
+              realYield: "0 to -1%",
+              result: "Everything rally, asset inflation",
+              color: "border-blue-300 bg-blue-50",
+            },
+            {
+              period: "2022-Present",
+              regime: "Fiscal Dominance",
+              realYield: "-1 to +1%",
+              result: "Bonds crashed 2022, gold/BTC outperform",
+              color: "border-amber-300 bg-amber-50",
+            },
+          ].map((era) => (
+            <div key={era.period} className={`rounded-lg p-3 border ${era.color}`}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">{era.period}</div>
+                  <div className="text-xs text-gray-500">{era.regime}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-medium text-gray-700">Real Yield: {era.realYield}</div>
+                </div>
+              </div>
+              <div className="text-xs text-gray-600 mt-2">{era.result}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* ASSET PERFORMANCE BY REGIME */}
+      {/* ============================================================ */}
+      <div className="card p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-gray-500" />
+          Asset Performance by Regime
+        </h2>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left py-2 text-gray-500 font-medium">Regime</th>
+                <th className="text-center py-2 text-gray-500 font-medium">Bonds</th>
+                <th className="text-center py-2 text-gray-500 font-medium">Gold</th>
+                <th className="text-center py-2 text-gray-500 font-medium">Equities</th>
+                <th className="text-center py-2 text-gray-500 font-medium">Cash</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[
+                { regime: "Financial Repression", bonds: "🔴", gold: "🟢", equities: "🟡", cash: "🔴" },
+                { regime: "Fiscal Dominance", bonds: "🔴", gold: "🟢", equities: "🟡", cash: "🟡" },
+                { regime: "Sound Money", bonds: "🟢", gold: "🔴", equities: "🟢", cash: "🟢" },
+                { regime: "Deflation", bonds: "🟢", gold: "🟡", equities: "🔴", cash: "🟢" },
+              ].map((row) => (
+                <tr key={row.regime} className="border-b border-gray-100">
+                  <td className="py-2 font-medium text-gray-900">{row.regime}</td>
+                  <td className="py-2 text-center">{row.bonds}</td>
+                  <td className="py-2 text-center">{row.gold}</td>
+                  <td className="py-2 text-center">{row.equities}</td>
+                  <td className="py-2 text-center">{row.cash}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="text-xs text-gray-400 mt-2">
+            🟢 Outperform | 🟡 Mixed | 🔴 Underperform
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* WAR & CONFLICT OVERLAY */}
+      {/* ============================================================ */}
+      <div className="card p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 text-red-500" />
+          War & Conflict Overlay
+        </h2>
+        
+        <blockquote className="border-l-4 border-red-400 pl-4 py-2 mb-4 bg-red-50 rounded-r-lg">
+          <p className="text-sm text-gray-700 italic">
+            &ldquo;In war, truth is the first casualty.&rdquo; — Aeschylus
+          </p>
+          <p className="text-sm text-gray-700 italic mt-1">
+            &ldquo;Bonds are the second.&rdquo; — FFTT, 2022
+          </p>
+        </blockquote>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="text-sm font-medium text-gray-900 mb-2">Active Conflicts</div>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• US-Israel vs Iran (2026-)</li>
+              <li>• Russia-Ukraine (2022-)</li>
+              <li>• Israel-Gaza/Lebanon (2023-)</li>
+              <li>• Red Sea / Strait of Hormuz disruption</li>
+            </ul>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-4">
+            <div className="text-sm font-medium text-gray-900 mb-2">Fiscal Impact</div>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Defense spending ↑</li>
+              <li>• Supply chain inflation</li>
+              <li>• Energy price volatility (Oil &gt;$90)</li>
+              <li>• De-dollarization pressure</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
+      {/* REGIME PLAYBOOK */}
+      {/* ============================================================ */}
+      <div className="card p-6 mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <Shield className="w-5 h-5 text-emerald-500" />
+          Regime Playbook
+        </h2>
+        
+        <div className="space-y-4">
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+              <span className="text-amber-600 text-sm font-bold">1</span>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">Avoid long-duration bonds</div>
+              <div className="text-sm text-gray-500">In repression, you&apos;re lending to the government at negative real rates</div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+              <span className="text-amber-600 text-sm font-bold">2</span>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">Overweight hard assets</div>
+              <div className="text-sm text-gray-500">Gold, commodities, real estate — things that can&apos;t be printed</div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+              <span className="text-amber-600 text-sm font-bold">3</span>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">Consider &ldquo;alternative money&rdquo;</div>
+              <div className="text-sm text-gray-500">Dalio recommends 10-15% in gold + BTC as monetary hedge</div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+              <span className="text-amber-600 text-sm font-bold">4</span>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">Shorten duration on fixed income</div>
+              <div className="text-sm text-gray-500">T-bills, floating rate, TIPS — reduce interest rate sensitivity</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ============================================================ */}
       {/* ECONOMIC INDICATORS BY CATEGORY */}
       {/* ============================================================ */}
       {categoryOrder.map((category) => {
