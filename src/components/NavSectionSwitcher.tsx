@@ -15,10 +15,10 @@ export function NavSectionSwitcher({ sections }: { sections: Section[] }) {
   const ref = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  const current =
-    sections.find(
-      (s) => pathname === s.href || pathname.startsWith(s.href + "/")
-    ) ?? null;
+  // Find the most specific matching section (longest href that matches)
+  const current = sections
+    .filter((s) => pathname === s.href || pathname.startsWith(s.href + "/"))
+    .sort((a, b) => b.href.length - a.href.length)[0] ?? null;
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -49,9 +49,8 @@ export function NavSectionSwitcher({ sections }: { sections: Section[] }) {
       {open && (
         <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
           {sections.map((section) => {
-            const active =
-              pathname === section.href ||
-              pathname.startsWith(section.href + "/");
+            // Only mark as active if this is the current (most specific) match
+            const active = current?.href === section.href;
             return (
               <Link
                 key={section.href}
