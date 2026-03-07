@@ -5,7 +5,7 @@ import { MACRO_INDICATORS } from "@/lib/macro-indicators";
 import { formatDate, formatTimestamp } from "@/lib/format-date";
 import { PageHero } from "@/components/PageHero";
 import ReactMarkdown from "react-markdown";
-import { TrendingUp, Flame, HardHat, Factory, Drama, CreditCard, ArrowLeftRight, Globe, BarChart3, Activity, Users, Briefcase, Gauge } from "lucide-react";
+import { TrendingUp, Flame, HardHat, Factory, Drama, CreditCard, ArrowLeftRight, Globe, BarChart3, Activity, Users, Briefcase, Gauge, ChevronRight } from "lucide-react";
 
 // Color coding for interpretation
 function getStatusColor(label: string): string {
@@ -243,6 +243,86 @@ interface InsiderData {
   }>;
 }
 
+type LayoutMode = "original" | "compact" | "cards";
+
+function formatIndicatorVal(indicator: MacroIndicator): string {
+  if (!indicator.data) return "\u2014";
+  const v = indicator.data.current;
+  const num = typeof v === "number"
+    ? v.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : String(v);
+  if (indicator.unit === "%" || indicator.unit === "% YoY") return num + "%";
+  if (indicator.unit === "bps") return num + " bps";
+  if (indicator.unit === "thousands") return num + "K";
+  return num;
+}
+
+function IndicatorDetails({ indicator }: { indicator: MacroIndicator }) {
+  return (
+    <div className="space-y-3">
+      {indicator.interpretation && (
+        <div className="bg-blue-50 rounded-lg p-3">
+          <h4 className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">Current Reading</h4>
+          <p className="text-sm text-gray-700 mb-1"><strong>Status:</strong> {indicator.interpretation.meaning}</p>
+          <p className="text-sm text-gray-700"><strong>Market Impact:</strong> {indicator.interpretation.marketImpact}</p>
+        </div>
+      )}
+      <div className="bg-gray-50 rounded-lg p-3">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Why It Matters</h4>
+        <p className="text-sm text-gray-700">{indicator.whyItMatters}</p>
+      </div>
+      <div>
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Interpretation Guide</h4>
+        <div className="space-y-1">
+          {indicator.ranges.map((range, idx) => (
+            <div
+              key={idx}
+              className={`flex flex-wrap items-start gap-1 sm:gap-2 text-xs p-1.5 rounded ${
+                indicator.interpretation?.label === range.label
+                  ? getStatusColor(range.label) + " ring-1 ring-offset-1 ring-gray-300"
+                  : "bg-gray-50"
+              }`}
+            >
+              <span className="font-medium w-28 shrink-0">{range.label}</span>
+              <span className="text-gray-500 w-20 shrink-0 tabular-nums">
+                {range.min !== null ? range.min : "<"}{range.min !== null && range.max !== null ? " \u2013 " : ""}{range.max !== null ? range.max : "+"}
+              </span>
+              <span className="text-gray-600 flex-1">{range.meaning}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {indicator.keyLevels && indicator.keyLevels.length > 0 && (
+        <div>
+          <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Key Levels</h4>
+          <div className="flex flex-wrap gap-2">
+            {indicator.keyLevels.map((kl, idx) => (
+              <div key={idx} className="bg-gray-100 rounded px-2.5 py-1 text-xs">
+                <span className="font-mono font-semibold">{kl.level}</span>
+                <span className="text-gray-500 ml-1.5">{kl.significance}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div>
+        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Assets Affected</h4>
+        <div className="flex flex-wrap gap-1">
+          {indicator.affectedAssets.map((asset, idx) => (
+            <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">{asset}</span>
+          ))}
+        </div>
+      </div>
+      {indicator.data && (
+        <div className="flex items-center gap-4 text-xs text-gray-400 pt-2 border-t border-gray-100">
+          <span>5yr Range: {indicator.data.min.toFixed(1)} &ndash; {indicator.data.max.toFixed(1)}</span>
+          <span>Avg: {indicator.data.avg.toFixed(1)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function MacroContent() {
   const [indicators, setIndicators] = useState<MacroIndicator[]>([]);
   const [status, setStatus] = useState<string>("loading");
@@ -257,6 +337,17 @@ export function MacroContent() {
   const [congressData, setCongressData] = useState<CongressData | null>(null);
   const [insiderData, setInsiderData] = useState<InsiderData | null>(null);
   
+  // Layout state
+  const [layout, setLayout] = useState<LayoutMode>("original");
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   // AI Insights state
   const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -445,6 +536,26 @@ export function MacroContent() {
         }
       />
 
+      {/* Layout Toggle */}
+      <div className="flex items-center gap-2 mb-6">
+        <span className="text-xs text-gray-500 mr-1">Layout:</span>
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+          {(["original", "compact", "cards"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => { setLayout(mode); setExpandedIds(new Set()); }}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                layout === mode
+                  ? "bg-gray-900 text-white"
+                  : "bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+            >
+              {mode.charAt(0).toUpperCase() + mode.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* AI Insights Section */}
       <div className="card mb-6 p-5 border-l-4 border-blue-500">
         <div className="flex items-center justify-between mb-3">
@@ -501,7 +612,7 @@ export function MacroContent() {
             <BarChart3 className="w-4 h-4" />
             Market Barometers
           </h2>
-          <div className="grid gap-4">
+          <div className={`grid gap-4 ${layout === "compact" ? "sm:grid-cols-2" : ""}`}>
             {marketEtfs.map((etf) => {
               const etfColorMap: Record<string, string> = {
                 blue: "bg-blue-100 text-blue-700",
@@ -564,52 +675,67 @@ export function MacroContent() {
                     </div>
                   )}
 
-                  {/* Why It Matters */}
-                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Why It Matters</h4>
-                    <p className="text-sm text-gray-700">{etf.whyItMatters}</p>
-                  </div>
-
-                  {/* Current Interpretation */}
-                  {etf.interpretation && (
-                    <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                      <h4 className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">Current Reading</h4>
-                      <p className="text-sm text-gray-700">{etf.interpretation.meaning}</p>
-                    </div>
+                  {/* Detail toggle for compact/cards */}
+                  {layout !== "original" && (
+                    <button
+                      onClick={() => toggleExpanded(`etf-${etf.ticker}`)}
+                      className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 mb-3"
+                    >
+                      <ChevronRight className={`w-3 h-3 transition-transform ${expandedIds.has(`etf-${etf.ticker}`) ? "rotate-90" : ""}`} />
+                      {expandedIds.has(`etf-${etf.ticker}`) ? "Hide details" : "Show details"}
+                    </button>
                   )}
 
-                  {/* Range Guide */}
-                  <div className="mb-4">
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Interpretation Guide</h4>
-                    <div className="space-y-2">
-                      {etf.ranges.map((range, idx) => (
-                        <div
-                          key={idx}
-                          className={`flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-1 sm:gap-3 text-sm p-2 rounded ${
-                            etf.interpretation?.label === range.label
-                              ? (etfColorMap[range.color] || "bg-gray-100 text-gray-700") + " ring-2 ring-offset-1 ring-gray-300"
-                              : "bg-gray-50"
-                          }`}
-                        >
-                          <span className="font-medium w-auto sm:w-32 sm:flex-shrink-0">{range.label}</span>
-                          <span className="text-gray-500 w-auto sm:w-24 sm:flex-shrink-0">
-                            {range.min !== null ? `$${range.min}` : "<"}{range.min !== null && range.max !== null ? " – " : ""}{range.max !== null ? `$${range.max}` : "+"}
-                          </span>
-                          <span className="text-gray-600 flex-1 w-full sm:w-auto">{range.meaning}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  {(layout === "original" || expandedIds.has(`etf-${etf.ticker}`)) && (
+                    <>
+                      {/* Why It Matters */}
+                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Why It Matters</h4>
+                        <p className="text-sm text-gray-700">{etf.whyItMatters}</p>
+                      </div>
 
-                  {/* Affected Assets */}
-                  <div>
-                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Assets Affected</h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {etf.affectedAssets.map((asset, idx) => (
-                        <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{asset}</span>
-                      ))}
-                    </div>
-                  </div>
+                      {/* Current Interpretation */}
+                      {etf.interpretation && (
+                        <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                          <h4 className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">Current Reading</h4>
+                          <p className="text-sm text-gray-700">{etf.interpretation.meaning}</p>
+                        </div>
+                      )}
+
+                      {/* Range Guide */}
+                      <div className="mb-4">
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Interpretation Guide</h4>
+                        <div className="space-y-2">
+                          {etf.ranges.map((range, idx) => (
+                            <div
+                              key={idx}
+                              className={`flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-1 sm:gap-3 text-sm p-2 rounded ${
+                                etf.interpretation?.label === range.label
+                                  ? (etfColorMap[range.color] || "bg-gray-100 text-gray-700") + " ring-2 ring-offset-1 ring-gray-300"
+                                  : "bg-gray-50"
+                              }`}
+                            >
+                              <span className="font-medium w-auto sm:w-32 sm:flex-shrink-0">{range.label}</span>
+                              <span className="text-gray-500 w-auto sm:w-24 sm:flex-shrink-0">
+                                {range.min !== null ? `$${range.min}` : "<"}{range.min !== null && range.max !== null ? " – " : ""}{range.max !== null ? `$${range.max}` : "+"}
+                              </span>
+                              <span className="text-gray-600 flex-1 w-full sm:w-auto">{range.meaning}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Affected Assets */}
+                      <div>
+                        <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Assets Affected</h4>
+                        <div className="flex flex-wrap gap-1.5">
+                          {etf.affectedAssets.map((asset, idx) => (
+                            <span key={idx} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">{asset}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })}
@@ -875,20 +1001,24 @@ export function MacroContent() {
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="card mb-6 p-4">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">How to Read This Dashboard</h2>
-        <div className="flex flex-wrap gap-3 text-xs">
-          <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Favorable / Goldilocks</span>
-          <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">Accommodative / Supportive</span>
-          <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">Neutral</span>
-          <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded">Caution / Watch</span>
-          <span className="bg-red-100 text-red-700 px-2 py-1 rounded">Concern / Restrictive</span>
+      {/* Legend - hidden in compact mode */}
+      {layout !== "compact" && (
+        <div className="card mb-6 p-4">
+          <h2 className="text-sm font-semibold text-gray-700 mb-3">How to Read This Dashboard</h2>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded">Favorable / Goldilocks</span>
+            <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">Accommodative / Supportive</span>
+            <span className="bg-gray-100 text-gray-700 px-2 py-1 rounded">Neutral</span>
+            <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded">Caution / Watch</span>
+            <span className="bg-red-100 text-red-700 px-2 py-1 rounded">Concern / Restrictive</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Indicators by Category */}
-      {categoryOrder.map((category) => {
+
+      {/* ── Original Layout ── */}
+      {layout === "original" && categoryOrder.map((category) => {
         const categoryIndicators = grouped[category];
         if (!categoryIndicators?.length) return null;
 
@@ -898,7 +1028,7 @@ export function MacroContent() {
               <span className="flex items-center">{categoryIcons[category]}</span>
               {categoryLabels[category]}
             </h2>
-            
+
             <div className="grid gap-4">
               {categoryIndicators.map((indicator) => (
                 <div key={indicator.id} className="card p-5">
@@ -908,19 +1038,18 @@ export function MacroContent() {
                       <h3 className="font-semibold text-gray-900">{indicator.name}</h3>
                       <p className="text-sm text-gray-500 mt-1">{indicator.description}</p>
                     </div>
-                    
+
                     {/* Current Value + Status */}
                     <div className="text-left sm:text-right flex-shrink-0">
                       {indicator.data ? (
                         <>
                           <div className="text-2xl font-bold text-gray-900 flex items-center justify-end gap-2">
-                            {typeof indicator.data.current === 'number' 
+                            {typeof indicator.data.current === 'number'
                               ? indicator.data.current.toLocaleString(undefined, { maximumFractionDigits: 2 })
                               : indicator.data.current}
                             {indicator.unit === "%" || indicator.unit === "% YoY" ? "%" : ""}
                             {indicator.unit === "bps" && " bps"}
                             {indicator.unit === "thousands" && "K"}
-                            {/* Trend arrow for FX indicators */}
                             {indicator.category === "fx" && (() => {
                               const trend = getTrendArrow(indicator.data!.current, indicator.data!.avg);
                               return <span className={`text-lg ${trend.color}`}>{trend.arrow}</span>;
@@ -931,7 +1060,6 @@ export function MacroContent() {
                               {indicator.interpretation.label}
                             </span>
                           )}
-                          {/* DXY special interpretation */}
                           {indicator.id === "dxy" && (() => {
                             const dxyInfo = getDxyInterpretation(indicator.data!.current);
                             return (
@@ -982,11 +1110,11 @@ export function MacroContent() {
                     </h4>
                     <div className="space-y-2">
                       {indicator.ranges.map((range, idx) => (
-                        <div 
-                          key={idx} 
+                        <div
+                          key={idx}
                           className={`flex flex-wrap sm:flex-nowrap items-start sm:items-center gap-1 sm:gap-3 text-sm p-2 rounded ${
-                            indicator.interpretation?.label === range.label 
-                              ? getStatusColor(range.label) + " ring-2 ring-offset-1 ring-gray-300" 
+                            indicator.interpretation?.label === range.label
+                              ? getStatusColor(range.label) + " ring-2 ring-offset-1 ring-gray-300"
                               : "bg-gray-50"
                           }`}
                         >
@@ -1036,6 +1164,133 @@ export function MacroContent() {
                     <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-4 text-xs text-gray-400">
                       <span>5yr Range: {indicator.data.min.toFixed(1)} – {indicator.data.max.toFixed(1)}</span>
                       <span>Avg: {indicator.data.avg.toFixed(1)}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* ── Compact Layout: Accordion rows per category ── */}
+      {layout === "compact" && categoryOrder.map((category) => {
+        const categoryIndicators = grouped[category];
+        if (!categoryIndicators?.length) return null;
+
+        return (
+          <div key={category} className="mb-6">
+            <h2 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+              <span className="flex items-center text-gray-400">{categoryIcons[category]}</span>
+              {categoryLabels[category]}
+            </h2>
+            <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
+              {categoryIndicators.map((indicator) => (
+                <div key={indicator.id}>
+                  <button
+                    onClick={() => toggleExpanded(indicator.id)}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                  >
+                    <ChevronRight className={`w-3.5 h-3.5 text-gray-400 transition-transform shrink-0 ${
+                      expandedIds.has(indicator.id) ? "rotate-90" : ""
+                    }`} />
+                    <span className="text-sm font-medium text-gray-900 flex-1 min-w-0 truncate">
+                      {indicator.name}
+                    </span>
+                    {indicator.category === "fx" && indicator.data && (() => {
+                      const trend = getTrendArrow(indicator.data!.current, indicator.data!.avg);
+                      return <span className={`text-sm ${trend.color} shrink-0`}>{trend.arrow}</span>;
+                    })()}
+                    <span className="text-sm font-bold tabular-nums text-gray-900 shrink-0">
+                      {formatIndicatorVal(indicator)}
+                    </span>
+                    {indicator.interpretation && (
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${getStatusColor(indicator.interpretation.label)}`}>
+                        {indicator.interpretation.label}
+                      </span>
+                    )}
+                    {indicator.percentile !== null && (
+                      <div className="w-16 shrink-0 hidden sm:flex items-center gap-1.5">
+                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-blue-400 rounded-full"
+                            style={{ width: `${indicator.percentile}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-gray-400 tabular-nums w-7">{indicator.percentile}th</span>
+                      </div>
+                    )}
+                  </button>
+                  {expandedIds.has(indicator.id) && (
+                    <div className="px-4 pb-4 pt-2 bg-gray-50/50 border-t border-gray-100">
+                      <p className="text-xs text-gray-500 mb-3">{indicator.description}</p>
+                      <IndicatorDetails indicator={indicator} />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* ── Cards Layout: 2-col condensed cards ── */}
+      {layout === "cards" && categoryOrder.map((category) => {
+        const categoryIndicators = grouped[category];
+        if (!categoryIndicators?.length) return null;
+
+        return (
+          <div key={category} className="mb-6">
+            <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <span className="flex items-center text-gray-400">{categoryIcons[category]}</span>
+              {categoryLabels[category]}
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {categoryIndicators.map((indicator) => (
+                <div key={indicator.id} className="card !p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h3 className="text-sm font-semibold text-gray-900 leading-tight">{indicator.name}</h3>
+                    {indicator.interpretation && (
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full shrink-0 ${getStatusColor(indicator.interpretation.label)}`}>
+                        {indicator.interpretation.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-baseline gap-2 mb-2">
+                    {indicator.data ? (
+                      <>
+                        <span className="text-xl font-bold text-gray-900 tabular-nums">
+                          {formatIndicatorVal(indicator)}
+                        </span>
+                        {indicator.category === "fx" && (() => {
+                          const trend = getTrendArrow(indicator.data!.current, indicator.data!.avg);
+                          return <span className={`text-sm ${trend.color}`}>{trend.arrow}</span>;
+                        })()}
+                        {indicator.percentile !== null && (
+                          <span className="text-xs text-gray-400">{indicator.percentile}th pctl</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-xl font-bold text-gray-400">&mdash;</span>
+                    )}
+                  </div>
+                  {indicator.interpretation && (
+                    <p className="text-xs text-gray-600 mb-2 line-clamp-2">{indicator.interpretation.meaning}</p>
+                  )}
+                  {indicator.id === "dxy" && indicator.data && (() => {
+                    const dxyInfo = getDxyInterpretation(indicator.data!.current);
+                    return <p className={`text-xs mb-2 ${dxyInfo.color}`}>{dxyInfo.description}</p>;
+                  })()}
+                  <button
+                    onClick={() => toggleExpanded(indicator.id)}
+                    className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    <ChevronRight className={`w-3 h-3 transition-transform ${expandedIds.has(indicator.id) ? "rotate-90" : ""}`} />
+                    {expandedIds.has(indicator.id) ? "Hide details" : "Details"}
+                  </button>
+                  {expandedIds.has(indicator.id) && (
+                    <div className="mt-3 pt-3 border-t border-gray-100">
+                      <IndicatorDetails indicator={indicator} />
                     </div>
                   )}
                 </div>

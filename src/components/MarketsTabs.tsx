@@ -51,13 +51,13 @@ const primaryTabs: PrimaryTab[] = [
   },
   {
     label: "Macro",
-    href: "/macro",
-    activePaths: ["/macro"],
+    href: "/markets/macro",
+    activePaths: ["/markets/macro"],
   },
   {
     label: "Sectors",
-    href: "/sectors",
-    activePaths: ["/sectors"],
+    href: "/markets/sectors",
+    activePaths: ["/markets/sectors"],
   },
 ];
 

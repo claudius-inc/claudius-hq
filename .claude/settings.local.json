@@ -10,7 +10,11 @@
       "Bash(pip3 install:*)",
       "Bash(where:*)",
       "Bash(npm:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(git rm:*)",
+      "Bash(git status:*)",
+      "Bash(git reset:*)"
     ]
   }
 }
