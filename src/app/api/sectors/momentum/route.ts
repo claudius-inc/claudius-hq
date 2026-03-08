@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -22,8 +23,7 @@ const SECTOR_ETFS: Record<string, { ticker: string; name: string }> = {
 // SPY for relative strength calculation
 const MARKET_ETF = "SPY";
 
-// Revalidate every 15 minutes
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
 
 interface HistoricalRow {
   date: Date;
@@ -53,7 +53,7 @@ async function getPriceChange(
     // Find the price from ~days ago
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() - days);
-    
+
     // Get the row closest to target date
     let startIdx = 0;
     for (let i = 0; i < result.length; i++) {
@@ -106,95 +106,124 @@ export interface SectorMomentum {
   momentum_trend: "accelerating" | "decelerating" | "stable" | null;
 }
 
-// GET /api/sectors/momentum
-export async function GET() {
-  try {
-    // Get SPY performance for relative strength
-    const [spy1w, spy1m, spy3m] = await Promise.all([
-      getPriceChange(MARKET_ETF, 7),
-      getPriceChange(MARKET_ETF, 30),
-      getPriceChange(MARKET_ETF, 90),
+async function fetchSectorMomentumData() {
+  // Get SPY performance for relative strength
+  const [spy1w, spy1m, spy3m] = await Promise.all([
+    getPriceChange(MARKET_ETF, 7),
+    getPriceChange(MARKET_ETF, 30),
+    getPriceChange(MARKET_ETF, 90),
+  ]);
+
+  // Get all sector data in parallel
+  const sectorPromises = Object.entries(SECTOR_ETFS).map(async ([id, { ticker, name }]) => {
+    const [price, d1, w1, m1, m3, m6] = await Promise.all([
+      getCurrentPrice(ticker),
+      getPriceChange(ticker, 1),
+      getPriceChange(ticker, 7),
+      getPriceChange(ticker, 30),
+      getPriceChange(ticker, 90),
+      getPriceChange(ticker, 180),
     ]);
 
-    // Get all sector data in parallel
-    const sectorPromises = Object.entries(SECTOR_ETFS).map(async ([id, { ticker, name }]) => {
-      const [price, d1, w1, m1, m3, m6] = await Promise.all([
-        getCurrentPrice(ticker),
-        getPriceChange(ticker, 1),
-        getPriceChange(ticker, 7),
-        getPriceChange(ticker, 30),
-        getPriceChange(ticker, 90),
-        getPriceChange(ticker, 180),
-      ]);
+    // Calculate composite score: 1W (20%) + 1M (50%) + 3M (30%)
+    let compositeScore: number | null = null;
+    if (w1.change !== null && m1.change !== null && m3.change !== null) {
+      compositeScore = (w1.change * 0.2) + (m1.change * 0.5) + (m3.change * 0.3);
+    }
 
-      // Calculate composite score: 1W (20%) + 1M (50%) + 3M (30%)
-      let compositeScore: number | null = null;
-      if (w1.change !== null && m1.change !== null && m3.change !== null) {
-        compositeScore = (w1.change * 0.2) + (m1.change * 0.5) + (m3.change * 0.3);
+    // Calculate relative strength vs SPY
+    let relativeStrength1w: number | null = null;
+    if (w1.change !== null && spy1w.change !== null) {
+      relativeStrength1w = w1.change - spy1w.change;
+    }
+    let relativeStrength1m: number | null = null;
+    if (m1.change !== null && spy1m.change !== null) {
+      relativeStrength1m = m1.change - spy1m.change;
+    }
+    let relativeStrength3m: number | null = null;
+    if (m3.change !== null && spy3m.change !== null) {
+      relativeStrength3m = m3.change - spy3m.change;
+    }
+
+    // Determine momentum trend
+    let momentumTrend: "accelerating" | "decelerating" | "stable" | null = null;
+    if (w1.change !== null && m1.change !== null) {
+      const weeklyAnnualized = w1.change * 4;
+      const diff = weeklyAnnualized - m1.change;
+      if (diff > 2) {
+        momentumTrend = "accelerating";
+      } else if (diff < -2) {
+        momentumTrend = "decelerating";
+      } else {
+        momentumTrend = "stable";
       }
+    }
 
-      // Calculate relative strength vs SPY
-      let relativeStrength1w: number | null = null;
-      if (w1.change !== null && spy1w.change !== null) {
-        relativeStrength1w = w1.change - spy1w.change;
+    return {
+      id,
+      name,
+      ticker,
+      price,
+      change_1d: d1.change,
+      change_1w: w1.change,
+      change_1m: m1.change,
+      change_3m: m3.change,
+      change_6m: m6.change,
+      composite_score: compositeScore,
+      relative_strength_1w: relativeStrength1w,
+      relative_strength_1m: relativeStrength1m,
+      relative_strength_3m: relativeStrength3m,
+      momentum_trend: momentumTrend,
+    } as SectorMomentum;
+  });
+
+  const sectors = await Promise.all(sectorPromises);
+
+  // Sort by composite score (descending)
+  sectors.sort((a, b) => (b.composite_score ?? -999) - (a.composite_score ?? -999));
+
+  return {
+    sectors,
+    market: {
+      ticker: MARKET_ETF,
+      change_1w: spy1w.change,
+      change_1m: spy1m.change,
+      change_3m: spy3m.change,
+    },
+    updated_at: new Date().toISOString(),
+  };
+}
+
+// GET /api/sectors/momentum
+export async function GET(request: NextRequest) {
+  try {
+    const fresh = request.nextUrl.searchParams.get("fresh") === "true";
+
+    if (!fresh) {
+      const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.SECTORS, 900);
+      if (cached && !cached.isStale) {
+        return NextResponse.json({
+          ...cached.data,
+          cached: true,
+          cacheAge: cached.updatedAt,
+        });
       }
-      let relativeStrength1m: number | null = null;
-      if (m1.change !== null && spy1m.change !== null) {
-        relativeStrength1m = m1.change - spy1m.change;
+      if (cached) {
+        fetchSectorMomentumData()
+          .then((data) => setCache(CACHE_KEYS.SECTORS, data))
+          .catch((e) => console.error("Background sectors refresh failed:", e));
+        return NextResponse.json({
+          ...cached.data,
+          cached: true,
+          cacheAge: cached.updatedAt,
+          isStale: true,
+        });
       }
-      let relativeStrength3m: number | null = null;
-      if (m3.change !== null && spy3m.change !== null) {
-        relativeStrength3m = m3.change - spy3m.change;
-      }
+    }
 
-      // Determine momentum trend
-      let momentumTrend: "accelerating" | "decelerating" | "stable" | null = null;
-      if (w1.change !== null && m1.change !== null) {
-        // Normalize 1W to monthly rate for comparison
-        const weeklyAnnualized = w1.change * 4;
-        const diff = weeklyAnnualized - m1.change;
-        if (diff > 2) {
-          momentumTrend = "accelerating";
-        } else if (diff < -2) {
-          momentumTrend = "decelerating";
-        } else {
-          momentumTrend = "stable";
-        }
-      }
-
-      return {
-        id,
-        name,
-        ticker,
-        price,
-        change_1d: d1.change,
-        change_1w: w1.change,
-        change_1m: m1.change,
-        change_3m: m3.change,
-        change_6m: m6.change,
-        composite_score: compositeScore,
-        relative_strength_1w: relativeStrength1w,
-        relative_strength_1m: relativeStrength1m,
-        relative_strength_3m: relativeStrength3m,
-        momentum_trend: momentumTrend,
-      } as SectorMomentum;
-    });
-
-    const sectors = await Promise.all(sectorPromises);
-
-    // Sort by composite score (descending)
-    sectors.sort((a, b) => (b.composite_score ?? -999) - (a.composite_score ?? -999));
-
-    return NextResponse.json({
-      sectors,
-      market: {
-        ticker: MARKET_ETF,
-        change_1w: spy1w.change,
-        change_1m: spy1m.change,
-        change_3m: spy3m.change,
-      },
-      updated_at: new Date().toISOString(),
-    });
+    const data = await fetchSectorMomentumData();
+    await setCache(CACHE_KEYS.SECTORS, data);
+    return NextResponse.json({ ...data, cached: false });
   } catch (e) {
     console.error("Failed to get sector momentum:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });

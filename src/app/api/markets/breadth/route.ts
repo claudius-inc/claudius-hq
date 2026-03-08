@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 
-// ISR - revalidate every 15 minutes
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -27,43 +27,27 @@ interface BreadthData {
 // Fetch market breadth from major indices components
 async function fetchBreadthFromIndex(): Promise<BreadthData> {
   try {
-    // Use SPY as a proxy - fetch market movers/trending
-    // Yahoo Finance doesn't have direct A/D line symbols, so we estimate from market data
-    
-    // Alternative approach: fetch summary market data
     const [spyQuote, qqqQuote, iwmQuote] = await Promise.all([
       yahooFinance.quote("SPY"),
       yahooFinance.quote("QQQ"),
       yahooFinance.quote("IWM"),
     ]);
-    
-    // Get market summary for NYSE
-    let advances = null;
-    let declines = null;
-    let newHighs = null;
-    let newLows = null;
-    
+
     try {
-      // Try to get market summary with breadth data
-      const marketSummary = await yahooFinance.quoteSummary("^GSPC", { modules: ["summaryDetail", "price"] });
-      // Note: Yahoo doesn't provide A/D directly in most cases
+      await yahooFinance.quoteSummary("^GSPC", { modules: ["summaryDetail", "price"] });
     } catch {
       // Fallback: estimate from ETF performance
     }
-    
-    // Estimate breadth from broad market ETFs
-    // If major indices are up, breadth is likely positive
+
     const spyChange = (spyQuote as { regularMarketChangePercent?: number })?.regularMarketChangePercent || 0;
     const qqqChange = (qqqQuote as { regularMarketChangePercent?: number })?.regularMarketChangePercent || 0;
     const iwmChange = (iwmQuote as { regularMarketChangePercent?: number })?.regularMarketChangePercent || 0;
-    
-    // Small caps (IWM) vs large caps (SPY) divergence signals breadth
+
     const breadthSignal = iwmChange - spyChange;
-    
-    // Estimate A/D based on market performance
-    // This is approximate - real A/D would need NYSE data feed
     const avgChange = (spyChange + qqqChange + iwmChange) / 3;
-    
+
+    let advances: number;
+    let declines: number;
     if (avgChange > 0.5) {
       advances = Math.round(2000 + avgChange * 200);
       declines = Math.round(1200 - avgChange * 100);
@@ -74,8 +58,9 @@ async function fetchBreadthFromIndex(): Promise<BreadthData> {
       advances = 1600;
       declines = 1600;
     }
-    
-    // Estimate new highs/lows
+
+    let newHighs: number;
+    let newLows: number;
     if (avgChange > 1) {
       newHighs = Math.round(100 + avgChange * 30);
       newLows = Math.round(20 - avgChange * 5);
@@ -86,14 +71,13 @@ async function fetchBreadthFromIndex(): Promise<BreadthData> {
       newHighs = 50;
       newLows = 50;
     }
-    
+
     const adRatio = declines > 0 ? advances / declines : advances > 0 ? 2 : 1;
     const hlRatio = newLows > 0 ? newHighs / newLows : newHighs > 0 ? 2 : 1;
-    
-    // Determine overall level
+
     let level: "bullish" | "neutral" | "bearish";
     let interpretation: string;
-    
+
     if (adRatio > 1.5 && hlRatio > 1.5) {
       level = "bullish";
       interpretation = "Strong breadth - broad market participation in rally";
@@ -110,7 +94,7 @@ async function fetchBreadthFromIndex(): Promise<BreadthData> {
       level = "neutral";
       interpretation = "Mixed breadth signals";
     }
-    
+
     return {
       advanceDecline: {
         advances,
@@ -153,32 +137,27 @@ async function fetchBreadthFromIndex(): Promise<BreadthData> {
 // Fetch McClellan Oscillator approximation
 async function fetchMcClellanData() {
   try {
-    // McClellan Oscillator uses 19-day and 39-day EMAs of A/D difference
-    // Without historical A/D data, we approximate from market ETFs
-    
     const [spyHistory] = await Promise.all([
       yahooFinance.historical("SPY", {
-        period1: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000), // 60 days
+        period1: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
         period2: new Date(),
         interval: "1d",
       }),
     ]);
-    
+
     if (!spyHistory || spyHistory.length < 39) {
       return { oscillator: null, signal: null };
     }
-    
-    // Simple approximation: use price momentum as proxy
-    const returns = spyHistory.slice(-40).map((d, i, arr) => 
+
+    const returns = spyHistory.slice(-40).map((d, i, arr) =>
       i > 0 ? ((d.close || 0) - (arr[i-1]?.close || 0)) / (arr[i-1]?.close || 1) : 0
     ).slice(1);
-    
-    // 19-period EMA of returns
+
     const ema19 = calculateEMA(returns, 19);
     const ema39 = calculateEMA(returns, 39);
-    
-    const oscillator = (ema19 - ema39) * 1000; // Scale to typical McClellan range
-    
+
+    const oscillator = (ema19 - ema39) * 1000;
+
     return {
       oscillator: Math.round(oscillator * 10) / 10,
       signal: oscillator > 0 ? "bullish" : oscillator < 0 ? "bearish" : "neutral",
@@ -192,28 +171,58 @@ async function fetchMcClellanData() {
 function calculateEMA(data: number[], period: number): number {
   const k = 2 / (period + 1);
   let ema = data.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  
+
   for (let i = period; i < data.length; i++) {
     ema = data[i] * k + ema * (1 - k);
   }
-  
+
   return ema;
 }
 
-export async function GET() {
+async function fetchBreadthData() {
+  const [breadth, mcclellan] = await Promise.all([
+    fetchBreadthFromIndex(),
+    fetchMcClellanData(),
+  ]);
+
+  return {
+    ...breadth,
+    mcclellan,
+    source: "Estimated from market ETFs",
+    note: "NYSE advance/decline and new highs/lows approximated from broad market ETF performance",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const [breadth, mcclellan] = await Promise.all([
-      fetchBreadthFromIndex(),
-      fetchMcClellanData(),
-    ]);
-    
-    return NextResponse.json({
-      ...breadth,
-      mcclellan,
-      source: "Estimated from market ETFs",
-      note: "NYSE advance/decline and new highs/lows approximated from broad market ETF performance",
-      updatedAt: new Date().toISOString(),
-    });
+    const fresh = request.nextUrl.searchParams.get("fresh") === "true";
+
+    if (!fresh) {
+      const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.BREADTH, 900);
+      if (cached && !cached.isStale) {
+        return NextResponse.json({
+          ...cached.data,
+          cached: true,
+          cacheAge: cached.updatedAt,
+        });
+      }
+      if (cached) {
+        fetchBreadthData()
+          .then((data) => setCache(CACHE_KEYS.BREADTH, data))
+          .catch((e) => console.error("Background breadth refresh failed:", e));
+        return NextResponse.json({
+          ...cached.data,
+          cached: true,
+          cacheAge: cached.updatedAt,
+          isStale: true,
+        });
+      }
+    }
+
+    const data = await fetchBreadthData();
+    await setCache(CACHE_KEYS.BREADTH, data);
+    return NextResponse.json({ ...data, cached: false });
   } catch (e) {
     console.error("Breadth API error:", e);
     return NextResponse.json({

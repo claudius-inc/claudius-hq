@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 
-export const revalidate = 300; // 5 min cache
+export const dynamic = "force-dynamic";
 
 interface EtfConfig {
   ticker: string;
@@ -82,72 +83,102 @@ function interpretEtf(
   return null;
 }
 
-export async function GET() {
+async function fetchMacroEtfData() {
+  const yf = new YahooFinance();
+
+  const results = await Promise.all(
+    MARKET_ETFS.map(async (etf) => {
+      try {
+        const quote = (await yf.quote(etf.ticker)) as {
+          regularMarketPrice?: number;
+          regularMarketChange?: number;
+          regularMarketChangePercent?: number;
+          regularMarketPreviousClose?: number;
+          fiftyTwoWeekLow?: number;
+          fiftyTwoWeekHigh?: number;
+          fiftyDayAverage?: number;
+          twoHundredDayAverage?: number;
+        };
+
+        const price = quote.regularMarketPrice ?? 0;
+        const interpretation = interpretEtf(etf, price);
+
+        // Position within 52w range (0-100%)
+        const low52 = quote.fiftyTwoWeekLow ?? price;
+        const high52 = quote.fiftyTwoWeekHigh ?? price;
+        const rangePosition =
+          high52 !== low52
+            ? Math.round(((price - low52) / (high52 - low52)) * 100)
+            : 50;
+
+        return {
+          ticker: etf.ticker,
+          name: etf.name,
+          description: etf.description,
+          whyItMatters: etf.whyItMatters,
+          ranges: etf.ranges,
+          affectedAssets: etf.affectedAssets,
+          data: {
+            price,
+            change: quote.regularMarketChange ?? 0,
+            changePercent: quote.regularMarketChangePercent ?? 0,
+            previousClose: quote.regularMarketPreviousClose ?? 0,
+            fiftyTwoWeekLow: low52,
+            fiftyTwoWeekHigh: high52,
+            fiftyDayAvg: quote.fiftyDayAverage ?? 0,
+            twoHundredDayAvg: quote.twoHundredDayAverage ?? 0,
+            rangePosition,
+          },
+          interpretation,
+        };
+      } catch (err) {
+        console.error(`Error fetching ${etf.ticker}:`, err);
+        return {
+          ticker: etf.ticker,
+          name: etf.name,
+          description: etf.description,
+          whyItMatters: etf.whyItMatters,
+          ranges: etf.ranges,
+          affectedAssets: etf.affectedAssets,
+          data: null,
+          interpretation: null,
+        };
+      }
+    })
+  );
+
+  return { etfs: results, lastUpdated: new Date().toISOString() };
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const yf = new YahooFinance();
+    const fresh = request.nextUrl.searchParams.get("fresh") === "true";
 
-    const results = await Promise.all(
-      MARKET_ETFS.map(async (etf) => {
-        try {
-          const quote = (await yf.quote(etf.ticker)) as {
-            regularMarketPrice?: number;
-            regularMarketChange?: number;
-            regularMarketChangePercent?: number;
-            regularMarketPreviousClose?: number;
-            fiftyTwoWeekLow?: number;
-            fiftyTwoWeekHigh?: number;
-            fiftyDayAverage?: number;
-            twoHundredDayAverage?: number;
-          };
+    if (!fresh) {
+      const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.MACRO_ETFS, 300);
+      if (cached && !cached.isStale) {
+        return NextResponse.json({
+          ...cached.data,
+          cached: true,
+          cacheAge: cached.updatedAt,
+        });
+      }
+      if (cached) {
+        fetchMacroEtfData()
+          .then((data) => setCache(CACHE_KEYS.MACRO_ETFS, data))
+          .catch((e) => console.error("Background macro ETF refresh failed:", e));
+        return NextResponse.json({
+          ...cached.data,
+          cached: true,
+          cacheAge: cached.updatedAt,
+          isStale: true,
+        });
+      }
+    }
 
-          const price = quote.regularMarketPrice ?? 0;
-          const interpretation = interpretEtf(etf, price);
-
-          // Position within 52w range (0-100%)
-          const low52 = quote.fiftyTwoWeekLow ?? price;
-          const high52 = quote.fiftyTwoWeekHigh ?? price;
-          const rangePosition =
-            high52 !== low52
-              ? Math.round(((price - low52) / (high52 - low52)) * 100)
-              : 50;
-
-          return {
-            ticker: etf.ticker,
-            name: etf.name,
-            description: etf.description,
-            whyItMatters: etf.whyItMatters,
-            ranges: etf.ranges,
-            affectedAssets: etf.affectedAssets,
-            data: {
-              price,
-              change: quote.regularMarketChange ?? 0,
-              changePercent: quote.regularMarketChangePercent ?? 0,
-              previousClose: quote.regularMarketPreviousClose ?? 0,
-              fiftyTwoWeekLow: low52,
-              fiftyTwoWeekHigh: high52,
-              fiftyDayAvg: quote.fiftyDayAverage ?? 0,
-              twoHundredDayAvg: quote.twoHundredDayAverage ?? 0,
-              rangePosition,
-            },
-            interpretation,
-          };
-        } catch (err) {
-          console.error(`Error fetching ${etf.ticker}:`, err);
-          return {
-            ticker: etf.ticker,
-            name: etf.name,
-            description: etf.description,
-            whyItMatters: etf.whyItMatters,
-            ranges: etf.ranges,
-            affectedAssets: etf.affectedAssets,
-            data: null,
-            interpretation: null,
-          };
-        }
-      })
-    );
-
-    return NextResponse.json({ etfs: results, lastUpdated: new Date().toISOString() });
+    const data = await fetchMacroEtfData();
+    await setCache(CACHE_KEYS.MACRO_ETFS, data);
+    return NextResponse.json({ ...data, cached: false });
   } catch (err) {
     console.error("ETF fetch error:", err);
     return NextResponse.json({ etfs: [], lastUpdated: new Date().toISOString() });

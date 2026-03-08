@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -33,8 +34,7 @@ const MARKET_ETFS: Record<string, { ticker: string; name: string; region: string
 // Benchmark ETF
 const BENCHMARK_ETF = "VT";
 
-// Revalidate every 15 minutes
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
 
 interface HistoricalRow {
   date: Date;
@@ -63,7 +63,7 @@ async function getPriceChange(
 
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() - days);
-    
+
     let startIdx = 0;
     for (let i = 0; i < result.length; i++) {
       if (new Date(result[i].date) <= targetDate) {
@@ -116,96 +116,126 @@ export interface MarketMomentum {
   momentum_trend: "accelerating" | "decelerating" | "stable" | null;
 }
 
-// GET /api/markets/momentum
-export async function GET() {
-  try {
-    // Get benchmark performance
-    const [bench1w, bench1m, bench3m] = await Promise.all([
-      getPriceChange(BENCHMARK_ETF, 7),
-      getPriceChange(BENCHMARK_ETF, 30),
-      getPriceChange(BENCHMARK_ETF, 90),
+async function fetchMarketMomentumData() {
+  // Get benchmark performance
+  const [bench1w, bench1m, bench3m] = await Promise.all([
+    getPriceChange(BENCHMARK_ETF, 7),
+    getPriceChange(BENCHMARK_ETF, 30),
+    getPriceChange(BENCHMARK_ETF, 90),
+  ]);
+
+  // Get all market data in parallel
+  const marketPromises = Object.entries(MARKET_ETFS).map(async ([id, { ticker, name, region }]) => {
+    const [price, d1, w1, m1, m3, m6] = await Promise.all([
+      getCurrentPrice(ticker),
+      getPriceChange(ticker, 1),
+      getPriceChange(ticker, 7),
+      getPriceChange(ticker, 30),
+      getPriceChange(ticker, 90),
+      getPriceChange(ticker, 180),
     ]);
 
-    // Get all market data in parallel
-    const marketPromises = Object.entries(MARKET_ETFS).map(async ([id, { ticker, name, region }]) => {
-      const [price, d1, w1, m1, m3, m6] = await Promise.all([
-        getCurrentPrice(ticker),
-        getPriceChange(ticker, 1),
-        getPriceChange(ticker, 7),
-        getPriceChange(ticker, 30),
-        getPriceChange(ticker, 90),
-        getPriceChange(ticker, 180),
-      ]);
+    // Composite score: 1W (20%) + 1M (50%) + 3M (30%)
+    let compositeScore: number | null = null;
+    if (w1.change !== null && m1.change !== null && m3.change !== null) {
+      compositeScore = (w1.change * 0.2) + (m1.change * 0.5) + (m3.change * 0.3);
+    }
 
-      // Composite score: 1W (20%) + 1M (50%) + 3M (30%)
-      let compositeScore: number | null = null;
-      if (w1.change !== null && m1.change !== null && m3.change !== null) {
-        compositeScore = (w1.change * 0.2) + (m1.change * 0.5) + (m3.change * 0.3);
+    // Relative strength vs VT
+    let relativeStrength1w: number | null = null;
+    if (w1.change !== null && bench1w.change !== null) {
+      relativeStrength1w = w1.change - bench1w.change;
+    }
+    let relativeStrength1m: number | null = null;
+    if (m1.change !== null && bench1m.change !== null) {
+      relativeStrength1m = m1.change - bench1m.change;
+    }
+    let relativeStrength3m: number | null = null;
+    if (m3.change !== null && bench3m.change !== null) {
+      relativeStrength3m = m3.change - bench3m.change;
+    }
+
+    // Momentum trend
+    let momentumTrend: "accelerating" | "decelerating" | "stable" | null = null;
+    if (w1.change !== null && m1.change !== null) {
+      const weeklyAnnualized = w1.change * 4;
+      const diff = weeklyAnnualized - m1.change;
+      if (diff > 2) {
+        momentumTrend = "accelerating";
+      } else if (diff < -2) {
+        momentumTrend = "decelerating";
+      } else {
+        momentumTrend = "stable";
       }
+    }
 
-      // Relative strength vs VT
-      let relativeStrength1w: number | null = null;
-      if (w1.change !== null && bench1w.change !== null) {
-        relativeStrength1w = w1.change - bench1w.change;
+    return {
+      id,
+      name,
+      ticker,
+      region,
+      price,
+      change_1d: d1.change,
+      change_1w: w1.change,
+      change_1m: m1.change,
+      change_3m: m3.change,
+      change_6m: m6.change,
+      composite_score: compositeScore,
+      relative_strength_1w: relativeStrength1w,
+      relative_strength_1m: relativeStrength1m,
+      relative_strength_3m: relativeStrength3m,
+      momentum_trend: momentumTrend,
+    } as MarketMomentum;
+  });
+
+  const markets = await Promise.all(marketPromises);
+
+  // Sort by composite score (descending)
+  markets.sort((a, b) => (b.composite_score ?? -999) - (a.composite_score ?? -999));
+
+  return {
+    markets,
+    benchmark: {
+      ticker: BENCHMARK_ETF,
+      name: "Total World",
+      change_1w: bench1w.change,
+      change_1m: bench1m.change,
+      change_3m: bench3m.change,
+    },
+    updated_at: new Date().toISOString(),
+  };
+}
+
+// GET /api/markets/momentum
+export async function GET(request: NextRequest) {
+  try {
+    const fresh = request.nextUrl.searchParams.get("fresh") === "true";
+
+    if (!fresh) {
+      const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.MARKETS, 900);
+      if (cached && !cached.isStale) {
+        return NextResponse.json({
+          ...cached.data,
+          cached: true,
+          cacheAge: cached.updatedAt,
+        });
       }
-      let relativeStrength1m: number | null = null;
-      if (m1.change !== null && bench1m.change !== null) {
-        relativeStrength1m = m1.change - bench1m.change;
+      if (cached) {
+        fetchMarketMomentumData()
+          .then((data) => setCache(CACHE_KEYS.MARKETS, data))
+          .catch((e) => console.error("Background markets momentum refresh failed:", e));
+        return NextResponse.json({
+          ...cached.data,
+          cached: true,
+          cacheAge: cached.updatedAt,
+          isStale: true,
+        });
       }
-      let relativeStrength3m: number | null = null;
-      if (m3.change !== null && bench3m.change !== null) {
-        relativeStrength3m = m3.change - bench3m.change;
-      }
+    }
 
-      // Momentum trend
-      let momentumTrend: "accelerating" | "decelerating" | "stable" | null = null;
-      if (w1.change !== null && m1.change !== null) {
-        const weeklyAnnualized = w1.change * 4;
-        const diff = weeklyAnnualized - m1.change;
-        if (diff > 2) {
-          momentumTrend = "accelerating";
-        } else if (diff < -2) {
-          momentumTrend = "decelerating";
-        } else {
-          momentumTrend = "stable";
-        }
-      }
-
-      return {
-        id,
-        name,
-        ticker,
-        region,
-        price,
-        change_1d: d1.change,
-        change_1w: w1.change,
-        change_1m: m1.change,
-        change_3m: m3.change,
-        change_6m: m6.change,
-        composite_score: compositeScore,
-        relative_strength_1w: relativeStrength1w,
-        relative_strength_1m: relativeStrength1m,
-        relative_strength_3m: relativeStrength3m,
-        momentum_trend: momentumTrend,
-      } as MarketMomentum;
-    });
-
-    const markets = await Promise.all(marketPromises);
-
-    // Sort by composite score (descending)
-    markets.sort((a, b) => (b.composite_score ?? -999) - (a.composite_score ?? -999));
-
-    return NextResponse.json({
-      markets,
-      benchmark: {
-        ticker: BENCHMARK_ETF,
-        name: "Total World",
-        change_1w: bench1w.change,
-        change_1m: bench1m.change,
-        change_3m: bench3m.change,
-      },
-      updated_at: new Date().toISOString(),
-    });
+    const data = await fetchMarketMomentumData();
+    await setCache(CACHE_KEYS.MARKETS, data);
+    return NextResponse.json({ ...data, cached: false });
   } catch (e) {
     console.error("Failed to get market momentum:", e);
     return NextResponse.json({ error: String(e) }, { status: 500 });
