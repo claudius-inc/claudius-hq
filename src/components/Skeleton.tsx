@@ -69,16 +69,75 @@ export function SkeletonCard({ className = "" }: { className?: string }) {
 // Specific skeletons for stocks pages
 
 export function ThemesTableSkeleton() {
+  const thBase = "px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider";
+
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <Skeleton className="h-6 w-40" />
-        <Skeleton className="h-10 w-32 rounded-lg" />
+      {/* PageHero skeleton */}
+      <div className="pt-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <Skeleton className="h-7 w-44" />
+            <Skeleton className="h-4 w-72 mt-2" />
+          </div>
+          <div className="shrink-0">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100">
+              <Skeleton className="h-4 w-4 rounded" />
+              <span className="text-sm font-medium text-gray-300">Add Theme</span>
+            </div>
+          </div>
+        </div>
       </div>
       
-      {/* Table */}
-      <SkeletonTable rows={6} cols={7} />
+      {/* Table matching ThemeLeaderboard structure */}
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className={`${thBase} text-left w-8`}></th>
+                <th className={`${thBase} text-left`}>Theme</th>
+                <th className={`${thBase} text-right`}>1W</th>
+                <th className={`${thBase} text-right`}>1M</th>
+                <th className={`${thBase} text-right`}>3M</th>
+                <th className={`${thBase} text-left`}>Leader</th>
+                <th className={`${thBase} w-12`}></th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <tr key={i}>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-4" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-32 mb-1" />
+                    <Skeleton className="h-3 w-14" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-12 ml-auto" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-10" />
+                      <Skeleton className="h-3 w-10" />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Skeleton className="h-4 w-4 ml-auto" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
