@@ -12,7 +12,7 @@ export const CACHE_KEYS = {
   GOLD: "gold:data",
   BTC: "btc:data",
   OIL: "oil:data",
-  MACRO: "macro:data",
+  MACRO: "macro:data:v2",
   THEMES: "themes:data",
   TRENDING: "trending:data",
   REGIME: "regime:data",
