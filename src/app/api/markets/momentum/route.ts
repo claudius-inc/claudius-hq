@@ -6,12 +6,13 @@ const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 // Global market ETF mappings
 const MARKET_ETFS: Record<string, { ticker: string; name: string; region: string }> = {
-  us_sp500: { ticker: "SPY", name: "US S&P 500", region: "Americas" },
-  us_nasdaq: { ticker: "QQQ", name: "US NASDAQ 100", region: "Americas" },
-  us_smallcap: { ticker: "IWM", name: "US Small Cap", region: "Americas" },
   canada: { ticker: "EWC", name: "Canada", region: "Americas" },
   brazil: { ticker: "EWZ", name: "Brazil", region: "Americas" },
   mexico: { ticker: "EWW", name: "Mexico", region: "Americas" },
+  chile: { ticker: "ECH", name: "Chile", region: "Americas" },
+  colombia: { ticker: "GXG", name: "Colombia", region: "Americas" },
+  peru: { ticker: "EPU", name: "Peru", region: "Americas" },
+  argentina: { ticker: "ARGT", name: "Argentina", region: "Americas" },
   uk: { ticker: "EWU", name: "United Kingdom", region: "Europe" },
   germany: { ticker: "EWG", name: "Germany", region: "Europe" },
   france: { ticker: "EWQ", name: "France", region: "Europe" },
@@ -109,7 +110,9 @@ export interface MarketMomentum {
   change_3m: number | null;
   change_6m: number | null;
   composite_score: number | null;
+  relative_strength_1w: number | null;
   relative_strength_1m: number | null;
+  relative_strength_3m: number | null;
   momentum_trend: "accelerating" | "decelerating" | "stable" | null;
 }
 
@@ -140,10 +143,18 @@ export async function GET() {
         compositeScore = (w1.change * 0.2) + (m1.change * 0.5) + (m3.change * 0.3);
       }
 
-      // Relative strength vs VT (1M)
-      let relativeStrength: number | null = null;
+      // Relative strength vs VT
+      let relativeStrength1w: number | null = null;
+      if (w1.change !== null && bench1w.change !== null) {
+        relativeStrength1w = w1.change - bench1w.change;
+      }
+      let relativeStrength1m: number | null = null;
       if (m1.change !== null && bench1m.change !== null) {
-        relativeStrength = m1.change - bench1m.change;
+        relativeStrength1m = m1.change - bench1m.change;
+      }
+      let relativeStrength3m: number | null = null;
+      if (m3.change !== null && bench3m.change !== null) {
+        relativeStrength3m = m3.change - bench3m.change;
       }
 
       // Momentum trend
@@ -172,7 +183,9 @@ export async function GET() {
         change_3m: m3.change,
         change_6m: m6.change,
         composite_score: compositeScore,
-        relative_strength_1m: relativeStrength,
+        relative_strength_1w: relativeStrength1w,
+        relative_strength_1m: relativeStrength1m,
+        relative_strength_3m: relativeStrength3m,
         momentum_trend: momentumTrend,
       } as MarketMomentum;
     });

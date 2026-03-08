@@ -10,12 +10,22 @@ import {
   getPercentColor,
   GlobalMarketsTable,
 } from "./global-markets";
+import { SectorData, MarketBenchmark, SectorTable } from "./sectors";
 
-const REGIONS = ["all", "Americas", "Europe", "Asia Pacific", "Global"];
+function sectorsToMarketData(sectors: SectorData[]): MarketData[] {
+  return sectors.map((s) => ({
+    ...s,
+    region: "USA",
+  }));
+}
+
+const REGIONS = ["all", "USA", "Americas", "Europe", "Asia Pacific", "Global"];
 
 export function GlobalMarkets() {
   const [markets, setMarkets] = useState<MarketData[]>([]);
   const [benchmark, setBenchmark] = useState<BenchmarkData | null>(null);
+  const [sectors, setSectors] = useState<SectorData[]>([]);
+  const [sectorBenchmark, setSectorBenchmark] = useState<MarketBenchmark | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -25,16 +35,27 @@ export function GlobalMarkets() {
   const fetchData = async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     try {
-      const res = await fetch("/api/markets/momentum");
-      const data = await res.json();
+      const [marketsRes, sectorsRes] = await Promise.all([
+        fetch("/api/markets/momentum"),
+        fetch("/api/sectors/momentum"),
+      ]);
+      const [marketsData, sectorsData] = await Promise.all([
+        marketsRes.json(),
+        sectorsRes.json(),
+      ]);
 
-      if (data.error) {
-        setError(data.error);
+      if (marketsData.error) {
+        setError(marketsData.error);
       } else {
-        setMarkets(data.markets || []);
-        setBenchmark(data.benchmark || null);
-        setUpdatedAt(data.updated_at || null);
+        setMarkets(marketsData.markets || []);
+        setBenchmark(marketsData.benchmark || null);
+        setUpdatedAt(marketsData.updated_at || null);
         setError(null);
+      }
+
+      if (!sectorsData.error) {
+        setSectors(sectorsData.sectors || []);
+        setSectorBenchmark(sectorsData.market || null);
       }
     } catch (e) {
       setError(String(e));
@@ -48,10 +69,14 @@ export function GlobalMarkets() {
     fetchData();
   }, []);
 
+  const sectorsAsMarkets = sectorsToMarketData(sectors);
+
   const filteredMarkets =
     regionFilter === "all"
-      ? markets
-      : markets.filter((m) => m.region === regionFilter);
+      ? [...markets, ...sectorsAsMarkets]
+      : regionFilter === "USA"
+        ? sectorsAsMarkets
+        : markets.filter((m) => m.region === regionFilter);
 
   if (loading) {
     return <GlobalMarketsSkeleton />;
@@ -82,14 +107,26 @@ export function GlobalMarkets() {
           <p className="text-sm text-gray-500">Country/region ETFs ranked by momentum</p>
         </div>
         <div className="flex items-center gap-3">
-          {benchmark && (
-            <div className="text-sm text-gray-600">
-              VT:{" "}
-              <span className={getPercentColor(benchmark.change_1m)}>
-                {formatPercent(benchmark.change_1m)}
-              </span>{" "}
-              (1M)
-            </div>
+          {regionFilter === "USA" ? (
+            sectorBenchmark && (
+              <div className="text-sm text-gray-600">
+                SPY:{" "}
+                <span className={getPercentColor(sectorBenchmark.change_1m)}>
+                  {formatPercent(sectorBenchmark.change_1m)}
+                </span>{" "}
+                (1M)
+              </div>
+            )
+          ) : (
+            benchmark && (
+              <div className="text-sm text-gray-600">
+                VT:{" "}
+                <span className={getPercentColor(benchmark.change_1m)}>
+                  {formatPercent(benchmark.change_1m)}
+                </span>{" "}
+                (1M)
+              </div>
+            )
           )}
           <button
             onClick={() => fetchData(true)}
@@ -120,7 +157,11 @@ export function GlobalMarkets() {
       </div>
 
       {/* Markets Table */}
-      <GlobalMarketsTable markets={filteredMarkets} />
+      {regionFilter === "USA" ? (
+        <SectorTable sectors={sectors} />
+      ) : (
+        <GlobalMarketsTable markets={filteredMarkets} />
+      )}
 
       {/* Legend */}
       <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">

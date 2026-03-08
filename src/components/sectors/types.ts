@@ -13,7 +13,9 @@ export interface SectorData {
   change_3m: number | null;
   change_6m: number | null;
   composite_score: number | null;
+  relative_strength_1w: number | null;
   relative_strength_1m: number | null;
+  relative_strength_3m: number | null;
   momentum_trend: "accelerating" | "decelerating" | "stable" | null;
 }
 

@@ -210,7 +210,7 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
       color = "amber";
     } else {
       interpretation = "Unattractive";
-      color = "gray";
+      color = "amber";
     }
     
     yieldSpreads.push({
@@ -235,7 +235,7 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
       color = "amber";
     } else {
       interpretation = "Unattractive";
-      color = "gray";
+      color = "amber";
     }
     
     yieldSpreads.push({

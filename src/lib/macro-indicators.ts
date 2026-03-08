@@ -349,7 +349,7 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
     ranges: [
       { label: "Negative/ZIRP", min: null, max: 0.5, meaning: "Crisis or deflation mode", marketImpact: "Capital flight to US, EUR weakness" },
       { label: "Low", min: 0.5, max: 2.0, meaning: "Accommodative ECB policy", marketImpact: "Search for yield, supportive for risk" },
-      { label: "Moderate", min: 2.0, max: 3.5, meaning: "ECB normalization", marketImpact: "EUR may strengthen, rebalancing flows" },
+      { label: "Normalizing", min: 2.0, max: 3.5, meaning: "ECB normalization", marketImpact: "EUR may strengthen, rebalancing flows" },
       { label: "Elevated", min: 3.5, max: null, meaning: "Tight ECB policy", marketImpact: "European growth concerns, risk-off" },
     ],
     keyLevels: [

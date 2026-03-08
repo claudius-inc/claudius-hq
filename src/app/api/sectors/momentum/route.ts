@@ -100,7 +100,9 @@ export interface SectorMomentum {
   change_3m: number | null;
   change_6m: number | null;
   composite_score: number | null;
+  relative_strength_1w: number | null;
   relative_strength_1m: number | null;
+  relative_strength_3m: number | null;
   momentum_trend: "accelerating" | "decelerating" | "stable" | null;
 }
 
@@ -131,10 +133,18 @@ export async function GET() {
         compositeScore = (w1.change * 0.2) + (m1.change * 0.5) + (m3.change * 0.3);
       }
 
-      // Calculate relative strength vs SPY (1M)
-      let relativeStrength: number | null = null;
+      // Calculate relative strength vs SPY
+      let relativeStrength1w: number | null = null;
+      if (w1.change !== null && spy1w.change !== null) {
+        relativeStrength1w = w1.change - spy1w.change;
+      }
+      let relativeStrength1m: number | null = null;
       if (m1.change !== null && spy1m.change !== null) {
-        relativeStrength = m1.change - spy1m.change;
+        relativeStrength1m = m1.change - spy1m.change;
+      }
+      let relativeStrength3m: number | null = null;
+      if (m3.change !== null && spy3m.change !== null) {
+        relativeStrength3m = m3.change - spy3m.change;
       }
 
       // Determine momentum trend
@@ -163,7 +173,9 @@ export async function GET() {
         change_3m: m3.change,
         change_6m: m6.change,
         composite_score: compositeScore,
-        relative_strength_1m: relativeStrength,
+        relative_strength_1w: relativeStrength1w,
+        relative_strength_1m: relativeStrength1m,
+        relative_strength_3m: relativeStrength3m,
         momentum_trend: momentumTrend,
       } as SectorMomentum;
     });
