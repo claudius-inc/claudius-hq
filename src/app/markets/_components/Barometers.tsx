@@ -46,10 +46,10 @@ export function Barometers({ marketEtfs, loading, expandedIds, toggleExpanded }:
                 </button>
                 {expandedIds.has(etfId) && (
                   <div className="px-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-100">
-                    <p className="text-xs text-gray-500 mb-3">{etf.description}</p>
+                    <p className="text-[10px] text-gray-500 mb-2">{etf.description}</p>
                     {etf.data && (
-                      <div className="mb-3">
-                        <div className="flex items-center gap-2 text-xs mb-1.5">
+                      <div className="mb-2">
+                        <div className="flex items-center gap-2 text-[10px] mb-1.5">
                           <span className="text-gray-500">Daily:</span>
                           <span className={`font-medium ${etf.data.change >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                             {etf.data.change >= 0 ? "+" : ""}{etf.data.change.toFixed(2)} ({etf.data.changePercent >= 0 ? "+" : ""}{etf.data.changePercent.toFixed(2)}%)
@@ -72,12 +72,12 @@ export function Barometers({ marketEtfs, loading, expandedIds, toggleExpanded }:
                     )}
                     <div className="bg-gray-50 rounded-lg p-2.5 mb-2.5">
                       <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Why It Matters</h4>
-                      <p className="text-xs text-gray-700">{etf.whyItMatters}</p>
+                      <p className="text-[10px] text-gray-700">{etf.whyItMatters}</p>
                     </div>
                     {etf.interpretation && (
                       <div className="bg-blue-50 rounded-lg p-2.5 mb-2.5">
                         <h4 className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-1">Current Reading</h4>
-                        <p className="text-xs text-gray-700">{etf.interpretation.meaning}</p>
+                        <p className="text-[10px] text-gray-700">{etf.interpretation.meaning}</p>
                       </div>
                     )}
                     <div className="mb-2.5">

@@ -154,7 +154,7 @@ export function Indicators({
                         </button>
                         {expandedIds.has(spreadId) && (
                           <div className="px-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-100">
-                            <p className="text-xs text-gray-500 mb-2">
+                            <p className="text-[10px] text-gray-500 mb-2">
                               {spread.name === "US-Japan Spread"
                                 ? "Yield differential between US 10Y Treasury and Japan 10Y Government Bond. Measures yen carry trade attractiveness."
                                 : "Yield differential between US 10Y Treasury and Germany 10Y Bund. Reflects US-Europe monetary policy divergence."}
@@ -164,11 +164,11 @@ export function Indicators({
                                 <h4 className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-1">
                                   Current Reading
                                 </h4>
-                                <p className="text-xs text-gray-700 mb-0.5">
+                                <p className="text-[10px] text-gray-700 mb-0.5">
                                   <strong>Status:</strong>{" "}
                                   {spread.interpretation}
                                 </p>
-                                <p className="text-xs text-gray-700">
+                                <p className="text-[10px] text-gray-700">
                                   <strong>Market Impact:</strong>{" "}
                                   {spread.name === "US-Japan Spread"
                                     ? "Higher spread attracts capital to USD, pressures yen lower, and supports carry trade positions."
@@ -179,7 +179,7 @@ export function Indicators({
                                 <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">
                                   Why It Matters
                                 </h4>
-                                <p className="text-xs text-gray-700">
+                                <p className="text-[10px] text-gray-700">
                                   {spread.name === "US-Japan Spread"
                                     ? "Japan\u2019s ultra-low rates make Yen the funding currency for global carry trades. When the spread narrows, carry trades unwind violently, causing global risk-off moves."
                                     : "The US-Europe yield gap drives transatlantic capital flows and EUR/USD direction. A narrowing spread can signal ECB hawkishness or Fed dovishness."}

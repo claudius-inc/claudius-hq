@@ -28,6 +28,30 @@ export const breadthRanges = [
   { label: "Bullish", min: 1.3, max: null, meaning: "More advances than declines", marketImpact: "Broad-based buying, healthy rally" },
 ];
 
+export const termStructureRanges = [
+  { label: "Steep Contango", min: null, max: 0.85, meaning: "Near-term vol much lower than long-term", marketImpact: "Complacency — markets calm, but watch for sudden spikes" },
+  { label: "Normal Contango", min: 0.85, max: 0.95, meaning: "Typical term structure, futures above spot", marketImpact: "Healthy risk appetite, no unusual stress" },
+  { label: "Flat", min: 0.95, max: 1.05, meaning: "Near-term and long-term vol roughly equal", marketImpact: "Transitional — could go either way" },
+  { label: "Backwardation", min: 1.05, max: 1.15, meaning: "Near-term fear exceeds long-term", marketImpact: "Elevated short-term hedging demand" },
+  { label: "Deep Backwardation", min: 1.15, max: null, meaning: "Inverted curve — acute near-term stress", marketImpact: "Panic hedging, potential capitulation signal" },
+];
+
+export const congressRanges = [
+  { label: "Strongly Bearish", min: null, max: 0.5, meaning: "Congress selling far more than buying", marketImpact: "Insiders may anticipate headwinds — contrarian caution" },
+  { label: "Bearish", min: 0.5, max: 0.8, meaning: "More sells than buys among legislators", marketImpact: "Potential policy/economic concerns" },
+  { label: "Neutral", min: 0.8, max: 1.2, meaning: "Balanced buying and selling activity", marketImpact: "No strong directional signal" },
+  { label: "Bullish", min: 1.2, max: 2.0, meaning: "Congress buying more than selling", marketImpact: "Legislators deploying capital — potential positive catalyst" },
+  { label: "Strongly Bullish", min: 2.0, max: null, meaning: "Heavy net buying by legislators", marketImpact: "High conviction buys — watch for upcoming legislation" },
+];
+
+export const insiderRanges = [
+  { label: "Heavy Selling", min: null, max: 0.3, meaning: "Insiders selling aggressively", marketImpact: "May signal overvaluation or company-specific concerns" },
+  { label: "Net Selling", min: 0.3, max: 0.8, meaning: "More insider sales than purchases", marketImpact: "Normal profit-taking, but watch for clusters" },
+  { label: "Neutral", min: 0.8, max: 1.2, meaning: "Balanced insider activity", marketImpact: "No strong signal from corporate insiders" },
+  { label: "Net Buying", min: 1.2, max: 2.0, meaning: "Insiders buying their own stock", marketImpact: "Positive signal — insiders see value" },
+  { label: "Heavy Buying", min: 2.0, max: null, meaning: "Significant insider purchases", marketImpact: "Strong conviction — historically bullish signal" },
+];
+
 export const realYieldRanges = [
   { label: "Deeply Negative", min: null, max: -1, meaning: "Severe financial repression, savers punished", marketImpact: "Gold & real assets outperform" },
   { label: "Negative", min: -1, max: 0, meaning: "Accommodative real rates, mild repression", marketImpact: "Risk assets favored, dollar weakens" },
