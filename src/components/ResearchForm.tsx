@@ -65,40 +65,32 @@ export function ResearchForm({ initialTicker }: ResearchFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <label htmlFor="ticker" className="block text-sm font-medium text-gray-700 mb-1">
-          Enter Ticker Symbol
-        </label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            id="ticker"
-            value={ticker}
-            onChange={(e) => setTicker(e.target.value.toUpperCase())}
-            placeholder="e.g. AAPL, MSFT, 9988.HK, NXT.AX"
-            autoCapitalize="characters"
-            autoComplete="off"
-            className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-            disabled={status === "loading"}
-          />
-          <button
-            type="submit"
-            disabled={!ticker.trim() || status === "loading"}
-            className="shrink-0 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-          >
-            {status === "loading" && <Spinner size="sm" className="text-white" />}
-            {status === "loading" ? "Queuing..." : "Research"}
-          </button>
-        </div>
-        <p className="text-xs text-gray-500 mt-1">
-          Without suffix = US stock. Use .HK, .SI, .AX, .L for other exchanges.
-        </p>
+    <form onSubmit={handleSubmit} className="space-y-2">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          id="ticker"
+          value={ticker}
+          onChange={(e) => setTicker(e.target.value.toUpperCase())}
+          placeholder="Ticker, e.g. AAPL, 9988.HK"
+          autoCapitalize="characters"
+          autoComplete="off"
+          className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none sm:w-52"
+          disabled={status === "loading"}
+        />
+        <button
+          type="submit"
+          disabled={!ticker.trim() || status === "loading"}
+          className="shrink-0 px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+        >
+          {status === "loading" && <Spinner size="sm" className="text-white" />}
+          {status === "loading" ? "Queuing..." : "Research"}
+        </button>
       </div>
 
       {message && (
         <div
-          className={`text-sm p-3 rounded-lg ${
+          className={`text-sm px-3 py-2 rounded-lg ${
             status === "success"
               ? "bg-emerald-50 text-emerald-700"
               : "bg-red-50 text-red-700"

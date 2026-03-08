@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import db, { ensureDB } from "@/lib/db";
 import { StockReport } from "@/lib/types";
+import { PageHero } from "@/components/PageHero";
 import { ResearchForm } from "@/components/ResearchForm";
 import { ResearchContent } from "@/components/ResearchContent";
 import { Skeleton } from "@/components/Skeleton";
@@ -42,20 +43,15 @@ export default async function ResearchPage() {
 
   return (
     <>
-      {/* Research Launcher */}
-      <div className="mb-8">
-        <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">
-            Launch Research
-          </h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Enter a ticker, theme, or comparison to generate a report
-          </p>
-          <Suspense fallback={<Skeleton className="h-12 w-full" />}>
+      <PageHero
+        title="Research"
+        subtitle="Generate deep-dive reports on any ticker"
+        actionSlot={
+          <Suspense fallback={<Skeleton className="h-10 w-full sm:w-80" />}>
             <ResearchForm />
           </Suspense>
-        </div>
-      </div>
+        }
+      />
 
       {/* Jobs + Reports (client-managed state for live updates) */}
       <ResearchContent initialReports={reports} initialJobs={activeJobs} />

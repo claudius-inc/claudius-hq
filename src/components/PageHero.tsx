@@ -55,7 +55,7 @@ export function PageHero({
 
   return (
     <div className="mb-8 pt-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className={`flex items-start justify-between gap-4${actionSlot ? " flex-wrap sm:flex-nowrap" : ""}`}>
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
             {title}
@@ -124,7 +124,9 @@ export function PageHero({
         )}
 
         {/* Custom action slot */}
-        {actionSlot && !hasActions && actionSlot}
+        {actionSlot && !hasActions && (
+          <div className="w-full sm:w-auto shrink-0">{actionSlot}</div>
+        )}
       </div>
     </div>
   );
