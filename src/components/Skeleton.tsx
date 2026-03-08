@@ -109,27 +109,96 @@ export function SectorMomentumSkeleton() {
 }
 
 export function GlobalMarketsSkeleton() {
+  const regionLabels = ["All Regions", "USA", "Americas", "Europe", "Asia Pacific", "Global"];
+  const thBase = "px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider";
+
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-4 w-56" />
+    <>
+      {/* PageHero skeleton */}
+      <div className="mb-8 pt-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-80 mt-2" />
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-8 w-8 rounded-lg" />
+          </div>
         </div>
-        <Skeleton className="h-8 w-32" />
       </div>
-      
-      {/* Region filters */}
-      <div className="flex gap-2">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-8 w-24 rounded-full" />
-        ))}
+
+      <div className="space-y-4">
+        {/* Region filters */}
+        <div className="flex gap-2 flex-wrap">
+          {regionLabels.map((label, i) => (
+            <div
+              key={i}
+              className={`px-3 py-1 rounded-full text-sm font-medium ${
+                i === 0 ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-300"
+              }`}
+            >
+              {label}
+            </div>
+          ))}
+        </div>
+
+        {/* Table matching GlobalMarketsTable structure */}
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className={`${thBase} text-left w-8`}>#</th>
+                  <th className={`${thBase} text-left`}>Market</th>
+                  <th className={`${thBase} text-left`}>Region</th>
+                  <th className={`${thBase} text-right`}>1D</th>
+                  <th className={`${thBase} text-right`}>1W</th>
+                  <th className={`${thBase} text-right`}>1M</th>
+                  <th className={`${thBase} text-right`}>3M</th>
+                  <th className={`${thBase} text-right`}>Score</th>
+                  <th className={`${thBase} w-10`}></th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {Array.from({ length: 12 }).map((_, i) => (
+                  <tr key={i}>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-4" /></td>
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-4 w-28 mb-1" />
+                      <Skeleton className="h-3 w-10" />
+                    </td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-12 ml-auto" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-14 ml-auto" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-12 ml-auto" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-12 ml-auto" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-6 w-12 ml-auto rounded-md" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-4 w-4" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Legend */}
+        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
+          <div className="flex items-center gap-1">
+            <Skeleton className="h-3 w-3 rounded" />
+            <span className="text-gray-300">Accelerating</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Skeleton className="h-3 w-3 rounded" />
+            <span className="text-gray-300">Decelerating</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Skeleton className="h-3 w-3 rounded" />
+            <span className="text-gray-300">Stable</span>
+          </div>
+        </div>
       </div>
-      
-      {/* Table */}
-      <SkeletonTable rows={10} cols={11} />
-    </div>
+    </>
   );
 }
 

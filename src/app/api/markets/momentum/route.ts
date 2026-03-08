@@ -126,10 +126,11 @@ async function fetchMarketMomentumData() {
 
   // Get all market data in parallel
   const marketPromises = Object.entries(MARKET_ETFS).map(async ([id, { ticker, name, region }]) => {
-    const [price, d1, w1, m1, m3, m6] = await Promise.all([
+    const [price, d1, w1, w2, m1, m3, m6] = await Promise.all([
       getCurrentPrice(ticker),
       getPriceChange(ticker, 1),
       getPriceChange(ticker, 7),
+      getPriceChange(ticker, 14),
       getPriceChange(ticker, 30),
       getPriceChange(ticker, 90),
       getPriceChange(ticker, 180),
@@ -155,17 +156,19 @@ async function fetchMarketMomentumData() {
       relativeStrength3m = m3.change - bench3m.change;
     }
 
-    // Momentum trend
+    // Momentum trend via sequential comparison (this week vs last week)
     let momentumTrend: "accelerating" | "decelerating" | "stable" | null = null;
-    if (w1.change !== null && m1.change !== null) {
-      const weeklyAnnualized = w1.change * 4;
-      const diff = weeklyAnnualized - m1.change;
-      if (diff > 2) {
-        momentumTrend = "accelerating";
-      } else if (diff < -2) {
-        momentumTrend = "decelerating";
-      } else {
-        momentumTrend = "stable";
+    if (w1.startPrice !== null && w2.startPrice !== null && w2.startPrice !== 0) {
+      const prevWeekChange = ((w1.startPrice - w2.startPrice) / w2.startPrice) * 100;
+      if (w1.change !== null) {
+        const diff = w1.change - prevWeekChange;
+        if (diff > 0.5) {
+          momentumTrend = "accelerating";
+        } else if (diff < -0.5) {
+          momentumTrend = "decelerating";
+        } else {
+          momentumTrend = "stable";
+        }
       }
     }
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { TrendingUp, TrendingDown, Minus, RefreshCw, Globe } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, RefreshCw } from "lucide-react";
+import { PageHero } from "@/components/PageHero";
 import { GlobalMarketsSkeleton } from "@/components/Skeleton";
 import {
   MarketData,
@@ -96,49 +97,45 @@ export function GlobalMarkets() {
   }
 
   return (
+    <>
+      <PageHero
+        title="Sectors"
+        subtitle="US sectors and global country ETFs ranked by momentum"
+        actionSlot={
+          <div className="flex items-center gap-3 shrink-0">
+            {regionFilter === "USA" ? (
+              sectorBenchmark && (
+                <div className="text-sm text-gray-600">
+                  SPY:{" "}
+                  <span className={getPercentColor(sectorBenchmark.change_1m)}>
+                    {formatPercent(sectorBenchmark.change_1m)}
+                  </span>{" "}
+                  (1M)
+                </div>
+              )
+            ) : (
+              benchmark && (
+                <div className="text-sm text-gray-600">
+                  VT:{" "}
+                  <span className={getPercentColor(benchmark.change_1m)}>
+                    {formatPercent(benchmark.change_1m)}
+                  </span>{" "}
+                  (1M)
+                </div>
+              )
+            )}
+            <button
+              onClick={() => fetchData(true)}
+              disabled={refreshing}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Refresh"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+          </div>
+        }
+      />
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            <Globe className="w-5 h-5" />
-            Global Markets
-          </h2>
-          <p className="text-sm text-gray-500">Country/region ETFs ranked by momentum</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {regionFilter === "USA" ? (
-            sectorBenchmark && (
-              <div className="text-sm text-gray-600">
-                SPY:{" "}
-                <span className={getPercentColor(sectorBenchmark.change_1m)}>
-                  {formatPercent(sectorBenchmark.change_1m)}
-                </span>{" "}
-                (1M)
-              </div>
-            )
-          ) : (
-            benchmark && (
-              <div className="text-sm text-gray-600">
-                VT:{" "}
-                <span className={getPercentColor(benchmark.change_1m)}>
-                  {formatPercent(benchmark.change_1m)}
-                </span>{" "}
-                (1M)
-              </div>
-            )
-          )}
-          <button
-            onClick={() => fetchData(true)}
-            disabled={refreshing}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Refresh"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-          </button>
-        </div>
-      </div>
-
       {/* Region Filter */}
       <div className="flex gap-2 flex-wrap">
         {REGIONS.map((region) => (
@@ -182,5 +179,6 @@ export function GlobalMarkets() {
         )}
       </div>
     </div>
+    </>
   );
 }
