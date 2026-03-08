@@ -192,7 +192,6 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
   // Calculate yield spreads
   const us10yIndicator = results.find(r => r.id === "10y-yield");
   const japan10yIndicator = results.find(r => r.id === "japan-10y");
-  const germany10yIndicator = results.find(r => r.id === "germany-10y");
 
   const yieldSpreads: YieldSpread[] = [];
 
@@ -215,31 +214,6 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
     
     yieldSpreads.push({
       name: "US-Japan Spread",
-      value: Math.round(spread * 100) / 100,
-      interpretation,
-      color,
-    });
-  }
-
-  // US-Germany spread
-  if (us10yIndicator?.data && germany10yIndicator?.data) {
-    const spread = us10yIndicator.data.current - germany10yIndicator.data.current;
-    let interpretation: string;
-    let color: "green" | "amber" | "gray";
-    
-    if (spread > 3) {
-      interpretation = "Attractive Carry";
-      color = "green";
-    } else if (spread >= 2) {
-      interpretation = "Moderate Carry";
-      color = "amber";
-    } else {
-      interpretation = "Unattractive";
-      color = "amber";
-    }
-    
-    yieldSpreads.push({
-      name: "US-Germany Spread",
       value: Math.round(spread * 100) / 100,
       interpretation,
       color,

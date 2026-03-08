@@ -4,7 +4,7 @@ export interface MacroIndicator {
   id: string;
   name: string;
   fredCode: string;
-  category: "rates" | "inflation" | "employment" | "growth" | "sentiment" | "credit" | "fx" | "foreign-yields";
+  category: "rates" | "inflation" | "employment" | "growth" | "sentiment" | "credit" | "fx" | "foreign-yields" | "fiscal";
   unit: string;
   frequency: "daily" | "weekly" | "monthly" | "quarterly";
   
@@ -75,23 +75,6 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
       { level: 5.0, significance: "Pre-GFC average, major psychological level" },
     ],
     affectedAssets: ["Growth stocks (high sensitivity)", "REITs (inverse)", "Utilities (inverse)", "Banks (complex - steeper curve helps)"],
-  },
-  {
-    id: "2y-yield",
-    name: "2-Year Treasury Yield",
-    fredCode: "DGS2",
-    category: "rates",
-    unit: "%",
-    frequency: "daily",
-    description: "The yield on 2-year US government bonds. Most sensitive to expected Fed policy over the next 1-2 years.",
-    whyItMatters: "The 2Y yield is the market's best guess of where the Fed Funds rate will average over the next 2 years. When it diverges from the 10Y (inversion), it signals recession expectations.",
-    ranges: [
-      { label: "Very Low", min: null, max: 1.5, meaning: "Market expects rate cuts or crisis", marketImpact: "Risk-on if economy stable, risk-off if recession" },
-      { label: "Low", min: 1.5, max: 3.0, meaning: "Accommodative policy expected", marketImpact: "Generally supportive for risk assets" },
-      { label: "Moderate", min: 3.0, max: 4.5, meaning: "Policy normalization", marketImpact: "Neutral, watch the trend" },
-      { label: "High", min: 4.5, max: null, meaning: "Tight policy expected to persist", marketImpact: "Headwind for duration-sensitive assets" },
-    ],
-    affectedAssets: ["Short-term bonds", "Floating rate instruments", "Bank NIMs"],
   },
   {
     id: "yield-curve",
@@ -293,27 +276,7 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
     ],
     affectedAssets: ["Japanese exporters", "Carry trades", "EM currencies", "US multinationals"],
   },
-  {
-    id: "eurusd",
-    name: "EUR/USD",
-    fredCode: "DEXUSEU",
-    category: "fx",
-    unit: "",
-    frequency: "daily",
-    description: "Euro to US Dollar exchange rate. The most traded currency pair globally.",
-    whyItMatters: "EUR/USD reflects relative economic strength and monetary policy between the two largest economies. A strong Euro helps US exporters but hurts European competitiveness.",
-    ranges: [
-      { label: "Dollar Strength", min: null, max: 1.05, meaning: "Strong USD, weak Euro", marketImpact: "US multinationals hurt, European exporters benefit" },
-      { label: "Balanced", min: 1.05, max: 1.15, meaning: "Normal trading range", marketImpact: "Stable cross-Atlantic trade conditions" },
-      { label: "Euro Strength", min: 1.15, max: 1.25, meaning: "Strong Euro vs Dollar", marketImpact: "European imports cheaper, US exporters benefit" },
-      { label: "Extreme Euro Strength", min: 1.25, max: null, meaning: "ECB may push back", marketImpact: "European competitiveness concerns" },
-    ],
-    keyLevels: [
-      { level: 1.00, significance: "Parity - major psychological level" },
-      { level: 1.10, significance: "Key technical level" },
-    ],
-    affectedAssets: ["European exporters", "US multinationals", "Commodities (inverse to USD)"],
-  },
+
   {
     id: "dxy",
     name: "US Dollar Index (DXY)",
@@ -360,34 +323,12 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
     ],
     affectedAssets: ["Carry trades", "Japanese banks", "Global risk assets", "Yen"],
   },
-  {
-    id: "germany-10y",
-    name: "Germany 10Y Yield",
-    fredCode: "IRLTLT01DEM156N",
-    category: "foreign-yields",
-    unit: "%",
-    frequency: "monthly",
-    description: "German 10-year Bund yield. The benchmark 'risk-free' rate for Europe.",
-    whyItMatters: "German Bunds are Europe's safe haven. The spread between US and German yields affects EUR/USD and capital flows. Negative yields (pre-2022) forced European capital into US assets.",
-    ranges: [
-      { label: "Negative/ZIRP", min: null, max: 0.5, meaning: "Crisis or deflation mode", marketImpact: "Capital flight to US, EUR weakness" },
-      { label: "Low", min: 0.5, max: 2.0, meaning: "Accommodative ECB policy", marketImpact: "Search for yield, supportive for risk" },
-      { label: "Normalizing", min: 2.0, max: 3.5, meaning: "ECB normalization", marketImpact: "EUR may strengthen, rebalancing flows" },
-      { label: "Elevated", min: 3.5, max: null, meaning: "Tight ECB policy", marketImpact: "European growth concerns, risk-off" },
-    ],
-    keyLevels: [
-      { level: 0, significance: "Zero boundary - historically significant" },
-      { level: 2.5, significance: "Pre-crisis normal levels" },
-    ],
-    affectedAssets: ["European equities", "EUR/USD", "European banks", "Periphery spreads"],
-  },
-
   // === FISCAL INDICATORS ===
   {
     id: "debt-to-gdp",
     name: "Federal Debt/GDP",
     fredCode: "GFDEGDQ188S",
-    category: "growth",
+    category: "fiscal",
     unit: "%",
     frequency: "quarterly",
     description: "Total US federal public debt as a percentage of GDP. Measures government leverage relative to economic output.",
@@ -409,7 +350,7 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
     id: "deficit-to-gdp",
     name: "Federal Deficit/GDP",
     fredCode: "FYFSGDA188S",
-    category: "growth",
+    category: "fiscal",
     unit: "%",
     frequency: "quarterly",
     description: "Annual federal budget deficit as a percentage of GDP. Negative values indicate deficit (spending > revenue).",
