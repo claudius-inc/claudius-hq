@@ -29,9 +29,27 @@ To learn more about Next.js, take a look at the following resources:
 
 You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
+## Stock Scanner
+
+Unified scanner that fetches data from Yahoo Finance for both US growth stocks and SGX stocks, scores them with a single scoring system, and optionally uploads results to HQ for display on `/markets/scanners`.
+
+```bash
+node scripts/unified-scanner.js              # Console output
+node scripts/unified-scanner.js --json       # JSON to stdout
+node scripts/unified-scanner.js --upload     # Upload to HQ
+node scripts/unified-scanner.js --save       # Save to output/
+node scripts/unified-scanner.js --limit 50   # Show top N
+```
+
+### Environment Variables
+
+| Variable     | Required       | Description                                          |
+| ------------ | -------------- | ---------------------------------------------------- |
+| `HQ_API_URL` | No             | HQ API base URL (default: `https://claudiusinc.com`) |
+| `HQ_API_KEY` | For `--upload` | API key for authenticating with HQ                   |
+
 ## Deploy on Vercel
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-

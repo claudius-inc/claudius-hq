@@ -431,7 +431,7 @@ export type NewMacroInsight = typeof macroInsights.$inferInsert;
 // Stock Scans
 // ============================================================================
 
-export const SCAN_TYPES = ["structural-inflection", "sun-tzu-sgx"] as const;
+export const SCAN_TYPES = ["structural-inflection", "sun-tzu-sgx", "unified"] as const;
 export type ScanType = (typeof SCAN_TYPES)[number];
 
 export const stockScans = sqliteTable("stock_scans", {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Search, Filter } from "lucide-react";
+import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Select } from "@/components/ui/Select";
 
@@ -15,6 +15,7 @@ interface ScanResult {
   tier: string;
   tierColor: string;
   riskTier: string;
+  market?: "US" | "SGX";
   growth: { score: number; max: number; details: string[] };
   financial: { score: number; max: number; details: string[] };
   insider: { score: number; max: number; details: string[] };
@@ -32,6 +33,8 @@ interface ScanSummary {
   speculative: number;
   watchlist: number;
   avoid: number;
+  usCount?: number;
+  sgxCount?: number;
 }
 
 interface ParsedScan {
@@ -44,12 +47,12 @@ interface ParsedScan {
 }
 
 interface Props {
-  structuralInflection: ParsedScan | null;
-  sunTzuSgx: ParsedScan | null;
+  scan: ParsedScan | null;
 }
 
 type TierFilter = "all" | "high" | "speculative" | "watchlist";
 type RiskFilter = "all" | "TIER 1" | "TIER 2" | "TIER 3";
+type MarketFilter = "all" | "US" | "SGX";
 
 function getTierBadgeColor(tier: string): string {
   if (tier.includes("HIGH CONVICTION")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
@@ -71,6 +74,11 @@ function getScoreColor(score: number): string {
   return "text-gray-600";
 }
 
+function getMarketBadgeColor(market: string): string {
+  if (market === "US") return "bg-indigo-50 text-indigo-700";
+  return "bg-teal-50 text-teal-700";
+}
+
 function ScoreBar({ score, max, label }: { score: number; max: number; label: string }) {
   const pct = Math.round((score / max) * 100);
   return (
@@ -89,8 +97,8 @@ function ScoreBar({ score, max, label }: { score: number; max: number; label: st
   );
 }
 
-function StockRow({ stock, isExpanded, onToggle }: { 
-  stock: ScanResult; 
+function StockRow({ stock, isExpanded, onToggle }: {
+  stock: ScanResult;
   isExpanded: boolean;
   onToggle: () => void;
 }) {
@@ -104,38 +112,44 @@ function StockRow({ stock, isExpanded, onToggle }: {
         <button className="p-0.5 text-gray-400 hover:text-gray-600">
           {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
-        
+
         <span className="w-8 text-xs text-gray-400 text-right">#{stock.rank}</span>
-        
+
         <span className="w-16 font-mono font-medium text-gray-900">{stock.ticker}</span>
-        
+
+        {stock.market && (
+          <span className={`px-1 py-0.5 text-[9px] font-medium rounded ${getMarketBadgeColor(stock.market)}`}>
+            {stock.market}
+          </span>
+        )}
+
         <span className="flex-1 truncate text-sm text-gray-600 hidden sm:block">
           {stock.name}
         </span>
-        
+
         <span className={`w-12 text-right font-semibold ${getScoreColor(stock.totalScore)}`}>
           {stock.totalScore}
         </span>
-        
+
         <span className={`px-2 py-0.5 text-[10px] font-medium rounded border ${getTierBadgeColor(stock.tier)}`}>
           {stock.tier.replace(/🔥|⚡|👀|⚠️/g, "").trim().split(" ")[0]}
         </span>
-        
+
         <span className={`px-1.5 py-0.5 text-[10px] rounded hidden sm:inline ${getRiskBadgeColor(stock.riskTier)}`}>
           {stock.riskTier}
         </span>
-        
+
         <span className="w-20 text-right text-sm text-gray-500 hidden md:block">
           ${stock.price?.toFixed(2) || "N/A"}
         </span>
       </div>
-      
+
       {/* Expanded details */}
       {isExpanded && (
         <div className="px-4 py-3 bg-gray-50/50 border-t border-gray-100 space-y-3">
           {/* Mobile-only name */}
           <p className="text-sm text-gray-700 sm:hidden">{stock.name}</p>
-          
+
           {/* Key metrics */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
             <div>
@@ -159,7 +173,7 @@ function StockRow({ stock, isExpanded, onToggle }: {
               </p>
             </div>
           </div>
-          
+
           {/* Scoring breakdown */}
           <div className="space-y-1.5">
             <h4 className="text-xs font-medium text-gray-700">Scoring Breakdown</h4>
@@ -169,7 +183,7 @@ function StockRow({ stock, isExpanded, onToggle }: {
             <ScoreBar score={stock.technical.score} max={stock.technical.max} label="Technical" />
             <ScoreBar score={stock.analyst.score} max={stock.analyst.max} label="Analyst" />
           </div>
-          
+
           {/* Score details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             <div>
@@ -189,7 +203,7 @@ function StockRow({ stock, isExpanded, onToggle }: {
               <p className="text-gray-700">{stock.analyst.details.join(", ") || "N/A"}</p>
             </div>
           </div>
-          
+
           {/* Risk flags */}
           {stock.risk.flags.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
@@ -215,10 +229,11 @@ function StockRow({ stock, isExpanded, onToggle }: {
   );
 }
 
-function ScannerTab({ scan, title }: { scan: ParsedScan | null; title: string }) {
+export function ScannerResults({ scan }: Props) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
+  const [marketFilter, setMarketFilter] = useState<MarketFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   if (!scan) {
@@ -246,6 +261,8 @@ function ScannerTab({ scan, title }: { scan: ParsedScan | null; title: string })
     if (tierFilter === "watchlist" && (stock.totalScore < 35 || stock.totalScore >= 50)) return false;
     // Risk filter
     if (riskFilter !== "all" && stock.riskTier !== riskFilter) return false;
+    // Market filter
+    if (marketFilter !== "all" && stock.market !== marketFilter) return false;
     return true;
   });
 
@@ -260,6 +277,9 @@ function ScannerTab({ scan, title }: { scan: ParsedScan | null; title: string })
   };
 
   const scannedAt = scan.scannedAt ? new Date(scan.scannedAt) : null;
+
+  const usCount = scan.summary?.usCount ?? scan.results.filter((r) => r.market === "US").length;
+  const sgxCount = scan.summary?.sgxCount ?? scan.results.filter((r) => r.market === "SGX").length;
 
   return (
     <div className="space-y-4">
@@ -276,20 +296,23 @@ function ScannerTab({ scan, title }: { scan: ParsedScan | null; title: string })
           )}
           <span className="text-gray-400">|</span>
           <span className="text-gray-500">
-            {scan.results.length} stocks scanned
+            {scan.results.length} stocks
+            {(usCount > 0 && sgxCount > 0) && (
+              <span className="text-gray-400"> (US: {usCount}, SGX: {sgxCount})</span>
+            )}
           </span>
         </div>
-        
+
         {scan.summary && (
           <div className="flex gap-3 text-xs">
             <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded">
-              🔥 {scan.summary.highConviction}
+              HC {scan.summary.highConviction}
             </span>
             <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">
-              ⚡ {scan.summary.speculative}
+              SPEC {scan.summary.speculative}
             </span>
             <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
-              👀 {scan.summary.watchlist}
+              WL {scan.summary.watchlist}
             </span>
           </div>
         )}
@@ -307,8 +330,18 @@ function ScannerTab({ scan, title }: { scan: ParsedScan | null; title: string })
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
-        
+
         <div className="flex gap-2">
+          <Select
+            value={marketFilter}
+            onChange={(val) => setMarketFilter(val as MarketFilter)}
+            options={[
+              { value: "all", label: "All Markets" },
+              { value: "US", label: "US" },
+              { value: "SGX", label: "SGX" },
+            ]}
+          />
+
           <Select
             value={tierFilter}
             onChange={(val) => setTierFilter(val as TierFilter)}
@@ -340,13 +373,14 @@ function ScannerTab({ scan, title }: { scan: ParsedScan | null; title: string })
           <span className="w-6" /> {/* Expand button */}
           <span className="w-8 text-right">#</span>
           <span className="w-16">Ticker</span>
+          <span className="w-8">Mkt</span>
           <span className="flex-1 hidden sm:block">Name</span>
           <span className="w-12 text-right">Score</span>
           <span className="w-20">Tier</span>
           <span className="w-14 hidden sm:block">Risk</span>
           <span className="w-20 text-right hidden md:block">Price</span>
         </div>
-        
+
         {/* Rows */}
         <div className="divide-y divide-gray-100">
           {filteredResults.length === 0 ? (
@@ -365,46 +399,6 @@ function ScannerTab({ scan, title }: { scan: ParsedScan | null; title: string })
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-export function ScannerResults({ structuralInflection, sunTzuSgx }: Props) {
-  const [activeTab, setActiveTab] = useState<"structural" | "sunTzu">("structural");
-
-  return (
-    <div className="space-y-4">
-      {/* Tab selector */}
-      <div className="flex gap-2 border-b border-gray-200">
-        <button
-          onClick={() => setActiveTab("structural")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "structural"
-              ? "border-emerald-500 text-emerald-700"
-              : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          🚀 Structural Inflection
-        </button>
-        <button
-          onClick={() => setActiveTab("sunTzu")}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-            activeTab === "sunTzu"
-              ? "border-emerald-500 text-emerald-700"
-              : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          📜 Sun Tzu SGX
-        </button>
-      </div>
-
-      {/* Tab content */}
-      {activeTab === "structural" && (
-        <ScannerTab scan={structuralInflection} title="Structural Inflection Scanner" />
-      )}
-      {activeTab === "sunTzu" && (
-        <ScannerTab scan={sunTzuSgx} title="Sun Tzu SGX Scanner" />
-      )}
     </div>
   );
 }
