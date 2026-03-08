@@ -20,6 +20,20 @@ interface GoldSnapshot {
   analysis: { ath: number | null; athDate: string | null } | null;
 }
 
+interface OilSnapshot {
+  wti: {
+    price: number | null;
+    changePercent: number | null;
+    fiftyTwoWeekHigh: number | null;
+    fiftyTwoWeekLow: number | null;
+  } | null;
+  brent: {
+    price: number | null;
+    changePercent: number | null;
+  } | null;
+  spread: number | null;
+}
+
 function formatUsd(n: number, decimals = 0) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -41,10 +55,18 @@ function WmaZone({ distance }: { distance: number }) {
   return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Safe</span>;
 }
 
+function OilZone({ price }: { price: number }) {
+  if (price < 65) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Cheap</span>;
+  if (price < 80) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">Normal</span>;
+  if (price < 100) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Elevated</span>;
+  return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">Crisis</span>;
+}
+
 export function HardAssets() {
   const [btc, setBtc] = useState<BtcSnapshot | null>(null);
   const [gold, setGold] = useState<GoldSnapshot | null>(null);
-  const [loading, setLoading] = useState({ btc: true, gold: true });
+  const [oil, setOil] = useState<OilSnapshot | null>(null);
+  const [loading, setLoading] = useState({ btc: true, gold: true, oil: true });
 
   useEffect(() => {
     fetch("/api/btc")
@@ -58,6 +80,12 @@ export function HardAssets() {
       .then((d) => { if (d) setGold(d); })
       .catch(console.error)
       .finally(() => setLoading((p) => ({ ...p, gold: false })));
+
+    fetch("/api/oil")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setOil(d); })
+      .catch(console.error)
+      .finally(() => setLoading((p) => ({ ...p, oil: false })));
   }, []);
 
   const goldPrice = gold?.livePrice;
@@ -150,6 +178,44 @@ export function HardAssets() {
           </div>
           <ArrowRight className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
         </Link>
+
+        {/* Oil Row */}
+        <div className="flex items-center gap-3 px-3 py-2.5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-900">Oil</span>
+              {loading.oil ? (
+                <Skeleton className="h-3.5 w-20" />
+              ) : oil?.wti?.price ? (
+                <span className="text-xs font-bold tabular-nums text-gray-900">{formatUsd(oil.wti.price, 2)}</span>
+              ) : (
+                <span className="text-xs text-gray-400">&mdash;</span>
+              )}
+              {oil?.wti?.changePercent != null && (
+                <span className={`text-[10px] tabular-nums ${oil.wti.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  WTI {oil.wti.changePercent >= 0 ? "+" : ""}{oil.wti.changePercent.toFixed(2)}%
+                </span>
+              )}
+            </div>
+            {loading.oil ? (
+              <Skeleton className="h-2.5 w-40 mt-1" />
+            ) : oil?.wti ? (
+              <div className="flex items-center gap-2 mt-0.5">
+                {oil.brent?.price && (
+                  <span className="text-[10px] text-gray-400">
+                    Brent <span className="font-medium text-gray-600">${oil.brent.price.toFixed(2)}</span>
+                  </span>
+                )}
+                {oil.spread != null && (
+                  <span className="text-[10px] text-gray-400">
+                    Spread <span className="font-medium text-gray-600">${oil.spread.toFixed(2)}</span>
+                  </span>
+                )}
+                {oil.wti.price && <OilZone price={oil.wti.price} />}
+              </div>
+            ) : null}
+          </div>
+        </div>
       </div>
     </div>
   );
