@@ -144,8 +144,8 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
         data = await fetchFredSeries(indicator.fredCode);
       }
 
-      // HY credit spread: FRED reports in %, ranges expect bps
-      if (data && indicator.id === "hy-spread") {
+      // Credit spreads: FRED reports in %, ranges expect bps
+      if (data && (indicator.id === "hy-spread" || indicator.id === "ig-spread")) {
         data.current = data.current * 100;
         data.history = data.history.map(v => v * 100);
       }

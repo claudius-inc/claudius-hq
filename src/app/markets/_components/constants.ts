@@ -75,7 +75,7 @@ export const deficitToGdpRanges = [
 ];
 
 export const categoryLabels: Record<string, string> = {
-  rates: "Interest Rates",
+  rates: "Rates & Credit",
   inflation: "Inflation",
   employment: "Employment",
   growth: "Economic Growth",
