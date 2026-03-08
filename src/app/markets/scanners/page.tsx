@@ -93,12 +93,14 @@ export default async function ScannersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Stock Scanners</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Automated screening results updated periodically
-          </p>
+      <div className="mb-8 pt-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Stock Scanners</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Automated screening results updated periodically
+            </p>
+          </div>
         </div>
       </div>
 

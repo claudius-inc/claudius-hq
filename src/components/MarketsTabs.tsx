@@ -43,13 +43,14 @@ const primaryTabs: PrimaryTab[] = [
   {
     label: "Research",
     href: "/markets/research",
-    activePaths: ["/markets/research", "/markets/scanners"],
-    subTabs: [
-      { href: "/markets/research", label: "Reports", exact: true },
-      { href: "/markets/scanners", label: "Scanners" },
-    ],
+    activePaths: ["/markets/research"],
   },
-{
+  {
+    label: "Scanners",
+    href: "/markets/scanners",
+    activePaths: ["/markets/scanners"],
+  },
+  {
     label: "Sectors",
     href: "/markets/sectors",
     activePaths: ["/markets/sectors"],
