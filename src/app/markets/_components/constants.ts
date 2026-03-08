@@ -94,7 +94,7 @@ export const categoryIcons: Record<string, React.ReactNode> = {
   "foreign-yields": createElement(Globe, { className: "w-4 h-4" }),
 };
 
-export const categoryOrder = ["rates", "inflation", "employment", "growth", "credit", "fx", "foreign-yields"];
+export const categoryOrder = ["rates", "inflation", "employment", "growth", "fx", "foreign-yields"];
 
 export const etfColorMap: Record<string, string> = {
   blue: "bg-blue-100 text-blue-700",
