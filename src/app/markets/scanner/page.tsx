@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { db, stockScans } from "@/db";
 import { desc, eq } from "drizzle-orm";
-import { ScannerResults } from "@/components/scanners/ScannerResults";
+import { ScannerResults } from "./_components/ScannerResults";
 import { Skeleton } from "@/components/Skeleton";
 
 export const metadata: Metadata = {
-  title: "Scanners | Markets",
+  title: "Scanner | Markets",
   description: "Stock screening results from automated scanners",
 };
 
@@ -86,14 +86,26 @@ async function getLatestScan(): Promise<ParsedScan | null> {
       .orderBy(desc(stockScans.scannedAt))
       .limit(1);
 
-    const siResults: ScanResult[] = siScan ? JSON.parse(siScan.results || "[]") : [];
-    const stResults: ScanResult[] = stScan ? JSON.parse(stScan.results || "[]") : [];
+    const siResults: ScanResult[] = siScan
+      ? JSON.parse(siScan.results || "[]")
+      : [];
+    const stResults: ScanResult[] = stScan
+      ? JSON.parse(stScan.results || "[]")
+      : [];
 
     // Tag with market if not already tagged
-    const taggedSi = siResults.map((r) => ({ ...r, market: (r.market || "US") as "US" | "SGX" }));
-    const taggedSt = stResults.map((r) => ({ ...r, market: (r.market || "SGX") as "US" | "SGX" }));
+    const taggedSi = siResults.map((r) => ({
+      ...r,
+      market: (r.market || "US") as "US" | "SGX",
+    }));
+    const taggedSt = stResults.map((r) => ({
+      ...r,
+      market: (r.market || "SGX") as "US" | "SGX",
+    }));
 
-    const merged = [...taggedSi, ...taggedSt].sort((a, b) => b.totalScore - a.totalScore);
+    const merged = [...taggedSi, ...taggedSt].sort(
+      (a, b) => b.totalScore - a.totalScore,
+    );
     merged.forEach((r, idx) => (r.rank = idx + 1));
 
     if (merged.length === 0) return null;
@@ -109,8 +121,11 @@ async function getLatestScan(): Promise<ParsedScan | null> {
         universeSize: merged.length,
         scannedCount: merged.length,
         highConviction: merged.filter((r) => r.totalScore >= 70).length,
-        speculative: merged.filter((r) => r.totalScore >= 50 && r.totalScore < 70).length,
-        watchlist: merged.filter((r) => r.totalScore >= 35 && r.totalScore < 50).length,
+        speculative: merged.filter(
+          (r) => r.totalScore >= 50 && r.totalScore < 70,
+        ).length,
+        watchlist: merged.filter((r) => r.totalScore >= 35 && r.totalScore < 50)
+          .length,
         avoid: merged.filter((r) => r.totalScore < 35).length,
         usCount: taggedSi.length,
         sgxCount: taggedSt.length,
@@ -130,7 +145,9 @@ export default async function ScannersPage() {
       <div className="mb-8 pt-6">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Stock Scanners</h1>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+              Stock Scanner
+            </h1>
             <p className="text-sm text-gray-500 mt-1">
               Automated screening results updated periodically
             </p>

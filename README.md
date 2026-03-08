@@ -31,7 +31,7 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Stock Scanner
 
-Unified scanner that fetches data from Yahoo Finance for both US growth stocks and SGX stocks, scores them with a single scoring system, and optionally uploads results to HQ for display on `/markets/scanners`.
+Unified scanner that fetches data from Yahoo Finance for both US growth stocks and SGX stocks, scores them with a single scoring system, and optionally uploads results to HQ for display on `/markets/scanner`.
 
 ```bash
 node scripts/unified-scanner.js              # Console output

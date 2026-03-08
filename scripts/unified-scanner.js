@@ -18,7 +18,7 @@
  *   AVOID            (score < 35)
  *
  * Usage:
- *   node unified-scanner.js [--limit N] [--json] [--upload|-u] [--save|-s]
+ *   node unified-scanner.js [--limit N] [--json] [--upload|-u] [--save|-s] [--no-discover]
  */
 
 const https = require("https");
@@ -203,8 +203,8 @@ const SGX_TICKERS = [
   "40T.SI",
 ];
 
-// Combine and deduplicate
-const ALL_TICKERS = [...new Set([...US_TICKERS, ...SGX_TICKERS])];
+// Combine curated tickers (used as baseline)
+const CURATED_TICKERS = [...new Set([...US_TICKERS, ...SGX_TICKERS])];
 
 function getMarket(ticker) {
   return ticker.endsWith(".SI") ? "SGX" : "US";
@@ -250,6 +250,47 @@ function request(url, timeoutMs = 15000) {
   });
 }
 
+function postRequest(url, body, timeoutMs = 15000) {
+  return new Promise((resolve) => {
+    const u = new URL(url);
+    const data = JSON.stringify(body);
+    const req = https.request(
+      {
+        hostname: u.hostname,
+        path: u.pathname + u.search,
+        method: "POST",
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(data),
+          ...(COOKIES ? { Cookie: COOKIES } : {}),
+        },
+        timeout: timeoutMs,
+      },
+      (res) => {
+        if (res.headers["set-cookie"]) {
+          const nc = res.headers["set-cookie"]
+            .map((c) => c.split(";")[0])
+            .join("; ");
+          COOKIES = COOKIES ? COOKIES + "; " + nc : nc;
+        }
+        let d = "";
+        res.on("data", (c) => (d += c));
+        res.on("end", () => resolve({ status: res.statusCode, data: d }));
+      },
+    );
+    req.on("error", () => resolve({ status: 0, data: "" }));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ status: 0, data: "" });
+    });
+    req.write(data);
+    req.end();
+  });
+}
+
 async function initAuth() {
   await request("https://fc.yahoo.com/");
   const r = await request("https://query2.finance.yahoo.com/v1/test/getcrumb");
@@ -260,6 +301,82 @@ async function initAuth() {
     if (m) CRUMB = m[1].replace(/\\u002F/g, "/");
   }
   return !!CRUMB;
+}
+
+// ── Discovery ─────────────────────────────────────────────────────────────────
+
+async function discoverTickers() {
+  const screenerUrl = `https://query2.finance.yahoo.com/v1/finance/screener?crumb=${encodeURIComponent(CRUMB)}`;
+
+  const sgxPayload = {
+    size: 250,
+    offset: 0,
+    sortField: "intradaymarketcap",
+    sortType: "DESC",
+    quoteType: "EQUITY",
+    query: {
+      operator: "AND",
+      operands: [
+        { operator: "eq", operands: ["exchange", "SES"] },
+        { operator: "gt", operands: ["intradaymarketcap", 100000000] },
+        { operator: "gt", operands: ["avgdailyvol3m", 50000] },
+      ],
+    },
+  };
+
+  const usPayload = {
+    size: 250,
+    offset: 0,
+    sortField: "intradaymarketcap",
+    sortType: "DESC",
+    quoteType: "EQUITY",
+    query: {
+      operator: "AND",
+      operands: [
+        {
+          operator: "or",
+          operands: [
+            { operator: "eq", operands: ["exchange", "NMS"] },
+            { operator: "eq", operands: ["exchange", "NYQ"] },
+          ],
+        },
+        { operator: "gt", operands: ["intradaymarketcap", 1000000000] },
+        { operator: "gt", operands: ["revenue_growth.quarterly", 0.1] },
+        { operator: "gt", operands: ["avgdailyvol3m", 200000] },
+      ],
+    },
+  };
+
+  const discovered = [];
+
+  for (const [label, payload] of [
+    ["SGX", sgxPayload],
+    ["US", usPayload],
+  ]) {
+    try {
+      const r = await postRequest(screenerUrl, payload, 20000);
+      if (r.status !== 200) {
+        process.stderr.write(
+          `Discovery ${label}: HTTP ${r.status}, skipping\n`,
+        );
+        continue;
+      }
+      const parsed = JSON.parse(r.data);
+      const quotes = parsed.finance?.result?.[0]?.quotes || [];
+      for (const q of quotes) {
+        if (q.symbol) discovered.push(q.symbol);
+      }
+      process.stderr.write(
+        `Discovery ${label}: found ${quotes.length} tickers\n`,
+      );
+    } catch (e) {
+      process.stderr.write(
+        `Discovery ${label} failed: ${e.message}, continuing with curated\n`,
+      );
+    }
+  }
+
+  return discovered;
 }
 
 // ── Data fetchers ────────────────────────────────────────────────────────────
@@ -769,7 +886,7 @@ function formatMcap(mcapM) {
   return `${mcapM}M`;
 }
 
-function printReport(results, limit) {
+function printReport(results, limit, discoveryStats) {
   const top = results.slice(0, limit);
   const now = new Date().toISOString().split("T")[0];
 
@@ -780,7 +897,7 @@ function printReport(results, limit) {
   console.log("=".repeat(150));
   console.log(" UNIFIED STOCK SCANNER");
   console.log(
-    ` Date: ${now} | Universe: ${ALL_TICKERS.length} tickers (US: ${US_TICKERS.length}, SGX: ${SGX_TICKERS.length}) | Showing top ${limit}`,
+    ` Date: ${now} | Universe: ${discoveryStats.total} tickers (Curated: ${discoveryStats.curated}, Discovered: ${discoveryStats.discovered}, Overlap: ${discoveryStats.overlap}) | Showing top ${limit}`,
   );
   console.log("=".repeat(150));
 
@@ -870,6 +987,7 @@ async function main() {
   const jsonMode = args.includes("--json");
   const uploadToHQ = args.includes("--upload") || args.includes("-u");
   const saveToFile = args.includes("--save") || args.includes("-s");
+  const noDiscover = args.includes("--no-discover");
 
   process.stderr.write("Unified Stock Scanner\n");
   process.stderr.write("Initializing Yahoo Finance auth...\n");
@@ -881,11 +999,39 @@ async function main() {
     process.exit(1);
   }
 
+  // Build ticker universe: curated + optional discovery
+  const curatedSet = new Set(CURATED_TICKERS);
+  let discoveredTickers = [];
+  let overlap = 0;
+
+  if (!noDiscover) {
+    process.stderr.write("Running stock discovery...\n");
+    discoveredTickers = await discoverTickers();
+    overlap = discoveredTickers.filter((t) => curatedSet.has(t)).length;
+  }
+
+  const allTickers = [
+    ...CURATED_TICKERS,
+    ...discoveredTickers.filter((t) => !curatedSet.has(t)),
+  ];
+  const allTickerSet = new Set(allTickers);
+
+  const discoveryStats = {
+    curated: CURATED_TICKERS.length,
+    discovered: discoveredTickers.length,
+    overlap,
+    total: allTickers.length,
+  };
+
+  process.stderr.write(
+    `Universe: ${discoveryStats.total} tickers (Curated: ${discoveryStats.curated}, Discovered: ${discoveryStats.discovered}, Overlap: ${discoveryStats.overlap})\n`,
+  );
+
   const results = [];
   let done = 0;
-  const total = ALL_TICKERS.length;
+  const total = allTickers.length;
 
-  for (const ticker of ALL_TICKERS) {
+  for (const ticker of allTickers) {
     done++;
     const market = getMarket(ticker);
     try {
@@ -939,6 +1085,7 @@ async function main() {
         technical,
         analyst,
         risk,
+        source: curatedSet.has(ticker) ? "curated" : "discovered",
         revGrowth: fund.revenueGrowthRaw,
         grossMargin: fund.grossMargin,
       });
@@ -958,8 +1105,9 @@ async function main() {
 
   // Build summary
   const summary = {
-    universeSize: ALL_TICKERS.length,
+    universeSize: allTickers.length,
     scannedCount: results.length,
+    discovery: discoveryStats,
     highConviction: results.filter((r) => r.totalScore >= 70).length,
     speculative: results.filter((r) => r.totalScore >= 50 && r.totalScore < 70)
       .length,
@@ -973,7 +1121,7 @@ async function main() {
   if (jsonMode) {
     console.log(JSON.stringify({ results, summary }, null, 2));
   } else {
-    printReport(results, limit);
+    printReport(results, limit, discoveryStats);
   }
 
   if (saveToFile) {
