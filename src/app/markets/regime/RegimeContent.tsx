@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { PageHero } from "@/components/PageHero";
 import { RefreshCw, TrendingUp, TrendingDown, AlertTriangle, Shield, Flame, Landmark, Globe, Scale } from "lucide-react";
+import { detectRegime } from "../_components/helpers";
 
-interface RegimeData {
+interface RegimePageData {
   indicators: {
     realYield: number | null;
     nominalGrowth: number | null;
@@ -21,74 +22,8 @@ interface RegimeData {
   };
 }
 
-// Regime determination logic
-function determineRegime(data: RegimeData["indicators"]): {
-  name: string;
-  description: string;
-  color: string;
-  implications: string[];
-} {
-  const { realYield, debtToGdp, deficitToGdp } = data;
-  
-  // Financial Repression: real yields deeply negative + high debt
-  if (realYield !== null && realYield < -1 && debtToGdp !== null && debtToGdp > 100) {
-    return {
-      name: "Financial Repression",
-      description: "Real yields negative, debt being inflated away",
-      color: "text-red-600 bg-red-50 border-red-200",
-      implications: [
-        "Long bonds are wealth destroyers",
-        "Gold and hard assets outperform",
-        "Cash loses purchasing power",
-        "Equities may keep pace with inflation",
-      ],
-    };
-  }
-  
-  // Fiscal Dominance: large deficits + high debt
-  if (deficitToGdp !== null && deficitToGdp > 5 && debtToGdp !== null && debtToGdp > 100) {
-    return {
-      name: "Fiscal Dominance",
-      description: "Government spending dominates monetary policy",
-      color: "text-amber-600 bg-amber-50 border-amber-200",
-      implications: [
-        "Fed constrained by Treasury needs",
-        "Rates can't rise too much",
-        "Inflation likely to persist",
-        "Dollar weakness probable",
-      ],
-    };
-  }
-  
-  // Monetary Tightening
-  if (realYield !== null && realYield > 2) {
-    return {
-      name: "Restrictive Policy",
-      description: "Real rates positive, liquidity tightening",
-      color: "text-blue-600 bg-blue-50 border-blue-200",
-      implications: [
-        "Bonds may outperform",
-        "Gold faces headwinds",
-        "Growth assets struggle",
-        "Dollar strength likely",
-      ],
-    };
-  }
-  
-  return {
-    name: "Transitional",
-    description: "Mixed signals, regime unclear",
-    color: "text-gray-600 bg-gray-50 border-gray-200",
-    implications: [
-      "Diversification important",
-      "Watch for regime signals",
-      "Volatility likely elevated",
-    ],
-  };
-}
-
 export function RegimeContent() {
-  const [data, setData] = useState<RegimeData | null>(null);
+  const [data, setData] = useState<RegimePageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -201,7 +136,7 @@ export function RegimeContent() {
     );
   }
 
-  const regime = data ? determineRegime(data.indicators) : null;
+  const regime = data ? detectRegime(data.indicators) : null;
 
   return (
     <>
@@ -519,7 +454,7 @@ function IndicatorCard({
   );
 }
 
-function calculateRepressionLevel(indicators: RegimeData["indicators"] | undefined): string {
+function calculateRepressionLevel(indicators: RegimePageData["indicators"] | undefined): string {
   if (!indicators) return "Unknown";
   const { realYield, debtToGdp, deficitToGdp } = indicators;
   
@@ -537,7 +472,7 @@ function calculateRepressionLevel(indicators: RegimeData["indicators"] | undefin
   return "Low";
 }
 
-function getRepressionPercent(indicators: RegimeData["indicators"] | undefined): number {
+function getRepressionPercent(indicators: RegimePageData["indicators"] | undefined): number {
   if (!indicators) return 0;
   const { realYield, debtToGdp, deficitToGdp } = indicators;
   

@@ -99,39 +99,67 @@ export function etfColorToHealthLevel(color: string | null | undefined): HealthL
   return "neutral";
 }
 
-export function detectRegime(realYield: number | null, debtToGdp: number | null): RegimeData {
-  if (realYield !== null && realYield < 0 && debtToGdp !== null && debtToGdp > 100) {
+export function detectRegime(inputs: {
+  realYield: number | null;
+  debtToGdp: number | null;
+  deficitToGdp?: number | null;
+}): RegimeData {
+  const { realYield, debtToGdp, deficitToGdp = null } = inputs;
+
+  // Financial Repression: real yields deeply negative + high debt
+  if (realYield !== null && realYield < -1 && debtToGdp !== null && debtToGdp > 100) {
     return {
       name: "Financial Repression",
-      description: "Negative real rates inflating away debt",
+      description: "Real yields negative, debt being inflated away",
       color: "bg-amber-100 border-amber-300 text-amber-800",
-      indicators: { realYield, debtToGdp, deficitToGdp: null, dxy: null },
-      implications: ["Gold outperforms", "Bonds lose purchasing power", "Real assets favored"],
+      indicators: { realYield, debtToGdp, deficitToGdp, dxy: null },
+      implications: [
+        "Long bonds are wealth destroyers",
+        "Gold and hard assets outperform",
+        "Cash loses purchasing power",
+        "Equities may keep pace with inflation",
+      ],
     };
   }
-  if (debtToGdp !== null && debtToGdp > 120) {
+  // Fiscal Dominance: large deficits + high debt
+  if (deficitToGdp !== null && deficitToGdp > 5 && debtToGdp !== null && debtToGdp > 100) {
     return {
       name: "Fiscal Dominance",
-      description: "Debt levels constraining monetary policy",
+      description: "Government spending dominates monetary policy",
       color: "bg-red-100 border-red-300 text-red-800",
-      indicators: { realYield, debtToGdp, deficitToGdp: null, dxy: null },
-      implications: ["Currency debasement risk", "Hard assets critical", "Bond vigilantes watching"],
+      indicators: { realYield, debtToGdp, deficitToGdp, dxy: null },
+      implications: [
+        "Fed constrained by Treasury needs",
+        "Rates can't rise too much",
+        "Inflation likely to persist",
+        "Dollar weakness probable",
+      ],
     };
   }
+  // Restrictive Policy
   if (realYield !== null && realYield > 2) {
     return {
       name: "Restrictive Policy",
       description: "Real rates positive, liquidity tightening",
       color: "bg-blue-100 border-blue-300 text-blue-800",
-      indicators: { realYield, debtToGdp, deficitToGdp: null, dxy: null },
-      implications: ["Bonds may outperform", "Gold faces headwinds", "Cash competitive"],
+      indicators: { realYield, debtToGdp, deficitToGdp, dxy: null },
+      implications: [
+        "Bonds may outperform",
+        "Gold faces headwinds",
+        "Growth assets struggle",
+        "Dollar strength likely",
+      ],
     };
   }
   return {
     name: "Transitional",
     description: "Mixed signals, regime unclear",
     color: "bg-gray-100 border-gray-300 text-gray-700",
-    indicators: { realYield, debtToGdp, deficitToGdp: null, dxy: null },
-    implications: ["Diversification key", "Watch for regime signals"],
+    indicators: { realYield, debtToGdp, deficitToGdp, dxy: null },
+    implications: [
+      "Diversification important",
+      "Watch for regime signals",
+      "Volatility likely elevated",
+    ],
   };
 }

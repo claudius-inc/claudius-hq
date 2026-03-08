@@ -4,6 +4,7 @@ import { db, stockScans } from "@/db";
 import { desc, eq } from "drizzle-orm";
 import { ScannerResults } from "./_components/ScannerResults";
 import { Skeleton } from "@/components/Skeleton";
+import type { ScanResult, ParsedScan } from "./types";
 
 export const metadata: Metadata = {
   title: "Scanner | Markets",
@@ -11,47 +12,6 @@ export const metadata: Metadata = {
 };
 
 export const revalidate = 300; // Revalidate every 5 minutes
-
-interface ScanResult {
-  rank: number;
-  ticker: string;
-  name: string;
-  price: number | null;
-  mcapB: string;
-  totalScore: number;
-  tier: string;
-  tierColor: string;
-  riskTier: string;
-  market?: "US" | "SGX";
-  growth: { score: number; max: number; details: string[] };
-  financial: { score: number; max: number; details: string[] };
-  insider: { score: number; max: number; details: string[] };
-  technical: { score: number; max: number; details: string[] };
-  analyst: { score: number; max: number; details: string[] };
-  risk: { penalty: number; flags: string[] };
-  revGrowth: number | null;
-  grossMargin: number | null;
-}
-
-interface ScanSummary {
-  universeSize: number;
-  scannedCount: number;
-  highConviction: number;
-  speculative: number;
-  watchlist: number;
-  avoid: number;
-  usCount?: number;
-  sgxCount?: number;
-}
-
-interface ParsedScan {
-  id: number;
-  scanType: string;
-  scannedAt: string | null;
-  stockCount: number | null;
-  results: ScanResult[];
-  summary: ScanSummary | null;
-}
 
 async function getLatestScan(): Promise<ParsedScan | null> {
   try {

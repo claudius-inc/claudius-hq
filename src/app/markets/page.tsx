@@ -9,6 +9,7 @@ import { Barometers } from "./_components/Barometers";
 import { Sentiment } from "./_components/Sentiment";
 import { SmartMoney } from "./_components/SmartMoney";
 import { Indicators } from "./_components/Indicators";
+import { HardAssets } from "./_components/HardAssets";
 import type {
   Position,
   Summary,
@@ -177,13 +178,9 @@ export default function StocksDashboard() {
           const deficitToGdp = findIndicator("deficit-to-gdp");
           const dxy = goldData?.dxy?.price ?? null;
 
-          const regime = detectRegime(realYield, debtToGdp);
-          regime.indicators = {
-            realYield,
-            debtToGdp,
-            deficitToGdp: deficitToGdp ? Math.abs(deficitToGdp) : null,
-            dxy,
-          };
+          const absDeficit = deficitToGdp ? Math.abs(deficitToGdp) : null;
+          const regime = detectRegime({ realYield, debtToGdp, deficitToGdp: absDeficit });
+          regime.indicators.dxy = dxy;
           setRegimeData(regime);
         },
       )
@@ -214,23 +211,26 @@ export default function StocksDashboard() {
           regenerateInsights={regenerateInsights}
         />
 
-        <Barometers
-          marketEtfs={marketEtfs}
-          loading={loading.etfs}
-          expandedIds={expandedIds}
-          toggleExpanded={toggleExpanded}
-        />
+        <div className="space-y-4">
+          <Barometers
+            marketEtfs={marketEtfs}
+            loading={loading.etfs}
+            expandedIds={expandedIds}
+            toggleExpanded={toggleExpanded}
+          />
+          <SmartMoney
+            congressData={congressData}
+            insiderData={insiderData}
+            expandedIds={expandedIds}
+            toggleExpanded={toggleExpanded}
+          />
+        </div>
+
+        <HardAssets />
 
         <Sentiment
           sentimentData={sentimentData}
           breadthData={breadthData}
-          expandedIds={expandedIds}
-          toggleExpanded={toggleExpanded}
-        />
-
-        <SmartMoney
-          congressData={congressData}
-          insiderData={insiderData}
           expandedIds={expandedIds}
           toggleExpanded={toggleExpanded}
         />

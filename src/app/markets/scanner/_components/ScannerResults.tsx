@@ -4,47 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Select } from "@/components/ui/Select";
-
-interface ScanResult {
-  rank: number;
-  ticker: string;
-  name: string;
-  price: number | null;
-  mcapB: string;
-  totalScore: number;
-  tier: string;
-  tierColor: string;
-  riskTier: string;
-  market?: "US" | "SGX";
-  growth: { score: number; max: number; details: string[] };
-  financial: { score: number; max: number; details: string[] };
-  insider: { score: number; max: number; details: string[] };
-  technical: { score: number; max: number; details: string[] };
-  analyst: { score: number; max: number; details: string[] };
-  risk: { penalty: number; flags: string[] };
-  revGrowth: number | null;
-  grossMargin: number | null;
-}
-
-interface ScanSummary {
-  universeSize: number;
-  scannedCount: number;
-  highConviction: number;
-  speculative: number;
-  watchlist: number;
-  avoid: number;
-  usCount?: number;
-  sgxCount?: number;
-}
-
-interface ParsedScan {
-  id: number;
-  scanType: string;
-  scannedAt: string | null;
-  stockCount: number | null;
-  results: ScanResult[];
-  summary: ScanSummary | null;
-}
+import type { ParsedScan, ScanResult } from "../types";
 
 interface Props {
   scan: ParsedScan | null;
