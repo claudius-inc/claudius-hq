@@ -68,6 +68,43 @@ const MARKET_ETFS: EtfConfig[] = [
     ],
     invertedSignal: true,
   },
+  {
+    ticker: "ITA",
+    name: "ITA (Aerospace & Defense)",
+    description:
+      "iShares U.S. Aerospace & Defense ETF. Tracks major defense contractors — Lockheed Martin, RTX, Northrop Grumman, etc.",
+    whyItMatters:
+      "ITA surging signals geopolitical risk premium — defense spending expectations rising. Often leads during military escalation, conflicts, or increased global tension. Watch ITA vs XLI for pure defense momentum.",
+    ranges: [
+      {
+        label: "Defense Rally",
+        min: null,
+        max: null,
+        meaning: "Near 52w high — strong defense premium",
+        color: "green",
+      },
+      {
+        label: "Neutral",
+        min: null,
+        max: null,
+        meaning: "Range-bound — baseline defense spending",
+        color: "gray",
+      },
+      {
+        label: "Weakness",
+        min: null,
+        max: null,
+        meaning: "Below average — peace dividend / rotation out",
+        color: "amber",
+      },
+    ],
+    affectedAssets: [
+      "Defense contractors",
+      "Cybersecurity",
+      "Government services",
+      "Aerospace suppliers",
+    ],
+  },
 ];
 
 function interpretEtf(

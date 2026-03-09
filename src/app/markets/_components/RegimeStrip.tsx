@@ -17,23 +17,23 @@ interface RegimeStripProps {
 export function RegimeStrip({ regimeData, loading }: RegimeStripProps) {
   return (
     <div className="col-span-full">
-      <div className="rounded-xl bg-gray-900 p-3 sm:p-4">
+      <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4">
         <ConditionalLink
           href={
             !loading.regime && !loading.sentiment && regimeData
               ? "/markets/regime"
               : undefined
           }
-          className="flex items-center justify-between gap-3 pb-3"
+          className="flex items-center justify-between gap-3"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center gap-2 min-w-0">
             {loading.sentiment || loading.regime ? (
               <>
-                <Skeleton className="w-6 h-6 rounded-md !bg-gray-700" />
+                <Skeleton className="w-6 h-6 rounded-md !bg-gray-100" />
                 <div>
-                  <Skeleton className="h-4 w-32 !bg-gray-700 mb-1" />
-                  <Skeleton className="h-2.5 w-48 !bg-gray-800" />
+                  <Skeleton className="h-4 w-32 !bg-gray-100 mb-1" />
+                  <Skeleton className="h-2.5 w-48 !bg-gray-50" />
                 </div>
               </>
             ) : regimeData ? (
@@ -41,22 +41,22 @@ export function RegimeStrip({ regimeData, loading }: RegimeStripProps) {
                 <div
                   className={`p-1 rounded-md ${
                     regimeData.name === "Fiscal Dominance"
-                      ? "bg-red-500/20"
+                      ? "bg-red-50"
                       : regimeData.name === "Financial Repression"
-                        ? "bg-amber-500/20"
+                        ? "bg-amber-50"
                         : regimeData.name === "Restrictive Policy"
-                          ? "bg-blue-500/20"
-                          : "bg-gray-500/20"
+                          ? "bg-blue-50"
+                          : "bg-gray-50"
                   }`}
                 >
                   <Landmark
                     className={`w-3.5 h-3.5 ${
                       regimeData.name === "Fiscal Dominance"
-                        ? "text-red-400"
+                        ? "text-red-500"
                         : regimeData.name === "Financial Repression"
-                          ? "text-amber-400"
+                          ? "text-amber-500"
                           : regimeData.name === "Restrictive Policy"
-                            ? "text-blue-400"
+                            ? "text-blue-500"
                             : "text-gray-400"
                     }`}
                   />
@@ -65,31 +65,31 @@ export function RegimeStrip({ regimeData, loading }: RegimeStripProps) {
                   <span
                     className={`text-sm font-bold ${
                       regimeData.name === "Fiscal Dominance"
-                        ? "text-red-400"
+                        ? "text-red-600"
                         : regimeData.name === "Financial Repression"
-                          ? "text-amber-400"
+                          ? "text-amber-600"
                           : regimeData.name === "Restrictive Policy"
-                            ? "text-blue-400"
-                            : "text-gray-300"
+                            ? "text-blue-600"
+                            : "text-gray-500"
                     }`}
                   >
                     {regimeData.name}
                   </span>
-                  <p className="text-[10px] text-gray-500 leading-tight">
+                  <p className="text-[10px] text-gray-400 leading-tight">
                     {regimeData.description}
                   </p>
                 </div>
               </>
             ) : (
               <>
-                <div className="p-1 rounded-md bg-gray-500/20">
+                <div className="p-1 rounded-md bg-gray-50">
                   <Landmark className="w-3.5 h-3.5 text-gray-400" />
                 </div>
                 <div>
-                  <span className="text-sm font-bold text-gray-500">
+                  <span className="text-sm font-bold text-gray-400">
                     {"\u00A0"}
                   </span>
-                  <p className="text-[10px] text-gray-500 leading-tight">
+                  <p className="text-[10px] text-gray-400 leading-tight">
                     {"\u00A0"}
                   </p>
                 </div>
@@ -99,9 +99,9 @@ export function RegimeStrip({ regimeData, loading }: RegimeStripProps) {
           <div className="flex items-center gap-3 shrink-0">
             {loading.sentiment || loading.regime ? (
               <>
-                <Skeleton className="h-3 w-14 !bg-gray-700" />
-                <Skeleton className="h-3 w-14 !bg-gray-700 hidden sm:block" />
-                <Skeleton className="h-3 w-14 !bg-gray-700 hidden sm:block" />
+                <Skeleton className="h-3 w-14 !bg-gray-100" />
+                <Skeleton className="h-3 w-14 !bg-gray-100 hidden sm:block" />
+                <Skeleton className="h-3 w-14 !bg-gray-100 hidden sm:block" />
               </>
             ) : regimeData ? (
               <>
@@ -123,10 +123,10 @@ export function RegimeStrip({ regimeData, loading }: RegimeStripProps) {
                   >
                     <div className="text-center cursor-pointer hover:opacity-80 transition-opacity text-[10px] text-gray-400">
                       <span className="opacity-60">RY </span>
-                      <span className="font-bold text-gray-300">
+                      <span className="font-bold text-gray-700">
                         {regimeData.indicators.realYield.toFixed(2)}%
                       </span>
-                      <HelpCircle className="w-2.5 h-2.5 text-gray-600 hover:text-gray-400 inline-block ml-0.5 -mt-0.5 transition-colors" />
+                      <HelpCircle className="w-2.5 h-2.5 text-gray-300 hover:text-gray-500 inline-block ml-0.5 -mt-0.5 transition-colors" />
                     </div>
                   </RangePopover>
                 )}
@@ -147,10 +147,10 @@ export function RegimeStrip({ regimeData, loading }: RegimeStripProps) {
                     >
                       <div className="text-center cursor-pointer hover:opacity-80 transition-opacity text-[10px] text-gray-400">
                         <span className="opacity-60">D/G </span>
-                        <span className="font-bold text-gray-300">
+                        <span className="font-bold text-gray-700">
                           {regimeData.indicators.debtToGdp.toFixed(0)}%
                         </span>
-                        <HelpCircle className="w-2.5 h-2.5 text-gray-600 hover:text-gray-400 inline-block ml-0.5 -mt-0.5 transition-colors" />
+                        <HelpCircle className="w-2.5 h-2.5 text-gray-300 hover:text-gray-500 inline-block ml-0.5 -mt-0.5 transition-colors" />
                       </div>
                     </RangePopover>
                   )}
@@ -170,15 +170,15 @@ export function RegimeStrip({ regimeData, loading }: RegimeStripProps) {
                     >
                       <div className="text-center cursor-pointer hover:opacity-80 transition-opacity text-[10px] text-gray-400">
                         <span className="opacity-60">Def </span>
-                        <span className="font-bold text-gray-300">
+                        <span className="font-bold text-gray-700">
                           {regimeData.indicators.deficitToGdp.toFixed(1)}%
                         </span>
-                        <HelpCircle className="w-2.5 h-2.5 text-gray-600 hover:text-gray-400 inline-block ml-0.5 -mt-0.5 transition-colors" />
+                        <HelpCircle className="w-2.5 h-2.5 text-gray-300 hover:text-gray-500 inline-block ml-0.5 -mt-0.5 transition-colors" />
                       </div>
                     </RangePopover>
                   )}
                 </span>
-                <ArrowRight className="w-3.5 h-3.5 opacity-40" />
+                <ArrowRight className="w-3.5 h-3.5 text-gray-300" />
               </>
             ) : (
               <span className="h-3 w-14">{"\u00A0"}</span>

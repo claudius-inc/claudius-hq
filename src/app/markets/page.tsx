@@ -10,6 +10,7 @@ import { Sentiment } from "./_components/Sentiment";
 import { SmartMoney } from "./_components/SmartMoney";
 import { Indicators } from "./_components/Indicators";
 import { HardAssets } from "./_components/HardAssets";
+import { PlaybookSection } from "./_components/playbook/PlaybookSection";
 import type {
   Position,
   Summary,
@@ -199,6 +200,17 @@ export default function StocksDashboard() {
         <RegimeStrip
           regimeData={regimeData}
           loading={{ regime: loading.regime, sentiment: loading.sentiment }}
+        />
+
+        <PlaybookSection
+          macroIndicators={macroIndicators}
+          yieldSpreads={yieldSpreads}
+          marketEtfs={marketEtfs}
+          sentimentData={sentimentData}
+          breadthData={breadthData}
+          congressData={congressData}
+          insiderData={insiderData}
+          regimeData={regimeData}
         />
 
         <AIInsights
