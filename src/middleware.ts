@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 
-// Use env secret or fallback (should be set in production)
-const SESSION_VALUE = process.env.HQ_SESSION_SECRET || "authenticated";
+const SESSION_VALUE = process.env.HQ_SESSION_SECRET;
+
+if (!SESSION_VALUE) {
+  throw new Error("HQ_SESSION_SECRET environment variable is required");
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
