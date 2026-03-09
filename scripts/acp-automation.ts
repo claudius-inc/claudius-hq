@@ -1,8 +1,10 @@
 // scripts/acp-automation.ts
 // Runs every 30 minutes via cron (no AI needed)
-// Collects metrics, generates tasks, advances pillar rotation
+// Collects metrics, generates tasks, advances pillar rotation, syncs offerings
 
 import { config } from 'dotenv';
+import * as fs from 'fs';
+import * as path from 'path';
 config({ path: '.env.local' });
 
 const HQ_API = 'https://claudiusinc.com/api/acp';
@@ -72,6 +74,95 @@ async function hqFetch<T = unknown>(endpoint: string, options?: RequestInit): Pr
     return { error: String(err) };
   }
 }
+
+// --- Offerings Sync ---
+
+const OFFERINGS_DIR = '/root/.openclaw/workspace/skills/acp/src/seller/offerings';
+
+interface OfferingJson {
+  name: string;
+  description?: string;
+  jobFee?: number;
+  listed?: boolean;
+}
+
+function detectCategory(name: string): string {
+  const marketDataOfferings = [
+    'btc_signal', 'eth_signal', 'fear_greed', 'live_price', 
+    'technical_signals', 'market_sentiment', 'funding_rate_signal',
+    'price_volatility_alert', 'portfolio_heat_map'
+  ];
+  const utilityOfferings = ['quick_swap', 'gas_tracker', 'research_summarizer'];
+  const securityOfferings = ['token_risk_analyzer', 'token_safety_quick'];
+  const fortuneOfferings = [
+    'daily_horoscope', 'zodiac_fortune', 'i_ching', 
+    'rune_cast', 'dice_oracle', 'lucky_numbers', 'compatibility_check'
+  ];
+  const entertainmentOfferings = ['agent_roast'];
+  const weatherOfferings = ['weather_now'];
+
+  if (marketDataOfferings.includes(name)) return 'market_data';
+  if (utilityOfferings.includes(name)) return 'utility';
+  if (securityOfferings.includes(name)) return 'security';
+  if (fortuneOfferings.includes(name)) return 'fortune';
+  if (entertainmentOfferings.includes(name)) return 'entertainment';
+  if (weatherOfferings.includes(name)) return 'weather';
+  return 'other';
+}
+
+async function syncOfferings(): Promise<void> {
+  if (!fs.existsSync(OFFERINGS_DIR)) {
+    console.log('syncOfferings: Offerings directory not found');
+    return;
+  }
+
+  const offerings: Array<{
+    name: string;
+    description: string;
+    price: number;
+    category: string;
+    isActive: number;
+  }> = [];
+
+  const dirs = fs.readdirSync(OFFERINGS_DIR);
+  
+  for (const dir of dirs) {
+    const jsonPath = path.join(OFFERINGS_DIR, dir, 'offering.json');
+    if (fs.existsSync(jsonPath)) {
+      try {
+        const data: OfferingJson = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+        offerings.push({
+          name: data.name,
+          description: (data.description || '').substring(0, 500),
+          price: data.jobFee || 0,
+          category: detectCategory(data.name),
+          isActive: data.listed ? 1 : 0,
+        });
+      } catch (err) {
+        console.error(`syncOfferings: Failed to parse ${jsonPath}:`, err);
+      }
+    }
+  }
+
+  if (offerings.length === 0) {
+    console.log('syncOfferings: No offerings found');
+    return;
+  }
+
+  // Use existing POST endpoint which upserts
+  const result = await hqFetch('/offerings', {
+    method: 'POST',
+    body: JSON.stringify({ offerings }),
+  });
+
+  if (result.error) {
+    console.error('syncOfferings: Failed to sync:', result.error);
+  } else {
+    console.log(`syncOfferings: Synced ${offerings.length} offerings to HQ`);
+  }
+}
+
+// --- Metrics Collection ---
 
 async function collectMetrics(): Promise<void> {
   // Fetch job counts from ACP seller server logs or API
@@ -240,6 +331,7 @@ async function main(): Promise<void> {
   console.log(`ACP Automation running at ${new Date().toISOString()}...`);
   
   try {
+    await syncOfferings();   // Sync offerings from local files to HQ
     await collectMetrics();
     await updateState();
     await generateTasks();
