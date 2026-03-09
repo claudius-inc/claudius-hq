@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
 import Link from "next/link";
+import useSWR from "swr";
 import { Gem, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 
@@ -34,6 +34,15 @@ interface OilSnapshot {
   spread: number | null;
 }
 
+const fetcher = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null));
+
+// SWR config: refresh every 60s, revalidate on focus
+const swrConfig = {
+  refreshInterval: 60000, // 60 seconds
+  revalidateOnFocus: true,
+  dedupingInterval: 10000, // 10 seconds
+};
+
 function formatUsd(n: number, decimals = 0) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -63,30 +72,9 @@ function OilZone({ price }: { price: number }) {
 }
 
 export function HardAssets() {
-  const [btc, setBtc] = useState<BtcSnapshot | null>(null);
-  const [gold, setGold] = useState<GoldSnapshot | null>(null);
-  const [oil, setOil] = useState<OilSnapshot | null>(null);
-  const [loading, setLoading] = useState({ btc: true, gold: true, oil: true });
-
-  useEffect(() => {
-    fetch("/api/btc")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setBtc(d); })
-      .catch(console.error)
-      .finally(() => setLoading((p) => ({ ...p, btc: false })));
-
-    fetch("/api/gold")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setGold(d); })
-      .catch(console.error)
-      .finally(() => setLoading((p) => ({ ...p, gold: false })));
-
-    fetch("/api/oil")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d) setOil(d); })
-      .catch(console.error)
-      .finally(() => setLoading((p) => ({ ...p, oil: false })));
-  }, []);
+  const { data: btc, isLoading: loadingBtc } = useSWR<BtcSnapshot>("/api/btc", fetcher, swrConfig);
+  const { data: gold, isLoading: loadingGold } = useSWR<GoldSnapshot>("/api/gold", fetcher, swrConfig);
+  const { data: oil, isLoading: loadingOil } = useSWR<OilSnapshot>("/api/oil", fetcher, swrConfig);
 
   const goldPrice = gold?.livePrice;
   const goldAth = gold?.analysis?.ath;
@@ -105,7 +93,7 @@ export function HardAssets() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-900">BTC</span>
-              {loading.btc ? (
+              {loadingBtc ? (
                 <Skeleton className="h-3.5 w-20" />
               ) : btc ? (
                 <span className="text-xs font-bold tabular-nums text-gray-900">{formatUsd(btc.livePrice)}</span>
@@ -118,7 +106,7 @@ export function HardAssets() {
                 </span>
               )}
             </div>
-            {loading.btc ? (
+            {loadingBtc ? (
               <Skeleton className="h-2.5 w-40 mt-1" />
             ) : btc ? (
               <div className="flex items-center gap-2 mt-0.5">
@@ -141,7 +129,7 @@ export function HardAssets() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-900">Gold</span>
-              {loading.gold ? (
+              {loadingGold ? (
                 <Skeleton className="h-3.5 w-20" />
               ) : goldPrice ? (
                 <span className="text-xs font-bold tabular-nums text-gray-900">{formatUsd(goldPrice)}</span>
@@ -154,7 +142,7 @@ export function HardAssets() {
                 </span>
               )}
             </div>
-            {loading.gold ? (
+            {loadingGold ? (
               <Skeleton className="h-2.5 w-40 mt-1" />
             ) : gold ? (
               <div className="flex items-center gap-2 mt-0.5">
@@ -184,7 +172,7 @@ export function HardAssets() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-900">Oil</span>
-              {loading.oil ? (
+              {loadingOil ? (
                 <Skeleton className="h-3.5 w-20" />
               ) : oil?.wti?.price ? (
                 <span className="text-xs font-bold tabular-nums text-gray-900">{formatUsd(oil.wti.price, 2)}</span>
@@ -197,7 +185,7 @@ export function HardAssets() {
                 </span>
               )}
             </div>
-            {loading.oil ? (
+            {loadingOil ? (
               <Skeleton className="h-2.5 w-40 mt-1" />
             ) : oil?.wti ? (
               <div className="flex items-center gap-2 mt-0.5">
