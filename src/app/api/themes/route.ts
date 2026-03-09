@@ -33,11 +33,12 @@ async function getHistoricalPrices(
       startDate.setMonth(startDate.getMonth() - 3);
     }
 
-    const result = await yahooFinance.historical(ticker, {
+    const chartResult = await yahooFinance.chart(ticker, {
       period1: startDate,
       period2: endDate,
       interval: "1d",
-    }) as HistoricalRow[];
+    });
+    const result = chartResult.quotes as HistoricalRow[];
 
     if (!result || result.length === 0) {
       return { start: null, end: null };

@@ -64,11 +64,12 @@ async function getWeeklyChanges(ticker: string): Promise<{
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 21); // 3 weeks back
 
-    const result = await yahooFinance.historical(ticker, {
+    const chartResult = await yahooFinance.chart(ticker, {
       period1: startDate,
       period2: endDate,
       interval: "1d",
-    }) as HistoricalRow[];
+    });
+    const result = chartResult.quotes as HistoricalRow[];
 
     if (!result || result.length < 10) {
       return { price: null, change1w: null, change1wPrev: null };

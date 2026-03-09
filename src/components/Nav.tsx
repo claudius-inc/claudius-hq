@@ -6,6 +6,7 @@ const sections = [
   { href: "/projects", label: "Projects" },
   { href: "/markets", label: "Markets" },
   { href: "/acp", label: "ACP" },
+  { href: "/memoria", label: "Memoria" },
 ];
 
 export async function Nav() {

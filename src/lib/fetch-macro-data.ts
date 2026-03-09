@@ -16,11 +16,12 @@ interface FredResponse {
 // Fetch DXY from Yahoo Finance (ICE US Dollar Index)
 async function fetchDxyFromYahoo(): Promise<{ current: number; history: number[] } | null> {
   try {
-    const history = await yahooFinance.historical("DX-Y.NYB", {
+    const chartResult = await yahooFinance.chart("DX-Y.NYB", {
       period1: new Date(Date.now() - 365 * 5 * 24 * 60 * 60 * 1000), // 5 years
       period2: new Date(),
       interval: "1d",
     });
+    const history = chartResult.quotes;
     
     if (!history || history.length === 0) return null;
     

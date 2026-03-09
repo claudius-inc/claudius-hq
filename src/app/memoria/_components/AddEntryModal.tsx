@@ -1,0 +1,378 @@
+"use client";
+
+import { useState } from "react";
+import { Modal } from "@/components/ui/Modal";
+import { BulkReviewStep } from "./BulkReviewStep";
+import type { MemoriaTag } from "../page";
+
+const SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video"];
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+  tags: MemoriaTag[];
+  onSaved: () => void;
+}
+
+type Tab = "single" | "bulk" | "image";
+
+interface ParsedEntry {
+  content: string;
+  sourceType: string;
+  sourceTitle?: string;
+  sourceAuthor?: string;
+  aiTags?: string[];
+  aiSummary?: string;
+}
+
+export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
+  const [tab, setTab] = useState<Tab>("single");
+  const [saving, setSaving] = useState(false);
+
+  // Single entry fields
+  const [content, setContent] = useState("");
+  const [sourceType, setSourceType] = useState("book");
+  const [sourceTitle, setSourceTitle] = useState("");
+  const [sourceAuthor, setSourceAuthor] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [sourceLocation, setSourceLocation] = useState("");
+  const [myNote, setMyNote] = useState("");
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+
+  // Bulk fields
+  const [bulkText, setBulkText] = useState("");
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [imageName, setImageName] = useState("");
+  const [parsedEntries, setParsedEntries] = useState<ParsedEntry[] | null>(null);
+  const [parsing, setParsing] = useState(false);
+
+  const reset = () => {
+    setContent("");
+    setSourceType("book");
+    setSourceTitle("");
+    setSourceAuthor("");
+    setSourceUrl("");
+    setSourceLocation("");
+    setMyNote("");
+    setSelectedTagIds([]);
+    setBulkText("");
+    setImageBase64(null);
+    setImageName("");
+    setParsedEntries(null);
+    setParsing(false);
+    setSaving(false);
+  };
+
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  const handleSaveSingle = async () => {
+    if (!content.trim()) return;
+    setSaving(true);
+    try {
+      await fetch("/api/memoria", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content,
+          source_type: sourceType,
+          source_title: sourceTitle || undefined,
+          source_author: sourceAuthor || undefined,
+          source_url: sourceUrl || undefined,
+          source_location: sourceLocation || undefined,
+          my_note: myNote || undefined,
+          tag_ids: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+        }),
+      });
+      onSaved();
+      handleClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleParseText = async () => {
+    if (!bulkText.trim()) return;
+    setParsing(true);
+    try {
+      const res = await fetch("/api/memoria/extract/text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: bulkText,
+          source_type: sourceType,
+          source_title: sourceTitle || undefined,
+          source_author: sourceAuthor || undefined,
+        }),
+      });
+      const data = await res.json();
+      setParsedEntries(data.entries || []);
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleParseImage = async () => {
+    if (!imageBase64) return;
+    setParsing(true);
+    try {
+      const res = await fetch("/api/memoria/extract/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          image: imageBase64,
+          source_type: sourceType,
+          source_title: sourceTitle || undefined,
+          source_author: sourceAuthor || undefined,
+        }),
+      });
+      const data = await res.json();
+      setParsedEntries(data.entries || []);
+    } finally {
+      setParsing(false);
+    }
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageName(file.name);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Remove data:image/...;base64, prefix
+      const base64 = result.split(",")[1];
+      setImageBase64(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleBulkSave = async (entries: ParsedEntry[]) => {
+    setSaving(true);
+    try {
+      for (const entry of entries) {
+        await fetch("/api/memoria", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: entry.content,
+            source_type: entry.sourceType,
+            source_title: entry.sourceTitle || sourceTitle || undefined,
+            source_author: entry.sourceAuthor || sourceAuthor || undefined,
+          }),
+        });
+      }
+      onSaved();
+      handleClose();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (parsedEntries) {
+    return (
+      <Modal open={open} onClose={handleClose} title="Review Extracted Entries">
+        <BulkReviewStep
+          entries={parsedEntries}
+          saving={saving}
+          onSave={handleBulkSave}
+          onBack={() => setParsedEntries(null)}
+        />
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal open={open} onClose={handleClose} title="Add Entry">
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-gray-100 pb-2">
+        {(["single", "bulk", "image"] as Tab[]).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`px-3 py-1 text-xs rounded-md ${
+              tab === t ? "bg-blue-600 text-white" : "text-gray-500 hover:bg-gray-50"
+            }`}
+          >
+            {t === "single" ? "Single" : t === "bulk" ? "Bulk Text" : "Image"}
+          </button>
+        ))}
+      </div>
+
+      {/* Source fields (shared) */}
+      <div className="space-y-3 mb-4">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Source Type</label>
+            <select
+              value={sourceType}
+              onChange={(e) => setSourceType(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
+            >
+              {SOURCE_TYPES.map((st) => (
+                <option key={st} value={st}>
+                  {st}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Title</label>
+            <input
+              type="text"
+              value={sourceTitle}
+              onChange={(e) => setSourceTitle(e.target.value)}
+              placeholder="Book title, article name..."
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
+            />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Author</label>
+            <input
+              type="text"
+              value={sourceAuthor}
+              onChange={(e) => setSourceAuthor(e.target.value)}
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
+            />
+          </div>
+          {tab === "single" && (
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">URL</label>
+              <input
+                type="text"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tab-specific content */}
+      {tab === "single" && (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Content *</label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={4}
+              placeholder="Paste a quote, highlight, or write an idea..."
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg resize-none"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Location</label>
+            <input
+              type="text"
+              value={sourceLocation}
+              onChange={(e) => setSourceLocation(e.target.value)}
+              placeholder="Page number, chapter, timestamp..."
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Personal Note</label>
+            <textarea
+              value={myNote}
+              onChange={(e) => setMyNote(e.target.value)}
+              rows={2}
+              placeholder="Why this matters to you..."
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg resize-none"
+            />
+          </div>
+          {tags.length > 0 && (
+            <div>
+              <label className="text-xs text-gray-500 block mb-1">Tags</label>
+              <div className="flex flex-wrap gap-1">
+                {tags.map((tag) => (
+                  <button
+                    key={tag.id}
+                    onClick={() =>
+                      setSelectedTagIds((prev) =>
+                        prev.includes(tag.id)
+                          ? prev.filter((id) => id !== tag.id)
+                          : [...prev, tag.id]
+                      )
+                    }
+                    className={`px-2 py-0.5 text-[10px] rounded-full border transition-colors ${
+                      selectedTagIds.includes(tag.id)
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-500 border-gray-200"
+                    }`}
+                  >
+                    {tag.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <button
+            onClick={handleSaveSingle}
+            disabled={!content.trim() || saving}
+            className="w-full py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save Entry"}
+          </button>
+        </div>
+      )}
+
+      {tab === "bulk" && (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Paste text to extract from</label>
+            <textarea
+              value={bulkText}
+              onChange={(e) => setBulkText(e.target.value)}
+              rows={8}
+              placeholder="Paste a passage, multiple quotes, notes..."
+              className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg resize-none"
+            />
+          </div>
+          <button
+            onClick={handleParseText}
+            disabled={!bulkText.trim() || parsing}
+            className="w-full py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {parsing ? "Extracting with AI..." : "Parse with AI"}
+          </button>
+        </div>
+      )}
+
+      {tab === "image" && (
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 block mb-1">Upload image</label>
+            <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+                id="image-upload"
+              />
+              <label
+                htmlFor="image-upload"
+                className="cursor-pointer text-sm text-gray-500 hover:text-gray-700"
+              >
+                {imageName || "Click to upload an image of text, highlights, or notes"}
+              </label>
+            </div>
+          </div>
+          <button
+            onClick={handleParseImage}
+            disabled={!imageBase64 || parsing}
+            className="w-full py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {parsing ? "Extracting with AI..." : "Extract with AI"}
+          </button>
+        </div>
+      )}
+    </Modal>
+  );
+}

@@ -138,13 +138,14 @@ async function fetchBreadthFromIndex(): Promise<BreadthData> {
 // Fetch McClellan Oscillator approximation
 async function fetchMcClellanData() {
   try {
-    const [spyHistory] = await Promise.all([
-      yahooFinance.historical("SPY", {
+    const [spyChartResult] = await Promise.all([
+      yahooFinance.chart("SPY", {
         period1: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
         period2: new Date(),
         interval: "1d",
       }),
     ]);
+    const spyHistory = spyChartResult.quotes;
 
     if (!spyHistory || spyHistory.length < 39) {
       return { oscillator: null, signal: null };

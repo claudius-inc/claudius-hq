@@ -659,3 +659,62 @@ export const marketReference = sqliteTable("market_reference", {
 
 export type MarketReference = typeof marketReference.$inferSelect;
 export type NewMarketReference = typeof marketReference.$inferInsert;
+
+// ============================================================================
+// Memoria — Knowledge Vault
+// ============================================================================
+
+export const MEMORIA_SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video"] as const;
+export type MemoriaSourceType = (typeof MEMORIA_SOURCE_TYPES)[number];
+
+export const memoriaEntries = sqliteTable("memoria_entries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  content: text("content").notNull(),
+  sourceType: text("source_type").notNull(),
+  sourceTitle: text("source_title"),
+  sourceAuthor: text("source_author"),
+  sourceUrl: text("source_url"),
+  sourceLocation: text("source_location"),
+  myNote: text("my_note"),
+  aiTags: text("ai_tags"),
+  aiSummary: text("ai_summary"),
+  isFavorite: integer("is_favorite").default(0),
+  isArchived: integer("is_archived").default(0),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+  capturedAt: text("captured_at"),
+  lastSurfacedAt: text("last_surfaced_at"),
+});
+
+export const memoriaTags = sqliteTable("memoria_tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  color: text("color"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export const memoriaEntryTags = sqliteTable("memoria_entry_tags", {
+  entryId: integer("entry_id").notNull().references(() => memoriaEntries.id, { onDelete: "cascade" }),
+  tagId: integer("tag_id").notNull().references(() => memoriaTags.id, { onDelete: "cascade" }),
+});
+
+export const memoriaInsights = sqliteTable("memoria_insights", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  insightType: text("insight_type"),
+  title: text("title"),
+  content: text("content").notNull(),
+  entryIds: text("entry_ids"),
+  generatedAt: text("generated_at").default(sql`(datetime('now'))`),
+});
+
+export type MemoriaEntry = typeof memoriaEntries.$inferSelect;
+export type NewMemoriaEntry = typeof memoriaEntries.$inferInsert;
+
+export type MemoriaTag = typeof memoriaTags.$inferSelect;
+export type NewMemoriaTag = typeof memoriaTags.$inferInsert;
+
+export type MemoriaEntryTag = typeof memoriaEntryTags.$inferSelect;
+export type NewMemoriaEntryTag = typeof memoriaEntryTags.$inferInsert;
+
+export type MemoriaInsight = typeof memoriaInsights.$inferSelect;
+export type NewMemoriaInsight = typeof memoriaInsights.$inferInsert;

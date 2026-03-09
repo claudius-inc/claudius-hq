@@ -47,11 +47,11 @@ async function fetchBtcData() {
 
   try {
     const fullStart = new Date("2013-01-01");
-    const historical = (await yahooFinance.historical("BTC-USD", {
+    const historical = (await yahooFinance.chart("BTC-USD", {
       period1: fullStart,
       period2: endDate,
       interval: "1wk",
-    })) as HistoricalRow[];
+    })).quotes as HistoricalRow[];
 
     historical.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -85,11 +85,11 @@ async function fetchBtcData() {
   const yearlyPeakMayer: { year: number; peak: number }[] = [];
   try {
     const dailyStart = new Date("2012-01-01");
-    const dailyHistory = (await yahooFinance.historical("BTC-USD", {
+    const dailyHistory = (await yahooFinance.chart("BTC-USD", {
       period1: dailyStart,
       period2: endDate,
       interval: "1d",
-    })) as HistoricalRow[];
+    })).quotes as HistoricalRow[];
 
     dailyHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
