@@ -1,18 +1,48 @@
-import { NextRequest } from "next/server";
+/* ── Structured logger for Vercel ──────────────────────────────────────
+ * Outputs one JSON line per call. Vercel parses these natively, making
+ * them searchable and filterable in the dashboard.
+ * ------------------------------------------------------------------- */
 
-export function logRequest(request: NextRequest, status: number, duration?: number) {
-  const method = request.method;
-  const path = request.nextUrl.pathname;
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0] || "unknown";
-  const timestamp = new Date().toISOString();
+type Level = "debug" | "info" | "warn" | "error";
 
-  console.log(JSON.stringify({
-    timestamp,
-    method,
-    path,
-    status,
-    ip,
-    duration,
-    userAgent: request.headers.get("user-agent")?.substring(0, 100),
-  }));
+function serializeError(err: unknown): Record<string, unknown> {
+  if (err instanceof Error) {
+    return { name: err.name, message: err.message, stack: err.stack };
+  }
+  return { message: String(err) };
 }
+
+function log(level: Level, source: string, message: string, meta?: Record<string, unknown>) {
+  const entry: Record<string, unknown> = {
+    timestamp: new Date().toISOString(),
+    level,
+    source,
+    message,
+  };
+
+  if (meta) {
+    const { error, ...rest } = meta;
+    if (error !== undefined) {
+      entry.error = serializeError(error);
+    }
+    if (Object.keys(rest).length > 0) {
+      Object.assign(entry, rest);
+    }
+  }
+
+  // Use matching console method so Vercel severity tagging works
+  const fn =
+    level === "error" ? console.error :
+    level === "warn" ? console.warn :
+    level === "debug" ? console.debug :
+    console.log;
+
+  fn(JSON.stringify(entry));
+}
+
+export const logger = {
+  debug: (source: string, message: string, meta?: Record<string, unknown>) => log("debug", source, message, meta),
+  info:  (source: string, message: string, meta?: Record<string, unknown>) => log("info", source, message, meta),
+  warn:  (source: string, message: string, meta?: Record<string, unknown>) => log("warn", source, message, meta),
+  error: (source: string, message: string, meta?: Record<string, unknown>) => log("error", source, message, meta),
+};

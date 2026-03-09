@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, darkpoolData } from "@/db";
 import { desc, isNull, eq, and, isNotNull } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // Read from DB - fast response
 export const revalidate = 3600; // 1 hour cache (weekly data)
@@ -83,7 +84,7 @@ export async function GET() {
       updatedAt: new Date().toISOString(),
     });
   } catch (e) {
-    console.error("Darkpool GET error:", e);
+    logger.error("api/markets/darkpool", "Darkpool GET error", { error: e });
     return NextResponse.json({
       latestWeek: null,
       totalAtsVolume: 0,

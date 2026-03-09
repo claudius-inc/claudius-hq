@@ -4,8 +4,9 @@
  */
 
 import YahooFinance from 'yahoo-finance2';
+import { logger } from "@/lib/logger";
 
-const yf = new YahooFinance();
+const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 // FX pair symbols for Yahoo Finance (convert TO SGD)
 const FX_SYMBOLS: Record<string, string> = {
@@ -37,7 +38,7 @@ export async function getHistoricalFxRate(
   
   const symbol = FX_SYMBOLS[currency];
   if (!symbol) {
-    console.warn(`No FX symbol for currency: ${currency}`);
+    logger.warn("historical-fx", `No FX symbol for currency: ${currency}`);
     return null;
   }
 
@@ -72,7 +73,7 @@ export async function getHistoricalFxRate(
 
     return null;
   } catch (err) {
-    console.error(`Failed to fetch historical FX for ${currency} on ${date}:`, err);
+    logger.error("historical-fx", `Failed to fetch historical FX for ${currency} on ${date}`, { error: err });
     return null;
   }
 }
@@ -149,7 +150,7 @@ export async function getHistoricalFxRates(
         }
       }
     } catch (err) {
-      console.error(`Failed to fetch historical FX for ${currency}:`, err);
+      logger.error("historical-fx", `Failed to fetch historical FX for ${currency}`, { error: err });
     }
   }
 

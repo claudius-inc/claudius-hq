@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -113,7 +114,7 @@ async function fetchBreadthFromIndex(): Promise<BreadthData> {
       interpretation,
     };
   } catch (e) {
-    console.error("Failed to fetch breadth data:", e);
+    logger.error("api/markets/breadth", "Failed to fetch breadth data", { error: e });
     return {
       advanceDecline: {
         advances: null,
@@ -163,7 +164,7 @@ async function fetchMcClellanData() {
       signal: oscillator > 0 ? "bullish" : oscillator < 0 ? "bearish" : "neutral",
     };
   } catch (e) {
-    console.error("McClellan calculation error:", e);
+    logger.error("api/markets/breadth", "McClellan calculation error", { error: e });
     return { oscillator: null, signal: null };
   }
 }
@@ -210,7 +211,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         fetchBreadthData()
           .then((data) => setCache(CACHE_KEYS.BREADTH, data))
-          .catch((e) => console.error("Background breadth refresh failed:", e));
+          .catch((e) => logger.error("api/markets/breadth", "Background breadth refresh failed", { error: e }));
         return NextResponse.json({
           ...cached.data,
           cached: true,
@@ -224,7 +225,7 @@ export async function GET(request: NextRequest) {
     await setCache(CACHE_KEYS.BREADTH, data);
     return NextResponse.json({ ...data, cached: false });
   } catch (e) {
-    console.error("Breadth API error:", e);
+    logger.error("api/markets/breadth", "Breadth API error", { error: e });
     return NextResponse.json({
       advanceDecline: { advances: null, declines: null, unchanged: null, ratio: null, netAdvances: null },
       newHighsLows: { newHighs: null, newLows: null, ratio: null, netHighs: null },

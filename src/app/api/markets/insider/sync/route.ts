@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, insiderTrades } from "@/db";
 import { sql } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // Sync endpoint - called by cron job
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
     );
 
     if (!res.ok) {
-      console.error("OpenInsider error:", res.status);
+      logger.error("api/markets/insider/sync", "OpenInsider error", { status: res.status });
       return [];
     }
 
@@ -133,10 +134,10 @@ async function fetchOpenInsider(): Promise<OpenInsiderTrade[]> {
       });
     }
     
-    console.log(`OpenInsider: parsed ${trades.length} trades from HTML`);
+    logger.info("api/markets/insider/sync", `OpenInsider: parsed ${trades.length} trades from HTML`);
     return trades;
   } catch (e) {
-    console.error("Failed to fetch OpenInsider:", e);
+    logger.error("api/markets/insider/sync", "Failed to fetch OpenInsider", { error: e });
     return [];
   }
 }
@@ -191,7 +192,7 @@ export async function POST() {
       syncedAt: new Date().toISOString(),
     });
   } catch (e) {
-    console.error("Insider trades sync error:", e);
+    logger.error("api/markets/insider/sync", "Insider trades sync error", { error: e });
     return NextResponse.json({
       success: false,
       error: String(e),

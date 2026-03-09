@@ -3,6 +3,7 @@ import { db, themes, themeStocks } from "@/db";
 import { desc } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
 import { Theme, ThemeWithPerformance, ThemePerformance } from "@/lib/types";
+import { logger } from "@/lib/logger";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -179,7 +180,7 @@ export async function GET() {
 
     return NextResponse.json({ themes: themesWithPerformance });
   } catch (e) {
-    console.error("Failed to get themes:", e);
+    logger.error("api/themes", "Failed to get themes", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
     if (error.includes("UNIQUE constraint")) {
       return NextResponse.json({ error: "Theme with this name already exists" }, { status: 409 });
     }
-    console.error("Failed to create theme:", e);
+    logger.error("api/themes", "Failed to create theme", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

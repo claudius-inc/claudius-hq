@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { marketReference } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
+import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -96,7 +97,7 @@ export async function POST() {
       refreshedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Error refreshing market references:", error);
+    logger.error("api/markets/reference/refresh", "Error refreshing market references", { error });
     return NextResponse.json(
       { error: "Failed to refresh market references" },
       { status: 500 }

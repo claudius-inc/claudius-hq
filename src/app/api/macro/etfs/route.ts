@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -84,7 +85,7 @@ function interpretEtf(
 }
 
 async function fetchMacroEtfData() {
-  const yf = new YahooFinance();
+  const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
   const results = await Promise.all(
     MARKET_ETFS.map(async (etf) => {
@@ -132,7 +133,7 @@ async function fetchMacroEtfData() {
           interpretation,
         };
       } catch (err) {
-        console.error(`Error fetching ${etf.ticker}:`, err);
+        logger.error("api/macro/etfs", `Error fetching ${etf.ticker}`, { error: err });
         return {
           ticker: etf.ticker,
           name: etf.name,
@@ -166,7 +167,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         fetchMacroEtfData()
           .then((data) => setCache(CACHE_KEYS.MACRO_ETFS, data))
-          .catch((e) => console.error("Background macro ETF refresh failed:", e));
+          .catch((e) => logger.error("api/macro/etfs", "Background macro ETF refresh failed", { error: e }));
         return NextResponse.json({
           ...cached.data,
           cached: true,
@@ -180,7 +181,7 @@ export async function GET(request: NextRequest) {
     await setCache(CACHE_KEYS.MACRO_ETFS, data);
     return NextResponse.json({ ...data, cached: false });
   } catch (err) {
-    console.error("ETF fetch error:", err);
+    logger.error("api/macro/etfs", "ETF fetch error", { error: err });
     return NextResponse.json({ etfs: [], lastUpdated: new Date().toISOString() });
   }
 }

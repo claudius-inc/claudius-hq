@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 const API_KEY = process.env.HQ_API_KEY;
 
@@ -22,7 +23,7 @@ export async function GET() {
 
     return NextResponse.json({ offerings });
   } catch (error) {
-    console.error("Error fetching offerings:", error);
+    logger.error("api/acp/offerings", "Error fetching offerings", { error });
     return NextResponse.json({ error: "Failed to fetch offerings" }, { status: 500 });
   }
 }
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, count: offerings.length });
   } catch (error) {
-    console.error("Error syncing offerings:", error);
+    logger.error("api/acp/offerings", "Error syncing offerings", { error });
     return NextResponse.json({ error: "Failed to sync offerings" }, { status: 500 });
   }
 }

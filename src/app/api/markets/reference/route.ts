@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { marketReference } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // GET /api/markets/reference - List all reference data
 export async function GET() {
@@ -20,7 +21,7 @@ export async function GET() {
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Error fetching market references:", error);
+    logger.error("api/markets/reference", "Error fetching market references", { error });
     return NextResponse.json(
       { error: "Failed to fetch market references" },
       { status: 500 }
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
       }, { status: 201 });
     }
   } catch (error) {
-    console.error("Error upserting market reference:", error);
+    logger.error("api/markets/reference", "Error upserting market reference", { error });
     return NextResponse.json(
       { error: "Failed to upsert market reference" },
       { status: 500 }

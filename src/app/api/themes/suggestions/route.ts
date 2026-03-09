@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { logger } from "@/lib/logger";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -139,7 +140,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ themes: availableThemes });
   } catch (e) {
-    console.error("Failed to get suggestions:", e);
+    logger.error("api/themes/suggestions", "Failed to get suggestions", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -73,7 +74,7 @@ async function fetchBtcData() {
     weeklyPrices = result.filter((r) => r.wma200 !== null);
     wma200 = weeklyPrices.length > 0 ? weeklyPrices[weeklyPrices.length - 1].wma200! : 0;
   } catch (e) {
-    console.error("Error fetching BTC historical:", e);
+    logger.error("api/btc", "Error fetching BTC historical", { error: e });
   }
 
   const distancePercent = wma200 > 0 ? ((livePrice - wma200) / wma200) * 100 : 0;
@@ -118,7 +119,7 @@ async function fetchBtcData() {
     }
     yearlyPeakMayer.sort((a, b) => a.year - b.year);
   } catch (e) {
-    console.error("Error fetching daily BTC data for Mayer:", e);
+    logger.error("api/btc", "Error fetching daily BTC data for Mayer", { error: e });
   }
 
   return {
@@ -152,7 +153,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         fetchBtcData()
           .then((data) => setCache(CACHE_KEYS.BTC, data))
-          .catch((e) => console.error("Background BTC refresh failed:", e));
+          .catch((e) => logger.error("api/btc", "Background BTC refresh failed", { error: e }));
         return NextResponse.json({
           ...cached.data,
           cached: true,
@@ -166,7 +167,7 @@ export async function GET(request: NextRequest) {
     await setCache(CACHE_KEYS.BTC, data);
     return NextResponse.json({ ...data, cached: false });
   } catch (e) {
-    console.error("BTC API error:", e);
+    logger.error("api/btc", "BTC API error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

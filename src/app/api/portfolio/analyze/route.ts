@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, portfolioHoldings } from "@/db";
 import { desc } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 const GATEWAY_URL = process.env.OPENCLAW_GATEWAY_URL || "https://gateway.claudiusinc.com";
 const GATEWAY_KEY = process.env.OPENCLAW_GATEWAY_TOKEN || "";
@@ -57,7 +58,7 @@ Requirements:
 
     if (!response.ok) {
       const text = await response.text();
-      console.error("Gateway error:", text);
+      logger.error("api/portfolio/analyze", "Gateway error", { error: text });
       return NextResponse.json(
         { error: "Failed to start analysis" },
         { status: 500 }
@@ -72,7 +73,7 @@ Requirements:
       sessionKey: data.result?.sessionKey,
     });
   } catch (e) {
-    console.error("Analysis error:", e);
+    logger.error("api/portfolio/analyze", "Analysis error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

@@ -10,6 +10,7 @@
 
 import { db, marketCache } from "@/db";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // Re-export client-safe utilities
 export { CACHE_KEYS, formatCacheAge } from "./cache-utils";
@@ -50,7 +51,7 @@ export async function getCache<T>(key: string, maxAge = DEFAULT_MAX_AGE): Promis
 
     return { data, updatedAt, isStale };
   } catch (e) {
-    console.error(`Cache get error for ${key}:`, e);
+    logger.error("market-cache", `Cache get error for ${key}`, { error: e });
     return null;
   }
 }
@@ -78,7 +79,7 @@ export async function setCache<T>(key: string, data: T): Promise<void> {
         },
       });
   } catch (e) {
-    console.error(`Cache set error for ${key}:`, e);
+    logger.error("market-cache", `Cache set error for ${key}`, { error: e });
   }
 }
 
@@ -112,7 +113,7 @@ export async function getCachedOrFetch<T>(
     // Don't await - let it run in background
     fetcher()
       .then((freshData) => setCache(key, freshData))
-      .catch((e) => console.error(`Background refresh failed for ${key}:`, e));
+      .catch((e) => logger.error("market-cache", `Background refresh failed for ${key}`, { error: e }));
   }
 
   return cached;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, congressTrades } from "@/db";
 import { sql, eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // Sync endpoint - called by cron job
 export const dynamic = "force-dynamic";
@@ -34,7 +35,7 @@ async function fetchHouseDisclosures(): Promise<CongressTrade[]> {
     );
 
     if (!res.ok) {
-      console.error("House Clerk error:", res.status);
+      logger.error("api/markets/congress/sync", "House Clerk error", { status: res.status });
       return [];
     }
 
@@ -78,7 +79,7 @@ async function fetchHouseDisclosures(): Promise<CongressTrade[]> {
     
     return trades.slice(0, 50); // Limit to most recent 50
   } catch (e) {
-    console.error("Failed to fetch House disclosures:", e);
+    logger.error("api/markets/congress/sync", "Failed to fetch House disclosures", { error: e });
     return [];
   }
 }
@@ -100,21 +101,21 @@ async function fetchQuiverQuantTrades(): Promise<CongressTrade[]> {
   
   for (const source of sources) {
     try {
-      console.log(`Trying ${source.name}...`);
+      logger.info("api/markets/congress/sync", `Trying ${source.name}...`);
       const res = await fetch(source.url, {
         headers: source.headers,
         signal: AbortSignal.timeout(10000), // 10s timeout
       });
       
       if (!res.ok) {
-        console.log(`${source.name} returned ${res.status}`);
+        logger.info("api/markets/congress/sync", `${source.name} returned ${res.status}`);
         continue;
       }
       
       const text = await res.text();
       // Check if response is HTML (blocked/error page)
       if (text.startsWith("<!DOCTYPE") || text.startsWith("<html")) {
-        console.log(`${source.name} returned HTML (likely blocked)`);
+        logger.info("api/markets/congress/sync", `${source.name} returned HTML (likely blocked)`);
         continue;
       }
       
@@ -122,7 +123,7 @@ async function fetchQuiverQuantTrades(): Promise<CongressTrade[]> {
       
       // Handle QuiverQuant format
       if (Array.isArray(data) && data.length > 0 && data[0].Representative) {
-        console.log(`${source.name} returned ${data.length} trades`);
+        logger.info("api/markets/congress/sync", `${source.name} returned ${data.length} trades`);
         return data.slice(0, 100).map((row: Record<string, unknown>) => ({
           memberName: String(row.Representative || row.Senator || "Unknown"),
           party: row.Party ? String(row.Party).charAt(0) : null,
@@ -139,7 +140,7 @@ async function fetchQuiverQuantTrades(): Promise<CongressTrade[]> {
       
       // Handle CapitolTrades format
       if (data.data && Array.isArray(data.data)) {
-        console.log(`${source.name} returned ${data.data.length} trades`);
+        logger.info("api/markets/congress/sync", `${source.name} returned ${data.data.length} trades`);
         return data.data.slice(0, 100).map((row: Record<string, unknown>) => {
           const politician = row.politician as Record<string, unknown> | undefined;
           const issuer = row.issuer as Record<string, unknown> | undefined;
@@ -158,13 +159,13 @@ async function fetchQuiverQuantTrades(): Promise<CongressTrade[]> {
         });
       }
       
-      console.log(`${source.name} returned unexpected format`);
+      logger.warn("api/markets/congress/sync", `${source.name} returned unexpected format`);
     } catch (e) {
-      console.error(`${source.name} failed:`, e);
+      logger.error("api/markets/congress/sync", `${source.name} failed`, { error: e });
     }
   }
   
-  console.log("All Congress data sources unavailable");
+  logger.warn("api/markets/congress/sync", "All Congress data sources unavailable");
   return [];
 }
 
@@ -235,7 +236,7 @@ export async function POST() {
       syncedAt: new Date().toISOString(),
     });
   } catch (e) {
-    console.error("Congress trades sync error:", e);
+    logger.error("api/markets/congress/sync", "Congress trades sync error", { error: e });
     return NextResponse.json({
       success: false,
       error: String(e),

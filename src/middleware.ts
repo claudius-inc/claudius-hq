@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { logRequest } from "@/lib/logger";
+import { logger } from "@/lib/logger";
 
 // Use env secret or fallback (should be set in production)
 const SESSION_VALUE = process.env.HQ_SESSION_SECRET || "authenticated";
@@ -14,7 +14,6 @@ export function middleware(request: NextRequest) {
 
   // ACP API: uses its own auth check (Bearer token in route handler)
   if (pathname.startsWith("/api/acp/")) {
-    logRequest(request, 200);
     return NextResponse.next();
   }
 
@@ -28,7 +27,7 @@ export function middleware(request: NextRequest) {
     const apiKey = request.headers.get("x-api-key") || request.headers.get("authorization")?.replace("Bearer ", "");
     const session = request.cookies.get("hq_session");
     if (apiKey !== process.env.HQ_API_KEY && session?.value !== SESSION_VALUE) {
-      logRequest(request, 401);
+      logger.warn("middleware", "Unauthorized API request", { path: pathname, ip: request.headers.get("x-forwarded-for")?.split(",")[0] });
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -38,13 +37,12 @@ export function middleware(request: NextRequest) {
       const host = request.headers.get("host");
       if (origin && host && !origin.includes(host)) {
         if (apiKey !== process.env.HQ_API_KEY) {
-          logRequest(request, 403);
+          logger.warn("middleware", "CSRF validation failed", { path: pathname, origin });
           return NextResponse.json({ error: "CSRF validation failed" }, { status: 403 });
         }
       }
     }
 
-    logRequest(request, 200);
     return NextResponse.next();
   }
 

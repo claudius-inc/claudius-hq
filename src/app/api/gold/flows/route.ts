@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { goldFlows } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
+import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ flows });
   } catch (e) {
-    console.error("Gold flows API error:", e);
+    logger.error("api/gold/flows", "Gold flows API error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    console.error("Gold flows update error:", e);
+    logger.error("api/gold/flows", "Gold flows update error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
@@ -158,7 +159,7 @@ async function syncGldData() {
       }
     });
   } catch (e) {
-    console.error("GLD sync error:", e);
+    logger.error("api/gold/flows", "GLD sync error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

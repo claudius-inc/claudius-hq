@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchMacroData } from "@/lib/fetch-macro-data";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         fetchMacroData()
           .then((data) => setCache(CACHE_KEYS.MACRO, data))
-          .catch((e) => console.error("Background macro refresh failed:", e));
+          .catch((e) => logger.error("api/macro", "Background macro refresh failed", { error: e }));
         return NextResponse.json({
           ...cached.data,
           cached: true,
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     await setCache(CACHE_KEYS.MACRO, data);
     return NextResponse.json({ ...data, cached: false });
   } catch (e) {
-    console.error("Macro API error:", e);
+    logger.error("api/macro", "Macro API error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

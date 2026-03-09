@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, congressTrades } from "@/db";
 import { desc, sql, gte } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // Read from DB - fast response
 export const revalidate = 300; // 5 min cache
@@ -87,7 +88,7 @@ export async function GET() {
       updatedAt: new Date().toISOString(),
     });
   } catch (e) {
-    console.error("Congress trades GET error:", e);
+    logger.error("api/markets/congress", "Congress trades GET error", { error: e });
     return NextResponse.json({
       buyCount: 0,
       sellCount: 0,

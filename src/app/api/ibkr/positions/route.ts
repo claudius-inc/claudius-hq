@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { db, ibkrPositions, ibkrPortfolioMeta, ibkrTrades } from '@/db';
 import { eq, desc, asc } from 'drizzle-orm';
 import YahooFinance from 'yahoo-finance2';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'nodejs';
 export const revalidate = 60; // 1 minute cache
 
-const yf = new YahooFinance();
+const yf = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 // Base currency for portfolio summary
 const BASE_CURRENCY = 'SGD';
@@ -64,7 +65,7 @@ export async function GET() {
             }
           }
         } catch (err) {
-          console.error('Failed to fetch FX rates:', err);
+          logger.error("api/ibkr/positions", "Failed to fetch FX rates", { error: err });
         }
       }
     }
@@ -88,7 +89,7 @@ export async function GET() {
           }
         }
       } catch (err) {
-        console.error('Failed to fetch quotes:', err);
+        logger.error("api/ibkr/positions", "Failed to fetch quotes", { error: err });
       }
     }
 
@@ -170,7 +171,7 @@ export async function GET() {
       }
     });
   } catch (error) {
-    console.error('Positions fetch error:', error);
+    logger.error("api/ibkr/positions", "Positions fetch error", { error });
     return NextResponse.json({ error: 'Failed to fetch positions' }, { status: 500 });
   }
 }
@@ -238,7 +239,7 @@ export async function POST() {
       totalRealizedPnlBase,
     });
   } catch (error) {
-    console.error('Position recalculation error:', error);
+    logger.error("api/ibkr/positions", "Position recalculation error", { error });
     return NextResponse.json({ error: 'Failed to recalculate positions' }, { status: 500 });
   }
 }

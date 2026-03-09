@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db, researchJobs } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import { rateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 const limiter = rateLimit({ interval: 60_000, uniqueTokenPerInterval: 500 });
 
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
       progress: 0,
     });
 
-    console.log(`[Research Queue] Ticker: ${cleanTicker}, JobId: ${jobId}`);
+    logger.info("api/stocks/research", `Research queued: ${cleanTicker}`, { jobId });
 
     // Job is now queued. OpenClaw cron polls for pending jobs and spawns sub-agents.
     // No direct gateway call needed — polling is more reliable.
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
       message: "Research queued. Typically starts within 2 minutes.",
     });
   } catch (error) {
-    console.error("[Research API Error]", error);
+    logger.error("api/stocks/research", "Research API error", { error });
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
@@ -116,7 +117,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ jobs });
   } catch (error) {
-    console.error("[Research API Error]", error);
+    logger.error("api/stocks/research", "Research API error", { error });
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }

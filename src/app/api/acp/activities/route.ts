@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpActivities, acpOfferings, acpWalletSnapshots } from "@/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 const API_KEY = process.env.HQ_API_KEY;
 
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ activities: filtered });
   } catch (error) {
-    console.error("Error fetching ACP activities:", error);
+    logger.error("api/acp/activities", "Error fetching ACP activities", { error });
     return NextResponse.json({ error: "Failed to fetch activities" }, { status: 500 });
   }
 }
@@ -79,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, activity });
   } catch (error) {
-    console.error("Error logging ACP activity:", error);
+    logger.error("api/acp/activities", "Error logging ACP activity", { error });
     return NextResponse.json({ error: "Failed to log activity" }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, themes, themeStocks, THEME_STOCK_STATUSES } from "@/db";
 import { eq, and } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // POST /api/themes/[id]/stocks - Add stock to theme
 export async function POST(
@@ -49,7 +50,7 @@ export async function POST(
     if (error.includes("UNIQUE constraint")) {
       return NextResponse.json({ error: "Stock already in theme" }, { status: 409 });
     }
-    console.error("Failed to add stock to theme:", e);
+    logger.error("api/themes/[id]/stocks", "Failed to add stock to theme", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
@@ -110,7 +111,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, stock: updated });
   } catch (e) {
-    console.error("Failed to update stock in theme:", e);
+    logger.error("api/themes/[id]/stocks", "Failed to update stock in theme", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpWalletSnapshots } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 const API_KEY = process.env.HQ_API_KEY;
 
@@ -24,7 +25,7 @@ export async function GET() {
 
     return NextResponse.json({ wallet: latest || null });
   } catch (error) {
-    console.error("Error fetching wallet snapshot:", error);
+    logger.error("api/acp/wallet", "Error fetching wallet snapshot", { error });
     return NextResponse.json({ error: "Failed to fetch wallet" }, { status: 500 });
   }
 }
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, snapshot });
   } catch (error) {
-    console.error("Error saving wallet snapshot:", error);
+    logger.error("api/acp/wallet", "Error saving wallet snapshot", { error });
     return NextResponse.json({ error: "Failed to save snapshot" }, { status: 500 });
   }
 }

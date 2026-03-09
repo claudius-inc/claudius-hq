@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -95,7 +96,7 @@ async function fetchOilData(): Promise<OilData> {
       };
     }
   } catch (e) {
-    console.error("Failed to fetch WTI:", e);
+    logger.error("api/oil", "Failed to fetch WTI", { error: e });
   }
 
   try {
@@ -113,7 +114,7 @@ async function fetchOilData(): Promise<OilData> {
       };
     }
   } catch (e) {
-    console.error("Failed to fetch Brent:", e);
+    logger.error("api/oil", "Failed to fetch Brent", { error: e });
   }
 
   // Calculate Brent-WTI spread
@@ -170,7 +171,7 @@ export async function GET(request: NextRequest) {
         // Fire and forget background refresh
         fetchOilData()
           .then((data) => setCache(CACHE_KEYS.OIL, data))
-          .catch((e) => console.error("Background oil refresh failed:", e));
+          .catch((e) => logger.error("api/oil", "Background oil refresh failed", { error: e }));
 
         return NextResponse.json({
           ...cached.data,
@@ -192,7 +193,7 @@ export async function GET(request: NextRequest) {
       cached: false,
     });
   } catch (e) {
-    console.error("Oil API error:", e);
+    logger.error("api/oil", "Oil API error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

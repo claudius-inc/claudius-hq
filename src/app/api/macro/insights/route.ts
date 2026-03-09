@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { macroInsights } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 export const revalidate = 60; // Cache for 1 minute
 
@@ -29,7 +30,7 @@ export async function GET() {
         : null,
     });
   } catch (error) {
-    console.error("Error fetching macro insights:", error);
+    logger.error("api/macro/insights", "Error fetching macro insights", { error });
     return NextResponse.json(
       { error: "Failed to fetch insights" },
       { status: 500 }

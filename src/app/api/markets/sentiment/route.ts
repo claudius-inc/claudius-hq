@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ async function fetchCboePutCall(): Promise<{ value: number; source: string } | n
     });
 
     if (!res.ok) {
-      console.error("CBOE page fetch error:", res.status);
+      logger.error("api/markets/sentiment", "CBOE page fetch error", { status: res.status });
       return null;
     }
 
@@ -56,7 +57,7 @@ async function fetchCboePutCall(): Promise<{ value: number; source: string } | n
 
     return null;
   } catch (e) {
-    console.error("Failed to fetch CBOE P/C:", e);
+    logger.error("api/markets/sentiment", "Failed to fetch CBOE P/C", { error: e });
     return null;
   }
 }
@@ -88,7 +89,7 @@ async function estimatePutCallFromVolatilityETFs(): Promise<{ value: number; sou
       source: "UVXY/SPY volume proxy",
     };
   } catch (e) {
-    console.error("Failed to estimate P/C from ETFs:", e);
+    logger.error("api/markets/sentiment", "Failed to estimate P/C from ETFs", { error: e });
     return null;
   }
 }
@@ -173,7 +174,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         fetchSentimentData()
           .then((data) => setCache(CACHE_KEYS.SENTIMENT, data))
-          .catch((e) => console.error("Background sentiment refresh failed:", e));
+          .catch((e) => logger.error("api/markets/sentiment", "Background sentiment refresh failed", { error: e }));
         return NextResponse.json({
           ...cached.data,
           cached: true,
@@ -187,7 +188,7 @@ export async function GET(request: NextRequest) {
     await setCache(CACHE_KEYS.SENTIMENT, data);
     return NextResponse.json({ ...data, cached: false });
   } catch (e) {
-    console.error("Failed to get sentiment data:", e);
+    logger.error("api/markets/sentiment", "Failed to get sentiment data", { error: e });
     return NextResponse.json({
       vix: { value: null, change: null, changePercent: null, level: null },
       putCall: { value: null, level: null, source: "error" },

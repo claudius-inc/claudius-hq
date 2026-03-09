@@ -8,6 +8,7 @@
  */
 
 import { rawClient } from "@/db";
+import { logger } from "@/lib/logger";
 
 // Re-export raw client as default for backward compatibility with raw SQL queries
 export default rawClient;
@@ -25,5 +26,5 @@ export function ensureDB(): Promise<void> {
  * @deprecated Run 'npx drizzle-kit push' instead
  */
 export async function initDB(): Promise<void> {
-  console.log("Note: Using Drizzle ORM - run 'npx drizzle-kit push' to sync schema");
+  logger.info("db", "Using Drizzle ORM - run 'npx drizzle-kit push' to sync schema");
 }

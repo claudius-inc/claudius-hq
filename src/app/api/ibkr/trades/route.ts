@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ibkrTrades } from '@/db';
 import { eq, desc, sql, count } from 'drizzle-orm';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'nodejs';
 
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Trades fetch error:', error);
+    logger.error("api/ibkr/trades", "Trades fetch error", { error });
     return NextResponse.json({ error: 'Failed to fetch trades' }, { status: 500 });
   }
 }
@@ -90,7 +91,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Trade delete error:', error);
+    logger.error("api/ibkr/trades", "Trade delete error", { error });
     return NextResponse.json({ error: 'Failed to delete trade' }, { status: 500 });
   }
 }

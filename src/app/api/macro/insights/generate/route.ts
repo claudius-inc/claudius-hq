@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { macroInsights } from "@/db/schema";
 import { fetchMacroData } from "@/lib/fetch-macro-data";
 import { rateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_ENDPOINT =
@@ -196,7 +197,7 @@ Keep it concise and data-driven. No fluff. Reference specific values when releva
 
     if (!geminiRes.ok) {
       const errorText = await geminiRes.text();
-      console.error("Gemini API error:", errorText);
+      logger.error("api/macro/insights/generate", "Gemini API error", { error: errorText });
       return NextResponse.json(
         { error: "Failed to generate insights" },
         { status: 500 }
@@ -228,7 +229,7 @@ Keep it concise and data-driven. No fluff. Reference specific values when releva
       indicatorSnapshot: fullSnapshot,
     });
   } catch (error) {
-    console.error("Error generating macro insights:", error);
+    logger.error("api/macro/insights/generate", "Error generating macro insights", { error });
     return NextResponse.json(
       { error: "Failed to generate insights" },
       { status: 500 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, insiderTrades } from "@/db";
 import { desc, gte } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // Read from DB - fast response
 export const revalidate = 300; // 5 min cache
@@ -108,7 +109,7 @@ export async function GET() {
       updatedAt: new Date().toISOString(),
     });
   } catch (e) {
-    console.error("Insider trades GET error:", e);
+    logger.error("api/markets/insider", "Insider trades GET error", { error: e });
     return NextResponse.json({
       buyCount: 0,
       sellCount: 0,

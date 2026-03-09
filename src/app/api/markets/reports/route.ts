@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { stockReports } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // GET: List all reports or get specific report by id
 export async function GET(request: NextRequest) {
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ reports });
   } catch (error) {
-    console.error("Error fetching reports:", error);
+    logger.error("api/markets/reports", "Error fetching reports", { error });
     return NextResponse.json({ error: "Failed to fetch reports" }, { status: 500 });
   }
 }

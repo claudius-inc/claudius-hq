@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { marketReference } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // GET /api/markets/reference/[symbol] - Get single symbol
 export async function GET(
@@ -32,7 +33,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Error fetching market reference:", error);
+    logger.error("api/markets/reference/[symbol]", "Error fetching market reference", { error });
     return NextResponse.json(
       { error: "Failed to fetch market reference" },
       { status: 500 }

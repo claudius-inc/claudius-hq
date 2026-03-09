@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -110,7 +111,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         fetchStockPrices(tickers)
           .then((data) => setCache(cacheKey, data))
-          .catch((e) => console.error("Background stock prices refresh failed:", e));
+          .catch((e) => logger.error("api/stocks/prices", "Background stock prices refresh failed", { error: e }));
         return NextResponse.json({
           ...cached.data,
           cached: true,
@@ -124,7 +125,7 @@ export async function GET(request: NextRequest) {
     await setCache(cacheKey, data);
     return NextResponse.json({ ...data, cached: false });
   } catch (e) {
-    console.error("Stock prices API error:", e);
+    logger.error("api/stocks/prices", "Stock prices API error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

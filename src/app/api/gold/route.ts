@@ -4,6 +4,7 @@ import { goldAnalysis, goldFlows } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -81,10 +82,10 @@ async function fetchGoldData() {
         };
       }
     } catch (e) {
-      console.error("Error fetching macro data (DXY/TNX):", e);
+      logger.error("api/gold", "Error fetching macro data (DXY/TNX)", { error: e });
     }
   } catch (e) {
-    console.error("Error fetching gold price:", e);
+    logger.error("api/gold", "Error fetching gold price", { error: e });
   }
 
   const currentAnalysis = analysis[0] || null;
@@ -96,7 +97,7 @@ async function fetchGoldData() {
       keyLevels = currentAnalysis.keyLevels ? JSON.parse(currentAnalysis.keyLevels) : [];
       scenarios = currentAnalysis.scenarios ? JSON.parse(currentAnalysis.scenarios) : [];
     } catch (e) {
-      console.error("Error parsing JSON:", e);
+      logger.error("api/gold", "Error parsing JSON", { error: e });
     }
   }
 
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         fetchGoldData()
           .then((data) => setCache(CACHE_KEYS.GOLD, data))
-          .catch((e) => console.error("Background gold refresh failed:", e));
+          .catch((e) => logger.error("api/gold", "Background gold refresh failed", { error: e }));
         return NextResponse.json({
           ...cached.data,
           cached: true,
@@ -145,7 +146,7 @@ export async function GET(request: NextRequest) {
     await setCache(CACHE_KEYS.GOLD, data);
     return NextResponse.json({ ...data, cached: false });
   } catch (e) {
-    console.error("Gold API error:", e);
+    logger.error("api/gold", "Gold API error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    console.error("Gold analysis update error:", e);
+    logger.error("api/gold", "Gold analysis update error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

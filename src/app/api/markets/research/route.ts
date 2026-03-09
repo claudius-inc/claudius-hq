@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { researchJobs } from "@/db/schema";
 import { desc, eq, or } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // GET: List active research jobs
 export async function GET() {
@@ -14,7 +15,7 @@ export async function GET() {
 
     return NextResponse.json({ jobs });
   } catch (error) {
-    console.error("Error fetching research jobs:", error);
+    logger.error("api/markets/research", "Error fetching research jobs", { error });
     return NextResponse.json({ error: "Failed to fetch jobs" }, { status: 500 });
   }
 }
@@ -45,7 +46,7 @@ export async function POST(request: NextRequest) {
       message: `Research queued for ${ticker.toUpperCase()}` 
     });
   } catch (error) {
-    console.error("Error creating research job:", error);
+    logger.error("api/markets/research", "Error creating research job", { error });
     return NextResponse.json({ error: "Failed to queue research" }, { status: 500 });
   }
 }

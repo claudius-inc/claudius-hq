@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, stockReports } from "@/db";
+import { logger } from "@/lib/logger";
 
 interface SearchResult {
   id: number;
@@ -206,7 +207,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ results });
   } catch (e) {
-    console.error("Search error:", e);
+    logger.error("api/stocks/search", "Search error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

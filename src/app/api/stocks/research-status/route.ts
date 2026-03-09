@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, stockReports } from "@/db";
 import { desc, sql, inArray } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // GET /api/stocks/research-status?tickers=BABA,BYD,AAPL
 // Returns { [ticker]: { lastResearchDate, reportId } | null }
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ statuses });
   } catch (e) {
-    console.error("Error fetching research status:", e);
+    logger.error("api/stocks/research-status", "Error fetching research status", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

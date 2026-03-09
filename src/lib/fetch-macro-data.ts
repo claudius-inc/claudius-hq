@@ -1,4 +1,5 @@
 import { MACRO_INDICATORS, interpretValue, calculatePercentile } from "@/lib/macro-indicators";
+import { logger } from "@/lib/logger";
 import YahooFinance from "yahoo-finance2";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -36,7 +37,7 @@ async function fetchDxyFromYahoo(): Promise<{ current: number; history: number[]
       history: prices.slice(0, 260), // ~1 year of trading days
     };
   } catch (error) {
-    console.error("Error fetching DXY from Yahoo:", error);
+    logger.error("fetch-macro-data", "Error fetching DXY from Yahoo", { error });
     return null;
   }
 }
@@ -44,7 +45,7 @@ async function fetchDxyFromYahoo(): Promise<{ current: number; history: number[]
 async function fetchFredSeries(seriesId: string, limit = 260): Promise<{ current: number; history: number[] } | null> {
   const apiKey = process.env.FRED_API_KEY;
   if (!apiKey) {
-    console.warn("FRED_API_KEY not set");
+    logger.warn("fetch-macro-data", "FRED_API_KEY not set");
     return null;
   }
 
@@ -53,7 +54,7 @@ async function fetchFredSeries(seriesId: string, limit = 260): Promise<{ current
     const res = await fetch(url, { cache: "no-store" });
     
     if (!res.ok) {
-      console.error(`FRED API error for ${seriesId}: ${res.status}`);
+      logger.error("fetch-macro-data", `FRED API error for ${seriesId}: ${res.status}`);
       return null;
     }
 
@@ -69,7 +70,7 @@ async function fetchFredSeries(seriesId: string, limit = 260): Promise<{ current
       history: observations,
     };
   } catch (error) {
-    console.error(`Error fetching ${seriesId}:`, error);
+    logger.error("fetch-macro-data", `Error fetching ${seriesId}`, { error });
     return null;
   }
 }

@@ -3,6 +3,7 @@ import { db, ibkrImports, ibkrTrades, ibkrIncome, ibkrFxRates, ibkrPositions, ib
 import { eq, and, asc } from 'drizzle-orm';
 // Lazy load ibkr-parser to avoid bundling xlsx (~500KB) until needed
 import { getHistoricalFxRates, getFxRateFromCache } from '@/lib/historical-fx';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'nodejs';
 
@@ -277,7 +278,7 @@ export async function POST(request: NextRequest) {
       warnings: parseResult.errors.length > 0 ? parseResult.errors : undefined
     });
   } catch (error) {
-    console.error('IBKR upload error:', error);
+    logger.error("api/ibkr/upload", "IBKR upload error", { error });
     return NextResponse.json({ 
       error: 'Failed to process file',
       details: error instanceof Error ? error.message : String(error)

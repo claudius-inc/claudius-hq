@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { 
-  sendMessage, 
-  sendTyping, 
-  answerCallback, 
+import {
+  sendMessage,
+  sendTyping,
+  answerCallback,
   editMessage,
   ensureUser,
 } from "@/lib/telegram";
+import { logger } from "@/lib/logger";
 import {
   handlePortfolio,
   handleThemes,
@@ -199,7 +200,7 @@ export async function POST(request: NextRequest) {
     await sendMessage(chatId, response, keyboard);
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error("Telegram webhook error:", e);
+    logger.error("api/telegram/webhook", "Telegram webhook error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

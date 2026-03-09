@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, themeStocks } from "@/db";
 import { eq, and } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // DELETE /api/themes/[id]/stocks/[ticker] - Remove stock from theme
 export async function DELETE(
@@ -33,7 +34,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (e) {
-    console.error("Failed to remove stock from theme:", e);
+    logger.error("api/themes/[id]/stocks/[ticker]", "Failed to remove stock from theme", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

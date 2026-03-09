@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -74,7 +75,7 @@ async function getPriceChange(
     const change = ((endPrice - startPrice) / startPrice) * 100;
     return { startPrice, endPrice, change };
   } catch (e) {
-    console.error(`Failed to get price change for ${ticker}:`, e);
+    logger.error("api/sectors/momentum", `Failed to get price change for ${ticker}`, { error: e });
     return { startPrice: null, endPrice: null, change: null };
   }
 }
@@ -214,7 +215,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         fetchSectorMomentumData()
           .then((data) => setCache(CACHE_KEYS.SECTORS, data))
-          .catch((e) => console.error("Background sectors refresh failed:", e));
+          .catch((e) => logger.error("api/sectors/momentum", "Background sectors refresh failed", { error: e }));
         return NextResponse.json({
           ...cached.data,
           cached: true,
@@ -228,7 +229,7 @@ export async function GET(request: NextRequest) {
     await setCache(CACHE_KEYS.SECTORS, data);
     return NextResponse.json({ ...data, cached: false });
   } catch (e) {
-    console.error("Failed to get sector momentum:", e);
+    logger.error("api/sectors/momentum", "Failed to get sector momentum", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ibkrImports, ibkrTrades, ibkrIncome, ibkrPositions, ibkrPortfolioMeta } from '@/db';
 import { eq, desc, asc } from 'drizzle-orm';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'nodejs';
 
@@ -24,7 +25,7 @@ export async function GET() {
 
     return NextResponse.json({ imports: formatted });
   } catch (error) {
-    console.error('Imports fetch error:', error);
+    logger.error("api/ibkr/imports", "Imports fetch error", { error });
     return NextResponse.json({ error: 'Failed to fetch imports' }, { status: 500 });
   }
 }
@@ -99,7 +100,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Import delete error:', error);
+    logger.error("api/ibkr/imports", "Import delete error", { error });
     return NextResponse.json({ error: 'Failed to delete import' }, { status: 500 });
   }
 }

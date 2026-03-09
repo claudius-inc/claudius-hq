@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { client } from "@/db";
+import { logger } from "@/lib/logger";
 
 // Create emails table if not exists
 async function ensureTable() {
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true, message: "Email received" });
   } catch (error) {
-    console.error("Email webhook error:", error);
+    logger.error("api/integrations/email", "Email webhook error", { error });
     return NextResponse.json({ ok: false, error: "Failed to process email" }, { status: 500 });
   }
 }

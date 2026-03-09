@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db, darkpoolData, rawClient } from "@/db";
 import { sql, eq, and } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 // Sync endpoint - called by cron job (weekly)
 export const dynamic = "force-dynamic";
@@ -47,7 +48,7 @@ async function fetchFinraAtsData(): Promise<AtsWeeklyData[]> {
     );
     
     if (!res.ok) {
-      console.log("FINRA API not available, using simulated data for demo");
+      logger.warn("api/markets/darkpool/sync", "FINRA API not available, using simulated data for demo");
       // Return simulated aggregate data for demo purposes
       return [{
         weekEnding,
@@ -94,7 +95,7 @@ async function fetchFinraAtsData(): Promise<AtsWeeklyData[]> {
     
     return results;
   } catch (e) {
-    console.error("Failed to fetch FINRA ATS data:", e);
+    logger.error("api/markets/darkpool/sync", "Failed to fetch FINRA ATS data", { error: e });
     
     // Return demo data on failure
     const weekEnding = new Date().toISOString().split("T")[0];
@@ -168,7 +169,7 @@ export async function POST() {
       syncedAt: new Date().toISOString(),
     });
   } catch (e) {
-    console.error("Darkpool sync error:", e);
+    logger.error("api/markets/darkpool/sync", "Darkpool sync error", { error: e });
     return NextResponse.json({
       success: false,
       error: String(e),

@@ -3,6 +3,7 @@ import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 import { db, themes, themeStocks } from "@/db";
 import { eq } from "drizzle-orm";
+import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -110,7 +111,7 @@ async function getWeeklyChanges(ticker: string): Promise<{
 
     return { price: latestPrice, change1w, change1wPrev };
   } catch (e) {
-    console.error(`Failed to get weekly changes for ${ticker}:`, e);
+    logger.error("api/trending", `Failed to get weekly changes for ${ticker}`, { error: e });
     return { price: null, change1w: null, change1wPrev: null };
   }
 }
@@ -162,7 +163,7 @@ async function getThemePerformance(): Promise<TrendingItem[]> {
 
     return results;
   } catch (e) {
-    console.error("Failed to get theme performance:", e);
+    logger.error("api/trending", "Failed to get theme performance", { error: e });
     return [];
   }
 }
@@ -274,7 +275,7 @@ export async function GET(request: NextRequest) {
       if (cached) {
         fetchTrendingData()
           .then((data) => setCache(CACHE_KEYS.TRENDING, data))
-          .catch((e) => console.error("Background trending refresh failed:", e));
+          .catch((e) => logger.error("api/trending", "Background trending refresh failed", { error: e }));
 
         return NextResponse.json({
           items: cached.data.slice(0, limit),
@@ -299,7 +300,7 @@ export async function GET(request: NextRequest) {
       cached: false,
     });
   } catch (e) {
-    console.error("Trending API error:", e);
+    logger.error("api/trending", "Trending API error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
