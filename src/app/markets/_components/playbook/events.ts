@@ -62,7 +62,7 @@ const recessionOnset: PlaybookEvent = {
       const claims = indicatorValue(s, "initial-claims");
       if (claims === null) return { firing: false, value: "N/A", detail: "No data" };
       return {
-        firing: claims > 250,
+        firing: claims > 280,
         value: `${(claims / 1000).toFixed(0)}K`,
         detail: claims > 300 ? "Recession territory" : "Trending up",
       };
@@ -76,7 +76,7 @@ const recessionOnset: PlaybookEvent = {
       const defensiveAvg = (xlu + xlp) / 2;
       const diff = defensiveAvg - xly;
       return {
-        firing: diff > 1,
+        firing: diff > 2,
         value: `${diff > 0 ? "+" : ""}${diff.toFixed(1)}%`,
         detail: `Defensives vs cyclicals relative strength`,
       };
@@ -94,9 +94,9 @@ const recessionOnset: PlaybookEvent = {
       const oil = s.oil?.wti?.price;
       if (oil === null || oil === undefined) return { firing: false, value: "N/A", detail: "No data" };
       return {
-        firing: oil < 65,
+        firing: oil < 55,
         value: `$${oil.toFixed(2)}`,
-        detail: oil < 55 ? "Recessionary collapse" : "Demand weakness",
+        detail: oil < 45 ? "Recessionary collapse" : "Demand weakness",
       };
     }),
   ],
@@ -209,7 +209,50 @@ const recoveryReflation: PlaybookEvent = {
 };
 
 // ═══════════════════════════════════════════════════
-// 4. TIGHTENING CYCLE STRESS
+// 4. DEFLATIONARY BUST
+// ═══════════════════════════════════════════════════
+const deflationaryBust: PlaybookEvent = {
+  id: "deflationary-bust",
+  name: "Deflationary Bust",
+  category: "economic-cycle",
+  description:
+    "Prices falling, demand collapsing, bonds rallying as deflation fears dominate.",
+  historicalContext:
+    "Japan 1990s, GFC 2008-2009, COVID March 2020. Deflation is rare but devastating.",
+  implications: [
+    "TLT and long duration massively outperform",
+    "Cash is valuable — prices falling",
+    "Cyclicals get crushed",
+    "Fed will cut aggressively",
+  ],
+  triggers: [
+    trigger("cpi-falling", "CPI below 2%", (s) => {
+      const cpi = indicatorValue(s, "cpi");
+      if (cpi === null) return { firing: false, value: "N/A", detail: "No data" };
+      return { firing: cpi < 1.5, value: `${cpi.toFixed(1)}%`, detail: "Deflation risk" };
+    }),
+    trigger("oil-collapsing", "Oil collapsing", (s) => {
+      const oil = s.oil?.wti?.price;
+      if (oil === null || oil === undefined) return { firing: false, value: "N/A", detail: "No data" };
+      return { firing: oil < 50, value: `$${oil.toFixed(2)}`, detail: "Demand collapse" };
+    }),
+    trigger("tlt-surging", "TLT surging", (s) => {
+      const pos = etfRangePosition(s, "TLT");
+      if (pos === null) return { firing: false, value: "N/A", detail: "No data" };
+      return { firing: pos > 80, value: `${pos}% of 52w range`, detail: "Flight to duration" };
+    }),
+    trigger("cyclicals-crushed", "Cyclicals collapsing", (s) => {
+      const xly = sectorRelStrength(s, "consumer_cyclical");
+      const xli = sectorRelStrength(s, "industrials");
+      if (xly === null || xli === null) return { firing: false, value: "N/A", detail: "No data" };
+      const avg = (xly + xli) / 2;
+      return { firing: avg < -5, value: `${avg.toFixed(1)}%`, detail: "vs SPY" };
+    }),
+  ],
+};
+
+// ═══════════════════════════════════════════════════
+// 5. TIGHTENING CYCLE STRESS
 // ═══════════════════════════════════════════════════
 const tighteningStress: PlaybookEvent = {
   id: "tightening-stress",
@@ -378,8 +421,10 @@ const energyShock: PlaybookEvent = {
     }),
     trigger("gold-bid", "Gold bid (safe haven)", (s) => {
       const gold = s.gold?.livePrice;
+      const ath = s.gold?.analysis?.ath;
       if (gold === null || gold === undefined) return { firing: false, value: "N/A", detail: "No data" };
-      return { firing: gold > 2000, value: `$${gold.toFixed(0)}`, detail: "Safe haven demand" };
+      const nearAth = ath ? gold / ath > 0.9 : false;
+      return { firing: nearAth, value: `$${gold.toFixed(0)}`, detail: "Near ATH — safe haven demand" };
     }),
     trigger("dxy-weak", "DXY weakening", (s) => {
       const dxy = s.gold?.dxy?.price;
@@ -566,8 +611,10 @@ const sovereignDebtStress: PlaybookEvent = {
     }),
     trigger("gold-spiking", "Gold spiking", (s) => {
       const gold = s.gold?.livePrice;
+      const ath = s.gold?.analysis?.ath;
       if (gold === null || gold === undefined) return { firing: false, value: "N/A", detail: "No data" };
-      return { firing: gold > 2200, value: `$${gold.toFixed(0)}`, detail: "Sovereign hedge" };
+      const nearAth = ath ? gold / ath > 0.92 : false;
+      return { firing: nearAth, value: `$${gold.toFixed(0)}`, detail: "Near ATH — sovereign hedge" };
     }),
     trigger("debt-elevated", "Debt/GDP elevated", (s) => {
       const debt = indicatorValue(s, "debt-to-gdp");
@@ -838,8 +885,10 @@ const inflationRegimeChange: PlaybookEvent = {
     }),
     trigger("gold-rallying", "Gold rallying", (s) => {
       const gold = s.gold?.livePrice;
+      const ath = s.gold?.analysis?.ath;
       if (gold === null || gold === undefined) return { firing: false, value: "N/A", detail: "No data" };
-      return { firing: gold > 2100, value: `$${gold.toFixed(0)}`, detail: "Inflation hedge bid" };
+      const nearAth = ath ? gold / ath > 0.9 : false;
+      return { firing: nearAth, value: `$${gold.toFixed(0)}`, detail: "Near ATH — inflation hedge" };
     }),
     trigger("xle-outperforming", "XLE outperforming", (s) => {
       const rs = sectorRelStrength(s, "energy");
@@ -888,13 +937,15 @@ const dollarRegimeShift: PlaybookEvent = {
     }),
     trigger("gold-inverse", "Gold inversely correlated", (s) => {
       const gold = s.gold?.livePrice;
+      const ath = s.gold?.analysis?.ath;
       const dxy = s.gold?.dxy?.price;
       if (gold === null || gold === undefined || dxy === null || dxy === undefined)
         return { firing: false, value: "N/A", detail: "No data" };
-      // Strong DXY + weak gold, or weak DXY + strong gold
+      const goldPercOfAth = ath ? gold / ath : 0;
+      // Strong DXY + weak gold, or weak DXY + strong gold (ATH-relative)
       return {
-        firing: (dxy > 105 && gold < 1900) || (dxy < 98 && gold > 2100),
-        value: `DXY: ${dxy.toFixed(0)}, Gold: $${gold.toFixed(0)}`,
+        firing: (dxy > 105 && goldPercOfAth < 0.85) || (dxy < 98 && goldPercOfAth > 0.95),
+        value: `DXY: ${dxy.toFixed(0)}, Gold: ${(goldPercOfAth * 100).toFixed(0)}% ATH`,
         detail: "Classic inverse relationship",
       };
     }),
@@ -981,6 +1032,7 @@ export const PLAYBOOK_EVENTS: PlaybookEvent[] = [
   recessionOnset,
   stagflation,
   recoveryReflation,
+  deflationaryBust,
   // Monetary
   tighteningStress,
   easingCycle,
