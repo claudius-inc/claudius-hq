@@ -718,3 +718,222 @@ export type NewMemoriaEntryTag = typeof memoriaEntryTags.$inferInsert;
 
 export type MemoriaInsight = typeof memoriaInsights.$inferSelect;
 export type NewMemoriaInsight = typeof memoriaInsights.$inferInsert;
+
+// ============================================================================
+// ACP Experimentation — Track A/B tests, metrics, price changes, competitors
+// ============================================================================
+
+export const ACP_EXPERIMENT_STATUSES = ["active", "paused", "retired"] as const;
+export type AcpExperimentStatus = (typeof ACP_EXPERIMENT_STATUSES)[number];
+
+export const ACP_PRICE_EXPERIMENT_STATUSES = ["measuring", "complete", "reverted"] as const;
+export type AcpPriceExperimentStatus = (typeof ACP_PRICE_EXPERIMENT_STATUSES)[number];
+
+export const acpOfferingExperiments = sqliteTable("acp_offering_experiments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  offeringId: integer("offering_id").references(() => acpOfferings.id),
+  name: text("name").notNull(),
+  price: real("price").notNull(),
+  description: text("description"),
+  hypothesis: text("hypothesis"),
+  status: text("status").default("active"),
+  startDate: text("start_date").default(sql`(datetime('now'))`),
+  endDate: text("end_date"),
+  resultsSummary: text("results_summary"),
+  controlOfferingId: integer("control_offering_id"),
+  variantLabel: text("variant_label"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export const acpOfferingMetrics = sqliteTable("acp_offering_metrics", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  offeringId: integer("offering_id")
+    .notNull()
+    .references(() => acpOfferings.id, { onDelete: "cascade" }),
+  date: text("date").notNull(),
+  jobsCount: integer("jobs_count").default(0),
+  revenue: real("revenue").default(0),
+  uniqueBuyers: integer("unique_buyers").default(0),
+  views: integer("views").default(0),
+  conversionRate: real("conversion_rate"),
+  avgCompletionTimeMs: integer("avg_completion_time_ms"),
+  failureCount: integer("failure_count").default(0),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export const acpPriceExperiments = sqliteTable("acp_price_experiments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  offeringId: integer("offering_id")
+    .notNull()
+    .references(() => acpOfferings.id, { onDelete: "cascade" }),
+  oldPrice: real("old_price").notNull(),
+  newPrice: real("new_price").notNull(),
+  changedAt: text("changed_at").default(sql`(datetime('now'))`),
+  reason: text("reason"),
+  jobsBefore7d: integer("jobs_before_7d"),
+  jobsAfter7d: integer("jobs_after_7d"),
+  revenueBefore7d: real("revenue_before_7d"),
+  revenueAfter7d: real("revenue_after_7d"),
+  revenueDelta: real("revenue_delta"),
+  conversionBefore: real("conversion_before"),
+  conversionAfter: real("conversion_after"),
+  status: text("status").default("measuring"),
+  evaluationDate: text("evaluation_date"),
+  notes: text("notes"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export const acpCompetitors = sqliteTable("acp_competitors", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  agentName: text("agent_name").notNull(),
+  agentWallet: text("agent_wallet"),
+  offeringName: text("offering_name").notNull(),
+  price: real("price").notNull(),
+  description: text("description"),
+  category: text("category"),
+  jobsCount: integer("jobs_count").default(0),
+  totalRevenue: real("total_revenue"),
+  isActive: integer("is_active").default(1),
+  firstSeen: text("first_seen").default(sql`(datetime('now'))`),
+  lastChecked: text("last_checked").default(sql`(datetime('now'))`),
+  notes: text("notes"),
+  tags: text("tags"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export const acpCompetitorSnapshots = sqliteTable("acp_competitor_snapshots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  competitorId: integer("competitor_id")
+    .notNull()
+    .references(() => acpCompetitors.id, { onDelete: "cascade" }),
+  price: real("price").notNull(),
+  jobsCount: integer("jobs_count"),
+  description: text("description"),
+  snapshotAt: text("snapshot_at").default(sql`(datetime('now'))`),
+});
+
+export type AcpOfferingExperiment = typeof acpOfferingExperiments.$inferSelect;
+export type NewAcpOfferingExperiment = typeof acpOfferingExperiments.$inferInsert;
+
+export type AcpOfferingMetric = typeof acpOfferingMetrics.$inferSelect;
+export type NewAcpOfferingMetric = typeof acpOfferingMetrics.$inferInsert;
+
+export type AcpPriceExperiment = typeof acpPriceExperiments.$inferSelect;
+export type NewAcpPriceExperiment = typeof acpPriceExperiments.$inferInsert;
+
+export type AcpCompetitor = typeof acpCompetitors.$inferSelect;
+export type NewAcpCompetitor = typeof acpCompetitors.$inferInsert;
+
+export type AcpCompetitorSnapshot = typeof acpCompetitorSnapshots.$inferSelect;
+export type NewAcpCompetitorSnapshot = typeof acpCompetitorSnapshots.$inferInsert;
+
+// ============================================================================
+// ACP Operations Control Plane
+// Central state management for ACP strategy, tasks, and decisions
+// ============================================================================
+
+export const ACP_PILLARS = ["quality", "replace", "build", "experiment"] as const;
+export type AcpPillar = (typeof ACP_PILLARS)[number];
+
+export const ACP_TASK_STATUSES = ["pending", "in_progress", "done", "skipped"] as const;
+export type AcpTaskStatus = (typeof ACP_TASK_STATUSES)[number];
+
+export const ACP_DECISION_TYPES = ["pricing", "offering_change", "strategy_shift", "experiment"] as const;
+export type AcpDecisionType = (typeof ACP_DECISION_TYPES)[number];
+
+export const ACP_MARKETING_STATUSES = ["draft", "scheduled", "posted", "analyzed"] as const;
+export type AcpMarketingStatus = (typeof ACP_MARKETING_STATUSES)[number];
+
+export const ACP_STRATEGY_CATEGORIES = ["pricing", "offerings", "marketing", "experiments", "goals"] as const;
+export type AcpStrategyCategory = (typeof ACP_STRATEGY_CATEGORIES)[number];
+
+// Core state table (single row, updated frequently)
+export const acpState = sqliteTable("acp_state", {
+  id: integer("id").primaryKey(),
+  currentPillar: text("current_pillar").notNull().default("quality"),
+  currentEpoch: integer("current_epoch"),
+  epochStart: text("epoch_start"),
+  epochEnd: text("epoch_end"),
+  jobsThisEpoch: integer("jobs_this_epoch").default(0),
+  revenueThisEpoch: real("revenue_this_epoch").default(0),
+  // Goals
+  targetJobs: integer("target_jobs"),
+  targetRevenue: real("target_revenue"),
+  targetRank: integer("target_rank"),
+  // Server status
+  serverRunning: integer("server_running").default(1),
+  serverPid: integer("server_pid"),
+  lastHeartbeat: text("last_heartbeat"),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+// Strategy parameters (key-value store for flexibility)
+export const acpStrategy = sqliteTable("acp_strategy", {
+  id: text("id").primaryKey(),
+  category: text("category"),
+  key: text("key").notNull(),
+  value: text("value"),
+  notes: text("notes"),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+// Task queue (what needs to be done)
+export const acpTasks = sqliteTable("acp_tasks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  pillar: text("pillar").notNull(),
+  priority: integer("priority").default(50),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status").default("pending"),
+  assignedAt: text("assigned_at"),
+  completedAt: text("completed_at"),
+  result: text("result"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+// Decision log (why decisions were made)
+export const acpDecisions = sqliteTable("acp_decisions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  decisionType: text("decision_type"),
+  offering: text("offering"),
+  oldValue: text("old_value"),
+  newValue: text("new_value"),
+  reasoning: text("reasoning"),
+  outcome: text("outcome"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+// Marketing campaigns
+export const acpMarketing = sqliteTable("acp_marketing", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  channel: text("channel"),
+  content: text("content").notNull(),
+  targetOffering: text("target_offering"),
+  status: text("status").default("draft"),
+  scheduledAt: text("scheduled_at"),
+  postedAt: text("posted_at"),
+  tweetId: text("tweet_id"),
+  engagementLikes: integer("engagement_likes").default(0),
+  engagementRetweets: integer("engagement_retweets").default(0),
+  engagementReplies: integer("engagement_replies").default(0),
+  jobsAttributed: integer("jobs_attributed").default(0),
+  revenueAttributed: real("revenue_attributed").default(0),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type AcpState = typeof acpState.$inferSelect;
+export type NewAcpState = typeof acpState.$inferInsert;
+
+export type AcpStrategy = typeof acpStrategy.$inferSelect;
+export type NewAcpStrategy = typeof acpStrategy.$inferInsert;
+
+export type AcpTask = typeof acpTasks.$inferSelect;
+export type NewAcpTask = typeof acpTasks.$inferInsert;
+
+export type AcpDecision = typeof acpDecisions.$inferSelect;
+export type NewAcpDecision = typeof acpDecisions.$inferInsert;
+
+export type AcpMarketing = typeof acpMarketing.$inferSelect;
+export type NewAcpMarketing = typeof acpMarketing.$inferInsert;
