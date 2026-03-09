@@ -942,3 +942,28 @@ export type NewAcpDecision = typeof acpDecisions.$inferInsert;
 
 export type AcpMarketing = typeof acpMarketing.$inferSelect;
 export type NewAcpMarketing = typeof acpMarketing.$inferInsert;
+
+// ============================================================================
+// ACP Jobs — Real-time job ledger
+// ============================================================================
+
+export const ACP_JOB_STATUSES = ["pending", "completed", "failed"] as const;
+export type AcpJobStatus = (typeof ACP_JOB_STATUSES)[number];
+
+export const acpJobs = sqliteTable("acp_jobs", {
+  id: text("id").primaryKey(),                 // Virtuals job ID
+  offering: text("offering").notNull(),
+  buyer: text("buyer"),                        // Buyer wallet address
+  amount: real("amount"),                      // USDC paid
+  input: text("input"),                        // JSON string of job input
+  status: text("status").default("pending"),   // pending/completed/failed
+  result: text("result"),                      // JSON deliverable summary
+  error: text("error"),
+  startedAt: text("started_at"),
+  completedAt: text("completed_at"),
+  executionMs: integer("execution_ms"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type AcpJob = typeof acpJobs.$inferSelect;
+export type NewAcpJob = typeof acpJobs.$inferInsert;
