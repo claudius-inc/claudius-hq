@@ -27,7 +27,9 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail }: RegimeStripPr
           <div className="flex items-center gap-2 min-w-0">
             {loading.sentiment || loading.regime ? (
               <>
-                <Skeleton className="w-6 h-6 rounded-md !bg-gray-100" />
+                <div className="p-1 rounded-md bg-gray-50">
+                  <Landmark className="w-3.5 h-3.5 text-gray-400" />
+                </div>
                 <div>
                   <Skeleton className="h-4 w-32 !bg-gray-100 mb-1" />
                   <Skeleton className="h-2.5 w-48 !bg-gray-50" />
@@ -96,9 +98,20 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail }: RegimeStripPr
           <div className="flex items-center gap-3 shrink-0">
             {loading.sentiment || loading.regime ? (
               <>
-                <Skeleton className="h-3 w-14 !bg-gray-100" />
-                <Skeleton className="h-3 w-14 !bg-gray-100 hidden sm:block" />
-                <Skeleton className="h-3 w-14 !bg-gray-100 hidden sm:block" />
+                <div className="text-center text-[10px] text-gray-400">
+                  <span className="opacity-60">RY </span>
+                  <Skeleton className="h-3 w-8 inline-block !bg-gray-100" />
+                </div>
+                <span className="hidden sm:contents">
+                  <div className="text-center text-[10px] text-gray-400">
+                    <span className="opacity-60">D/G </span>
+                    <Skeleton className="h-3 w-8 inline-block !bg-gray-100" />
+                  </div>
+                  <div className="text-center text-[10px] text-gray-400">
+                    <span className="opacity-60">Def </span>
+                    <Skeleton className="h-3 w-8 inline-block !bg-gray-100" />
+                  </div>
+                </span>
               </>
             ) : regimeData ? (
               <>

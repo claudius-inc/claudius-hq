@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/Skeleton";
 import { ChevronRight, Gauge } from "lucide-react";
 import { vixRanges, putCallRanges, breadthRanges, termStructureRanges } from "./constants";
 import type { SentimentData, BreadthData } from "./types";
@@ -78,27 +79,36 @@ export function Sentiment({ sentimentData, breadthData, expandedIds, toggleExpan
       </h3>
       <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
         {/* VIX Row */}
-        {sentimentData ? (
-          <div>
-            <button
-              onClick={() => toggleExpanded("sentiment-vix")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
-            >
-              <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("sentiment-vix") ? "rotate-90" : ""}`} />
-              <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">VIX (Fear Index)</span>
-              <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">{sentimentData.vix.value?.toFixed(2) ?? "\u2014"}</span>
-              {sentimentData.vix.level && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
-                  sentimentData.vix.level === "low" ? "bg-emerald-100 text-emerald-700" :
-                  sentimentData.vix.level === "moderate" ? "bg-blue-100 text-blue-700" :
-                  sentimentData.vix.level === "elevated" ? "bg-amber-100 text-amber-700" :
-                  "bg-red-100 text-red-700"
-                }`}>
-                  {sentimentData.vix.level.charAt(0).toUpperCase() + sentimentData.vix.level.slice(1)}
-                </span>
-              )}
-            </button>
-            {expandedIds.has("sentiment-vix") && (
+        <div>
+          <button
+            disabled={!sentimentData}
+            onClick={() => sentimentData && toggleExpanded("sentiment-vix")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors disabled:hover:bg-transparent"
+          >
+            <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("sentiment-vix") ? "rotate-90" : ""}`} />
+            <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">VIX (Fear Index)</span>
+            {sentimentData ? (
+              <>
+                <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">{sentimentData.vix.value?.toFixed(2) ?? "\u2014"}</span>
+                {sentimentData.vix.level && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
+                    sentimentData.vix.level === "low" ? "bg-emerald-100 text-emerald-700" :
+                    sentimentData.vix.level === "moderate" ? "bg-blue-100 text-blue-700" :
+                    sentimentData.vix.level === "elevated" ? "bg-amber-100 text-amber-700" :
+                    "bg-red-100 text-red-700"
+                  }`}>
+                    {sentimentData.vix.level.charAt(0).toUpperCase() + sentimentData.vix.level.slice(1)}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <Skeleton className="h-3 w-10" />
+                <Skeleton className="h-4 w-14 rounded-full" />
+              </>
+            )}
+          </button>
+          {expandedIds.has("sentiment-vix") && sentimentData && (
               <div className="px-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-100">
                 <p className="text-[10px] text-gray-500 mb-2">The CBOE Volatility Index measures market expectations for near-term volatility. Higher values indicate greater fear in the market.</p>
                 <div className="space-y-2">
@@ -160,33 +170,39 @@ export function Sentiment({ sentimentData, breadthData, expandedIds, toggleExpan
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="px-3 py-2.5 text-xs text-gray-400">Loading VIX data...</div>
-        )}
+          )}
+        </div>
 
         {/* Put/Call Row */}
-        {sentimentData ? (
-          <div>
-            <button
-              onClick={() => toggleExpanded("sentiment-putcall")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
-            >
-              <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("sentiment-putcall") ? "rotate-90" : ""}`} />
-              <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">Put/Call Ratio</span>
-              <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">{sentimentData.putCall.value?.toFixed(2) ?? "\u2014"}</span>
-              {sentimentData.putCall.level && (
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
-                  sentimentData.putCall.level === "greedy" ? "bg-amber-100 text-amber-700" :
-                  sentimentData.putCall.level === "neutral" ? "bg-emerald-100 text-emerald-700" :
-                  "bg-red-100 text-red-700"
-                }`}>
-                  {sentimentData.putCall.level.charAt(0).toUpperCase() + sentimentData.putCall.level.slice(1)}
-                </span>
-              )}
-            </button>
-            {expandedIds.has("sentiment-putcall") && (
+        <div>
+          <button
+            disabled={!sentimentData}
+            onClick={() => sentimentData && toggleExpanded("sentiment-putcall")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors disabled:hover:bg-transparent"
+          >
+            <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("sentiment-putcall") ? "rotate-90" : ""}`} />
+            <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">Put/Call Ratio</span>
+            {sentimentData ? (
+              <>
+                <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">{sentimentData.putCall.value?.toFixed(2) ?? "\u2014"}</span>
+                {sentimentData.putCall.level && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
+                    sentimentData.putCall.level === "greedy" ? "bg-amber-100 text-amber-700" :
+                    sentimentData.putCall.level === "neutral" ? "bg-emerald-100 text-emerald-700" :
+                    "bg-red-100 text-red-700"
+                  }`}>
+                    {sentimentData.putCall.level.charAt(0).toUpperCase() + sentimentData.putCall.level.slice(1)}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <Skeleton className="h-3 w-10" />
+                <Skeleton className="h-4 w-14 rounded-full" />
+              </>
+            )}
+          </button>
+          {expandedIds.has("sentiment-putcall") && sentimentData && (
               <div className="px-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-100">
                 <p className="text-[10px] text-gray-500 mb-2">Ratio of put options to call options traded. A contrarian indicator — extreme readings often precede reversals.</p>
                 <div className="space-y-2">
@@ -244,33 +260,39 @@ export function Sentiment({ sentimentData, breadthData, expandedIds, toggleExpan
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="px-3 py-2.5 text-xs text-gray-400">Loading put/call data...</div>
-        )}
+          )}
+        </div>
 
         {/* Breadth Row */}
-        {breadthData ? (
-          <div>
-            <button
-              onClick={() => toggleExpanded("sentiment-breadth")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
-            >
-              <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("sentiment-breadth") ? "rotate-90" : ""}`} />
-              <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">Market Breadth</span>
-              <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">
-                {breadthData.advanceDecline.advances ?? "\u2014"} / {breadthData.advanceDecline.declines ?? "\u2014"}
-              </span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
-                breadthData.level === "bullish" ? "bg-emerald-100 text-emerald-700" :
-                breadthData.level === "bearish" ? "bg-red-100 text-red-700" :
-                "bg-gray-100 text-gray-700"
-              }`}>
-                {breadthData.level.charAt(0).toUpperCase() + breadthData.level.slice(1)}
-              </span>
-            </button>
-            {expandedIds.has("sentiment-breadth") && (
+        <div>
+          <button
+            disabled={!breadthData}
+            onClick={() => breadthData && toggleExpanded("sentiment-breadth")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors disabled:hover:bg-transparent"
+          >
+            <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("sentiment-breadth") ? "rotate-90" : ""}`} />
+            <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">Market Breadth</span>
+            {breadthData ? (
+              <>
+                <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">
+                  {breadthData.advanceDecline.advances ?? "\u2014"} / {breadthData.advanceDecline.declines ?? "\u2014"}
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
+                  breadthData.level === "bullish" ? "bg-emerald-100 text-emerald-700" :
+                  breadthData.level === "bearish" ? "bg-red-100 text-red-700" :
+                  "bg-gray-100 text-gray-700"
+                }`}>
+                  {breadthData.level.charAt(0).toUpperCase() + breadthData.level.slice(1)}
+                </span>
+              </>
+            ) : (
+              <>
+                <Skeleton className="h-3 w-14" />
+                <Skeleton className="h-4 w-14 rounded-full" />
+              </>
+            )}
+          </button>
+          {expandedIds.has("sentiment-breadth") && breadthData && (
               <div className="px-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-100">
                 <p className="text-[10px] text-gray-500 mb-2">Advance/decline ratio measures how many stocks are participating in a move. Healthy rallies are broad-based; narrow rallies are fragile.</p>
                 <div className="space-y-2">
@@ -338,11 +360,8 @@ export function Sentiment({ sentimentData, breadthData, expandedIds, toggleExpan
                   </div>
                 </div>
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="px-3 py-2.5 text-xs text-gray-400">Loading breadth data...</div>
-        )}
+          )}
+        </div>
 
         {/* VIX Term Structure Row */}
         {sentimentData?.volatilityContext && (

@@ -177,6 +177,7 @@ export default function StocksDashboard() {
           congressData={congressData}
           insiderData={insiderData}
           regimeData={regimeData}
+          loading={loading.macro || loading.sentiment || loading.breadth || loading.regime}
         />
 
         <div className="space-y-4">

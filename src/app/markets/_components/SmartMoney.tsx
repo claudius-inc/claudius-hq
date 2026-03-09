@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/Skeleton";
 import { ChevronRight, Users } from "lucide-react";
 import { congressRanges, insiderRanges } from "./constants";
 import type { CongressData, InsiderData } from "./types";
@@ -44,27 +45,36 @@ export function SmartMoney({ congressData, insiderData, expandedIds, toggleExpan
       </h3>
       <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
         {/* Congress Row */}
-        {congressData ? (
-          <div>
-            <button
-              onClick={() => toggleExpanded("smart-congress")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
-            >
-              <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("smart-congress") ? "rotate-90" : ""}`} />
-              <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">Congress Trading</span>
-              <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">
-                {congressData.totalTrades > 0 ? `${congressData.ratio.toFixed(1)}x B/S` : "No data"}
-              </span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
-                congressData.totalTrades === 0 ? "bg-gray-100 text-gray-700" :
-                congressData.level === "bullish" ? "bg-emerald-100 text-emerald-700" :
-                congressData.level === "bearish" ? "bg-red-100 text-red-700" :
-                "bg-gray-100 text-gray-700"
-              }`}>
-                {congressData.totalTrades === 0 ? "No Data" : formatSentimentLevel(congressData.level)}
-              </span>
-            </button>
-            {expandedIds.has("smart-congress") && (
+        <div>
+          <button
+            disabled={!congressData}
+            onClick={() => congressData && toggleExpanded("smart-congress")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors disabled:hover:bg-transparent"
+          >
+            <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("smart-congress") ? "rotate-90" : ""}`} />
+            <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">Congress Trading</span>
+            {congressData ? (
+              <>
+                <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">
+                  {congressData.totalTrades > 0 ? `${congressData.ratio.toFixed(1)}x B/S` : "No data"}
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
+                  congressData.totalTrades === 0 ? "bg-gray-100 text-gray-700" :
+                  congressData.level === "bullish" ? "bg-emerald-100 text-emerald-700" :
+                  congressData.level === "bearish" ? "bg-red-100 text-red-700" :
+                  "bg-gray-100 text-gray-700"
+                }`}>
+                  {congressData.totalTrades === 0 ? "No Data" : formatSentimentLevel(congressData.level)}
+                </span>
+              </>
+            ) : (
+              <>
+                <Skeleton className="h-3 w-14" />
+                <Skeleton className="h-4 w-14 rounded-full" />
+              </>
+            )}
+          </button>
+          {expandedIds.has("smart-congress") && congressData && (
               <div className="px-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-100">
                 <p className="text-[10px] text-gray-500 mb-2">STOCK Act filings from US House &amp; Senate members. Tracks disclosed stock transactions over the last 90 days.</p>
                 {congressData.totalTrades > 0 ? (
@@ -135,34 +145,40 @@ export function SmartMoney({ congressData, insiderData, expandedIds, toggleExpan
                   <p className="text-[10px] text-gray-400">No Congress trades found in the last 90 days.</p>
                 )}
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="px-3 py-2.5 text-xs text-gray-400">Loading Congress trading data...</div>
-        )}
+          )}
+        </div>
 
         {/* Insider Row */}
-        {insiderData ? (
-          <div>
-            <button
-              onClick={() => toggleExpanded("smart-insider")}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
-            >
-              <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("smart-insider") ? "rotate-90" : ""}`} />
-              <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">Insider Trading</span>
-              <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">
-                {insiderData.totalTrades > 0 ? `${insiderData.ratio.toFixed(1)}x B/S` : "No data"}
-              </span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
-                insiderData.totalTrades === 0 ? "bg-gray-100 text-gray-700" :
-                insiderData.level === "bullish" ? "bg-emerald-100 text-emerald-700" :
-                insiderData.level === "bearish" ? "bg-red-100 text-red-700" :
-                "bg-gray-100 text-gray-700"
-              }`}>
-                {insiderData.totalTrades === 0 ? "No Data" : formatSentimentLevel(insiderData.level)}
-              </span>
-            </button>
-            {expandedIds.has("smart-insider") && (
+        <div>
+          <button
+            disabled={!insiderData}
+            onClick={() => insiderData && toggleExpanded("smart-insider")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors disabled:hover:bg-transparent"
+          >
+            <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("smart-insider") ? "rotate-90" : ""}`} />
+            <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">Insider Trading</span>
+            {insiderData ? (
+              <>
+                <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">
+                  {insiderData.totalTrades > 0 ? `${insiderData.ratio.toFixed(1)}x B/S` : "No data"}
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
+                  insiderData.totalTrades === 0 ? "bg-gray-100 text-gray-700" :
+                  insiderData.level === "bullish" ? "bg-emerald-100 text-emerald-700" :
+                  insiderData.level === "bearish" ? "bg-red-100 text-red-700" :
+                  "bg-gray-100 text-gray-700"
+                }`}>
+                  {insiderData.totalTrades === 0 ? "No Data" : formatSentimentLevel(insiderData.level)}
+                </span>
+              </>
+            ) : (
+              <>
+                <Skeleton className="h-3 w-14" />
+                <Skeleton className="h-4 w-14 rounded-full" />
+              </>
+            )}
+          </button>
+          {expandedIds.has("smart-insider") && insiderData && (
               <div className="px-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-100">
                 <p className="text-[10px] text-gray-500 mb-2">SEC Form 4 filings from corporate insiders (officers, directors, 10%+ holders). Tracks disclosed stock transactions over the last 14 days.</p>
                 {insiderData.totalTrades > 0 ? (
@@ -233,11 +249,8 @@ export function SmartMoney({ congressData, insiderData, expandedIds, toggleExpan
                   <p className="text-[10px] text-gray-400">No insider trades found in the last 14 days.</p>
                 )}
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="px-3 py-2.5 text-xs text-gray-400">Loading insider trading data...</div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

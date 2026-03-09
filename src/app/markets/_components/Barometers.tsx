@@ -1,3 +1,4 @@
+import { Skeleton } from "@/components/Skeleton";
 import { ChevronRight, BarChart3 } from "lucide-react";
 import { etfColorMap } from "./constants";
 import type { MarketEtf } from "./types";
@@ -9,6 +10,11 @@ interface BarometersProps {
   toggleExpanded: (id: string) => void;
 }
 
+const BAROMETER_NAMES = [
+  { ticker: "TLT", name: "TLT (20+ Year Treasury Bonds)" },
+  { ticker: "ITA", name: "ITA (Aerospace & Defense)" },
+];
+
 export function Barometers({ marketEtfs, loading, expandedIds, toggleExpanded }: BarometersProps) {
   return (
     <div>
@@ -17,7 +23,16 @@ export function Barometers({ marketEtfs, loading, expandedIds, toggleExpanded }:
         Market Barometers
       </h3>
       {loading ? (
-        <div className="card !p-3 text-xs text-gray-400">Loading barometers...</div>
+        <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
+          {BAROMETER_NAMES.map(({ ticker, name }) => (
+            <div key={ticker} className="px-3 py-2.5 flex items-center gap-3">
+              <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
+              <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">{name}</span>
+              <Skeleton className="h-3 w-14 !bg-gray-100" />
+              <Skeleton className="h-4 w-14 rounded-full !bg-gray-100" />
+            </div>
+          ))}
+        </div>
       ) : marketEtfs.length > 0 ? (
         <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
           {marketEtfs.map((etf) => {

@@ -1,7 +1,9 @@
+import { Skeleton } from "@/components/Skeleton";
 import { ChevronRight } from "lucide-react";
 import { categoryOrder, categoryLabels, categoryIcons } from "./constants";
 import { getStatusColor, getTrendArrow, formatIndicatorVal } from "./helpers";
 import { IndicatorDetails } from "./IndicatorDetails";
+import { MACRO_INDICATORS } from "@/lib/macro-indicators";
 import type { MacroIndicator, YieldSpread } from "./types";
 
 interface IndicatorsProps {
@@ -31,23 +33,30 @@ export function Indicators({
   return (
     <div className="col-span-full space-y-4">
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="animate-pulse">
-              <div className="h-4 bg-gray-200 rounded w-24 mb-1.5" />
-              <div className="card !p-0 divide-y divide-gray-100">
-                {[1, 2].map((j) => (
-                  <div key={j} className="px-3 py-2.5 flex items-center gap-3">
-                    <div className="w-3 h-3 bg-gray-200 rounded" />
-                    <div className="h-3 bg-gray-200 rounded w-32 flex-1" />
-                    <div className="h-3 bg-gray-200 rounded w-14" />
-                    <div className="h-4 bg-gray-200 rounded-full w-16" />
+        categoryOrder.map((category) => {
+          const staticIndicators = MACRO_INDICATORS.filter(i => i.category === category);
+          if (!staticIndicators.length) return null;
+          return (
+            <div key={category}>
+              <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
+                <span className="flex items-center text-gray-400">
+                  {categoryIcons[category]}
+                </span>
+                {categoryLabels[category]}
+              </h3>
+              <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
+                {staticIndicators.map((ind) => (
+                  <div key={ind.id} className="px-3 py-2.5 flex items-center gap-3">
+                    <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
+                    <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">{ind.name}</span>
+                    <Skeleton className="h-3 w-14 !bg-gray-100" />
+                    <Skeleton className="h-4 w-16 rounded-full !bg-gray-100" />
                   </div>
                 ))}
               </div>
             </div>
-          ))}
-        </div>
+          );
+        })
       ) : (
         categoryOrder.map((category) => {
           const categoryIndicators = grouped[category];
