@@ -38,7 +38,27 @@ export { AcpCampaignStats } from "./AcpCampaignStats";
 export { AcpDecisionsList } from "./AcpDecisionsList";
 export { AcpDecisionCard } from "./AcpDecisionCard";
 
+// Charts
+export { AcpMetricsChart } from "./AcpMetricsChart";
+export { AcpCompetitorPriceChart } from "./AcpCompetitorPriceChart";
+export { AcpAttributionChart } from "./AcpAttributionChart";
+
+// Forms/Modals
+export { AcpTaskForm } from "./AcpTaskForm";
+export { AcpTrackCompetitorModal } from "./AcpTrackCompetitorModal";
+export { AcpNewPostModal } from "./AcpNewPostModal";
+
+// Cards
+export { AcpExperimentCard } from "./AcpExperimentCard";
+export { AcpPriceHistory } from "./AcpPriceHistory";
+export { AcpGoalsCard } from "./AcpGoalsCard";
+
+// Filters
+export { AcpDecisionFilters } from "./AcpDecisionFilters";
+
 // Shared utilities
 export { AcpPillarBadge, type AcpPillar } from "./AcpPillarBadge";
 export { AcpTrendIndicator } from "./AcpTrendIndicator";
 export { AcpProgressBar } from "./AcpProgressBar";
+export { AcpEmptyState } from "./AcpEmptyState";
+export { AcpLoadingSkeleton, AcpCardSkeleton, AcpTableRowSkeleton, AcpChartSkeleton, AcpListSkeleton } from "./AcpLoadingSkeleton";
