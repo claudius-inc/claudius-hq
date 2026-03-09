@@ -1,7 +1,11 @@
-import Link from "next/link";
+"use client";
+
+import { useState } from "react";
 import useSWR from "swr";
 import { Gem, ArrowRight } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
+import { GoldDetail } from "./GoldDetail";
+import { BtcDetail } from "./BtcDetail";
 
 interface BtcSnapshot {
   livePrice: number;
@@ -72,6 +76,9 @@ function OilZone({ price }: { price: number }) {
 }
 
 export function HardAssets() {
+  const [btcOpen, setBtcOpen] = useState(false);
+  const [goldOpen, setGoldOpen] = useState(false);
+
   const { data: btc, isLoading: loadingBtc } = useSWR<BtcSnapshot>("/api/btc", fetcher, swrConfig);
   const { data: gold, isLoading: loadingGold } = useSWR<GoldSnapshot>("/api/gold", fetcher, swrConfig);
   const { data: oil, isLoading: loadingOil } = useSWR<OilSnapshot>("/api/oil", fetcher, swrConfig);
@@ -89,7 +96,7 @@ export function HardAssets() {
 
       <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
         {/* BTC Row */}
-        <Link href="/markets/btc" className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors group">
+        <button onClick={() => setBtcOpen(true)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors group text-left">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-900">BTC</span>
@@ -122,10 +129,10 @@ export function HardAssets() {
             ) : null}
           </div>
           <ArrowRight className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
-        </Link>
+        </button>
 
         {/* Gold Row */}
-        <Link href="/markets/gold" className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors group">
+        <button onClick={() => setGoldOpen(true)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors group text-left">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-gray-900">Gold</span>
@@ -165,7 +172,7 @@ export function HardAssets() {
             ) : null}
           </div>
           <ArrowRight className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
-        </Link>
+        </button>
 
         {/* Oil Row */}
         <div className="flex items-center gap-3 px-3 py-2.5">
@@ -205,6 +212,10 @@ export function HardAssets() {
           </div>
         </div>
       </div>
+
+      {/* Detail Modals */}
+      <BtcDetail open={btcOpen} onClose={() => setBtcOpen(false)} />
+      <GoldDetail open={goldOpen} onClose={() => setGoldOpen(false)} />
     </div>
   );
 }
