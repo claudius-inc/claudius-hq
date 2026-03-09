@@ -10,6 +10,7 @@ import { Sentiment } from "./_components/Sentiment";
 import { SmartMoney } from "./_components/SmartMoney";
 import { Indicators } from "./_components/Indicators";
 import { HardAssets } from "./_components/HardAssets";
+import { RegimeDetail } from "./_components/RegimeDetail";
 import { PlaybookSection } from "./_components/playbook/PlaybookSection";
 import type {
   Position,
@@ -45,6 +46,7 @@ export default function StocksDashboard() {
   const [generating, setGenerating] = useState(false);
   const [insightsError, setInsightsError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [regimeDetailOpen, setRegimeDetailOpen] = useState(false);
   const [loading, setLoading] = useState({
     portfolio: true,
     macro: true,
@@ -200,6 +202,7 @@ export default function StocksDashboard() {
         <RegimeStrip
           regimeData={regimeData}
           loading={{ regime: loading.regime, sentiment: loading.sentiment }}
+          onOpenDetail={() => setRegimeDetailOpen(true)}
         />
 
         <PlaybookSection
@@ -255,6 +258,13 @@ export default function StocksDashboard() {
           toggleExpanded={toggleExpanded}
         />
       </div>
+
+      <RegimeDetail
+        open={regimeDetailOpen}
+        onClose={() => setRegimeDetailOpen(false)}
+        regimeData={regimeData}
+        macroIndicators={macroIndicators}
+      />
     </>
   );
 }

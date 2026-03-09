@@ -6,26 +6,23 @@ import {
   debtToGdpRanges,
   deficitToGdpRanges,
 } from "./constants";
-import { ConditionalLink } from "./ConditionalLink";
 import type { RegimeData } from "./types";
 
 interface RegimeStripProps {
   regimeData: RegimeData | null;
   loading: { regime: boolean; sentiment: boolean };
+  onOpenDetail?: () => void;
 }
 
-export function RegimeStrip({ regimeData, loading }: RegimeStripProps) {
+export function RegimeStrip({ regimeData, loading, onOpenDetail }: RegimeStripProps) {
   return (
     <div className="col-span-full">
       <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4">
-        <ConditionalLink
-          href={
-            !loading.regime && !loading.sentiment && regimeData
-              ? "/markets/regime"
-              : undefined
-          }
-          className="flex items-center justify-between gap-3"
-          onClick={(e) => e.stopPropagation()}
+        <button
+          type="button"
+          disabled={loading.regime || loading.sentiment || !regimeData}
+          className="flex items-center justify-between gap-3 w-full text-left cursor-pointer disabled:cursor-default"
+          onClick={onOpenDetail}
         >
           <div className="flex items-center gap-2 min-w-0">
             {loading.sentiment || loading.regime ? (
@@ -184,7 +181,7 @@ export function RegimeStrip({ regimeData, loading }: RegimeStripProps) {
               <span className="h-3 w-14">{"\u00A0"}</span>
             )}
           </div>
-        </ConditionalLink>
+        </button>
       </div>
     </div>
   );
