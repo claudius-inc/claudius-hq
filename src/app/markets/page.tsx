@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { PageHero } from "@/components/PageHero";
 import { detectRegime } from "./_components/helpers";
 import { RegimeStrip } from "./_components/RegimeStrip";
-import { AIInsights } from "./_components/AIInsights";
 import { Barometers } from "./_components/Barometers";
 import { Sentiment } from "./_components/Sentiment";
 import { SmartMoney } from "./_components/SmartMoney";
@@ -22,7 +21,6 @@ import type {
   BreadthData,
   CongressData,
   InsiderData,
-  InsightsData,
   YieldSpread,
 } from "./_components/types";
 
@@ -42,9 +40,6 @@ export default function StocksDashboard() {
   const [congressData, setCongressData] = useState<CongressData | null>(null);
   const [insiderData, setInsiderData] = useState<InsiderData | null>(null);
   const [yieldSpreads, setYieldSpreads] = useState<YieldSpread[]>([]);
-  const [insightsData, setInsightsData] = useState<InsightsData | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [insightsError, setInsightsError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [regimeDetailOpen, setRegimeDetailOpen] = useState(false);
   const [loading, setLoading] = useState({
@@ -56,7 +51,6 @@ export default function StocksDashboard() {
     breadth: true,
     congress: true,
     insider: true,
-    insights: true,
   });
 
   const toggleExpanded = (id: string) => {
@@ -66,29 +60,6 @@ export default function StocksDashboard() {
       else next.add(id);
       return next;
     });
-  };
-
-  const regenerateInsights = async () => {
-    setGenerating(true);
-    setInsightsError(null);
-    try {
-      const res = await fetch("/api/macro/insights/generate", {
-        method: "POST",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setInsightsData(data);
-        setExpandedIds((prev) => new Set(prev).add("ai-insights"));
-      } else {
-        const error = await res.json();
-        setInsightsError(error.error || "Failed to generate insights");
-      }
-    } catch (e) {
-      console.error("Error generating insights:", e);
-      setInsightsError("Failed to generate insights");
-    } finally {
-      setGenerating(false);
-    }
   };
 
   useEffect(() => {
@@ -153,14 +124,6 @@ export default function StocksDashboard() {
       .catch(console.error)
       .finally(() => setLoading((prev) => ({ ...prev, insider: false })));
 
-    fetch("/api/macro/insights")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) setInsightsData(data);
-      })
-      .catch(console.error)
-      .finally(() => setLoading((prev) => ({ ...prev, insights: false })));
-
     Promise.all([
       fetch("/api/macro").then((res) => (res.ok ? res.json() : null)),
       fetch("/api/gold").then((res) => (res.ok ? res.json() : null)),
@@ -214,16 +177,6 @@ export default function StocksDashboard() {
           congressData={congressData}
           insiderData={insiderData}
           regimeData={regimeData}
-        />
-
-        <AIInsights
-          insightsData={insightsData}
-          generating={generating}
-          insightsError={insightsError}
-          loadingInsights={loading.insights}
-          expandedIds={expandedIds}
-          toggleExpanded={toggleExpanded}
-          regenerateInsights={regenerateInsights}
         />
 
         <div className="space-y-4">

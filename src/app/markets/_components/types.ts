@@ -146,12 +146,6 @@ export interface InsiderData {
   }>;
 }
 
-export interface InsightsData {
-  insights: string | null;
-  generatedAt: string | null;
-  indicatorSnapshot: unknown;
-}
-
 export interface YieldSpread {
   name: string;
   value: number | null;
