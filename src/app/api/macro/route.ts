@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const fresh = request.nextUrl.searchParams.get("fresh") === "true";
 
     if (!fresh) {
-      const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.MACRO, 3600);
+      const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.MACRO, 1800); // 30 min for daily indicators
       if (cached && !cached.isStale) {
         return NextResponse.json({
           ...cached.data,
