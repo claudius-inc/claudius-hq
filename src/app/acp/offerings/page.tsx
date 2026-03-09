@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { acpOfferings, acpOfferingExperiments } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { PageHero } from "@/components/PageHero";
 import { AcpOfferingsTable } from "@/components/acp/AcpOfferingsTable";
-import { Package } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -21,18 +21,10 @@ export default async function AcpOfferingsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Package className="w-6 h-6 text-gray-400" />
-            Offerings
-          </h1>
-          <p className="text-sm text-gray-500">
-            {activeCount} active of {offerings.length} total (limit: 20)
-          </p>
-        </div>
-      </div>
+      <PageHero
+        title="Offerings"
+        subtitle={`${activeCount} active of ${offerings.length} total (limit: 20)`}
+      />
 
       {/* Table */}
       <AcpOfferingsTable offerings={offerings} experiments={experiments} />

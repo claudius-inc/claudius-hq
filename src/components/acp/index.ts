@@ -24,11 +24,6 @@ export { AcpPillarSummary } from "./AcpPillarSummary";
 export { AcpStrategySection } from "./AcpStrategySection";
 export { AcpStrategyField } from "./AcpStrategyField";
 
-// Competitors
-export { AcpCompetitorsTable } from "./AcpCompetitorsTable";
-export { AcpCompetitorDetail } from "./AcpCompetitorDetail";
-export { AcpMarketGaps } from "./AcpMarketGaps";
-
 // Marketing
 export { AcpCampaignList } from "./AcpCampaignList";
 export { AcpCampaignCard } from "./AcpCampaignCard";
@@ -40,12 +35,12 @@ export { AcpDecisionCard } from "./AcpDecisionCard";
 
 // Charts
 export { AcpMetricsChart } from "./AcpMetricsChart";
-export { AcpCompetitorPriceChart } from "./AcpCompetitorPriceChart";
+
 export { AcpAttributionChart } from "./AcpAttributionChart";
 
 // Forms/Modals
 export { AcpTaskForm } from "./AcpTaskForm";
-export { AcpTrackCompetitorModal } from "./AcpTrackCompetitorModal";
+
 export { AcpNewPostModal } from "./AcpNewPostModal";
 
 // Cards

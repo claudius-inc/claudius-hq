@@ -14,7 +14,6 @@ const tabs: NavTab[] = [
   { label: "Offerings", href: "/acp/offerings" },
   { label: "Tasks", href: "/acp/tasks" },
   { label: "Strategy", href: "/acp/strategy" },
-  { label: "Competitors", href: "/acp/competitors" },
   { label: "Marketing", href: "/acp/marketing" },
   { label: "Decisions", href: "/acp/decisions" },
 ];

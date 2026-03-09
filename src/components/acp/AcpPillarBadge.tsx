@@ -1,9 +1,9 @@
 "use client";
 
-import { Target, RefreshCw, Hammer, FlaskConical } from "lucide-react";
+import { Target, RefreshCw, Hammer, FlaskConical, Share2 } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type AcpPillar = "quality" | "replace" | "build" | "experiment";
+export type AcpPillar = "quality" | "replace" | "build" | "experiment" | "distribute";
 
 interface AcpPillarBadgeProps {
   pillar: AcpPillar | string;
@@ -35,6 +35,12 @@ const pillarConfig: Record<AcpPillar, { icon: ReactNode; label: string; color: s
     label: "Experiment",
     color: "text-green-600",
     bgColor: "bg-green-50",
+  },
+  distribute: {
+    icon: <Share2 className="w-3.5 h-3.5" />,
+    label: "Distribute",
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-50",
   },
 };
 

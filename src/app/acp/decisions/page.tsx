@@ -1,8 +1,8 @@
 import { db } from "@/db";
 import { acpDecisions } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { PageHero } from "@/components/PageHero";
 import { AcpDecisionsList } from "@/components/acp/AcpDecisionsList";
-import { History } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -28,18 +28,10 @@ export default async function AcpDecisionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <History className="w-6 h-6 text-gray-400" />
-            Decision Log
-          </h1>
-          <p className="text-sm text-gray-500">
-            {decisions.length} decisions recorded
-          </p>
-        </div>
-      </div>
+      <PageHero
+        title="Decision Log"
+        subtitle={`${decisions.length} decisions recorded`}
+      />
 
       {/* Type Summary */}
       {Object.keys(typeCounts).length > 0 && (

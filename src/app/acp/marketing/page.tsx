@@ -1,9 +1,9 @@
 import { db } from "@/db";
 import { acpMarketing } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { PageHero } from "@/components/PageHero";
 import { AcpCampaignList } from "@/components/acp/AcpCampaignList";
 import { AcpCampaignStats } from "@/components/acp/AcpCampaignStats";
-import { Megaphone } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -24,18 +24,10 @@ export default async function AcpMarketingPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-gray-400" />
-            Marketing Campaigns
-          </h1>
-          <p className="text-sm text-gray-500">
-            {postedCount} posted, {campaigns.length - postedCount} in progress
-          </p>
-        </div>
-      </div>
+      <PageHero
+        title="Marketing Campaigns"
+        subtitle={`${postedCount} posted, ${campaigns.length - postedCount} in progress`}
+      />
 
       {/* Stats */}
       <AcpCampaignStats campaigns={campaigns} />

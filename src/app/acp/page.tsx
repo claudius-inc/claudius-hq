@@ -8,6 +8,7 @@ import {
   acpEpochStats,
 } from "@/db/schema";
 import { eq, desc, gte } from "drizzle-orm";
+import { PageHero } from "@/components/PageHero";
 import {
   AcpServerStatus,
   AcpStateCard,
@@ -106,21 +107,16 @@ export default async function AcpDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            ACP Operations Center
-          </h1>
-          <p className="text-sm text-gray-500">
-            Agent Commerce Protocol dashboard
-          </p>
-        </div>
-        <AcpServerStatus
-          isRunning={data.state.serverRunning === 1}
-          lastHeartbeat={data.state.lastHeartbeat}
-        />
-      </div>
+      <PageHero
+        title="ACP Operations Center"
+        subtitle="Agent Commerce Protocol dashboard"
+        actionSlot={
+          <AcpServerStatus
+            isRunning={data.state.serverRunning === 1}
+            lastHeartbeat={data.state.lastHeartbeat}
+          />
+        }
+      />
 
       {/* State Card */}
       <AcpStateCard state={data.state} epochStats={data.epochStats} />

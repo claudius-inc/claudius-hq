@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { acpStrategy } from "@/db/schema";
+import { PageHero } from "@/components/PageHero";
 import { AcpStrategySection } from "@/components/acp/AcpStrategySection";
-import { Settings } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -35,18 +35,10 @@ export default async function AcpStrategyPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Settings className="w-6 h-6 text-gray-400" />
-            Strategy Parameters
-          </h1>
-          <p className="text-sm text-gray-500">
-            {totalParams} parameters across {sortedCategories.length} categories
-          </p>
-        </div>
-      </div>
+      <PageHero
+        title="Strategy Parameters"
+        subtitle={`${totalParams} parameters across ${sortedCategories.length} categories`}
+      />
 
       {/* Strategy Sections */}
       {sortedCategories.length === 0 ? (

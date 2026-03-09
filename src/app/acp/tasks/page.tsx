@@ -1,9 +1,9 @@
 import { db } from "@/db";
 import { acpTasks } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import { PageHero } from "@/components/PageHero";
 import { AcpTaskBoard } from "@/components/acp/AcpTaskBoard";
 import { AcpPillarSummary } from "@/components/acp/AcpPillarSummary";
-import { CheckSquare } from "lucide-react";
 
 export const revalidate = 60;
 
@@ -23,18 +23,10 @@ export default async function AcpTasksPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <CheckSquare className="w-6 h-6 text-gray-400" />
-            Task Board
-          </h1>
-          <p className="text-sm text-gray-500">
-            {pendingCount} pending, {inProgressCount} in progress
-          </p>
-        </div>
-      </div>
+      <PageHero
+        title="Task Board"
+        subtitle={`${pendingCount} pending, ${inProgressCount} in progress`}
+      />
 
       {/* Pillar Summary */}
       <AcpPillarSummary tasks={tasks} />

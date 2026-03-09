@@ -176,7 +176,7 @@ async function collectMetrics(): Promise<void> {
 
 async function updateState(): Promise<void> {
   // Fetch recent metrics and sum them
-  const response = await hqFetch<{ name: string; value: string }[]>('/metrics?period=epoch');
+  const response = await hqFetch<{ name: string; value: string }>('/metrics?period=epoch');
   
   if (response.error || !response.metrics) {
     console.log('updateState: No metrics to aggregate');
