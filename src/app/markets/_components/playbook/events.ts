@@ -529,7 +529,57 @@ const warEscalation: PlaybookEvent = {
 };
 
 // ═══════════════════════════════════════════════════
-// 10. CREDIT CRISIS
+// 10. INSURANCE CASCADE / CHOKEPOINT CLOSURE
+// ═══════════════════════════════════════════════════
+const insuranceCascade: PlaybookEvent = {
+  id: "insurance-cascade",
+  name: "Insurance Cascade / Chokepoint Closure",
+  category: "geopolitical",
+  description:
+    "Maritime insurance withdrawals close critical chokepoints. Reinsurers pull capacity under Solvency II constraints, P&I clubs cancel war-risk coverage, commercial transit collapses regardless of military situation.",
+  historicalContext:
+    "2026 Hormuz: Seven P&I clubs withdrew coverage, closing Strait despite US naval dominance. 2023-25 Red Sea: Houthi attacks caused 26-month rerouting. 1987-88 Tanker War. Insurance, not navies, is the gating variable.",
+  implications: [
+    "Oil stays elevated far longer than consensus expects",
+    "Tanker/shipping companies print money (VLCC rates spike)",
+    "Energy importers crushed (Korea, Japan, Europe)",
+    "Duration mismatch: markets price weeks, reality is months",
+  ],
+  triggers: [
+    trigger("oil-spike", "Oil >$100 (crisis level)", (s) => {
+      const oil = s.oil?.wti?.price;
+      if (oil === null || oil === undefined) return { firing: false, value: "N/A", detail: "No data" };
+      return { firing: oil > 100, value: `$${oil.toFixed(2)}`, detail: oil > 120 ? "Extreme" : "Crisis level" };
+    }),
+    trigger("energy-surge", "Energy sector massively outperforming", (s) => {
+      const rs = sectorRelStrength(s, "energy");
+      if (rs === null) return { firing: false, value: "N/A", detail: "No data" };
+      return { firing: rs > 5, value: `${rs > 0 ? "+" : ""}${rs.toFixed(1)}%`, detail: "vs SPY — supply shock premium" };
+    }),
+    trigger("vix-elevated", "VIX elevated (>25)", (s) => {
+      const vix = s.sentiment?.vix.value;
+      if (vix === null || vix === undefined) return { firing: false, value: "N/A", detail: "No data" };
+      return { firing: vix > 25, value: vix.toFixed(1), detail: vix > 35 ? "Panic" : "Elevated fear" };
+    }),
+    trigger("gold-safe-haven", "Gold bid (safe haven)", (s) => {
+      const gold = s.gold?.livePrice;
+      const ath = s.gold?.analysis?.ath;
+      if (gold === null || gold === undefined) return { firing: false, value: "N/A", detail: "No data" };
+      const nearAth = ath ? gold / ath > 0.92 : false;
+      return { firing: nearAth, value: `$${gold.toFixed(0)}`, detail: "Safe haven demand" };
+    }),
+    trigger("consumer-crushed", "Consumer discretionary crushed", (s) => {
+      const rs = sectorRelStrength(s, "consumer_cyclical");
+      if (rs === null) return { firing: false, value: "N/A", detail: "No data" };
+      return { firing: rs < -3, value: `${rs.toFixed(1)}%`, detail: "Energy costs crushing demand" };
+    }),
+  ],
+  activeThreshold: 0.6,
+  warmingThreshold: 0.4,
+};
+
+// ═══════════════════════════════════════════════════
+// 11. CREDIT CRISIS
 // ═══════════════════════════════════════════════════
 const creditCrisis: PlaybookEvent = {
   id: "credit-crisis",
@@ -1041,6 +1091,7 @@ export const PLAYBOOK_EVENTS: PlaybookEvent[] = [
   energyShock,
   tradeWar,
   warEscalation,
+  insuranceCascade,
   // Financial System
   creditCrisis,
   sovereignDebtStress,
