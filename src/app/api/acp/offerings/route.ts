@@ -19,7 +19,7 @@ export async function GET() {
     const offerings = await db
       .select()
       .from(acpOfferings)
-      .orderBy(desc(acpOfferings.jobCount));
+      .orderBy(desc(acpOfferings.isActive), desc(acpOfferings.jobCount));
 
     return NextResponse.json({ offerings });
   } catch (error) {
@@ -28,7 +28,7 @@ export async function GET() {
   }
 }
 
-// POST: Sync offerings (replace all)
+// POST: Sync offerings (upsert)
 export async function POST(req: NextRequest) {
   if (!checkAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -46,6 +46,9 @@ export async function POST(req: NextRequest) {
     for (const o of offerings) {
       const existing = await db.select().from(acpOfferings).where(eq(acpOfferings.name, o.name)).limit(1);
       
+      // Explicitly handle isActive as 0 or 1
+      const isActiveValue = o.isActive === 1 || o.isActive === true ? 1 : 0;
+      
       if (existing.length > 0) {
         await db
           .update(acpOfferings)
@@ -53,7 +56,7 @@ export async function POST(req: NextRequest) {
             description: o.description,
             price: o.price,
             category: o.category,
-            isActive: o.isActive ?? 1,
+            isActive: isActiveValue,
             updatedAt: new Date().toISOString(),
           })
           .where(eq(acpOfferings.name, o.name));
@@ -63,7 +66,7 @@ export async function POST(req: NextRequest) {
           description: o.description,
           price: o.price,
           category: o.category,
-          isActive: o.isActive ?? 1,
+          isActive: isActiveValue,
         });
       }
     }
