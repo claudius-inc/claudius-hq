@@ -525,6 +525,11 @@ export const acpOfferings = sqliteTable("acp_offerings", {
   jobCount: integer("job_count").default(0),
   totalRevenue: real("total_revenue").default(0),
   lastJobAt: text("last_job_at"),
+  // HQ as source of truth - new columns
+  handlerPath: text("handler_path"), // e.g., 'btc_signal' (directory name in offerings/)
+  requirements: text("requirements"), // JSON string of input requirements
+  deliverable: text("deliverable"), // What the offering returns
+  requiredFunds: integer("required_funds").default(0), // Whether funds are required
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });

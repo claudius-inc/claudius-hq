@@ -15,6 +15,13 @@
       "when": 1772694133024,
       "tag": "0001_kind_war_machine",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773098422253,
+      "tag": "0002_young_sinister_six",
+      "breakpoints": true
     }
   ]
 }
