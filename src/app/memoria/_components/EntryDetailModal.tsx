@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Trash2 } from "lucide-react";
+import { Trash2, Link2 } from "lucide-react";
 import type { MemoriaEntry, MemoriaTag } from "../page";
 
 const SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video"];
@@ -30,6 +30,25 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
   );
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [related, setRelated] = useState<MemoriaEntry[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+
+  const fetchRelated = useCallback(async () => {
+    setLoadingRelated(true);
+    try {
+      const res = await fetch(`/api/memoria/${entry.id}/related`);
+      const data = await res.json();
+      setRelated(data.related || []);
+    } catch {
+      setRelated([]);
+    } finally {
+      setLoadingRelated(false);
+    }
+  }, [entry.id]);
+
+  useEffect(() => {
+    if (open && !editing) fetchRelated();
+  }, [open, editing, fetchRelated]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -109,6 +128,28 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
           <div className="text-[10px] text-gray-300">
             Created {entry.createdAt}
           </div>
+          {/* Related entries */}
+          {!loadingRelated && related.length > 0 && (
+            <div className="pt-2 border-t border-gray-100 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                <Link2 size={12} />
+                <span className="font-medium">Related</span>
+              </div>
+              {related.map((r) => (
+                <div
+                  key={r.id}
+                  className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2 leading-relaxed"
+                >
+                  <div className="line-clamp-2">{r.content}</div>
+                  <div className="text-[10px] text-gray-400 mt-1">
+                    {r.sourceType}
+                    {r.sourceTitle ? ` — ${r.sourceTitle}` : ""}
+                    {r.sourceAuthor ? ` by ${r.sourceAuthor}` : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2 pt-2 border-t border-gray-100">
             <button
               onClick={() => setEditing(true)}
