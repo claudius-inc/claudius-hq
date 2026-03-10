@@ -87,6 +87,143 @@ async function hqFetch(endpoint: string, options?: RequestInit) {
 }
 
 // =============================================================================
+// Experiment Analysis
+// =============================================================================
+
+/**
+ * Analyze a price experiment and return a recommendation.
+ * 
+ * Decision criteria:
+ * - If new price generates more revenue → keep
+ * - If new price has better job-to-revenue ratio → keep
+ * - If sample size is too small → inconclusive, default to keep
+ * - If revenue dropped significantly (>20%) → revert
+ */
+function analyzeExperiment(exp: PriceExperiment): ExperimentAnalysis {
+  const daysRunning = (Date.now() - new Date(exp.changedAt).getTime()) / (1000 * 60 * 60 * 24);
+  
+  const jobsBefore = exp.jobsBefore7d ?? 0;
+  const jobsAfter = exp.jobsAfter7d ?? 0;
+  const revenueBefore = exp.revenueBefore7d ?? 0;
+  const revenueAfter = exp.revenueAfter7d ?? 0;
+  const sampleSize = jobsBefore + jobsAfter;
+  
+  // Calculate revenue delta percentage
+  const revenueDeltaPct = revenueBefore > 0 
+    ? ((revenueAfter - revenueBefore) / revenueBefore) * 100 
+    : revenueAfter > 0 ? 100 : 0;
+  
+  const metrics = {
+    daysRunning: Math.floor(daysRunning),
+    sampleSize,
+    jobsBefore,
+    jobsAfter,
+    revenueBefore,
+    revenueAfter,
+    revenueDeltaPct: Math.round(revenueDeltaPct * 100) / 100,
+    conversionBefore: exp.conversionBefore,
+    conversionAfter: exp.conversionAfter,
+  };
+  
+  // Decision logic
+  let recommendation: "keep" | "revert";
+  let reasoning: string;
+  
+  // Too little data - default to keeping new price (it's already live)
+  if (sampleSize < 5) {
+    recommendation = "keep";
+    reasoning = `Insufficient data (${sampleSize} total jobs). Defaulting to keep new price $${exp.newPrice}.`;
+  }
+  // Revenue increased or stayed flat
+  else if (revenueDeltaPct >= -5) {
+    recommendation = "keep";
+    if (revenueDeltaPct > 10) {
+      reasoning = `Revenue increased ${revenueDeltaPct.toFixed(1)}% ($${revenueBefore.toFixed(2)} → $${revenueAfter.toFixed(2)}). Keep new price $${exp.newPrice}.`;
+    } else {
+      reasoning = `Revenue stable (${revenueDeltaPct.toFixed(1)}% change). Keep new price $${exp.newPrice}.`;
+    }
+  }
+  // Revenue dropped significantly
+  else if (revenueDeltaPct < -20) {
+    recommendation = "revert";
+    reasoning = `Revenue dropped ${Math.abs(revenueDeltaPct).toFixed(1)}% ($${revenueBefore.toFixed(2)} → $${revenueAfter.toFixed(2)}). Revert to $${exp.oldPrice}.`;
+  }
+  // Moderate revenue drop - check jobs
+  else if (jobsAfter >= jobsBefore) {
+    recommendation = "keep";
+    reasoning = `Revenue down ${Math.abs(revenueDeltaPct).toFixed(1)}% but jobs maintained (${jobsBefore} → ${jobsAfter}). Keep $${exp.newPrice}.`;
+  }
+  // Both revenue and jobs down
+  else {
+    recommendation = "revert";
+    reasoning = `Revenue down ${Math.abs(revenueDeltaPct).toFixed(1)}% and jobs dropped (${jobsBefore} → ${jobsAfter}). Revert to $${exp.oldPrice}.`;
+  }
+  
+  return { recommendation, reasoning, metrics };
+}
+
+/**
+ * Log a decision to the acp_decisions table.
+ */
+async function logDecision(params: {
+  decisionType: string;
+  offering: string;
+  oldValue: string;
+  newValue: string;
+  reasoning: string;
+  outcome?: string;
+}): Promise<void> {
+  await hqFetch("/decisions", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+  console.log(`logDecision: ${params.decisionType} - ${params.offering}: ${params.reasoning}`);
+}
+
+// =============================================================================
+// Underperformer Identification
+// =============================================================================
+
+/**
+ * Find offerings that are underperforming based on strategy thresholds.
+ * 
+ * Criteria:
+ * - Listed on ACP (listedOnAcp = true)
+ * - Age > 14 days
+ * - Job count < min_jobs_before_replace threshold
+ */
+async function identifyUnderperformers(): Promise<Offering[]> {
+  const { offerings } = await hqFetch("/offerings");
+  const { strategy } = await hqFetch("/strategy");
+  
+  const minJobsBeforeReplace = strategy?.offerings?.min_jobs_before_replace || 10;
+  const minAgeDays = 14;
+  
+  const underperformers: Offering[] = [];
+  
+  for (const offering of offerings || []) {
+    // Skip if not listed on ACP
+    if (!offering.listedOnAcp) continue;
+    
+    const ageInDays = (Date.now() - new Date(offering.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    const jobs = offering.jobCount || 0;
+    
+    if (ageInDays > minAgeDays && jobs < minJobsBeforeReplace) {
+      underperformers.push({
+        ...offering,
+        // Add computed fields for convenience
+        listedOnAcp: true,
+      });
+    }
+  }
+  
+  // Sort by job count (worst performers first)
+  underperformers.sort((a, b) => (a.jobCount || 0) - (b.jobCount || 0));
+  
+  return underperformers;
+}
+
+// =============================================================================
 // State Management
 // =============================================================================
 
@@ -273,53 +410,80 @@ async function generateTasks(): Promise<void> {
     });
   }
 
-  // Rule 3: Experiment analysis rules
-  const experimentsData = await hqFetch("/experiments?status=running");
-  const experiments = experimentsData.experiments || [];
+  // Rule 3: Experiment analysis rules (price experiments)
+  const priceExpData = await hqFetch("/price-experiments?status=measuring");
+  const priceExperiments: PriceExperiment[] = priceExpData.priceExperiments || [];
   const durationDays = strategy?.experiments?.price_test_duration_days || 7;
   const minSample = strategy?.experiments?.min_sample_size || 20;
 
-  for (const exp of experiments) {
-    const daysRunning =
-      (Date.now() - new Date(exp.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-    const sampleSize = (exp.jobsOld || 0) + (exp.jobsNew || 0);
+  // Get offering names for display
+  const { offerings: allOfferings } = await hqFetch("/offerings");
+  const offeringMap = new Map<number, string>(
+    (allOfferings || []).map((o: Offering) => [o.id, o.name] as [number, string])
+  );
 
-    if (
-      (daysRunning >= durationDays || sampleSize >= minSample) &&
-      !(await hasPendingTask("experiment", exp.offeringName))
-    ) {
+  for (const exp of priceExperiments) {
+    const daysRunning = (Date.now() - new Date(exp.changedAt).getTime()) / (1000 * 60 * 60 * 24);
+    const sampleSize = (exp.jobsBefore7d || 0) + (exp.jobsAfter7d || 0);
+    const offeringName = offeringMap.get(exp.offeringId) || `offering_${exp.offeringId}`;
+
+    // Check if experiment meets threshold (7 days OR 20+ samples)
+    if (daysRunning >= durationDays || sampleSize >= minSample) {
+      // Analyze the experiment
+      const analysis = analyzeExperiment(exp);
+      
+      // Skip if there's already a pending task for this experiment
+      if (await hasPendingTask("experiment", offeringName)) {
+        continue;
+      }
+
+      // Create task with recommendation
       await createTask({
         pillar: "experiment",
         priority: 75,
-        title: `Analyze experiment: ${exp.offeringName}`,
-        description: `Price test ${exp.oldPrice} → ${exp.newPrice} has ${Math.floor(daysRunning)} days / ${sampleSize} samples. Decide: keep or revert.`,
+        title: `Analyze experiment: ${offeringName}`,
+        description: `Price test $${exp.oldPrice} → $${exp.newPrice} after ${Math.floor(daysRunning)} days / ${sampleSize} samples.\n\n**Recommendation: ${analysis.recommendation.toUpperCase()}**\n${analysis.reasoning}\n\nMetrics: Jobs ${analysis.metrics.jobsBefore}→${analysis.metrics.jobsAfter}, Revenue $${analysis.metrics.revenueBefore.toFixed(2)}→$${analysis.metrics.revenueAfter.toFixed(2)} (${analysis.metrics.revenueDeltaPct > 0 ? '+' : ''}${analysis.metrics.revenueDeltaPct.toFixed(1)}%)`,
       });
+
+      // Log decision to acp_decisions table
+      await logDecision({
+        decisionType: "experiment",
+        offering: offeringName,
+        oldValue: `$${exp.oldPrice}`,
+        newValue: `$${exp.newPrice}`,
+        reasoning: analysis.reasoning,
+        outcome: `recommendation: ${analysis.recommendation}`,
+      });
+
+      console.log(`analyzeExperiment: ${offeringName} - ${analysis.recommendation} (${analysis.reasoning})`);
     }
   }
 
-  // Rule 4: Replace rules - low performers
-  const { offerings } = await hqFetch("/offerings");
-  const minJobsBeforeReplace = strategy?.offerings?.min_jobs_before_replace || 10;
-
-  for (const offering of offerings || []) {
-    if (!offering.listedOnAcp) continue;
-
-    const ageInDays =
-      (Date.now() - new Date(offering.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-    const jobs = offering.jobCount || 0;
-
-    if (
-      ageInDays > 14 &&
-      jobs < minJobsBeforeReplace &&
-      !(await hasPendingTask("replace", offering.name))
-    ) {
-      await createTask({
-        pillar: "replace",
-        priority: 50,
-        title: `Evaluate for replacement: ${offering.name}`,
-        description: `${offering.name} has ${jobs} jobs after ${Math.floor(ageInDays)} days. Consider delisting or improving.`,
-      });
+  // Rule 4: Replace rules - low performers (using identifyUnderperformers)
+  const underperformers = await identifyUnderperformers();
+  
+  for (const offering of underperformers) {
+    // Skip if there's already a pending replacement task
+    if (await hasPendingTask("replace", offering.name)) {
+      continue;
     }
+
+    const ageInDays = (Date.now() - new Date(offering.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    const jobs = offering.jobCount || 0;
+    const revenue = offering.totalRevenue || 0;
+
+    await createTask({
+      pillar: "replace",
+      priority: 50,
+      title: `Evaluate for replacement: ${offering.name}`,
+      description: `${offering.name} has ${jobs} jobs and $${revenue.toFixed(2)} revenue after ${Math.floor(ageInDays)} days. Consider delisting or improving.`,
+    });
+
+    console.log(`identifyUnderperformers: Flagged ${offering.name} (${jobs} jobs, ${Math.floor(ageInDays)} days)`);
+  }
+  
+  if (underperformers.length > 0) {
+    console.log(`identifyUnderperformers: Found ${underperformers.length} underperforming offerings`);
   }
 
   // Check pace and generate alerts
