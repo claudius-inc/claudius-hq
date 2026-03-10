@@ -618,8 +618,24 @@ async function syncTweetEngagement(): Promise<void> {
 // Main
 // =============================================================================
 
+async function logActivity(type: string, details: Record<string, unknown>): Promise<void> {
+  try {
+    await hqFetch("/activities", {
+      method: "POST",
+      body: JSON.stringify({
+        type,
+        details: JSON.stringify(details),
+        outcome: "success"
+      }),
+    });
+  } catch (error) {
+    console.error("Failed to log activity:", error);
+  }
+}
+
 async function main() {
   console.log("ACP Automation running...");
+  const startTime = Date.now();
 
   try {
     // 1. Update state
@@ -640,9 +656,22 @@ async function main() {
     // 6. Advance pillar if needed
     await advancePillar();
     
+    // 7. Log heartbeat activity
+    const durationMs = Date.now() - startTime;
+    await logActivity("heartbeat", {
+      action: "automation_run",
+      durationMs,
+      timestamp: new Date().toISOString()
+    });
+    
     console.log("ACP Automation complete.");
   } catch (error) {
     console.error("ACP Automation error:", error);
+    await logActivity("heartbeat", {
+      action: "automation_error",
+      error: String(error),
+      timestamp: new Date().toISOString()
+    });
     process.exit(1);
   }
 }
