@@ -78,18 +78,14 @@ async function generateTasks(): Promise<void> {
     });
   }
 
-  // Rule 2: Marketing rules - check daily/weekly targets
+  // Rule 2: Marketing rules - check daily Twitter targets
   const activities = await hqFetch("/activities?type=marketing&since=today");
   const activitiesList = activities.activities || [];
   const tweetsToday = activitiesList.filter(
     (a: { details?: { platform?: string } }) => a.details?.platform === "twitter"
   ).length;
-  const discordThisWeek = activitiesList.filter(
-    (a: { details?: { platform?: string } }) => a.details?.platform === "discord"
-  ).length;
 
   const tweetsTarget = strategy?.marketing?.tweets_per_day || 2;
-  const discordTarget = strategy?.marketing?.discord_posts_per_week || 3;
 
   if (tweetsToday < tweetsTarget && !(await hasPendingTask("distribute", "twitter"))) {
     await createTask({
@@ -97,15 +93,6 @@ async function generateTasks(): Promise<void> {
       priority: 70,
       title: `Post to Twitter (${tweetsToday}/${tweetsTarget} today)`,
       description: "Create engaging post about our ACP offerings",
-    });
-  }
-
-  if (discordThisWeek < discordTarget && !(await hasPendingTask("distribute", "discord"))) {
-    await createTask({
-      pillar: "distribute",
-      priority: 60,
-      title: `Post to Discord (${discordThisWeek}/${discordTarget} this week)`,
-      description: "Share update in ACP Discord community",
     });
   }
 
