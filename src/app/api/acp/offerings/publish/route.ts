@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { acpOfferings, acpDecisions } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { acpOfferings, acpDecisions, acpStrategy } from "@/db/schema";
+import { eq, and } from "drizzle-orm";
 import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { logger } from "@/lib/logger";
 
 const API_KEY = process.env.HQ_API_KEY;
 const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
@@ -18,29 +17,23 @@ function checkAuth(req: NextRequest): boolean {
   return token === API_KEY;
 }
 
-interface OfferingJson {
-  name: string;
-  description: string;
-  jobFee: number;
-  jobFeeType: string;
-  requiredFunds: boolean;
-  listed: boolean;
-  acpOnly: boolean;
-  requirement?: Record<string, { type: string; description: string }>;
-  deliverable?: string;
+async function getStrategyValue(category: string, key: string): Promise<string | null> {
+  const result = await db
+    .select()
+    .from(acpStrategy)
+    .where(and(eq(acpStrategy.category, category), eq(acpStrategy.key, key)))
+    .limit(1);
+  return result[0]?.value ?? null;
 }
 
-/**
- * POST /api/acp/offerings/publish
- * 
- * Publishes an offering from HQ DB to the ACP marketplace:
- * 1. Generates offering.json from DB data
- * 2. Runs `acp sell create {name}`
- * 3. Updates isActive = 1 in DB
- * 4. Logs decision
- * 
- * Body: { id: number } or { name: string }
- */
+async function getActiveOfferingsCount(): Promise<number> {
+  const result = await db
+    .select()
+    .from(acpOfferings)
+    .where(eq(acpOfferings.isActive, 1));
+  return result.length;
+}
+
 export async function POST(req: NextRequest) {
   if (!checkAuth(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,121 +43,111 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { id, name } = body;
 
-    if (!id && !name) {
-      return NextResponse.json(
-        { error: "Either id or name required" },
-        { status: 400 }
-      );
+    // Find offering
+    let offering;
+    if (id) {
+      const result = await db.select().from(acpOfferings).where(eq(acpOfferings.id, id)).limit(1);
+      offering = result[0];
+    } else if (name) {
+      const result = await db.select().from(acpOfferings).where(eq(acpOfferings.name, name)).limit(1);
+      offering = result[0];
     }
 
-    // Fetch the offering from DB
-    const offerings = await db
-      .select()
-      .from(acpOfferings)
-      .where(id ? eq(acpOfferings.id, id) : eq(acpOfferings.name, name))
-      .limit(1);
-
-    if (offerings.length === 0) {
+    if (!offering) {
       return NextResponse.json({ error: "Offering not found" }, { status: 404 });
     }
 
-    const offering = offerings[0];
-    const handlerPath = offering.handlerPath || offering.name;
+    if (offering.isActive) {
+      return NextResponse.json({ error: "Offering already published" }, { status: 400 });
+    }
 
-    // Create the offerings directory if it doesn't exist
-    const offeringDir = path.join(OFFERINGS_DIR, handlerPath);
+    // ===== ENFORCE STRATEGY =====
+    
+    // 1. Check price bounds
+    const minPrice = parseFloat(await getStrategyValue("pricing", "min_price") || "0");
+    const maxPrice = parseFloat(await getStrategyValue("pricing", "max_price") || "1000");
+    
+    if (offering.price < minPrice) {
+      return NextResponse.json({ 
+        error: `Price $${offering.price} is below minimum $${minPrice}. Update price first.` 
+      }, { status: 400 });
+    }
+    
+    if (offering.price > maxPrice) {
+      return NextResponse.json({ 
+        error: `Price $${offering.price} exceeds maximum $${maxPrice}. Update price first.` 
+      }, { status: 400 });
+    }
+
+    // 2. Check max count
+    const maxCount = parseInt(await getStrategyValue("offerings", "max_count") || "20");
+    const activeCount = await getActiveOfferingsCount();
+    
+    if (activeCount >= maxCount) {
+      return NextResponse.json({ 
+        error: `Already at max ${maxCount} offerings. Unpublish one first.` 
+      }, { status: 400 });
+    }
+
+    // ===== GENERATE & PUBLISH =====
+
+    // Generate offering.json
+    const offeringDir = path.join(OFFERINGS_DIR, offering.handlerPath || offering.name);
     if (!fs.existsSync(offeringDir)) {
       fs.mkdirSync(offeringDir, { recursive: true });
     }
 
-    // Generate offering.json
-    const offeringJson: OfferingJson = {
+    const offeringJson = {
       name: offering.name,
       description: offering.description || "",
       jobFee: offering.price,
       jobFeeType: "fixed",
-      requiredFunds: Boolean(offering.requiredFunds),
-      listed: true,
-      acpOnly: false,
+      requiredFunds: offering.requiredFunds === 1,
+      requirement: offering.requirements ? JSON.parse(offering.requirements) : {},
+      deliverable: offering.deliverable || "",
     };
 
-    // Parse requirements if present
-    if (offering.requirements) {
-      try {
-        offeringJson.requirement = JSON.parse(offering.requirements);
-      } catch {
-        // Keep as empty if invalid JSON
-      }
-    }
-
-    if (offering.deliverable) {
-      offeringJson.deliverable = offering.deliverable;
-    }
-
-    // Write offering.json
-    const jsonPath = path.join(offeringDir, "offering.json");
-    fs.writeFileSync(jsonPath, JSON.stringify(offeringJson, null, 2));
-    logger.info("acp/publish", `Wrote offering.json to ${jsonPath}`);
+    fs.writeFileSync(
+      path.join(offeringDir, "offering.json"),
+      JSON.stringify(offeringJson, null, 2)
+    );
 
     // Run acp sell create
-    let createOutput = "";
     try {
-      createOutput = execSync(`cd ${ACP_DIR} && npx tsx bin/acp.ts sell create ${handlerPath} 2>&1`, {
+      execSync(`cd ${ACP_DIR} && npx tsx bin/acp.ts sell create ${offering.name}`, {
         encoding: "utf-8",
-        timeout: 60000,
+        timeout: 30000,
       });
-      logger.info("acp/publish", `acp sell create output: ${createOutput}`);
-    } catch (err) {
-      const error = err as { stdout?: string; stderr?: string; message?: string };
-      const errorOutput = error.stdout || error.stderr || error.message || String(err);
-      logger.error("acp/publish", `acp sell create failed: ${errorOutput}`);
-      
-      // Log the failed attempt
-      await db.insert(acpDecisions).values({
-        decisionType: "offering_change",
-        offering: offering.name,
-        oldValue: "inactive",
-        newValue: "publish_failed",
-        reasoning: `Publish attempt failed: ${errorOutput.substring(0, 500)}`,
-        outcome: "failed",
-      });
-      
-      return NextResponse.json(
-        { error: "Failed to publish to marketplace", details: errorOutput },
-        { status: 500 }
-      );
+    } catch (err: unknown) {
+      const error = err as Error;
+      return NextResponse.json({ 
+        error: `Failed to publish to marketplace: ${error.message}` 
+      }, { status: 500 });
     }
 
-    // Update isActive in DB
+    // Update DB
     await db
       .update(acpOfferings)
-      .set({
-        isActive: 1,
-        updatedAt: new Date().toISOString(),
-      })
+      .set({ isActive: 1, updatedAt: new Date().toISOString() })
       .where(eq(acpOfferings.id, offering.id));
 
-    // Log successful decision
+    // Log decision
     await db.insert(acpDecisions).values({
       decisionType: "offering_change",
       offering: offering.name,
-      oldValue: offering.isActive ? "active" : "inactive",
       newValue: "published",
-      reasoning: "Published via HQ API",
-      outcome: "success",
+      reasoning: `Published ${offering.name} at $${offering.price}`,
     });
 
-    return NextResponse.json({
-      success: true,
+    return NextResponse.json({ 
+      success: true, 
       offering: offering.name,
-      message: "Published successfully",
-      output: createOutput,
+      price: offering.price,
+      activeCount: activeCount + 1,
+      maxCount
     });
   } catch (error) {
-    logger.error("api/acp/offerings/publish", "Error publishing offering", { error });
-    return NextResponse.json(
-      { error: "Failed to publish offering" },
-      { status: 500 }
-    );
+    console.error("Error publishing offering:", error);
+    return NextResponse.json({ error: "Failed to publish offering" }, { status: 500 });
   }
 }
