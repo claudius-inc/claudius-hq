@@ -29,7 +29,7 @@ const categoryLabels: Record<PlaybookCategory, string> = {
 };
 
 const statusStyles = {
-  active: "bg-red-50 text-red-600 border-red-200",
+  active: "bg-gray-100 text-gray-700 border-gray-300",
   warming: "bg-amber-50 text-amber-600 border-amber-200",
   dormant: "bg-gray-50 text-gray-500 border-gray-200",
 };
@@ -83,7 +83,7 @@ export function PlaybookCard({ result, onClick }: PlaybookCardProps) {
               className={`w-2 h-2 rounded-full ${
                 t.firing
                   ? status === "active"
-                    ? "bg-red-400"
+                    ? "bg-gray-600"
                     : "bg-amber-400"
                   : "bg-gray-200"
               }`}

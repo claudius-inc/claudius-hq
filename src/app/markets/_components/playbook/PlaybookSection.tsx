@@ -21,7 +21,7 @@ import { PlaybookCard } from "./PlaybookCard";
 import { PlaybookDetail } from "./PlaybookDetail";
 
 const tabs: { key: PlaybookStatus; label: string; color: string }[] = [
-  { key: "active", label: "Active", color: "bg-red-500" },
+  { key: "active", label: "Active", color: "bg-gray-700" },
   { key: "warming", label: "Warming", color: "bg-amber-500" },
   { key: "dormant", label: "Dormant", color: "bg-gray-600" },
 ];
