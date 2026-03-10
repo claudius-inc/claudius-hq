@@ -2,29 +2,35 @@
 
 import { AcpPillarBadge } from "./AcpPillarBadge";
 import { CheckCircle } from "lucide-react";
-
-interface Task {
-  id: number;
-  pillar: string;
-  priority?: number | null;
-  title: string;
-  description?: string | null;
-  status?: string | null;
-  completedAt?: string | null;
-  createdAt?: string | null;
-}
+import type { AcpTask } from "@/db/schema";
 
 interface AcpTaskCardProps {
-  task: Task;
+  task: AcpTask;
+  onClick?: (task: AcpTask) => void;
 }
 
-export function AcpTaskCard({ task }: AcpTaskCardProps) {
+export function AcpTaskCard({ task, onClick }: AcpTaskCardProps) {
   const isHighPriority = (task.priority ?? 0) >= 75;
   const isDone = task.status === "done";
 
+  const handleClick = () => {
+    onClick?.(task);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onClick?.(task);
+    }
+  };
+
   return (
     <div
-      className={`bg-white rounded-lg border p-3 ${
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      className={`bg-white rounded-lg border p-3 cursor-pointer transition-all hover:shadow-md hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
         isDone ? "border-gray-100 opacity-75" : "border-gray-200"
       }`}
     >

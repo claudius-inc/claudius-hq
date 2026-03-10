@@ -2,23 +2,14 @@
 
 import { AcpTaskCard } from "./AcpTaskCard";
 import { Circle } from "lucide-react";
-
-interface Task {
-  id: number;
-  pillar: string;
-  priority?: number | null;
-  title: string;
-  description?: string | null;
-  status?: string | null;
-  completedAt?: string | null;
-  createdAt?: string | null;
-}
+import type { AcpTask } from "@/db/schema";
 
 interface AcpTaskColumnProps {
   title: string;
   status: string;
-  tasks: Task[];
+  tasks: AcpTask[];
   count: number;
+  onTaskClick?: (task: AcpTask) => void;
 }
 
 const statusColors: Record<string, string> = {
@@ -27,7 +18,7 @@ const statusColors: Record<string, string> = {
   done: "text-green-500",
 };
 
-export function AcpTaskColumn({ title, status, tasks, count }: AcpTaskColumnProps) {
+export function AcpTaskColumn({ title, status, tasks, count, onTaskClick }: AcpTaskColumnProps) {
   const colorClass = statusColors[status] ?? "text-gray-400";
 
   return (
@@ -46,7 +37,9 @@ export function AcpTaskColumn({ title, status, tasks, count }: AcpTaskColumnProp
             No tasks
           </div>
         ) : (
-          tasks.map((task) => <AcpTaskCard key={task.id} task={task} />)
+          tasks.map((task) => (
+            <AcpTaskCard key={task.id} task={task} onClick={onTaskClick} />
+          ))
         )}
       </div>
     </div>

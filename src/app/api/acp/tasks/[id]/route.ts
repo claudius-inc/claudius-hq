@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpTasks, ACP_TASK_STATUSES } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-
-const API_KEY = process.env.HQ_API_KEY;
-
-function checkAuth(req: NextRequest): boolean {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === API_KEY;
-}
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -46,10 +38,6 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
 // PATCH: Update a task
 export async function PATCH(req: NextRequest, { params }: RouteParams) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const { id } = await params;
     const taskId = parseInt(id);
@@ -79,6 +67,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       if ((status === "done" || status === "skipped") && !body.completedAt) {
         updates.completedAt = new Date().toISOString();
       }
+      // Clear timestamps when reopening
+      if (status === "pending") {
+        updates.assignedAt = null;
+        updates.completedAt = null;
+      }
     }
     
     if (result !== undefined) updates.result = result;
@@ -102,6 +95,9 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
+    // Revalidate the tasks page
+    revalidatePath("/acp/tasks");
+
     return NextResponse.json({ task: updated[0] });
   } catch (error) {
     logger.error("api/acp/tasks/[id]", "Error updating task", { error });
@@ -111,10 +107,6 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
 
 // DELETE: Delete a task
 export async function DELETE(req: NextRequest, { params }: RouteParams) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const { id } = await params;
     const taskId = parseInt(id);
@@ -124,6 +116,9 @@ export async function DELETE(req: NextRequest, { params }: RouteParams) {
     }
 
     await db.delete(acpTasks).where(eq(acpTasks.id, taskId));
+
+    // Revalidate the tasks page
+    revalidatePath("/acp/tasks");
 
     return NextResponse.json({ success: true });
   } catch (error) {
