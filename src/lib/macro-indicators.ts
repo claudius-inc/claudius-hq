@@ -4,7 +4,7 @@ export interface MacroIndicator {
   id: string;
   name: string;
   fredCode: string;
-  category: "rates" | "inflation" | "employment" | "growth" | "sentiment" | "credit" | "fx" | "foreign-yields" | "fiscal";
+  category: "rates" | "inflation" | "employment" | "growth" | "sentiment" | "credit" | "fx" | "foreign-yields" | "fiscal" | "liquidity";
   unit: string;
   frequency: "daily" | "weekly" | "monthly" | "quarterly";
   
@@ -368,6 +368,94 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
       { level: -6, significance: "Structural crisis threshold" },
     ],
     affectedAssets: ["Treasury supply (more deficits = more bonds)", "Gold", "Inflation expectations", "Dollar"],
+  },
+
+  // === LIQUIDITY / FED BALANCE SHEET ===
+  {
+    id: "fed-tbills",
+    name: "Fed T-Bill Holdings",
+    fredCode: "WSHOBL",
+    category: "liquidity",
+    unit: "$B",
+    frequency: "weekly",
+    description: "Treasury bills (short-term debt) held by the Federal Reserve. A stealth liquidity injection tool.",
+    whyItMatters: "Rapid T-bill accumulation signals funding market stress or Treasury dysfunction. Every spike has preceded or accompanied crisis: Sep 2019 repo crisis, Mar 2020 COVID. Current 2026 spike exceeds COVID peak with no declared emergency — someone is in trouble.",
+    ranges: [
+      { label: "Normal", min: null, max: 100, meaning: "Routine balance sheet management", marketImpact: "No stress signal" },
+      { label: "Elevated", min: 100, max: 250, meaning: "Above-normal T-bill holdings", marketImpact: "Watch for funding stress signals" },
+      { label: "High", min: 250, max: 325, meaning: "COVID-era peak territory", marketImpact: "Significant liquidity injection underway" },
+      { label: "Extreme", min: 325, max: null, meaning: "Above COVID peak — unprecedented", marketImpact: "Major stress signal, stealth QE underway" },
+    ],
+    keyLevels: [
+      { level: 325, significance: "March 2020 COVID peak" },
+      { level: 344, significance: "Current 2026 level — exceeds COVID" },
+    ],
+    affectedAssets: ["Short-term rates", "Money markets", "Risk assets (hidden liquidity support)"],
+  },
+  {
+    id: "reverse-repo",
+    name: "Reverse Repo (ON RRP)",
+    fredCode: "RRPONTSYD",
+    category: "liquidity",
+    unit: "$B",
+    frequency: "daily",
+    description: "Cash parked at the Fed by money market funds via overnight reverse repos. Acts as a liquidity floor.",
+    whyItMatters: "When RRP is high, excess liquidity is sitting idle. When it drains rapidly, liquidity is being absorbed elsewhere (Treasuries, bank deposits). A drain toward zero signals tightening conditions.",
+    ranges: [
+      { label: "Depleted", min: null, max: 200, meaning: "RRP buffer exhausted", marketImpact: "Tightening bite intensifies, watch money markets" },
+      { label: "Low", min: 200, max: 500, meaning: "Limited excess liquidity", marketImpact: "System running lean, funding rates may rise" },
+      { label: "Moderate", min: 500, max: 1500, meaning: "Healthy liquidity buffer", marketImpact: "System stable, QT can continue" },
+      { label: "High", min: 1500, max: null, meaning: "Excess liquidity abundant", marketImpact: "Fed can drain without stress" },
+    ],
+    keyLevels: [
+      { level: 0, significance: "Buffer fully drained — funding stress risk" },
+      { level: 500, significance: "Minimal buffer threshold" },
+      { level: 2500, significance: "2022-23 peak excess liquidity" },
+    ],
+    affectedAssets: ["Money market rates", "T-bills", "Bank reserves", "Risk assets (liquidity-sensitive)"],
+  },
+  {
+    id: "bank-reserves",
+    name: "Bank Reserve Balances",
+    fredCode: "WRESBAL",
+    category: "liquidity",
+    unit: "$T",
+    frequency: "weekly",
+    description: "Reserves held by depository institutions at Federal Reserve Banks. The core of the banking system's liquidity.",
+    whyItMatters: "Below $3T, banks start competing for reserves, causing funding stress. The 2019 repo spike occurred near $1.5T. Fed targets 'ample reserves' regime — below threshold triggers intervention.",
+    ranges: [
+      { label: "Scarce", min: null, max: 2.5, meaning: "Below comfortable level", marketImpact: "Repo stress risk, Fed likely to intervene" },
+      { label: "Adequate", min: 2.5, max: 3.0, meaning: "Minimum comfort zone", marketImpact: "QT may need to slow or stop" },
+      { label: "Ample", min: 3.0, max: 3.5, meaning: "Fed's target regime", marketImpact: "System functioning normally" },
+      { label: "Abundant", min: 3.5, max: null, meaning: "Excess reserves", marketImpact: "Room for QT to continue" },
+    ],
+    keyLevels: [
+      { level: 1.5, significance: "Sep 2019 repo crisis level" },
+      { level: 3.0, significance: "Fed's approximate 'ample' threshold" },
+    ],
+    affectedAssets: ["Fed funds rate", "SOFR", "Repo markets", "Bank stocks"],
+  },
+  {
+    id: "sofr",
+    name: "SOFR (Secured Overnight Financing Rate)",
+    fredCode: "SOFR",
+    category: "liquidity",
+    unit: "%",
+    frequency: "daily",
+    description: "The benchmark rate for overnight secured lending (repo), replaced LIBOR. Reflects actual funding costs in money markets.",
+    whyItMatters: "SOFR spikes above Fed Funds indicate repo market stress — demand for overnight cash exceeds supply. The 2019 repo crisis saw SOFR spike to 5.25% (300bps above target). Watch the spread to Fed Funds.",
+    ranges: [
+      { label: "Below Target", min: null, max: -0.05, meaning: "SOFR below Fed Funds (unusual)", marketImpact: "Excess liquidity, possible market distortion" },
+      { label: "At Target", min: -0.05, max: 0.1, meaning: "SOFR tracking Fed Funds", marketImpact: "Normal market functioning" },
+      { label: "Elevated", min: 0.1, max: 0.25, meaning: "Slight funding pressure", marketImpact: "Watch for developing stress" },
+      { label: "Stressed", min: 0.25, max: null, meaning: "Significant spread to Fed Funds", marketImpact: "Funding market stress, intervention likely" },
+    ],
+    keyLevels: [
+      { level: 0, significance: "SOFR = Fed Funds (normal)" },
+      { level: 0.25, significance: "Stress threshold — watch closely" },
+      { level: 3.0, significance: "2019 repo crisis spike (300bps above target)" },
+    ],
+    affectedAssets: ["Money markets", "Floating-rate loans (SOFR-indexed)", "Bank funding costs", "Short-duration bonds"],
   },
 ];
 
