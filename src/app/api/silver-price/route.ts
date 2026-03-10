@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60; // 1 minute
+
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 interface SilverPriceResponse {
   price: number | null;
