@@ -160,6 +160,55 @@ async function handleBulkSync(body: BulkSyncBody) {
   return NextResponse.json({ success: true, count: offerings.length });
 }
 
+/**
+ * PATCH /api/acp/offerings
+ * Update specific fields on an offering (e.g., listedOnAcp, price)
+ */
+export async function PATCH(req: NextRequest) {
+  if (!checkAuth(req)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await req.json();
+    const { name, listedOnAcp, price, isActive, jobCount, totalRevenue } = body;
+
+    if (!name) {
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
+    }
+
+    const existing = await db
+      .select()
+      .from(acpOfferings)
+      .where(eq(acpOfferings.name, name))
+      .limit(1);
+
+    if (existing.length === 0) {
+      return NextResponse.json({ error: "Offering not found" }, { status: 404 });
+    }
+
+    const updates: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+    
+    if (typeof listedOnAcp === "boolean") updates.listedOnAcp = listedOnAcp ? 1 : 0;
+    if (typeof price === "number") updates.price = price;
+    if (typeof isActive === "boolean" || typeof isActive === "number") {
+      updates.isActive = isActive ? 1 : 0;
+    }
+    if (typeof jobCount === "number") updates.jobCount = jobCount;
+    if (typeof totalRevenue === "number") updates.totalRevenue = totalRevenue;
+
+    await db
+      .update(acpOfferings)
+      .set(updates)
+      .where(eq(acpOfferings.name, name));
+
+    return NextResponse.json({ success: true, name, updated: Object.keys(updates) });
+  } catch (error) {
+    logger.error("api/acp/offerings", "Error updating offering", { error });
+    return NextResponse.json({ error: "Failed to update offering" }, { status: 500 });
+  }
+}
+
 async function handleCreateOffering(body: CreateOfferingBody) {
   const { name, description, price, category, handlerPath, requirements, deliverable, requiredFunds, publish } = body;
 
