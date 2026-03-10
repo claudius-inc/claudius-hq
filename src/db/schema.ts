@@ -647,6 +647,23 @@ export type DarkpoolData = typeof darkpoolData.$inferSelect;
 export type NewDarkpoolData = typeof darkpoolData.$inferInsert;
 
 // ============================================================================
+// Market Indicators - COMEX Silver Warehouse Stocks
+// ============================================================================
+
+export const silverStocks = sqliteTable("silver_stocks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reportDate: text("report_date").notNull(), // Date CME published the report
+  activityDate: text("activity_date").notNull().unique(), // Date the data is for
+  registeredOz: real("registered_oz").notNull(), // Deliverable silver (key metric)
+  eligibleOz: real("eligible_oz").notNull(), // Stored but not deliverable
+  totalOz: real("total_oz").notNull(), // Combined total
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type SilverStock = typeof silverStocks.$inferSelect;
+export type NewSilverStock = typeof silverStocks.$inferInsert;
+
+// ============================================================================
 // Market Reference Data
 // ============================================================================
 

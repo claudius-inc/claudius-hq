@@ -38,6 +38,25 @@ interface OilSnapshot {
   spread: number | null;
 }
 
+interface SilverSnapshot {
+  latest: {
+    registeredMoz: number;
+    eligibleMoz: number;
+    totalMoz: number;
+    activityDate: string;
+  } | null;
+  change30d: {
+    registeredPercent: number;
+  } | null;
+  stressLevel: "low" | "moderate" | "high" | "critical";
+}
+
+interface SilverPriceSnapshot {
+  price: number | null;
+  changePercent: number | null;
+  goldSilverRatio: number | null;
+}
+
 const fetcher = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null));
 
 // SWR config: refresh every 60s, revalidate on focus
@@ -75,6 +94,26 @@ function OilZone({ price }: { price: number }) {
   return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">Crisis</span>;
 }
 
+function SilverStressZone({ level }: { level: SilverSnapshot["stressLevel"] }) {
+  switch (level) {
+    case "critical":
+      return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">Critical</span>;
+    case "high":
+      return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">High Stress</span>;
+    case "moderate":
+      return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">Moderate</span>;
+    default:
+      return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Low</span>;
+  }
+}
+
+function GoldSilverRatioZone({ ratio }: { ratio: number }) {
+  // Historical mean is ~60, below 50 = silver expensive, above 80 = silver cheap
+  if (ratio > 80) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Silver Cheap</span>;
+  if (ratio > 65) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">Normal</span>;
+  return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Silver Expensive</span>;
+}
+
 export function HardAssets() {
   const [btcOpen, setBtcOpen] = useState(false);
   const [goldOpen, setGoldOpen] = useState(false);
@@ -82,6 +121,8 @@ export function HardAssets() {
   const { data: btc, isLoading: loadingBtc } = useSWR<BtcSnapshot>("/api/btc", fetcher, swrConfig);
   const { data: gold, isLoading: loadingGold } = useSWR<GoldSnapshot>("/api/gold", fetcher, swrConfig);
   const { data: oil, isLoading: loadingOil } = useSWR<OilSnapshot>("/api/oil", fetcher, swrConfig);
+  const { data: silver, isLoading: loadingSilver } = useSWR<SilverSnapshot>("/api/markets/silver", fetcher, swrConfig);
+  const { data: silverPrice, isLoading: loadingSilverPrice } = useSWR<SilverPriceSnapshot>("/api/silver-price", fetcher, swrConfig);
 
   const goldPrice = gold?.livePrice;
   const goldAth = gold?.analysis?.ath;
@@ -173,6 +214,52 @@ export function HardAssets() {
           </div>
           <ArrowRight className="w-3 h-3 text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
         </button>
+
+        {/* Silver Row */}
+        <div className="flex items-center gap-3 px-3 py-2.5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-900">Silver</span>
+              {loadingSilverPrice ? (
+                <Skeleton className="h-3.5 w-20" />
+              ) : silverPrice?.price ? (
+                <span className="text-xs font-bold tabular-nums text-gray-900">{formatUsd(silverPrice.price, 2)}</span>
+              ) : (
+                <span className="text-xs text-gray-400">&mdash;</span>
+              )}
+              {silverPrice?.changePercent != null && (
+                <span className={`text-[10px] tabular-nums ${silverPrice.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  {silverPrice.changePercent >= 0 ? "+" : ""}{silverPrice.changePercent.toFixed(2)}%
+                </span>
+              )}
+            </div>
+            {loadingSilver || loadingSilverPrice ? (
+              <Skeleton className="h-2.5 w-48 mt-1" />
+            ) : (
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                {silverPrice?.goldSilverRatio && (
+                  <>
+                    <span className="text-[10px] text-gray-400">
+                      Au/Ag <span className="font-medium text-gray-600">{silverPrice.goldSilverRatio.toFixed(1)}</span>
+                    </span>
+                    <GoldSilverRatioZone ratio={silverPrice.goldSilverRatio} />
+                  </>
+                )}
+                {silver?.latest && (
+                  <span className="text-[10px] text-gray-400">
+                    COMEX <span className="font-medium text-gray-600">{silver.latest.registeredMoz}M oz</span>
+                  </span>
+                )}
+                {silver?.change30d && (
+                  <span className={`text-[10px] tabular-nums ${silver.change30d.registeredPercent < 0 ? "text-red-600" : "text-emerald-600"}`}>
+                    {silver.change30d.registeredPercent >= 0 ? "+" : ""}{silver.change30d.registeredPercent.toFixed(1)}% 30d
+                  </span>
+                )}
+                {silver && <SilverStressZone level={silver.stressLevel} />}
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Oil Row */}
         <div className="flex items-center gap-3 px-3 py-2.5">
