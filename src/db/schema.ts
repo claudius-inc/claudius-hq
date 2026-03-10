@@ -530,6 +530,7 @@ export const acpOfferings = sqliteTable("acp_offerings", {
   requirements: text("requirements"), // JSON string of input requirements
   deliverable: text("deliverable"), // What the offering returns
   requiredFunds: integer("required_funds").default(0), // Whether funds are required
+  listedOnAcp: integer("listed_on_acp").default(0), // Synced from actual ACP marketplace
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
