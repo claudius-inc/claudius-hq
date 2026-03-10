@@ -74,7 +74,7 @@ export function AcpActivityFeed({
           <h3 className="font-semibold text-gray-900">Recent Activity</h3>
         </div>
         <Link
-          href="/acp"
+          href="/acp/activities"
           className="text-xs text-blue-600 hover:text-blue-800"
         >
           View All
