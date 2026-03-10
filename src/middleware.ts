@@ -10,20 +10,18 @@ if (!SESSION_VALUE) {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Telegram webhook: no auth (Telegram can't send API keys)
+  // External webhooks only - these services can't pass our auth
+  // Telegram webhook: Telegram servers call this
   if (pathname.startsWith("/api/telegram/")) {
     return NextResponse.next();
   }
 
-  // ACP API: uses its own auth check (Bearer token in route handler)
-  if (pathname.startsWith("/api/acp/")) {
-    return NextResponse.next();
-  }
-
-  // Email webhook: no auth (Cloudflare Email Worker forwards here)
+  // Email webhook: Cloudflare Email Worker forwards here
   if (pathname === "/api/integrations/email" && request.method === "POST") {
     return NextResponse.next();
   }
+
+  // All other APIs (including /api/acp/) require auth
 
   // API routes: check API key OR session cookie
   if (pathname.startsWith("/api/")) {
