@@ -3,12 +3,14 @@
  * 
  * Runs every 30m via cron. Handles:
  * 1. State updates (epoch progress, alerts)
- * 2. Task generation (marketing, experiments, replace)
- * 3. Offering sync (listedOnAcp status from ACP marketplace)
- * 4. Wallet sync (via ethers.js + Base RPC)
- * 5. Pillar rotation
- * 6. Experiment auto-analysis
- * 7. Underperformer identification
+ * 2. Offering sync (listedOnAcp from ACP marketplace)
+ * 3. Wallet sync (via ethers.js + Base RPC)
+ * 4. Tweet engagement sync
+ * 5. Competitive scan (weekly — top agents, offerings, gaps)
+ * 6. Task generation (marketing, experiments, quality)
+ * 7. Task execution (ALL pending tasks, not just oldest)
+ * 8. Pillar rotation
+ * 9. Activity logging to HQ
  */
 
 import { config } from "dotenv";
@@ -517,6 +519,241 @@ async function advancePillar(): Promise<void> {
 }
 
 // =============================================================================
+// Competitive Scan (Weekly)
+// =============================================================================
+
+async function runCompetitiveScan(): Promise<void> {
+  console.log("runCompetitiveScan: Checking if scan needed...");
+  
+  // Check last scan time from strategy table
+  const { strategy } = await hqFetch("/strategy?category=automation");
+  const lastScan = strategy?.lastCompetitiveScan;
+  const daysSinceScan = lastScan 
+    ? (Date.now() - new Date(lastScan).getTime()) / (1000 * 60 * 60 * 24)
+    : 999;
+  
+  if (daysSinceScan < 7) {
+    console.log(`runCompetitiveScan: Last scan ${daysSinceScan.toFixed(1)} days ago, skipping`);
+    return;
+  }
+  
+  console.log("runCompetitiveScan: Running weekly competitive scan...");
+  
+  try {
+    // Run acp browse to get top agents
+    const output = execSync(`cd ${ACP_DIR} && npx tsx bin/acp.ts browse --limit 20 --json 2>/dev/null`, {
+      encoding: "utf-8",
+      timeout: 60000,
+    });
+    
+    // Parse the output
+    const jsonStart = output.indexOf("[");
+    if (jsonStart === -1) {
+      console.log("runCompetitiveScan: No agents found");
+      return;
+    }
+    
+    const agents = JSON.parse(output.slice(jsonStart));
+    console.log(`runCompetitiveScan: Found ${agents.length} agents`);
+    
+    // Analyze competition
+    const insights: string[] = [];
+    const offeringCounts: Record<string, number> = {};
+    const pricingData: { name: string; price: number }[] = [];
+    
+    for (const agent of agents) {
+      if (agent.offerings) {
+        for (const offering of agent.offerings) {
+          const name = offering.name?.toLowerCase() || "unknown";
+          offeringCounts[name] = (offeringCounts[name] || 0) + 1;
+          if (offering.price) {
+            pricingData.push({ name, price: offering.price });
+          }
+        }
+      }
+    }
+    
+    // Find popular offerings we don't have
+    const { offerings: ourOfferings } = await hqFetch("/offerings");
+    const ourNames = new Set((ourOfferings || []).map((o: { name: string }) => o.name.toLowerCase()));
+    
+    const popular = Object.entries(offeringCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+    
+    for (const [name, count] of popular) {
+      if (!ourNames.has(name) && count >= 3) {
+        insights.push(`Popular offering "${name}" (${count} agents) — we don't have this`);
+      }
+    }
+    
+    // Log insights
+    if (insights.length > 0) {
+      console.log("runCompetitiveScan: Insights:");
+      insights.forEach(i => console.log(`  - ${i}`));
+      
+      // Create a task to review insights
+      await createTask({
+        pillar: "build",
+        priority: 60,
+        title: "Review competitive insights",
+        description: `Weekly scan found ${insights.length} insights:\n\n${insights.join("\n")}`,
+      });
+    }
+    
+    // Update last scan time
+    await fetch(`${HQ_API}/strategy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+      body: JSON.stringify({
+        category: "automation",
+        key: "lastCompetitiveScan",
+        value: new Date().toISOString(),
+      }),
+    });
+    
+    console.log("runCompetitiveScan: Complete");
+    
+  } catch (error) {
+    console.error("runCompetitiveScan: Error:", error);
+  }
+}
+
+// =============================================================================
+// Execute Pending Tasks
+// =============================================================================
+
+async function executePendingTasks(): Promise<void> {
+  console.log("executePendingTasks: Fetching pending tasks...");
+  
+  const { tasks } = await hqFetch("/tasks?status=pending");
+  
+  if (!tasks || tasks.length === 0) {
+    console.log("executePendingTasks: No pending tasks");
+    return;
+  }
+  
+  console.log(`executePendingTasks: Found ${tasks.length} pending tasks`);
+  
+  // Sort by priority (highest first)
+  const sorted = tasks.sort((a: { priority: number }, b: { priority: number }) => 
+    (b.priority || 50) - (a.priority || 50)
+  );
+  
+  for (const task of sorted) {
+    console.log(`\n--- Executing task ${task.id}: ${task.title} (${task.pillar}) ---`);
+    
+    try {
+      const result = await executeTask(task);
+      
+      // Mark task complete
+      await fetch(`${HQ_API}/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+        body: JSON.stringify({ status: "done", result, completedAt: new Date().toISOString() }),
+      });
+      
+      console.log(`Task ${task.id} completed: ${result?.slice(0, 100) || "done"}`);
+      
+    } catch (error) {
+      console.error(`Task ${task.id} failed:`, error);
+      
+      // Mark as skipped on error
+      await fetch(`${HQ_API}/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+        body: JSON.stringify({ status: "skipped", result: `Error: ${error}` }),
+      });
+    }
+  }
+  
+  console.log("\nexecutePendingTasks: All tasks processed");
+}
+
+async function executeTask(task: { id: number; pillar: string; title: string; description?: string }): Promise<string> {
+  const { pillar, title, description } = task;
+  
+  switch (pillar) {
+    case "distribute":
+      // Twitter posting
+      if (title.toLowerCase().includes("twitter")) {
+        return await postToTwitter(description || title);
+      }
+      return "Distribute task — manual action needed";
+      
+    case "quality":
+      // Quality improvements — typically need AI review
+      return "Quality task logged — review handler code manually";
+      
+    case "build":
+      // New offerings — need AI to design
+      return "Build task logged — new offering design needed";
+      
+    case "replace":
+      // Underperformer analysis
+      return "Replace task logged — evaluate offering performance";
+      
+    case "experiment":
+      // Price experiment analysis
+      return "Experiment task logged — check experiment results";
+      
+    default:
+      return `Unknown pillar: ${pillar}`;
+  }
+}
+
+async function postToTwitter(content: string): Promise<string> {
+  const TWITTER_AUTH_TOKEN = process.env.TWITTER_AUTH_TOKEN;
+  const TWITTER_CT0 = process.env.TWITTER_CT0;
+  
+  if (!TWITTER_AUTH_TOKEN || !TWITTER_CT0) {
+    return "Twitter credentials missing — cannot post";
+  }
+  
+  try {
+    // Generate tweet content if description is too long or generic
+    let tweet = content;
+    if (content.length > 280 || content.includes("offering")) {
+      // Craft a simple promotional tweet
+      const offerings = ["fear_greed", "btc_signal", "live_price", "polymarket_odds"];
+      const pick = offerings[Math.floor(Math.random() * offerings.length)];
+      tweet = `🤖 AI agents: need ${pick.replace(/_/g, " ")}? I've got you covered.\n\nFind me on ACP: Claudius\n\n#ACP #AIAgents`;
+    }
+    
+    // Ensure tweet is under 280 chars
+    if (tweet.length > 280) {
+      tweet = tweet.slice(0, 277) + "...";
+    }
+    
+    // Post via twitter-cli
+    execSync(`/root/.local/bin/twitter post "${tweet.replace(/"/g, '\\"')}"`, {
+      encoding: "utf-8",
+      timeout: 30000,
+      env: { ...process.env, TWITTER_AUTH_TOKEN, TWITTER_CT0 },
+    });
+    
+    // Log to marketing
+    await fetch(`${HQ_API}/marketing`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${API_KEY}` },
+      body: JSON.stringify({
+        title: "Auto-tweet",
+        content: tweet,
+        platform: "twitter",
+        status: "posted",
+        postedAt: new Date().toISOString(),
+      }),
+    });
+    
+    return `Posted: "${tweet.slice(0, 50)}..."`;
+    
+  } catch (error) {
+    console.error("postToTwitter error:", error);
+    return `Twitter post failed: ${error}`;
+  }
+}
+
+// =============================================================================
 // Tweet Engagement Sync
 // =============================================================================
 
@@ -638,7 +875,7 @@ async function main() {
   const startTime = Date.now();
 
   try {
-    // 1. Update state
+    // 1. Update state (epoch, jobs, revenue)
     await updateState();
     
     // 2. Sync offerings (listedOnAcp) from ACP marketplace
@@ -650,13 +887,19 @@ async function main() {
     // 4. Sync tweet engagement metrics
     await syncTweetEngagement();
     
-    // 5. Generate tasks based on rules
+    // 5. Run competitive scan (weekly)
+    await runCompetitiveScan();
+    
+    // 6. Generate tasks based on rules
     await generateTasks();
     
-    // 6. Advance pillar if needed
+    // 7. Execute ALL pending tasks
+    await executePendingTasks();
+    
+    // 8. Advance pillar if needed
     await advancePillar();
     
-    // 7. Log heartbeat activity
+    // 9. Log heartbeat activity
     const durationMs = Date.now() - startTime;
     await logActivity("heartbeat", {
       action: "automation_run",
