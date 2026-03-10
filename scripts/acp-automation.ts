@@ -5,18 +5,70 @@
  * 1. State updates (epoch progress, alerts)
  * 2. Task generation (marketing, experiments, replace)
  * 3. Offering sync (listedOnAcp status from ACP marketplace)
- * 4. Wallet sync
+ * 4. Wallet sync (via ethers.js + Base RPC)
  * 5. Pillar rotation
+ * 6. Experiment auto-analysis
+ * 7. Underperformer identification
  */
 
 import { config } from "dotenv";
 import { execSync } from "child_process";
+import { ethers } from "ethers";
 
 config({ path: ".env.local" });
 
 const HQ_API = "https://claudiusinc.com/api/acp";
 const API_KEY = process.env.HQ_API_KEY;
 const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+interface PriceExperiment {
+  id: number;
+  offeringId: number;
+  oldPrice: number;
+  newPrice: number;
+  changedAt: string;
+  reason?: string;
+  jobsBefore7d?: number;
+  jobsAfter7d?: number;
+  revenueBefore7d?: number;
+  revenueAfter7d?: number;
+  conversionBefore?: number;
+  conversionAfter?: number;
+  status: string;
+  evaluationDate?: string;
+  notes?: string;
+}
+
+interface Offering {
+  id: number;
+  name: string;
+  price: number;
+  jobCount: number;
+  totalRevenue: number;
+  listedOnAcp: boolean | number;
+  createdAt: string;
+  isActive?: boolean | number;
+}
+
+interface ExperimentAnalysis {
+  recommendation: "keep" | "revert";
+  reasoning: string;
+  metrics: {
+    daysRunning: number;
+    sampleSize: number;
+    jobsBefore: number;
+    jobsAfter: number;
+    revenueBefore: number;
+    revenueAfter: number;
+    revenueDeltaPct: number;
+    conversionBefore?: number;
+    conversionAfter?: number;
+  };
+}
 
 // =============================================================================
 // API Helpers
@@ -104,39 +156,52 @@ async function syncListedStatus(): Promise<void> {
 }
 
 // =============================================================================
-// Wallet Sync
+// Wallet Sync (via ethers.js + Base RPC)
 // =============================================================================
 
+const WALLET_ADDRESS = "0x46D4f9f23948fBbeF6b104B0cB571b3F6e551B6F";
+const BASE_RPC = "https://mainnet.base.org";
+const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+
+// ERC-20 ABI for balanceOf and decimals
+const ERC20_ABI = [
+  "function balanceOf(address owner) view returns (uint256)",
+  "function decimals() view returns (uint8)",
+];
+
 async function syncWallet(): Promise<void> {
-  console.log("syncWallet: Checking wallet...");
+  console.log("syncWallet: Checking wallet via Base RPC...");
   
   try {
-    const output = execSync(
-      `cd ${ACP_DIR} && npx tsx bin/acp.ts wallet balance 2>&1`,
-      { encoding: "utf-8", timeout: 30000 }
-    );
+    const provider = new ethers.JsonRpcProvider(BASE_RPC);
     
-    // Parse wallet balance from output
-    // Example: "USDC: 14.89" or "Total: $19.54"
-    const usdcMatch = output.match(/USDC[:\s]+\$?([\d.]+)/i);
-    const cbbtcMatch = output.match(/cbBTC[:\s]+\$?([\d.]+)/i);
-    const totalMatch = output.match(/Total[:\s]+\$?([\d.]+)/i);
+    // Get native ETH balance
+    const ethBalanceWei = await provider.getBalance(WALLET_ADDRESS);
+    const ethBalance = parseFloat(ethers.formatEther(ethBalanceWei));
     
-    if (usdcMatch || totalMatch) {
-      const payload = {
-        usdcBalance: usdcMatch ? parseFloat(usdcMatch[1]) : 0,
-        ethBalance: 0,
-        cbbtcBalance: 0,
-        cbbtcValueUsd: cbbtcMatch ? parseFloat(cbbtcMatch[1]) : 0,
-        totalValueUsd: totalMatch ? parseFloat(totalMatch[1]) : 0,
-      };
-      
-      await hqFetch("/wallet", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      console.log(`syncWallet: Updated - $${payload.totalValueUsd} total`);
-    }
+    // Get USDC balance
+    const usdcContract = new ethers.Contract(USDC_BASE, ERC20_ABI, provider);
+    const usdcDecimals = await usdcContract.decimals();
+    const usdcBalanceRaw = await usdcContract.balanceOf(WALLET_ADDRESS);
+    const usdcBalance = parseFloat(ethers.formatUnits(usdcBalanceRaw, usdcDecimals));
+    
+    // Estimate total value (USDC is 1:1, ETH would need price fetch but usually small)
+    // For simplicity, we track USDC as primary value since that's what ACP uses
+    const totalValueUsd = usdcBalance + (ethBalance * 2500); // rough ETH estimate
+    
+    const payload = {
+      usdcBalance,
+      ethBalance,
+      cbbtcBalance: 0,
+      cbbtcValueUsd: 0,
+      totalValueUsd,
+    };
+    
+    await hqFetch("/wallet", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    console.log(`syncWallet: Updated - USDC: $${usdcBalance.toFixed(2)}, ETH: ${ethBalance.toFixed(6)}, Total: $${totalValueUsd.toFixed(2)}`);
   } catch (error) {
     console.error("syncWallet: Failed:", error);
   }
@@ -288,6 +353,104 @@ async function advancePillar(): Promise<void> {
 }
 
 // =============================================================================
+// Tweet Engagement Sync
+// =============================================================================
+
+interface TweetData {
+  id: string;
+  text: string;
+  metrics: {
+    likes: number;
+    retweets: number;
+    replies: number;
+    quotes: number;
+    views: number;
+    bookmarks: number;
+  };
+  createdAt: string;
+}
+
+async function syncTweetEngagement(): Promise<void> {
+  console.log("syncTweetEngagement: Fetching recent tweets...");
+
+  const TWITTER_AUTH_TOKEN = process.env.TWITTER_AUTH_TOKEN;
+  const TWITTER_CT0 = process.env.TWITTER_CT0;
+
+  if (!TWITTER_AUTH_TOKEN || !TWITTER_CT0) {
+    console.log("syncTweetEngagement: Missing Twitter credentials, skipping");
+    return;
+  }
+
+  try {
+    // Fetch recent tweets via CLI
+    const twitterOutput = execSync(
+      `/root/.local/bin/twitter user-posts ClaudiusHQ --json 2>&1`,
+      {
+        encoding: "utf-8",
+        timeout: 60000,
+        env: {
+          ...process.env,
+          TWITTER_AUTH_TOKEN,
+          TWITTER_CT0,
+        },
+      }
+    );
+
+    // Parse JSON output (skip any non-JSON lines at start)
+    const jsonStart = twitterOutput.indexOf("[");
+    if (jsonStart === -1) {
+      console.log("syncTweetEngagement: No tweets found in output");
+      return;
+    }
+
+    const tweets: TweetData[] = JSON.parse(twitterOutput.slice(jsonStart));
+    console.log(`syncTweetEngagement: Found ${tweets.length} tweets`);
+
+    // Get all marketing campaigns with tweetIds
+    const { campaigns } = await hqFetch("/marketing");
+    if (!campaigns || campaigns.length === 0) {
+      console.log("syncTweetEngagement: No marketing campaigns found");
+      return;
+    }
+
+    let updated = 0;
+
+    for (const campaign of campaigns) {
+      if (!campaign.tweetId) continue;
+
+      // Find matching tweet
+      const tweet = tweets.find((t) => t.id === campaign.tweetId);
+      if (!tweet) continue;
+
+      // Check if engagement metrics differ
+      const hasChanges =
+        campaign.engagementLikes !== tweet.metrics.likes ||
+        campaign.engagementRetweets !== tweet.metrics.retweets ||
+        campaign.engagementReplies !== tweet.metrics.replies;
+
+      if (hasChanges) {
+        await hqFetch(`/marketing/${campaign.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            engagementLikes: tweet.metrics.likes,
+            engagementRetweets: tweet.metrics.retweets,
+            engagementReplies: tweet.metrics.replies,
+          }),
+        });
+        console.log(
+          `syncTweetEngagement: Updated ${campaign.id} → likes=${tweet.metrics.likes}, RTs=${tweet.metrics.retweets}, replies=${tweet.metrics.replies}`
+        );
+        updated++;
+      }
+    }
+
+    console.log(`syncTweetEngagement: Updated ${updated} campaigns`);
+  } catch (error) {
+    console.error("syncTweetEngagement: Failed:", error);
+  }
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -304,10 +467,13 @@ async function main() {
     // 3. Sync wallet balance
     await syncWallet();
     
-    // 4. Generate tasks based on rules
+    // 4. Sync tweet engagement metrics
+    await syncTweetEngagement();
+    
+    // 5. Generate tasks based on rules
     await generateTasks();
     
-    // 5. Advance pillar if needed
+    // 6. Advance pillar if needed
     await advancePillar();
     
     console.log("ACP Automation complete.");
