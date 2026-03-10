@@ -6,6 +6,7 @@ import {
   CreditCard,
   ArrowLeftRight,
   Globe,
+  Droplets,
 } from "lucide-react";
 import { createElement } from "react";
 
@@ -82,6 +83,7 @@ export const categoryLabels: Record<string, string> = {
   credit: "Credit Markets",
   fx: "FX Rates",
   "foreign-yields": "Foreign Yields",
+  liquidity: "Liquidity & Fed Balance Sheet",
 };
 
 export const categoryIcons: Record<string, React.ReactNode> = {
@@ -92,9 +94,10 @@ export const categoryIcons: Record<string, React.ReactNode> = {
   credit: createElement(CreditCard, { className: "w-4 h-4" }),
   fx: createElement(ArrowLeftRight, { className: "w-4 h-4" }),
   "foreign-yields": createElement(Globe, { className: "w-4 h-4" }),
+  liquidity: createElement(Droplets, { className: "w-4 h-4" }),
 };
 
-export const categoryOrder = ["rates", "inflation", "employment", "growth", "fx", "foreign-yields"];
+export const categoryOrder = ["rates", "liquidity", "inflation", "employment", "growth", "fx", "foreign-yields"];
 
 export const etfColorMap: Record<string, string> = {
   blue: "bg-blue-100 text-blue-700",
