@@ -839,7 +839,7 @@ export type NewAcpCompetitorSnapshot = typeof acpCompetitorSnapshots.$inferInser
 // Central state management for ACP strategy, tasks, and decisions
 // ============================================================================
 
-export const ACP_PILLARS = ["quality", "replace", "build", "experiment"] as const;
+export const ACP_PILLARS = ["quality", "replace", "build", "experiment", "distribute"] as const;
 export type AcpPillar = (typeof ACP_PILLARS)[number];
 
 export const ACP_TASK_STATUSES = ["pending", "in_progress", "done", "skipped"] as const;
