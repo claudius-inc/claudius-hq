@@ -1075,6 +1075,90 @@ const hardAssetSupercycle: PlaybookEvent = {
 };
 
 // ═══════════════════════════════════════════════════
+// 19. PETRODOLLAR FUNDING STRESS
+// ═══════════════════════════════════════════════════
+const petrodollarFundingStress: PlaybookEvent = {
+  id: "petrodollar-funding-stress",
+  name: "Petrodollar Funding Stress",
+  category: "financial-system",
+  description:
+    "Oil spike forces Asian central banks to sell Treasuries for dollars. The oil × FX correlation drives yields higher regardless of Fed policy.",
+  historicalContext:
+    "Post-Japan YCC lift (2024), the (USDJPY × oil) and (USDCNY × oil) products correlate tightly with 10Y yields. Iran doesn't need to beat the US military — it just needs to beat the UST market.",
+  implications: [
+    "Short duration — TLT at risk of further selloff",
+    "Fed may need emergency Treasury intervention",
+    "Gold/BTC as alternatives to Treasuries",
+    "Watch for Treasury/Fed emergency language",
+    "Energy longs work until intervention",
+  ],
+  triggers: [
+    trigger("oil-crisis", "Oil >$100 (crisis pricing)", (s) => {
+      const oil = s.oil?.wti?.price;
+      if (oil == null) return { firing: false, value: "N/A", detail: "No data" };
+      return {
+        firing: oil > 100,
+        value: `$${oil.toFixed(2)}`,
+        detail: oil > 120 ? "Extreme" : "Crisis level",
+      };
+    }),
+    trigger("usdjpy-stress", "USD/JPY >155 (Japan funding stress)", (s) => {
+      const usdjpy = s.fx?.usdjpy?.price;
+      if (usdjpy == null) return { firing: false, value: "N/A", detail: "No data" };
+      return {
+        firing: usdjpy > 155,
+        value: usdjpy.toFixed(2),
+        detail: usdjpy > 160 ? "BOJ intervention zone" : "Yen weak",
+      };
+    }),
+    trigger("usdcnh-stress", "USD/CNH >7.35 (China funding stress)", (s) => {
+      const usdcnh = s.fx?.usdcnh?.price;
+      if (usdcnh == null) return { firing: false, value: "N/A", detail: "No data" };
+      return {
+        firing: usdcnh > 7.35,
+        value: usdcnh.toFixed(3),
+        detail: usdcnh > 7.4 ? "PBOC red line" : "Yuan weak",
+      };
+    }),
+    trigger("10y-spike", "10Y yield >4.8% (yields spiking)", (s) => {
+      const y10 = s.fx?.tenYearYield?.value;
+      if (y10 == null) return { firing: false, value: "N/A", detail: "No data" };
+      return {
+        firing: y10 > 4.8,
+        value: `${y10.toFixed(2)}%`,
+        detail: y10 > 5.0 ? "Crisis — Fed watch" : "Elevated",
+      };
+    }),
+    trigger("tlt-not-safe-haven", "TLT falling despite VIX elevated", (s) => {
+      const tltPos = etfRangePosition(s, "TLT");
+      const vix = s.sentiment?.vix.value;
+      if (tltPos == null || vix == null)
+        return { firing: false, value: "N/A", detail: "No data" };
+      return {
+        firing: tltPos < 40 && vix > 22,
+        value: `TLT: ${tltPos}%, VIX: ${vix.toFixed(0)}`,
+        detail: "Bonds not providing safety",
+      };
+    }),
+    trigger("composite-stress", "Oil × FX stress elevated", (s) => {
+      const oil = s.oil?.wti?.price;
+      const usdjpy = s.fx?.usdjpy?.price;
+      if (oil == null || usdjpy == null)
+        return { firing: false, value: "N/A", detail: "No data" };
+      // Normalized product: (oil/80) × (usdjpy/150) > 1.2 = stress
+      const product = (oil / 80) * (usdjpy / 150);
+      return {
+        firing: product > 1.2,
+        value: product.toFixed(2),
+        detail: product > 1.5 ? "Severe stress" : "Elevated",
+      };
+    }),
+  ],
+  activeThreshold: 0.5, // 3/6 triggers = active
+  warmingThreshold: 0.33, // 2/6 triggers = warming
+};
+
+// ═══════════════════════════════════════════════════
 // EXPORT ALL EVENTS
 // ═══════════════════════════════════════════════════
 export const PLAYBOOK_EVENTS: PlaybookEvent[] = [
@@ -1096,6 +1180,7 @@ export const PLAYBOOK_EVENTS: PlaybookEvent[] = [
   creditCrisis,
   sovereignDebtStress,
   carryTradeUnwind,
+  petrodollarFundingStress,
   // Market Structure
   bubblePeak,
   panicBottom,

@@ -35,6 +35,12 @@ export interface OilSnapshot {
   spread: number | null;
 }
 
+export interface FxSnapshot {
+  usdjpy: { price: number; changePercent: number } | null;
+  usdcnh: { price: number; changePercent: number } | null;
+  tenYearYield: { value: number; changePercent: number } | null;
+}
+
 // ── Data snapshot consumed by the playbook engine ──
 
 export interface PlaybookDataSnapshot {
@@ -57,6 +63,9 @@ export interface PlaybookDataSnapshot {
   btc: BtcSnapshot | null;
   gold: GoldSnapshot | null;
   oil: OilSnapshot | null;
+
+  // FX & Yields (from SWR)
+  fx: FxSnapshot | null;
 
   // Sector momentum (from SWR)
   sectors: SectorMomentum[];

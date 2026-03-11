@@ -17,6 +17,7 @@ import type {
   BtcSnapshot,
   GoldSnapshot,
   OilSnapshot,
+  FxSnapshot,
 } from "./types";
 import type { SectorMomentum } from "@/app/api/sectors/momentum/route";
 
@@ -63,6 +64,11 @@ export function usePlaybookData(pageData: PlaybookPageData): {
   const { data: sectorData, isLoading: loadingSectors } = useSWR<{
     sectors: SectorMomentum[];
   }>("/api/sectors/momentum", fetcher, swrConfig);
+  const { data: fx, isLoading: loadingFx } = useSWR<FxSnapshot>(
+    "/api/fx",
+    fetcher,
+    swrConfig,
+  );
 
   const snapshot = useMemo<PlaybookDataSnapshot>(
     () => ({
@@ -76,13 +82,14 @@ export function usePlaybookData(pageData: PlaybookPageData): {
       btc: btc ?? null,
       gold: gold ?? null,
       oil: oil ?? null,
+      fx: fx ?? null,
       sectors: sectorData?.sectors ?? [],
       regime: pageData.regimeData,
     }),
-    [pageData, btc, gold, oil, sectorData],
+    [pageData, btc, gold, oil, fx, sectorData],
   );
 
-  const loading = loadingBtc || loadingGold || loadingOil || loadingSectors;
+  const loading = loadingBtc || loadingGold || loadingOil || loadingFx || loadingSectors;
 
   return { snapshot, loading };
 }
