@@ -179,7 +179,14 @@ export async function GET() {
     // Sort by 1M performance (descending)
     themesWithPerformance.sort((a, b) => (b.performance_1m ?? -999) - (a.performance_1m ?? -999));
 
-    return NextResponse.json({ themes: themesWithPerformance });
+    return NextResponse.json(
+      { themes: themesWithPerformance },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (e) {
     logger.error("api/themes", "Failed to get themes", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });

@@ -219,28 +219,28 @@ export async function GET(request: NextRequest) {
     if (!fresh) {
       const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.MARKETS, 900);
       if (cached && !cached.isStale) {
-        return NextResponse.json({
-          ...cached.data,
-          cached: true,
-          cacheAge: cached.updatedAt,
-        });
+        return NextResponse.json(
+          { ...cached.data, cached: true, cacheAge: cached.updatedAt },
+          { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
+        );
       }
       if (cached) {
         fetchMarketMomentumData()
           .then((data) => setCache(CACHE_KEYS.MARKETS, data))
           .catch((e) => logger.error("api/markets/momentum", "Background markets momentum refresh failed", { error: e }));
-        return NextResponse.json({
-          ...cached.data,
-          cached: true,
-          cacheAge: cached.updatedAt,
-          isStale: true,
-        });
+        return NextResponse.json(
+          { ...cached.data, cached: true, cacheAge: cached.updatedAt, isStale: true },
+          { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
+        );
       }
     }
 
     const data = await fetchMarketMomentumData();
     await setCache(CACHE_KEYS.MARKETS, data);
-    return NextResponse.json({ ...data, cached: false });
+    return NextResponse.json(
+      { ...data, cached: false },
+      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
+    );
   } catch (e) {
     logger.error("api/markets/momentum", "Failed to get market momentum", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });

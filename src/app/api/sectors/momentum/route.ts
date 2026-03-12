@@ -207,28 +207,28 @@ export async function GET(request: NextRequest) {
     if (!fresh) {
       const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.SECTORS, 900);
       if (cached && !cached.isStale) {
-        return NextResponse.json({
-          ...cached.data,
-          cached: true,
-          cacheAge: cached.updatedAt,
-        });
+        return NextResponse.json(
+          { ...cached.data, cached: true, cacheAge: cached.updatedAt },
+          { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
+        );
       }
       if (cached) {
         fetchSectorMomentumData()
           .then((data) => setCache(CACHE_KEYS.SECTORS, data))
           .catch((e) => logger.error("api/sectors/momentum", "Background sectors refresh failed", { error: e }));
-        return NextResponse.json({
-          ...cached.data,
-          cached: true,
-          cacheAge: cached.updatedAt,
-          isStale: true,
-        });
+        return NextResponse.json(
+          { ...cached.data, cached: true, cacheAge: cached.updatedAt, isStale: true },
+          { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300" } }
+        );
       }
     }
 
     const data = await fetchSectorMomentumData();
     await setCache(CACHE_KEYS.SECTORS, data);
-    return NextResponse.json({ ...data, cached: false });
+    return NextResponse.json(
+      { ...data, cached: false },
+      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } }
+    );
   } catch (e) {
     logger.error("api/sectors/momentum", "Failed to get sector momentum", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
