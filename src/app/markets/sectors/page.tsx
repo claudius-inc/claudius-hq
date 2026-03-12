@@ -32,9 +32,9 @@ async function getMarketsData(): Promise<{
   updatedAt: string | null;
 }> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+      || "http://localhost:3000";
     
     const [marketsRes, sectorsRes] = await Promise.all([
       fetch(`${baseUrl}/api/markets/momentum`, { next: { revalidate: 300 } }),

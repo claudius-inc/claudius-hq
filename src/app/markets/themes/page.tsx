@@ -11,9 +11,10 @@ export const metadata: Metadata = {
 
 async function getThemes(): Promise<ThemeWithPerformance[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : "http://localhost:3000";
+    // Build absolute URL for server-side fetch
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
+      || "http://localhost:3000";
     
     const res = await fetch(`${baseUrl}/api/themes`, {
       next: { revalidate: 300 },
