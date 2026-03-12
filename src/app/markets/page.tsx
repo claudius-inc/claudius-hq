@@ -1,6 +1,16 @@
-import type { Metadata } from "next";
-import MarketsPageContent from "./MarketsPageContent";
+"use client";
+
+import { useState, useEffect } from "react";
+import { PageHero } from "@/components/PageHero";
 import { detectRegime } from "./_components/helpers";
+import { RegimeStrip } from "./_components/RegimeStrip";
+import { Barometers } from "./_components/Barometers";
+import { Sentiment } from "./_components/Sentiment";
+import { SmartMoney } from "./_components/SmartMoney";
+import { Indicators } from "./_components/Indicators";
+import { HardAssets } from "./_components/HardAssets";
+import { RegimeDetail } from "./_components/RegimeDetail";
+import { PlaybookSection } from "./_components/playbook/PlaybookSection";
 import type {
   Position,
   Summary,
@@ -14,120 +24,201 @@ import type {
   YieldSpread,
 } from "./_components/types";
 
-// Revalidate every 5 minutes for ISR caching
-export const revalidate = 300;
+export default function StocksDashboard() {
+  const [portfolioData, setPortfolioData] = useState<{
+    positions: Position[];
+    summary: Summary | null;
+    baseCurrency: string;
+  } | null>(null);
+  const [macroIndicators, setMacroIndicators] = useState<MacroIndicator[]>([]);
+  const [sentimentData, setSentimentData] = useState<SentimentData | null>(
+    null,
+  );
+  const [marketEtfs, setMarketEtfs] = useState<MarketEtf[]>([]);
+  const [regimeData, setRegimeData] = useState<RegimeData | null>(null);
+  const [breadthData, setBreadthData] = useState<BreadthData | null>(null);
+  const [congressData, setCongressData] = useState<CongressData | null>(null);
+  const [insiderData, setInsiderData] = useState<InsiderData | null>(null);
+  const [yieldSpreads, setYieldSpreads] = useState<YieldSpread[]>([]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [regimeDetailOpen, setRegimeDetailOpen] = useState(false);
+  const [loading, setLoading] = useState({
+    portfolio: true,
+    macro: true,
+    sentiment: true,
+    etfs: true,
+    regime: true,
+    breadth: true,
+    congress: true,
+    insider: true,
+  });
 
-export const metadata: Metadata = {
-  title: "Markets | Claudius HQ",
-  description: "Portfolio overview, research, and market signals",
-};
-
-interface PortfolioResponse {
-  positions: Position[];
-  summary: Summary | null;
-  baseCurrency: string;
-}
-
-interface MacroResponse {
-  indicators: MacroIndicator[];
-  yieldSpreads: YieldSpread[];
-}
-
-interface EtfsResponse {
-  etfs: MarketEtf[];
-}
-
-interface GoldResponse {
-  realYields?: { value: number };
-  dxy?: { price: number };
-}
-
-async function fetchJson<T>(url: string): Promise<T | null> {
-  try {
-    const res = await fetch(url, { next: { revalidate: 300 } });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
-async function getMarketsData() {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
-    || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null)
-    || "http://localhost:3000";
-
-  // Fetch all data in parallel
-  const [
-    portfolioData,
-    macroData,
-    etfsData,
-    sentimentData,
-    breadthData,
-    congressData,
-    insiderData,
-    goldData,
-  ] = await Promise.all([
-    fetchJson<PortfolioResponse>(`${baseUrl}/api/ibkr/positions`),
-    fetchJson<MacroResponse>(`${baseUrl}/api/macro`),
-    fetchJson<EtfsResponse>(`${baseUrl}/api/macro/etfs`),
-    fetchJson<SentimentData>(`${baseUrl}/api/markets/sentiment`),
-    fetchJson<BreadthData>(`${baseUrl}/api/markets/breadth`),
-    fetchJson<CongressData>(`${baseUrl}/api/markets/congress`),
-    fetchJson<InsiderData>(`${baseUrl}/api/markets/insider`),
-    fetchJson<GoldResponse>(`${baseUrl}/api/gold`),
-  ]);
-
-  // Calculate regime data
-  let regimeData: RegimeData | null = null;
-  if (macroData || goldData) {
-    const indicators = macroData?.indicators || [];
-    const findIndicator = (id: string) => {
-      const ind = indicators.find((i) => i.id === id);
-      return ind?.data?.current ?? null;
-    };
-
-    const realYield = goldData?.realYields?.value ?? null;
-    const debtToGdp = findIndicator("debt-to-gdp");
-    const deficitToGdp = findIndicator("deficit-to-gdp");
-    const dxy = goldData?.dxy?.price ?? null;
-
-    const absDeficit = deficitToGdp ? Math.abs(deficitToGdp) : null;
-    regimeData = detectRegime({ realYield, debtToGdp, deficitToGdp: absDeficit });
-    regimeData.indicators.dxy = dxy;
-  }
-
-  return {
-    portfolioData: portfolioData ? {
-      positions: portfolioData.positions || [],
-      summary: portfolioData.summary || null,
-      baseCurrency: portfolioData.baseCurrency || "SGD",
-    } : null,
-    macroIndicators: macroData?.indicators || [],
-    yieldSpreads: macroData?.yieldSpreads || [],
-    marketEtfs: etfsData?.etfs || [],
-    sentimentData,
-    breadthData,
-    congressData,
-    insiderData,
-    regimeData,
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
-}
 
-export default async function StocksDashboard() {
-  const data = await getMarketsData();
+  useEffect(() => {
+    fetch("/api/ibkr/positions")
+      .then((res) => res.json())
+      .then((data) => {
+        setPortfolioData({
+          positions: data.positions || [],
+          summary: data.summary || null,
+          baseCurrency: data.baseCurrency || "SGD",
+        });
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, portfolio: false })));
+
+    fetch("/api/macro")
+      .then((res) => res.json())
+      .then((data) => {
+        setMacroIndicators(data.indicators || []);
+        setYieldSpreads(data.yieldSpreads || []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, macro: false })));
+
+    fetch("/api/macro/etfs")
+      .then((res) => res.json())
+      .then((data) => {
+        setMarketEtfs(data.etfs || []);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, etfs: false })));
+
+    fetch("/api/markets/sentiment")
+      .then((res) => res.json())
+      .then((data) => {
+        setSentimentData(data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, sentiment: false })));
+
+    fetch("/api/markets/breadth")
+      .then((res) => res.json())
+      .then((data) => {
+        setBreadthData(data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, breadth: false })));
+
+    fetch("/api/markets/congress")
+      .then((res) => res.json())
+      .then((data) => {
+        setCongressData(data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, congress: false })));
+
+    fetch("/api/markets/insider")
+      .then((res) => res.json())
+      .then((data) => {
+        setInsiderData(data);
+      })
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, insider: false })));
+
+    Promise.all([
+      fetch("/api/macro").then((res) => (res.ok ? res.json() : null)),
+      fetch("/api/gold").then((res) => (res.ok ? res.json() : null)),
+    ])
+      .then(
+        ([macroData, goldData]: [
+          { indicators?: { id: string; data?: { current: number } }[] } | null,
+          { realYields?: { value: number }; dxy?: { price: number } } | null,
+        ]) => {
+          const indicators = macroData?.indicators || [];
+          const findIndicator = (id: string) => {
+            const ind = indicators.find((i) => i.id === id);
+            return ind?.data?.current ?? null;
+          };
+
+          const realYield = goldData?.realYields?.value ?? null;
+          const debtToGdp = findIndicator("debt-to-gdp");
+          const deficitToGdp = findIndicator("deficit-to-gdp");
+          const dxy = goldData?.dxy?.price ?? null;
+
+          const absDeficit = deficitToGdp ? Math.abs(deficitToGdp) : null;
+          const regime = detectRegime({ realYield, debtToGdp, deficitToGdp: absDeficit });
+          regime.indicators.dxy = dxy;
+          setRegimeData(regime);
+        },
+      )
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, regime: false })));
+  }, []);
 
   return (
-    <MarketsPageContent
-      initialPortfolioData={data.portfolioData}
-      initialMacroIndicators={data.macroIndicators}
-      initialYieldSpreads={data.yieldSpreads}
-      initialMarketEtfs={data.marketEtfs}
-      initialSentimentData={data.sentimentData}
-      initialBreadthData={data.breadthData}
-      initialCongressData={data.congressData}
-      initialInsiderData={data.insiderData}
-      initialRegimeData={data.regimeData}
-    />
+    <>
+      <PageHero
+        title="Markets Dashboard"
+        subtitle="Portfolio overview, research, and market signals"
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+        <RegimeStrip
+          regimeData={regimeData}
+          loading={{ regime: loading.regime, sentiment: loading.sentiment }}
+          onOpenDetail={() => setRegimeDetailOpen(true)}
+        />
+
+        <PlaybookSection
+          macroIndicators={macroIndicators}
+          yieldSpreads={yieldSpreads}
+          marketEtfs={marketEtfs}
+          sentimentData={sentimentData}
+          breadthData={breadthData}
+          congressData={congressData}
+          insiderData={insiderData}
+          regimeData={regimeData}
+          loading={loading.macro || loading.sentiment || loading.breadth || loading.regime}
+        />
+
+        <div className="space-y-4">
+          <Barometers
+            marketEtfs={marketEtfs}
+            loading={loading.etfs}
+            expandedIds={expandedIds}
+            toggleExpanded={toggleExpanded}
+          />
+          <SmartMoney
+            congressData={congressData}
+            insiderData={insiderData}
+            expandedIds={expandedIds}
+            toggleExpanded={toggleExpanded}
+          />
+        </div>
+
+        <HardAssets />
+
+        <Sentiment
+          sentimentData={sentimentData}
+          breadthData={breadthData}
+          expandedIds={expandedIds}
+          toggleExpanded={toggleExpanded}
+        />
+
+        <Indicators
+          macroIndicators={macroIndicators}
+          yieldSpreads={yieldSpreads}
+          loading={loading.macro}
+          expandedIds={expandedIds}
+          toggleExpanded={toggleExpanded}
+        />
+      </div>
+
+      <RegimeDetail
+        open={regimeDetailOpen}
+        onClose={() => setRegimeDetailOpen(false)}
+        regimeData={regimeData}
+        macroIndicators={macroIndicators}
+      />
+    </>
   );
 }

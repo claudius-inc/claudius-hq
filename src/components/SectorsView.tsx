@@ -1,7 +1,7 @@
 "use client";
 
-import { GlobalMarkets, GlobalMarketsProps } from "./GlobalMarkets";
+import { GlobalMarkets } from "./GlobalMarkets";
 
-export function SectorsView(props: GlobalMarketsProps) {
-  return <GlobalMarkets {...props} />;
+export function SectorsView() {
+  return <GlobalMarkets />;
 }

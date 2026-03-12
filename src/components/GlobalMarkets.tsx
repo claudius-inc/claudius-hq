@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Minus, RefreshCw } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { GlobalMarketsSkeleton } from "@/components/Skeleton";
@@ -22,32 +22,18 @@ function sectorsToMarketData(sectors: SectorData[]): MarketData[] {
 
 const REGIONS = ["all", "USA", "Americas", "Europe", "Asia Pacific", "Global"];
 
-export interface GlobalMarketsProps {
-  initialMarkets?: MarketData[];
-  initialBenchmark?: BenchmarkData | null;
-  initialSectors?: SectorData[];
-  initialSectorBenchmark?: MarketBenchmark | null;
-  initialUpdatedAt?: string | null;
-}
-
-export function GlobalMarkets({
-  initialMarkets = [],
-  initialBenchmark = null,
-  initialSectors = [],
-  initialSectorBenchmark = null,
-  initialUpdatedAt = null,
-}: GlobalMarketsProps) {
-  const [markets, setMarkets] = useState<MarketData[]>(initialMarkets);
-  const [benchmark, setBenchmark] = useState<BenchmarkData | null>(initialBenchmark);
-  const [sectors, setSectors] = useState<SectorData[]>(initialSectors);
-  const [sectorBenchmark, setSectorBenchmark] = useState<MarketBenchmark | null>(initialSectorBenchmark);
-  const [loading, setLoading] = useState(initialMarkets.length === 0 && initialSectors.length === 0);
+export function GlobalMarkets() {
+  const [markets, setMarkets] = useState<MarketData[]>([]);
+  const [benchmark, setBenchmark] = useState<BenchmarkData | null>(null);
+  const [sectors, setSectors] = useState<SectorData[]>([]);
+  const [sectorBenchmark, setSectorBenchmark] = useState<MarketBenchmark | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [updatedAt, setUpdatedAt] = useState<string | null>(initialUpdatedAt);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [regionFilter, setRegionFilter] = useState<string>("all");
 
-  const fetchData = useCallback(async (showRefreshing = false) => {
+  const fetchData = async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     try {
       const [marketsRes, sectorsRes] = await Promise.all([
@@ -78,6 +64,10 @@ export function GlobalMarkets({
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  useEffect(() => {
+    fetchData();
   }, []);
 
   const sectorsAsMarkets = sectorsToMarketData(sectors);
