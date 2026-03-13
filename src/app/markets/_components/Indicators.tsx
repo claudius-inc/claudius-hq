@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { categoryOrder, categoryLabels, categoryIcons } from "./constants";
 import { getStatusColor, getTrendArrow, formatIndicatorVal } from "./helpers";
 import { IndicatorDetails } from "./IndicatorDetails";
+import { GexChart } from "./GexChart";
 import { MACRO_INDICATORS } from "@/lib/macro-indicators";
 import type { MacroIndicator, YieldSpread } from "./types";
 
@@ -130,6 +131,13 @@ export function Indicators({
                     )}
                   </div>
                 ))}
+                {/* GEX under rates & credit */}
+                {category === "rates" && (
+                  <GexChart
+                    expanded={expandedIds.has("gex-chart")}
+                    onToggle={() => toggleExpanded("gex-chart")}
+                  />
+                )}
                 {/* Yield spreads under foreign-yields */}
                 {category === "foreign-yields" &&
                   yieldSpreads.map((spread) => {
