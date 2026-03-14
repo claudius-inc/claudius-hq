@@ -17,6 +17,17 @@ export interface ScanResult {
   risk: { penalty: number; flags: string[] };
   revGrowth: number | null;
   grossMargin: number | null;
+  // Enhanced technical metrics (from dynamic refresh)
+  athWeekly?: number | null;
+  athMonthly?: number | null;
+  rvolWeekly?: number | null;
+  rvolMonthly?: number | null;
+  atrWeekly?: number | null;
+  rrWeekly?: number | null;
+  compositeScore?: number;
+  fundamentalScore?: number;
+  technicalScore?: number;
+  momentumScore?: number;
 }
 
 export interface ScanSummary {

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { useState, useCallback } from "react";
+import { ChevronDown, ChevronUp, Search, RefreshCw, Clock, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Select } from "@/components/ui/Select";
 import type { ParsedScan, ScanResult } from "../types";
@@ -39,6 +39,11 @@ function getMarketBadgeColor(market: string): string {
   return "bg-teal-50 text-teal-700";
 }
 
+function formatNumber(value: number | null | undefined, decimals: number = 2): string {
+  if (value === null || value === undefined) return "-";
+  return value.toFixed(decimals);
+}
+
 function ScoreBar({ score, max, label }: { score: number; max: number; label: string }) {
   const pct = Math.round((score / max) * 100);
   return (
@@ -57,11 +62,31 @@ function ScoreBar({ score, max, label }: { score: number; max: number; label: st
   );
 }
 
+function CompositeScoreBar({ score, label }: { score: number; label: string }) {
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="w-24 text-gray-500">{label}</span>
+      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className={`h-full rounded-full ${
+            score >= 70 ? "bg-emerald-500" : score >= 50 ? "bg-amber-500" : score >= 35 ? "bg-blue-500" : "bg-gray-400"
+          }`}
+          style={{ width: `${score}%` }}
+        />
+      </div>
+      <span className="w-10 text-right font-medium text-gray-700">{score}</span>
+    </div>
+  );
+}
+
 function StockRow({ stock, isExpanded, onToggle }: {
   stock: ScanResult;
   isExpanded: boolean;
   onToggle: () => void;
 }) {
+  const hasEnhancedData = stock.compositeScore !== undefined;
+  const displayScore = stock.compositeScore ?? stock.totalScore;
+
   return (
     <div className="border-b border-gray-100 last:border-0">
       {/* Main row */}
@@ -87,8 +112,8 @@ function StockRow({ stock, isExpanded, onToggle }: {
           {stock.name}
         </span>
 
-        <span className={`w-12 text-right font-semibold ${getScoreColor(stock.totalScore)}`}>
-          {stock.totalScore}
+        <span className={`w-12 text-right font-semibold ${getScoreColor(displayScore)}`}>
+          {displayScore}
         </span>
 
         <span className={`px-2 py-0.5 text-[10px] font-medium rounded border ${getTierBadgeColor(stock.tier)}`}>
@@ -134,9 +159,48 @@ function StockRow({ stock, isExpanded, onToggle }: {
             </div>
           </div>
 
-          {/* Scoring breakdown */}
+          {/* Enhanced technical metrics */}
+          {hasEnhancedData && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs border-t border-gray-200 pt-3">
+              <div>
+                <span className="text-gray-500">ATH (W)</span>
+                <p className="font-medium">${formatNumber(stock.athWeekly)}</p>
+              </div>
+              <div>
+                <span className="text-gray-500">ATH (M)</span>
+                <p className="font-medium">${formatNumber(stock.athMonthly)}</p>
+              </div>
+              <div>
+                <span className="text-gray-500">RVOL (W)</span>
+                <p className={`font-medium ${(stock.rvolWeekly || 0) >= 1.5 ? "text-emerald-600" : "text-gray-600"}`}>
+                  {formatNumber(stock.rvolWeekly, 2)}x
+                </p>
+              </div>
+              <div>
+                <span className="text-gray-500">R/R (W)</span>
+                <p className={`font-medium ${(stock.rrWeekly || 0) >= 2 ? "text-emerald-600" : "text-gray-600"}`}>
+                  {formatNumber(stock.rrWeekly, 2)}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Composite scoring breakdown */}
+          {hasEnhancedData && (
+            <div className="space-y-1.5 border-t border-gray-200 pt-3">
+              <h4 className="text-xs font-medium text-gray-700 flex items-center gap-1">
+                <TrendingUp size={12} />
+                Composite Score Breakdown
+              </h4>
+              <CompositeScoreBar score={stock.fundamentalScore ?? 0} label="Fundamentals" />
+              <CompositeScoreBar score={stock.technicalScore ?? 0} label="Technical" />
+              <CompositeScoreBar score={stock.momentumScore ?? 0} label="Momentum" />
+            </div>
+          )}
+
+          {/* Original scoring breakdown */}
           <div className="space-y-1.5">
-            <h4 className="text-xs font-medium text-gray-700">Scoring Breakdown</h4>
+            <h4 className="text-xs font-medium text-gray-700">Base Score Breakdown</h4>
             <ScoreBar score={stock.growth.score} max={stock.growth.max} label="Growth" />
             <ScoreBar score={stock.financial.score} max={stock.financial.max} label="Financial" />
             <ScoreBar score={stock.insider.score} max={stock.insider.max} label="Insider" />
@@ -195,6 +259,35 @@ export function ScannerResults({ scan }: Props) {
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
   const [marketFilter, setMarketFilter] = useState<MarketFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    setRefreshError(null);
+
+    try {
+      const response = await fetch("/api/markets/scanner", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setRefreshError(data.error || "Refresh failed");
+      } else {
+        // Reload the page to get fresh data
+        window.location.reload();
+      }
+    } catch (e) {
+      setRefreshError(String(e));
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
 
   if (!scan) {
     return (
@@ -207,6 +300,10 @@ export function ScannerResults({ scan }: Props) {
     );
   }
 
+  // Use composite score for filtering if available
+  const hasEnhancedData = scan.results.some(r => r.compositeScore !== undefined);
+  const getDisplayScore = (stock: ScanResult) => stock.compositeScore ?? stock.totalScore;
+
   const filteredResults = scan.results.filter((stock) => {
     // Search filter
     if (searchQuery) {
@@ -215,10 +312,11 @@ export function ScannerResults({ scan }: Props) {
         return false;
       }
     }
-    // Tier filter
-    if (tierFilter === "high" && stock.totalScore < 70) return false;
-    if (tierFilter === "speculative" && (stock.totalScore < 50 || stock.totalScore >= 70)) return false;
-    if (tierFilter === "watchlist" && (stock.totalScore < 35 || stock.totalScore >= 50)) return false;
+    // Tier filter (use display score for enhanced data)
+    const score = getDisplayScore(stock);
+    if (tierFilter === "high" && score < 70) return false;
+    if (tierFilter === "speculative" && (score < 50 || score >= 70)) return false;
+    if (tierFilter === "watchlist" && (score < 35 || score >= 50)) return false;
     // Risk filter
     if (riskFilter !== "all" && stock.riskTier !== riskFilter) return false;
     // Market filter
@@ -247,8 +345,9 @@ export function ScannerResults({ scan }: Props) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
         <div className="flex items-center gap-4">
           {scannedAt && (
-            <span className="text-gray-500">
-              Last scanned:{" "}
+            <span className="flex items-center gap-1 text-gray-500">
+              <Clock size={14} />
+              Updated{" "}
               <span className="font-medium text-gray-700">
                 {formatDistanceToNow(scannedAt, { addSuffix: true })}
               </span>
@@ -261,22 +360,48 @@ export function ScannerResults({ scan }: Props) {
               <span className="text-gray-400"> (US: {usCount}, SGX: {sgxCount})</span>
             )}
           </span>
+          {hasEnhancedData && (
+            <>
+              <span className="text-gray-400">|</span>
+              <span className="px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-700 rounded font-medium">
+                Enhanced
+              </span>
+            </>
+          )}
         </div>
 
-        {scan.summary && (
-          <div className="flex gap-3 text-xs">
-            <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded">
-              HC {scan.summary.highConviction}
-            </span>
-            <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">
-              SPEC {scan.summary.speculative}
-            </span>
-            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
-              WL {scan.summary.watchlist}
-            </span>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {scan.summary && (
+            <div className="flex gap-2 text-xs">
+              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded">
+                HC {scan.summary.highConviction}
+              </span>
+              <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">
+                SPEC {scan.summary.speculative}
+              </span>
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
+                WL {scan.summary.watchlist}
+              </span>
+            </div>
+          )}
+
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
       </div>
+
+      {/* Error message */}
+      {refreshError && (
+        <div className="px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+          {refreshError}
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -328,35 +453,46 @@ export function ScannerResults({ scan }: Props) {
 
       {/* Results table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500">
-          <span className="w-6" /> {/* Expand button */}
-          <span className="w-8 text-right">#</span>
-          <span className="w-16">Ticker</span>
-          <span className="w-8">Mkt</span>
-          <span className="flex-1 hidden sm:block">Name</span>
-          <span className="w-12 text-right">Score</span>
-          <span className="w-20">Tier</span>
-          <span className="w-14 hidden sm:block">Risk</span>
-          <span className="w-20 text-right hidden md:block">Price</span>
-        </div>
-
-        {/* Rows */}
-        <div className="divide-y divide-gray-100">
-          {filteredResults.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500 text-sm">
-              No stocks match your filters
+        {/* Header - with horizontal scroll wrapper */}
+        <div className="overflow-x-auto">
+          <div className="min-w-[800px]">
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500">
+              <span className="w-6" /> {/* Expand button */}
+              <span className="w-8 text-right">#</span>
+              <span className="w-16">Ticker</span>
+              <span className="w-8">Mkt</span>
+              <span className="flex-1">Name</span>
+              <span className="w-12 text-right">Score</span>
+              <span className="w-20">Tier</span>
+              <span className="w-14">Risk</span>
+              <span className="w-20 text-right">Price</span>
+              {hasEnhancedData && (
+                <>
+                  <span className="w-16 text-right">ATH(W)</span>
+                  <span className="w-14 text-right">RVOL</span>
+                  <span className="w-14 text-right">R/R</span>
+                </>
+              )}
             </div>
-          ) : (
-            filteredResults.map((stock) => (
-              <StockRow
-                key={stock.ticker}
-                stock={stock}
-                isExpanded={expandedRows.has(stock.ticker)}
-                onToggle={() => toggleRow(stock.ticker)}
-              />
-            ))
-          )}
+
+            {/* Rows */}
+            <div className="divide-y divide-gray-100">
+              {filteredResults.length === 0 ? (
+                <div className="px-4 py-8 text-center text-gray-500 text-sm">
+                  No stocks match your filters
+                </div>
+              ) : (
+                filteredResults.map((stock) => (
+                  <StockRow
+                    key={stock.ticker}
+                    stock={stock}
+                    isExpanded={expandedRows.has(stock.ticker)}
+                    onToggle={() => toggleRow(stock.ticker)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
