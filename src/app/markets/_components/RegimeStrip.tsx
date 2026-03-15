@@ -16,8 +16,7 @@ interface RegimeStripProps {
 
 export function RegimeStrip({ regimeData, loading, onOpenDetail }: RegimeStripProps) {
   return (
-    <div className="col-span-full">
-      <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4">
+    <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4 h-full">
         <button
           type="button"
           disabled={loading.regime || loading.sentiment || !regimeData}
@@ -195,7 +194,6 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail }: RegimeStripPr
             )}
           </div>
         </button>
-      </div>
     </div>
   );
 }

@@ -164,11 +164,15 @@ export default function StocksDashboard() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-        <RegimeStrip
-          regimeData={regimeData}
-          loading={{ regime: loading.regime, sentiment: loading.sentiment }}
-          onOpenDetail={() => setRegimeDetailOpen(true)}
-        />
+        {/* Regime + Expected Returns: side by side on desktop, stacked on mobile */}
+        <div className="col-span-full grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <RegimeStrip
+            regimeData={regimeData}
+            loading={{ regime: loading.regime, sentiment: loading.sentiment }}
+            onOpenDetail={() => setRegimeDetailOpen(true)}
+          />
+          <ExpectedReturnsCard />
+        </div>
 
         <PlaybookSection
           macroIndicators={macroIndicators}
@@ -199,10 +203,7 @@ export default function StocksDashboard() {
 
         <HardAssets />
 
-        <div className="space-y-4">
-          <ExpectedReturnsCard />
-          <CorrelationMatrix />
-        </div>
+        <CorrelationMatrix />
 
         <Sentiment
           sentimentData={sentimentData}

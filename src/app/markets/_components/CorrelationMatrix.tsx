@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { Grid3X3, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { Grid3X3, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
+import { Modal } from "@/components/ui/Modal";
 import type { CorrelationsResponse, CorrelationAlert } from "@/lib/valuation/correlations";
 
 const fetcher = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null));
@@ -106,7 +107,7 @@ function CorrelationLegend() {
 }
 
 export function CorrelationMatrix() {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const { data, isLoading } = useSWR<CorrelationsResponse>(
     "/api/valuation/correlations",
     fetcher,
@@ -117,106 +118,116 @@ export function CorrelationMatrix() {
   const hasAlerts = data?.alerts && data.alerts.length > 0;
 
   return (
-    <div>
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between text-xs font-semibold text-gray-900 mb-1.5"
+    <>
+      {/* Trigger Card */}
+      <div className="card !p-3">
+        <button
+          onClick={() => setIsOpen(true)}
+          className="w-full flex items-center justify-between text-left"
+        >
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-md bg-gray-50">
+              <Grid3X3 className="w-3.5 h-3.5 text-gray-500" />
+            </div>
+            <div>
+              <h3 className="text-xs font-semibold text-gray-900">
+                Correlation Matrix
+              </h3>
+              <p className="text-[10px] text-gray-400">
+                {isLoading ? "Loading..." : `${assets.length} assets tracked`}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {hasAlerts && (
+              <span className="flex items-center gap-0.5 text-amber-600 text-[10px] bg-amber-50 px-1.5 py-0.5 rounded-full">
+                <AlertTriangle className="w-3 h-3" />
+                {data.alerts.length}
+              </span>
+            )}
+            <span className="text-[10px] text-gray-400">View</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Modal */}
+      <Modal
+        open={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Correlation Matrix"
+        size="md"
       >
-        <span className="flex items-center gap-1.5">
-          <span className="flex items-center text-gray-400">
-            <Grid3X3 className="w-3.5 h-3.5" />
-          </span>
-          Correlation Matrix
-          {hasAlerts && (
-            <span className="flex items-center gap-0.5 text-amber-600 text-[10px] font-normal">
-              <AlertTriangle className="w-3 h-3" />
-              {data.alerts.length}
-            </span>
-          )}
-        </span>
-        <span className="text-gray-400">
-          {isExpanded ? (
-            <ChevronUp className="w-4 h-4" />
-          ) : (
-            <ChevronDown className="w-4 h-4" />
-          )}
-        </span>
-      </button>
+        {isLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : data?.matrix && assets.length > 0 ? (
+          <>
+            {/* Matrix Grid */}
+            <div className="overflow-x-auto">
+              <div
+                className="grid gap-0.5 min-w-[200px]"
+                style={{
+                  gridTemplateColumns: `auto repeat(${assets.length}, 1fr)`,
+                }}
+              >
+                {/* Header row */}
+                <div />
+                {assets.map((asset) => (
+                  <HeatmapCell key={`header-${asset}`} value={ASSET_LABELS[asset] || asset} isHeader />
+                ))}
 
-      {isExpanded && (
-        <div className="card overflow-hidden !p-3">
-          {isLoading ? (
-            <div className="space-y-2">
-              <Skeleton className="h-24 w-full" />
-            </div>
-          ) : data?.matrix && assets.length > 0 ? (
-            <>
-              {/* Matrix Grid */}
-              <div className="overflow-x-auto">
-                <div
-                  className="grid gap-0.5 min-w-[200px]"
-                  style={{
-                    gridTemplateColumns: `auto repeat(${assets.length}, 1fr)`,
-                  }}
-                >
-                  {/* Header row */}
-                  <div />
-                  {assets.map((asset) => (
-                    <HeatmapCell key={`header-${asset}`} value={ASSET_LABELS[asset] || asset} isHeader />
-                  ))}
-
-                  {/* Data rows */}
-                  {assets.map((rowAsset) => (
-                    <>
-                      <div
-                        key={`row-label-${rowAsset}`}
-                        className="text-[10px] font-semibold text-gray-500 text-right pr-1.5 py-1.5 self-center"
-                      >
-                        {ASSET_LABELS[rowAsset] || rowAsset}
-                      </div>
-                      {assets.map((colAsset) => (
-                        <HeatmapCell
-                          key={`${rowAsset}-${colAsset}`}
-                          value={data.matrix[rowAsset]?.[colAsset] ?? 0}
-                        />
-                      ))}
-                    </>
-                  ))}
-                </div>
-              </div>
-
-              <CorrelationLegend />
-
-              {/* Alerts section */}
-              {hasAlerts && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
-                  <div className="text-[10px] text-gray-400 mb-1.5 flex items-center gap-1">
-                    <AlertTriangle className="w-3 h-3" />
-                    Unusual correlations (vs historical)
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {data.alerts.map((alert) => (
-                      <AlertBadge key={alert.pair} alert={alert} />
+                {/* Data rows */}
+                {assets.map((rowAsset) => (
+                  <>
+                    <div
+                      key={`row-label-${rowAsset}`}
+                      className="text-[10px] font-semibold text-gray-500 text-right pr-1.5 py-1.5 self-center"
+                    >
+                      {ASSET_LABELS[rowAsset] || rowAsset}
+                    </div>
+                    {assets.map((colAsset) => (
+                      <HeatmapCell
+                        key={`${rowAsset}-${colAsset}`}
+                        value={data.matrix[rowAsset]?.[colAsset] ?? 0}
+                      />
                     ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Metadata */}
-              <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-between text-[9px] text-gray-400">
-                <span>Period: {data.period}</span>
-                <span>
-                  {data.status === "partial" && "(partial data)"}
-                </span>
+                  </>
+                ))}
               </div>
-            </>
-          ) : (
-            <div className="text-xs text-gray-400 text-center py-4">
-              Unable to load correlation data
             </div>
-          )}
-        </div>
-      )}
-    </div>
+
+            <CorrelationLegend />
+
+            {/* Alerts section */}
+            {hasAlerts && (
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="text-[10px] text-gray-400 mb-2 flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3" />
+                  Unusual correlations (vs historical)
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {data.alerts.map((alert) => (
+                    <AlertBadge key={alert.pair} alert={alert} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Metadata */}
+            <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-[10px] text-gray-400">
+              <span>Period: {data.period}</span>
+              <span>
+                {data.status === "partial" && "(partial data)"}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="text-xs text-gray-400 text-center py-4">
+            Unable to load correlation data
+          </div>
+        )}
+      </Modal>
+    </>
   );
 }

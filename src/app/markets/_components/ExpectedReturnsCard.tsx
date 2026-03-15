@@ -1,9 +1,22 @@
 "use client";
 
 import useSWR from "swr";
-import { TrendingUp, TrendingDown, Minus, ChevronRight, Target, Activity, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, ChevronRight, Target, Activity, AlertTriangle, HelpCircle } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 import type { ExpectedReturnsResponse, AssetValuation, TacticalSummary, SignalAlignment } from "@/lib/valuation/types";
+
+// Tooltip component for inline help
+function Tooltip({ children, content }: { children: React.ReactNode; content: string }) {
+  return (
+    <span className="relative group cursor-help">
+      {children}
+      <span className="absolute z-50 hidden group-hover:block bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 text-[9px] text-white bg-gray-800 rounded whitespace-nowrap">
+        {content}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></span>
+      </span>
+    </span>
+  );
+}
 
 const fetcher = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null));
 
@@ -191,12 +204,18 @@ function StrategicVsTactical({ asset }: { asset: AssetValuation }) {
     tacticalBias === "NEUTRAL";
 
   return (
-    <div className="flex items-center gap-2 text-[10px]">
-      <span className={strategicStyle}>S: {strategicBias}</span>
+    <div className="flex items-center gap-1.5 text-[9px]">
+      <Tooltip content="Long-term valuation signal">
+        <span className={`${strategicStyle} font-medium`}>Strategic: {strategicBias}</span>
+      </Tooltip>
       <span className="text-gray-300">|</span>
-      <span className={tacticalStyle}>T: {tacticalBias}</span>
+      <Tooltip content="Short-term momentum signal">
+        <span className={`${tacticalStyle} font-medium`}>Tactical: {tacticalBias}</span>
+      </Tooltip>
       {!isAligned && (
-        <AlertTriangle className="w-3 h-3 text-amber-500" />
+        <Tooltip content="Strategic and tactical signals diverge">
+          <AlertTriangle className="w-3 h-3 text-amber-500" />
+        </Tooltip>
       )}
     </div>
   );
@@ -221,7 +240,16 @@ function AssetRow({ asset }: { asset: AssetValuation }) {
       {/* Valuation metric and Strategic vs Tactical */}
       <div className="flex items-center justify-between">
         <span className="text-[10px] text-gray-400">
-          {asset.valuation.metric}{" "}
+          {asset.symbol === "BTC" && asset.valuation.metric.startsWith("Halving") ? (
+            <Tooltip content="Bitcoin halving cycle position (4-year cycle)">
+              <span className="inline-flex items-center gap-0.5">
+                {asset.valuation.metric}
+                <HelpCircle className="w-2.5 h-2.5 text-gray-300" />
+              </span>
+            </Tooltip>
+          ) : (
+            asset.valuation.metric
+          )}{" "}
           <span className="font-medium text-gray-600">
             {asset.valuation.value}
           </span>

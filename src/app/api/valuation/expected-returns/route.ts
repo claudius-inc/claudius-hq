@@ -403,13 +403,79 @@ function calculateTacticalSummary(assets: AssetValuation[]): TacticalSummary {
 // Main Fetch Function
 // ---------------------------------------------------------------------------
 
+interface GoldApiResponse {
+  livePrice: number | null;
+  gld?: {
+    price?: number;
+    fiftyTwoWeekHigh?: number;
+    fiftyTwoWeekLow?: number;
+  };
+}
+
+async function fetchGoldPrice(): Promise<{ price: number; sma200: number; sma50: number } | null> {
+  try {
+    // Use internal gold API for accurate gold price
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'http://localhost:3000';
+    const goldRes = await fetch(`${baseUrl}/api/gold`, { cache: "no-store" });
+    
+    if (!goldRes.ok) {
+      // Fallback to GLD ETF * 10
+      const gldQuote = await fetchQuote("GLD");
+      if (gldQuote) {
+        return {
+          price: gldQuote.price * 10,
+          sma200: gldQuote.sma200 * 10,
+          sma50: gldQuote.sma50 * 10,
+        };
+      }
+      return null;
+    }
+    
+    const goldData: GoldApiResponse = await goldRes.json();
+    if (!goldData.livePrice) {
+      // Fallback to GLD ETF * 10
+      const gldQuote = await fetchQuote("GLD");
+      if (gldQuote) {
+        return {
+          price: gldQuote.price * 10,
+          sma200: gldQuote.sma200 * 10,
+          sma50: gldQuote.sma50 * 10,
+        };
+      }
+      return null;
+    }
+    
+    // For SMAs, still use GLD ETF data scaled up
+    const gldQuote = await fetchQuote("GLD");
+    return {
+      price: goldData.livePrice,
+      sma200: gldQuote ? gldQuote.sma200 * 10 : goldData.livePrice,
+      sma50: gldQuote ? gldQuote.sma50 * 10 : goldData.livePrice,
+    };
+  } catch (error) {
+    logger.error("api/valuation/expected-returns", "Error fetching gold price", { error });
+    // Fallback to GLD ETF * 10
+    const gldQuote = await fetchQuote("GLD");
+    if (gldQuote) {
+      return {
+        price: gldQuote.price * 10,
+        sma200: gldQuote.sma200 * 10,
+        sma50: gldQuote.sma50 * 10,
+      };
+    }
+    return null;
+  }
+}
+
 async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   const assets: AssetValuation[] = [];
 
   // Fetch all quote data in parallel
-  const [spyData, gldData, btcData, tnxData, vixData, irxData, m2] = await Promise.all([
+  const [spyData, goldData, btcData, tnxData, vixData, irxData, m2] = await Promise.all([
     fetchQuote("SPY"),
-    fetchQuote("GLD"),
+    fetchGoldPrice(),
     fetchQuote("BTC-USD"),
     fetchQuote("^TNX"), // 10Y yield
     fetchQuote("^VIX"), // VIX
@@ -476,12 +542,12 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   // ---------------------------------------------------------------------------
   // Gold
   // ---------------------------------------------------------------------------
-  if (gldData && m2) {
-    const goldSpot = gldData.price * 10;
+  if (goldData && m2) {
+    const goldSpot = goldData.price;
     const goldM2Ratio = goldSpot / m2;
     const { valuation, expectedReturn } = calculateGoldValuation(goldM2Ratio);
-    const vs200dma = determineTacticalSignal(gldData.price, gldData.sma200);
-    const vs50dma = determineTacticalSignal(gldData.price, gldData.sma50);
+    const vs200dma = determineTacticalSignal(goldData.price, goldData.sma200);
+    const vs50dma = determineTacticalSignal(goldData.price, goldData.sma50);
     const positioning = determineGoldPositioning();
 
     const { bias, note } = calculateTacticalBias(vs200dma, vs50dma, null, undefined, undefined, undefined);
@@ -503,11 +569,11 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
       expectedReturn,
       tactical,
     });
-  } else if (gldData) {
+  } else if (goldData) {
     // Fallback without M2
-    const goldSpot = gldData.price * 10;
-    const vs200dma = determineTacticalSignal(gldData.price, gldData.sma200);
-    const vs50dma = determineTacticalSignal(gldData.price, gldData.sma50);
+    const goldSpot = goldData.price;
+    const vs200dma = determineTacticalSignal(goldData.price, goldData.sma200);
+    const vs50dma = determineTacticalSignal(goldData.price, goldData.sma50);
 
     const { bias, note } = calculateTacticalBias(vs200dma, vs50dma, null, undefined, undefined, undefined);
 
@@ -571,13 +637,14 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
       note,
     };
 
+    const cycleYearNum = Math.ceil(cycleYear);
     assets.push({
       symbol: "BTC",
       name: "Bitcoin",
       price: Math.round(btcData.price),
       valuation: {
         ...valuation,
-        metric: `Yr ${Math.ceil(cycleYear)}`,
+        metric: `Halving Yr ${cycleYearNum}/4`,
       },
       expectedReturn,
       tactical,
