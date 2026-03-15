@@ -638,13 +638,10 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   };
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const forceRefresh = searchParams.get("refresh") === "1";
-
-    // Check cache first (unless force refresh)
-    const cached = forceRefresh ? null : await getCache<ExpectedReturnsResponse>(CACHE_KEY, CACHE_MAX_AGE);
+    // Check cache first
+    const cached = await getCache<ExpectedReturnsResponse>(CACHE_KEY, CACHE_MAX_AGE);
 
     if (cached && !cached.isStale) {
       return NextResponse.json(cached.data);
