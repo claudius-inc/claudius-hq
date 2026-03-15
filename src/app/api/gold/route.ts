@@ -11,8 +11,24 @@ const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export const dynamic = "force-dynamic";
 
-// Latest CPI YoY (updated periodically - this is a fallback)
+// Latest CPI YoY (updated periodically - fallback for TNX-CPI hack)
 const LATEST_CPI_YOY = 2.9;
+
+const FRED_API_KEY = process.env.FRED_API_KEY;
+
+async function fetchFredValue(seriesId: string): Promise<number | null> {
+  if (!FRED_API_KEY) return null;
+  try {
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=5`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const obs = data.observations?.find((o: { value: string }) => o.value !== ".");
+    return obs ? parseFloat(obs.value) : null;
+  } catch {
+    return null;
+  }
+}
 
 interface QuoteResult {
   regularMarketPrice?: number;
@@ -72,11 +88,15 @@ async function fetchGoldData() {
       }
 
       const tnxQuote = await yahooFinance.quote("^TNX") as QuoteResult;
-      if (tnxQuote.regularMarketPrice) {
-        const realYield = tnxQuote.regularMarketPrice - LATEST_CPI_YOY;
+      const tnxPrice = tnxQuote.regularMarketPrice ?? null;
+      const tipsValue = await fetchFredValue("DFII10");
+
+      if (tipsValue !== null || tnxPrice !== null) {
+        const realYield = tipsValue ?? (tnxPrice! - LATEST_CPI_YOY);
         realYieldsData = {
           value: realYield,
-          tnx: tnxQuote.regularMarketPrice,
+          tips: tipsValue,
+          tnx: tnxPrice,
           cpi: LATEST_CPI_YOY,
           change: tnxQuote.regularMarketChange || 0,
           changePercent: tnxQuote.regularMarketChangePercent || 0,

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
@@ -202,9 +201,7 @@ async function fetchSectorMomentumData() {
 
 // GET /api/sectors/momentum
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
     const fresh = request.nextUrl.searchParams.get("fresh") === "true";
 
     if (!fresh) {

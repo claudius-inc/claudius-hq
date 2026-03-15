@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { acpOfferings, acpDecisions } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -39,9 +38,7 @@ function detectCategory(name: string): string {
 
 // GET: Fetch all offerings
 export async function GET(_req: NextRequest) {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
     const offerings = await db
       .select()
       .from(acpOfferings)

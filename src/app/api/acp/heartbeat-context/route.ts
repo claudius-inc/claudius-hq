@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import {
   acpState,
@@ -23,9 +22,7 @@ interface HeartbeatAlert {
 
 // GET: Returns everything an agent needs for a heartbeat
 export async function GET(_req: NextRequest) {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
     // 1. Get current state
     const stateRows = await db.select().from(acpState).where(eq(acpState.id, 1));
     const state = stateRows[0] ?? {

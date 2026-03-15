@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpWalletSnapshots } from "@/db/schema";
@@ -17,9 +16,7 @@ function checkAuth(req: NextRequest): boolean {
 
 // GET: Get latest wallet snapshot
 export async function GET(_req: NextRequest) {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
     const [latest] = await db
       .select()
       .from(acpWalletSnapshots)

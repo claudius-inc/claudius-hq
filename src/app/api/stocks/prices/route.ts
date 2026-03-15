@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
@@ -76,9 +75,7 @@ async function fetchStockPrices(tickers: string[]) {
 
 // GET /api/stocks/prices?tickers=AAPL,MSFT,GOOGL
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   const { searchParams } = new URL(request.url);
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   const tickersParam = searchParams.get("tickers");
 
   if (!tickersParam) {

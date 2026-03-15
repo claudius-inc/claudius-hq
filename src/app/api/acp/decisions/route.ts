@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { acpDecisions, ACP_DECISION_TYPES } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -16,9 +15,7 @@ function checkAuth(req: NextRequest): boolean {
 
 // GET: Fetch recent decisions
 export async function GET(req: NextRequest) {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") ?? "20");
     const type = searchParams.get("type");

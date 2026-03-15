@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import YahooFinance from "yahoo-finance2";
 import { logger } from "@/lib/logger";
 
@@ -57,9 +56,7 @@ const THEME_MAPPINGS: Record<string, { tickers: string[]; description: string }>
 
 // GET /api/themes/suggestions?name=nuclear or ?tickers=NVDA,AMD
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   const { searchParams } = new URL(request.url);
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   const name = searchParams.get("name")?.toLowerCase().trim();
   const tickers = searchParams.get("tickers");
 

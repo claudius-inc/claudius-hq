@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpTasks, ACP_TASK_STATUSES } from "@/db/schema";
@@ -12,9 +11,7 @@ interface RouteParams {
 
 // GET: Fetch a single task
 export async function GET(req: NextRequest, { params }: RouteParams) {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { id } = await params;
     const taskId = parseInt(id);
     

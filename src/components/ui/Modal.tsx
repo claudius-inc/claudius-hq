@@ -16,14 +16,23 @@ function useIsMobile() {
   return isMobile;
 }
 
+type ModalSize = "sm" | "md" | "lg";
+
+const SIZE_CLASSES: Record<ModalSize, string> = {
+  sm: "max-w-sm",
+  md: "max-w-lg",
+  lg: "max-w-2xl",
+};
+
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   title?: string;
+  size?: ModalSize;
   children: React.ReactNode;
 }
 
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({ open, onClose, title, size = "md", children }: ModalProps) {
   const isMobile = useIsMobile();
 
   const handleEscape = useCallback(
@@ -80,7 +89,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
         className="absolute inset-0 bg-black/50"
         onClick={onClose}
       />
-      <div className="relative bg-white border border-gray-200 rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col animate-fade-in">
+      <div className={`relative bg-white border border-gray-200 rounded-xl shadow-2xl ${SIZE_CLASSES[size]} w-full mx-4 max-h-[80vh] flex flex-col animate-fade-in`}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
           {title && (
             <h3 className="text-sm font-semibold text-gray-900">{title}</h3>

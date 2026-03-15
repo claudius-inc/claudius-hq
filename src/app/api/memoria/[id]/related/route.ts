@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, memoriaEntries, memoriaEntryTags, memoriaTags } from "@/db";
 import { eq, ne, and, inArray, desc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -9,7 +8,6 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
   const id = parseInt(params.id, 10);
   if (isNaN(id)) return NextResponse.json({ error: "Invalid id" }, { status: 400 });
 

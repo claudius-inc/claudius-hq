@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import YahooFinance from "yahoo-finance2";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +19,7 @@ export interface FxResponse {
 }
 
 export async function GET(_req: NextRequest) {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
     let usdjpy: FxResponse["usdjpy"] = null;
     let usdcnh: FxResponse["usdcnh"] = null;
     let tenYearYield: FxResponse["tenYearYield"] = null;

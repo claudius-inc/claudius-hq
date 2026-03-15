@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { goldFlows } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -17,9 +16,7 @@ interface QuoteResult {
 
 // GET /api/gold/flows - List flow history
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get("limit") || "90");
 

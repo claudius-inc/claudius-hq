@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, stockReports } from "@/db";
 import { desc, sql, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -7,9 +6,7 @@ import { logger } from "@/lib/logger";
 // GET /api/stocks/research-status?tickers=BABA,BYD,AAPL
 // Returns { [ticker]: { lastResearchDate, reportId } | null }
 export async function GET(req: NextRequest) {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { searchParams } = new URL(req.url);
     const tickersParam = searchParams.get("tickers");
 

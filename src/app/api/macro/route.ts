@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { fetchMacroData } from "@/lib/fetch-macro-data";
 import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
@@ -7,9 +6,7 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
     const fresh = request.nextUrl.searchParams.get("fresh") === "true";
 
     if (!fresh) {

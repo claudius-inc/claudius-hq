@@ -985,3 +985,82 @@ export const acpJobs = sqliteTable("acp_jobs", {
 
 export type AcpJob = typeof acpJobs.$inferSelect;
 export type NewAcpJob = typeof acpJobs.$inferInsert;
+
+// ============================================================================
+// Thesis Engine — Generic asset thesis framework
+// ============================================================================
+
+export const THESIS_STATUSES = ["active", "suspended", "invalidated"] as const;
+export type ThesisStatus = (typeof THESIS_STATUSES)[number];
+
+export const thesisConfigs = sqliteTable("thesis_configs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  asset: text("asset").notNull().unique(), // gold, oil, btc, silver
+  name: text("name").notNull(),
+  status: text("status").default("active"), // active, suspended, invalidated
+  signalDefinitions: text("signal_definitions"), // JSON: signal overrides
+  entryConditions: text("entry_conditions"), // JSON: pre-commitment entry rules
+  thesisChangeConditions: text("thesis_change_conditions"), // JSON: invalidation rules
+  reviewTriggers: text("review_triggers"), // JSON: review trigger rules
+  notes: text("notes"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export const thesisSignals = sqliteTable("thesis_signals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  asset: text("asset").notNull(),
+  signalData: text("signal_data").notNull(), // JSON: all evaluated signals
+  overallScore: integer("overall_score").notNull(), // 0-100
+  entryMet: integer("entry_met").default(0), // boolean
+  changeMet: integer("change_met").default(0), // boolean
+  reviewMet: integer("review_met").default(0), // boolean
+  snapshotAt: text("snapshot_at").default(sql`(datetime('now'))`),
+});
+
+export const THESIS_DECISION_TYPES = ["entry", "add", "trim", "exit", "hold", "review"] as const;
+export type ThesisDecisionType = (typeof THESIS_DECISION_TYPES)[number];
+
+export const thesisDecisionLog = sqliteTable("thesis_decision_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  asset: text("asset").notNull(),
+  decisionType: text("decision_type").notNull(), // entry, add, trim, exit, hold, review
+  reasoning: text("reasoning"),
+  signalSnapshotId: integer("signal_snapshot_id").references(() => thesisSignals.id),
+  priceAtDecision: real("price_at_decision"),
+  quantity: text("quantity"), // e.g., "2% GLD", "5 shares"
+  emotionalState: text("emotional_state"), // calm, anxious, excited, fearful
+  tradeJournalId: integer("trade_journal_id").references(() => tradeJournal.id),
+  outcome: text("outcome"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+// ============================================================================
+// CFTC Commitment of Traders
+// ============================================================================
+
+export const cftcPositions = sqliteTable("cftc_positions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reportDate: text("report_date").notNull(),
+  commodity: text("commodity").notNull(), // gold, silver, crude_oil, sp500
+  noncommercialLong: real("noncommercial_long"),
+  noncommercialShort: real("noncommercial_short"),
+  netSpeculative: real("net_speculative"), // long - short
+  commercialLong: real("commercial_long"),
+  commercialShort: real("commercial_short"),
+  openInterest: real("open_interest"),
+  source: text("source").default("cftc"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type ThesisConfig = typeof thesisConfigs.$inferSelect;
+export type NewThesisConfig = typeof thesisConfigs.$inferInsert;
+
+export type ThesisSignal = typeof thesisSignals.$inferSelect;
+export type NewThesisSignal = typeof thesisSignals.$inferInsert;
+
+export type ThesisDecisionLogEntry = typeof thesisDecisionLog.$inferSelect;
+export type NewThesisDecisionLogEntry = typeof thesisDecisionLog.$inferInsert;
+
+export type CftcPosition = typeof cftcPositions.$inferSelect;
+export type NewCftcPosition = typeof cftcPositions.$inferInsert;

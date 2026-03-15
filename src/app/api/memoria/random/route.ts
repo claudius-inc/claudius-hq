@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, memoriaEntries } from "@/db";
 import { eq, sql, and, or, isNull, lt } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
       .toISOString()
       .replace("T", " ")

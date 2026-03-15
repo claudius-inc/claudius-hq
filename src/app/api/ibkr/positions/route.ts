@@ -1,4 +1,3 @@
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { NextRequest } from "next/server";
 import { NextResponse } from 'next/server';
 import { db, ibkrPositions, ibkrPortfolioMeta, ibkrTrades } from '@/db';
@@ -27,9 +26,7 @@ const FX_PAIRS: Record<string, string> = {
 };
 
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
     // Get portfolio meta
     const [meta] = await db.select().from(ibkrPortfolioMeta).where(eq(ibkrPortfolioMeta.id, 1));
     const portfolioTotalRealizedPnlBase = Number(meta?.totalRealizedPnlBase || 0);

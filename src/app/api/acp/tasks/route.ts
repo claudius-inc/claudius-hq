@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { acpTasks, ACP_PILLARS, ACP_TASK_STATUSES } from "@/db/schema";
 import { desc, eq, and } from "drizzle-orm";
@@ -16,9 +15,7 @@ function checkAuth(req: NextRequest): boolean {
 
 // GET: Fetch tasks (optional filters: pillar, status)
 export async function GET(req: NextRequest) {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { searchParams } = new URL(req.url);
     const pillar = searchParams.get("pillar");
     const status = searchParams.get("status");

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { acpOfferingExperiments, acpOfferingMetrics } from "@/db/schema";
 import { desc, eq, and, gte, lte, sql } from "drizzle-orm";
@@ -16,9 +15,7 @@ function checkAuth(req: NextRequest): boolean {
 
 // GET: Fetch all experiments with optional filters
 export async function GET(req: NextRequest) {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
     const offeringId = searchParams.get("offering_id");

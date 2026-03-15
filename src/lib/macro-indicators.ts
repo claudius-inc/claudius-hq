@@ -99,7 +99,51 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
     affectedAssets: ["Banks (positive slope helps)", "Cyclicals", "Recession hedges"],
   },
   
+  {
+    id: "tips-10y",
+    name: "10Y TIPS Yield (Real)",
+    fredCode: "DFII10",
+    category: "rates",
+    unit: "%",
+    frequency: "daily",
+    description: "The yield on 10-year Treasury Inflation-Protected Securities. Represents the real (inflation-adjusted) cost of borrowing for the US government.",
+    whyItMatters: "The #1 driver of gold prices. Negative real yields mean bondholders are guaranteed to lose purchasing power, making gold (which pays no yield) relatively attractive. When TIPS yields rise above ~1.5-2%, gold faces significant headwinds.",
+    ranges: [
+      { label: "Deeply Negative", min: null, max: -0.5, meaning: "Financial repression", marketImpact: "Very bullish for gold, negative real returns on bonds" },
+      { label: "Negative", min: -0.5, max: 0, meaning: "Mildly negative real rates", marketImpact: "Supportive for gold and real assets" },
+      { label: "Low Positive", min: 0, max: 1, meaning: "Modest real return on bonds", marketImpact: "Neutral for gold, watch direction" },
+      { label: "Moderate", min: 1, max: 2, meaning: "Meaningful real return available", marketImpact: "Headwind for gold, opportunity cost rises" },
+      { label: "Restrictive", min: 2, max: null, meaning: "High real rates, tight conditions", marketImpact: "Strong headwind for gold, thesis change trigger" },
+    ],
+    keyLevels: [
+      { level: 0, significance: "Gold inflection point — negative = bullish" },
+      { level: 2, significance: "Thesis change trigger — gold headwind zone" },
+    ],
+    affectedAssets: ["Gold (inverse)", "Silver (inverse)", "TIPS", "Real assets"],
+  },
+
   // === INFLATION ===
+  {
+    id: "5y5y-breakeven",
+    name: "5Y5Y Forward Breakeven",
+    fredCode: "T5YIFR",
+    category: "inflation",
+    unit: "%",
+    frequency: "daily",
+    description: "The 5-year forward inflation expectation rate starting 5 years from now. The Fed's preferred measure of long-term inflation expectations.",
+    whyItMatters: "Shows where markets expect inflation to be 5-10 years out. Above 2.5% signals inflation expectations are becoming unanchored — bullish for gold as a monetary debasement hedge. Below 2% suggests deflation risk.",
+    ranges: [
+      { label: "Anchored Low", min: null, max: 2, meaning: "Below Fed target, deflation risk", marketImpact: "Fed may ease, mixed for gold" },
+      { label: "Target", min: 2, max: 2.5, meaning: "At Fed's comfort zone", marketImpact: "Neutral, expectations well-anchored" },
+      { label: "Elevated", min: 2.5, max: 3, meaning: "Above target, debasement concerns", marketImpact: "Supports gold thesis, inflation hedge demand" },
+      { label: "Unanchored", min: 3, max: null, meaning: "Expectations de-anchoring", marketImpact: "Very bullish for gold and inflation hedges" },
+    ],
+    keyLevels: [
+      { level: 2, significance: "Fed's 2% target" },
+      { level: 2.5, significance: "Gold support threshold — above here bullish" },
+    ],
+    affectedAssets: ["Gold", "TIPS", "Commodities", "Inflation hedges"],
+  },
   {
     id: "cpi",
     name: "CPI Inflation (YoY)",

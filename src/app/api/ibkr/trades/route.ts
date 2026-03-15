@@ -1,4 +1,3 @@
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ibkrTrades } from '@/db';
 import { eq, desc, sql, count } from 'drizzle-orm';
@@ -7,9 +6,7 @@ import { logger } from "@/lib/logger";
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
     const { searchParams } = new URL(request.url);
     const symbol = searchParams.get('symbol');
     const limit = parseInt(searchParams.get('limit') || '100');

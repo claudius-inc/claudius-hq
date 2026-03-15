@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { revalidatePath } from "next/cache";
 import { db, ideas } from "@/db";
 import { and, desc, eq } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const potential = searchParams.get("potential");

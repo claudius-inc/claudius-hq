@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { acpCompetitors, acpCompetitorSnapshots } from "@/db/schema";
 import { desc, eq, and } from "drizzle-orm";
@@ -24,9 +23,7 @@ function checkAuth(req: NextRequest): boolean {
  *   - limit: max results (default 50)
  */
 export async function GET(req: NextRequest) {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category");
     const active = searchParams.get("active");

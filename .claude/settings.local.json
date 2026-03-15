@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(head:*)",
+      "Bash(grep:*)",
+      "Bash(tail:*)",
+      "Bash(npx tsc:*)",
+      "Bash(for f:*)"
+    ]
+  }
+}

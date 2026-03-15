@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, memoriaEntries, memoriaInsights } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import { analyzePatterns, analyzeConnections, analyzeDistillation } from "@/lib/gemini";
@@ -7,9 +6,7 @@ import { logger } from "@/lib/logger";
 
 // GET /api/memoria/insights — List all insights
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
     const insights = await db
       .select()
       .from(memoriaInsights)

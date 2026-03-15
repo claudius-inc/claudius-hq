@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { acpMarketing } from "@/db/schema";
 import { desc } from "drizzle-orm";
@@ -15,9 +14,7 @@ function checkAuth(req: NextRequest): boolean {
 
 // GET: Fetch all marketing campaigns
 export async function GET(_req: NextRequest) {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
   try {
-  if (!checkApiAuth(_req)) return unauthorizedResponse();
     const campaigns = await db
       .select()
       .from(acpMarketing)
