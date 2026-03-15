@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { cftcPositions } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -12,8 +11,6 @@ const CFTC_URL = "https://www.cftc.gov/dea/newcot/deacmesf.txt";
 
 // POST /api/cftc/sync — Fetch and parse latest CFTC data
 export async function POST(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
-
   try {
     logger.info("api/cftc/sync", "Starting CFTC data sync");
 

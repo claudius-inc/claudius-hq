@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { thesisDecisionLog, thesisSignals } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
@@ -14,8 +13,6 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ asset: string }> },
 ) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
-
   const { asset } = await params;
 
   try {
@@ -94,8 +91,6 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ asset: string }> },
 ) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
-
   const { asset } = await params;
 
   try {

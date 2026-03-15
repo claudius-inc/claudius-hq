@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { cftcPositions } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -9,8 +8,6 @@ export const dynamic = "force-dynamic";
 
 // GET /api/cftc?commodity=gold — latest CFTC positions + last 52 weeks for percentile
 export async function GET(request: NextRequest) {
-  if (!checkApiAuth(request)) return unauthorizedResponse();
-
   try {
     const commodity = request.nextUrl.searchParams.get("commodity");
 
