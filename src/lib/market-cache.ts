@@ -84,6 +84,17 @@ export async function setCache<T>(key: string, data: T): Promise<void> {
 }
 
 /**
+ * Delete cached data for a key (explicit invalidation)
+ */
+export async function clearCache(key: string): Promise<void> {
+  try {
+    await db.delete(marketCache).where(eq(marketCache.key, key));
+  } catch (e) {
+    logger.error("market-cache", `Cache clear error for ${key}`, { error: e });
+  }
+}
+
+/**
  * Get cached data or fetch fresh if missing/stale
  * Returns cached data immediately if available, triggers background refresh if stale
  */

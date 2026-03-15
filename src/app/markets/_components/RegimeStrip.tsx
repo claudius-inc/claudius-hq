@@ -1,7 +1,7 @@
 "use client";
 
 import { Skeleton } from "@/components/Skeleton";
-import { Landmark, ArrowRight, HelpCircle } from "lucide-react";
+import { Landmark, ArrowRight, HelpCircle, ChevronRight, TrendingUp, TrendingDown, Activity } from "lucide-react";
 import { RangePopover } from "@/components/ui/RangePopover";
 import {
   realYieldRanges,
@@ -9,14 +9,32 @@ import {
   deficitToGdpRanges,
 } from "./constants";
 import type { RegimeData } from "./types";
+import type { ExpectedReturnsResponse, SignalAlignment } from "@/lib/valuation/types";
 
 interface RegimeStripProps {
   regimeData: RegimeData | null;
   loading: { regime: boolean; sentiment: boolean };
   onOpenDetail?: () => void;
+  expectedReturns?: ExpectedReturnsResponse | null;
 }
 
-export function RegimeStrip({ regimeData, loading, onOpenDetail }: RegimeStripProps) {
+const alignmentStyles: Record<SignalAlignment, string> = {
+  "strong-buy": "bg-emerald-50 text-emerald-700",
+  "buy": "bg-emerald-50/50 text-emerald-600",
+  "mixed": "bg-amber-50 text-amber-700",
+  "sell": "bg-red-50/50 text-red-600",
+  "strong-sell": "bg-red-50 text-red-700",
+};
+
+const alignmentLabels: Record<SignalAlignment, string> = {
+  "strong-buy": "Strong Buy",
+  "buy": "Buy Signal",
+  "mixed": "Mixed",
+  "sell": "Sell Signal",
+  "strong-sell": "Strong Sell",
+};
+
+export function RegimeStrip({ regimeData, loading, onOpenDetail, expectedReturns }: RegimeStripProps) {
   return (
     <>
       <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4 h-full flex flex-col">
@@ -198,6 +216,50 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail }: RegimeStripPr
             )}
           </div>
         </button>
+
+        {/* Expected returns ranking + tactical summary */}
+        {!expectedReturns && (
+          <div className="mt-2 pt-2 border-t border-gray-100 space-y-1.5">
+            <Skeleton className="h-3 w-48 !bg-gray-50" />
+            <Skeleton className="h-5 w-64 !bg-gray-50 rounded" />
+          </div>
+        )}
+        {expectedReturns && expectedReturns.assets.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-100 space-y-1.5">
+            {/* Ranking strip */}
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] text-gray-400">Rank:</span>
+              {expectedReturns.relativeRanking.map((symbol, i) => (
+                <span key={symbol} className="flex items-center">
+                  <span className="text-[9px] font-medium text-gray-600">{symbol}</span>
+                  {i < expectedReturns.relativeRanking.length - 1 && (
+                    <ChevronRight className="w-2.5 h-2.5 text-gray-300" />
+                  )}
+                </span>
+              ))}
+              <span className="text-[9px] text-gray-300 ml-1">(10Y expected return)</span>
+            </div>
+
+            {/* Tactical summary */}
+            {expectedReturns.tacticalSummary && (
+              <div className={`flex items-center gap-1 px-2 py-1 rounded ${alignmentStyles[expectedReturns.tacticalSummary.alignment]}`}>
+                {expectedReturns.tacticalSummary.alignment.includes("buy") ? (
+                  <TrendingUp className="w-2.5 h-2.5" />
+                ) : expectedReturns.tacticalSummary.alignment.includes("sell") ? (
+                  <TrendingDown className="w-2.5 h-2.5" />
+                ) : (
+                  <Activity className="w-2.5 h-2.5" />
+                )}
+                <span className="text-[9px] font-semibold">
+                  {alignmentLabels[expectedReturns.tacticalSummary.alignment]}
+                </span>
+                <span className="text-[9px] opacity-70 truncate">
+                  &mdash; {expectedReturns.tacticalSummary.message}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </>
   );

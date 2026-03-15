@@ -23,52 +23,6 @@ interface EtfConfig {
 
 const MARKET_ETFS: EtfConfig[] = [
   {
-    ticker: "TLT",
-    name: "TLT (20+ Year Treasury Bonds)",
-    description:
-      "iShares 20+ Year Treasury Bond ETF. Tracks long-duration US government bonds. Inverse proxy for long-term yield expectations.",
-    whyItMatters:
-      "TLT falling = long-term yields rising = tighter financial conditions = headwind for growth stocks. TLT rising = yields dropping = either flight to safety or Fed dovishness. Watch TLT relative to its 52-week range for regime signals.",
-    ranges: [
-      {
-        label: "Bond Rally",
-        min: 94,
-        max: null,
-        meaning: "Yields dropping sharply — recession fears or Fed pivot",
-        color: "blue",
-      },
-      {
-        label: "Neutral",
-        min: 88,
-        max: 94,
-        meaning: "Range-bound — no strong conviction on rates",
-        color: "gray",
-      },
-      {
-        label: "Yield Pressure",
-        min: 83,
-        max: 88,
-        meaning: "Yields elevated — tight money, growth headwind",
-        color: "amber",
-      },
-      {
-        label: "Bond Selloff",
-        min: null,
-        max: 83,
-        meaning: "Yields surging — danger zone for all risk assets",
-        color: "red",
-      },
-    ],
-    affectedAssets: [
-      "Growth stocks",
-      "Real estate",
-      "Utilities",
-      "Mortgage rates",
-      "Corporate bonds",
-    ],
-    invertedSignal: true,
-  },
-  {
     ticker: "ITA",
     name: "ITA (Aerospace & Defense)",
     description:

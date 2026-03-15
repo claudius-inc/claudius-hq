@@ -64,6 +64,8 @@ export interface AssetValuation {
   name: string;
   /** Current price (USD) */
   price: number;
+  /** Daily change percent */
+  changePercent?: number;
   /** Valuation metrics */
   valuation: ValuationMetric;
   /** Expected returns based on valuation */

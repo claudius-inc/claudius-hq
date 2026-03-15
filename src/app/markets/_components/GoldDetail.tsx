@@ -1,13 +1,11 @@
 "use client";
 
-import useSWR, { mutate } from "swr";
 import { useState } from "react";
+import useSWR from "swr";
 import { Modal } from "@/components/ui/Modal";
 import {
-  TrendingUp,
-  TrendingDown,
-  Plus,
   AlertTriangle,
+  ChevronDown,
   Info,
 } from "lucide-react";
 import type { EvaluatedSignal, SignalRating, CompositeRating, RuleEvaluation } from "@/lib/thesis/types";
@@ -82,14 +80,6 @@ const RATING_CONFIG: Record<SignalRating, { label: string; color: string; icon: 
   "strong-bearish": { label: "Bearish", color: "text-red-600 bg-red-50 border-red-200", icon: "!!" },
 };
 
-const COMPOSITE_CONFIG: Record<CompositeRating, { label: string; color: string }> = {
-  "strong-buy": { label: "ACCUMULATE", color: "text-emerald-700 bg-emerald-100" },
-  buy: { label: "ACCUMULATE", color: "text-emerald-600 bg-emerald-50" },
-  neutral: { label: "HOLD", color: "text-gray-600 bg-gray-100" },
-  caution: { label: "CAUTION", color: "text-amber-600 bg-amber-50" },
-  avoid: { label: "AVOID", color: "text-red-600 bg-red-50" },
-};
-
 function formatSignalValue(value: number | null, unit: string): string {
   if (value === null) return "--";
   if (unit === "%") return `${value.toFixed(1)}%`;
@@ -99,47 +89,73 @@ function formatSignalValue(value: number | null, unit: string): string {
   return value.toFixed(2);
 }
 
+// ── Structural / Tactical Scoring ─────────────────────────────────
+
+const STRUCTURAL_IDS = ["cb-demand", "m2-growth", "deficit-gdp"];
+const TACTICAL_IDS = ["tips-yield", "dxy", "etf-flow-momentum"];
+
+type ThesisStatus = "INTACT" | "WEAKENING" | "BROKEN";
+type TimingStatus = "BUY" | "HOLD" | "WAIT";
+
+function computeGroupScore(signals: EvaluatedSignal[], ids: string[]): number {
+  let totalWeight = 0;
+  let totalWeightedScore = 0;
+  for (const id of ids) {
+    const s = signals.find((sig) => sig.id === id);
+    if (s && s.currentValue !== null) {
+      totalWeight += s.weight;
+      totalWeightedScore += s.score * s.weight;
+    }
+  }
+  return totalWeight > 0 ? totalWeightedScore / totalWeight : 50;
+}
+
+function getThesisStatus(score: number): ThesisStatus {
+  if (score >= 55) return "INTACT";
+  if (score >= 30) return "WEAKENING";
+  return "BROKEN";
+}
+
+function getTimingStatus(score: number): TimingStatus {
+  if (score >= 65) return "BUY";
+  if (score >= 40) return "HOLD";
+  return "WAIT";
+}
+
+const THESIS_STATUS_CONFIG: Record<ThesisStatus, { color: string; bg: string }> = {
+  INTACT: { color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+  WEAKENING: { color: "text-amber-700", bg: "bg-amber-50 border-amber-200" },
+  BROKEN: { color: "text-red-700", bg: "bg-red-50 border-red-200" },
+};
+
+const TIMING_STATUS_CONFIG: Record<TimingStatus, { color: string; bg: string }> = {
+  BUY: { color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
+  HOLD: { color: "text-gray-700", bg: "bg-gray-50 border-gray-200" },
+  WAIT: { color: "text-amber-700", bg: "bg-amber-50 border-amber-200" },
+};
+
 // ── Synthesis Generator ───────────────────────────────────────────
 
-function generateSynthesis(signals: EvaluatedSignal[]): string {
-  const cbSignal = signals.find((s) => s.id === "cb-demand");
-  const tipsSignal = signals.find((s) => s.id === "tips-yield");
-  const dxySignal = signals.find((s) => s.id === "dxy");
-  const m2Signal = signals.find((s) => s.id === "m2-growth");
+const SYNTHESIS_MATRIX: Record<ThesisStatus, Record<TimingStatus, string>> = {
+  INTACT: {
+    BUY: "Structural bull intact and tactical window open. Accumulation environment.",
+    HOLD: "Bull thesis intact but tactical signals mixed. Hold, wait for better entry to add.",
+    WAIT: "Bull thesis intact but tactical headwinds. Hold existing, don\u2019t add until timing improves.",
+  },
+  WEAKENING: {
+    BUY: "Structural cracks appearing but tactical window open. Smaller sizes warranted.",
+    HOLD: "Thesis weakening with mixed timing. Review position sizing.",
+    WAIT: "Thesis weakening and tactical headwinds. Consider trimming on rallies.",
+  },
+  BROKEN: {
+    BUY: "Structural thesis broken. Exit plan triggered.",
+    HOLD: "Structural thesis broken. Exit plan triggered.",
+    WAIT: "Structural thesis broken. Exit plan triggered.",
+  },
+};
 
-  const cbBullish = cbSignal && ["strong-bullish", "bullish"].includes(cbSignal.rating);
-  const tipsBearish = tipsSignal && ["bearish", "strong-bearish"].includes(tipsSignal.rating);
-  const dxyBullish = dxySignal && ["strong-bullish", "bullish"].includes(dxySignal.rating);
-  const m2Bullish = m2Signal && ["strong-bullish", "bullish"].includes(m2Signal.rating);
-
-  // CB buying overriding real yields headwind
-  if (cbBullish && tipsBearish) {
-    return "CB buying (1000T+/yr) overriding real yield headwind. Secular bull intact.";
-  }
-
-  // All bullish
-  if (cbBullish && !tipsBearish && dxyBullish && m2Bullish) {
-    return "All macro drivers aligned bullish. Strong accumulation environment.";
-  }
-
-  // Dollar weakness driving
-  if (dxyBullish && !cbBullish) {
-    return "Dollar weakness supporting gold. Watch for CB demand confirmation.";
-  }
-
-  // Mixed signals
-  const bullishCount = signals.filter((s) => ["strong-bullish", "bullish"].includes(s.rating)).length;
-  const bearishCount = signals.filter((s) => ["bearish", "strong-bearish"].includes(s.rating)).length;
-
-  if (bullishCount > bearishCount) {
-    return "Net bullish signal mix. Secular bull continues with near-term crosscurrents.";
-  }
-
-  if (bearishCount > bullishCount) {
-    return "Caution: More headwinds than tailwinds. Watch for thesis deterioration.";
-  }
-
-  return "Mixed signals. Hold existing position, no new adds.";
+function generateSynthesis(thesis: ThesisStatus, timing: TimingStatus): string {
+  return SYNTHESIS_MATRIX[thesis][timing];
 }
 
 // ── CFTC Warning Badge ────────────────────────────────────────────
@@ -170,90 +186,6 @@ function CftcWarningBadge({ signal }: { signal: EvaluatedSignal | undefined }) {
   );
 }
 
-// ── Key Ratios with Health Colors ─────────────────────────────────
-
-interface RatioHealth {
-  color: string;
-  label: string;
-}
-
-function getRatioHealth(key: string, value: number): RatioHealth {
-  switch (key) {
-    case "dowGold":
-      // Higher = gold cheap relative to stocks
-      if (value > 8) return { color: "border-emerald-300 bg-emerald-50", label: "Gold cheap" };
-      if (value < 4) return { color: "border-red-300 bg-red-50", label: "Gold expensive" };
-      return { color: "border-amber-300 bg-amber-50", label: "Fair value" };
-    case "goldSilver":
-      // Higher = silver cheap relative to gold
-      if (value > 80) return { color: "border-emerald-300 bg-emerald-50", label: "Silver cheap" };
-      if (value < 50) return { color: "border-red-300 bg-red-50", label: "Silver rich" };
-      return { color: "border-amber-300 bg-amber-50", label: "Normal" };
-    case "m2Gold":
-      // Higher = gold cheap relative to money supply
-      if (value > 5) return { color: "border-emerald-300 bg-emerald-50", label: "Gold cheap" };
-      if (value < 3) return { color: "border-red-300 bg-red-50", label: "Gold expensive" };
-      return { color: "border-amber-300 bg-amber-50", label: "Fair value" };
-    default:
-      return { color: "border-gray-200 bg-gray-50", label: "" };
-  }
-}
-
-const RATIO_INFO: Record<string, { label: string; peakLabel: string; peak: number; desc: string }> = {
-  dowGold: {
-    label: "Dow / Gold",
-    peakLabel: "1980 peak",
-    peak: 1.29,
-    desc: "Lower = gold outperforming stocks. Hit 1.3 at 1980 peak.",
-  },
-  goldSilver: {
-    label: "Gold / Silver",
-    peakLabel: "1980 peak",
-    peak: 17,
-    desc: "High ratio = silver cheap vs gold. Compresses in mania phases.",
-  },
-  m2Gold: {
-    label: "M2 / Gold",
-    peakLabel: "1980 peak",
-    peak: 2.5,
-    desc: "How much money supply per oz of gold. Lower = gold expensive vs money supply.",
-  },
-};
-
-function RatiosGrid({ ratios }: { ratios: GoldData["ratios"] }) {
-  if (!ratios) return null;
-  const entries = Object.entries(ratios).filter(([, v]) => v !== null) as [string, number][];
-  if (entries.length === 0) return null;
-
-  return (
-    <div>
-      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-2">
-        Key Ratios (Live)
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {entries.map(([key, value]) => {
-          const info = RATIO_INFO[key];
-          if (!info) return null;
-          const health = getRatioHealth(key, value);
-          return (
-            <div key={key} className={`rounded-lg p-2.5 border-2 ${health.color}`}>
-              <div className="text-[10px] text-gray-500 mb-0.5">{info.label}</div>
-              <div className="text-sm font-bold text-gray-900 font-mono">{value.toFixed(1)}</div>
-              {health.label && (
-                <div className="text-[9px] font-medium text-gray-600 mt-0.5">
-                  {health.label}
-                </div>
-              )}
-              <div className="text-[9px] text-gray-400 mt-0.5">
-                {info.peakLabel}: {info.peak}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // ── Signal Explanations & Triggers ────────────────────────────────
 
@@ -423,9 +355,10 @@ function TrendArrow({ signal }: { signal: EvaluatedSignal }) {
   );
 }
 
-// ── Signal Row with Trigger ───────────────────────────────────────
+// ── Expandable Signal Row ─────────────────────────────────────────
 
-function SignalRow({ signal }: { signal: EvaluatedSignal }) {
+function ExpandableSignalRow({ signal }: { signal: EvaluatedSignal }) {
+  const [expanded, setExpanded] = useState(false);
   const cfg = RATING_CONFIG[signal.rating];
   const friendlyName = SIGNAL_FRIENDLY_NAME[signal.id] ?? signal.name;
   const explanation = getExplanation(signal);
@@ -433,36 +366,86 @@ function SignalRow({ signal }: { signal: EvaluatedSignal }) {
   const showRealYieldsNote = signal.id === "tips-yield" && ["bearish", "strong-bearish"].includes(signal.rating);
 
   return (
-    <div className="py-2 px-2.5 rounded-lg hover:bg-gray-50">
-      <div className="flex items-center justify-between">
+    <div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between py-1.5 px-2 rounded hover:bg-gray-50 text-left"
+      >
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-semibold text-gray-900">{friendlyName}</span>
-          <span className="text-xs text-gray-500 font-mono">
+          <span className="text-[11px] font-medium text-gray-800">{friendlyName}</span>
+          <span className="text-[11px] text-gray-500 font-mono">
             {formatSignalValue(signal.currentValue, signal.unit)}
           </span>
           <TrendArrow signal={signal} />
         </div>
-        <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium shrink-0 ${cfg.color}`}>
-          {cfg.label}
-        </span>
-      </div>
-      <div className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">
-        {explanation}
-      </div>
-      {trigger && (
-        <div className="text-[9px] text-blue-600 mt-0.5 font-medium">
-          {trigger}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${cfg.color}`}>
+            {cfg.label}
+          </span>
+          <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        </div>
+      </button>
+      {expanded && (
+        <div className="px-2 pb-2">
+          <div className="text-[10px] text-gray-500 leading-relaxed">
+            {explanation}
+          </div>
+          {trigger && (
+            <div className="text-[9px] text-blue-600 mt-0.5 font-medium">
+              {trigger}
+            </div>
+          )}
+          {showRealYieldsNote && (
+            <div className="flex items-start gap-1 mt-1.5 p-1.5 bg-blue-50 rounded border border-blue-100">
+              <Info className="w-3 h-3 text-blue-500 mt-0.5 shrink-0" />
+              <span className="text-[9px] text-blue-700 leading-tight">
+                Note: Gold has rallied despite positive real yields since 2022 because central bank buying has been the dominant driver.
+              </span>
+            </div>
+          )}
+          <SignalRangeBar signal={signal} />
         </div>
       )}
-      {showRealYieldsNote && (
-        <div className="flex items-start gap-1 mt-1.5 p-1.5 bg-blue-50 rounded border border-blue-100">
-          <Info className="w-3 h-3 text-blue-500 mt-0.5 shrink-0" />
-          <span className="text-[9px] text-blue-700 leading-tight">
-            Note: Gold has rallied despite positive real yields since 2022 because central bank buying has been the dominant driver.
+    </div>
+  );
+}
+
+// ── Assessment Card ───────────────────────────────────────────────
+
+function AssessmentCard({
+  title,
+  question,
+  status,
+  statusConfig,
+  signals,
+  score,
+}: {
+  title: string;
+  question: string;
+  status: string;
+  statusConfig: { color: string; bg: string };
+  signals: EvaluatedSignal[];
+  score: number;
+}) {
+  return (
+    <div className="rounded-lg border bg-white p-3">
+      <div className="flex items-start justify-between mb-1">
+        <div>
+          <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{title}</div>
+          <div className="text-[10px] text-gray-500 italic">{question}</div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[10px] text-gray-400 font-mono">{Math.round(score)}</span>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded border ${statusConfig.bg} ${statusConfig.color}`}>
+            {status}
           </span>
         </div>
-      )}
-      <SignalRangeBar signal={signal} />
+      </div>
+      <div className="space-y-0">
+        {signals.map((s) => (
+          <ExpandableSignalRow key={s.id} signal={s} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -503,166 +486,12 @@ function PreCommitmentRow({ rule }: { rule: RuleEvaluation }) {
   );
 }
 
-// ── Decision Log Form ──────────────────────────────────────────────
-
-function DecisionForm({ goldPrice, onSubmit }: { goldPrice: number | null; onSubmit: () => void }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    decisionType: "add",
-    priceAtDecision: goldPrice?.toString() ?? "",
-    quantity: "",
-    reasoning: "",
-    emotionalState: "calm",
-  });
-
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => {
-          setForm((f) => ({ ...f, priceAtDecision: goldPrice?.toString() ?? "" }));
-          setIsOpen(true);
-        }}
-        className="flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-700 font-medium mt-1"
-      >
-        <Plus className="w-3 h-3" /> Log Decision
-      </button>
-    );
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    try {
-      await fetch("/api/thesis/gold/decision", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          priceAtDecision: form.priceAtDecision ? parseFloat(form.priceAtDecision) : null,
-        }),
-      });
-      setIsOpen(false);
-      setForm({ decisionType: "add", priceAtDecision: "", quantity: "", reasoning: "", emotionalState: "calm" });
-      onSubmit();
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="mt-2 space-y-2 bg-gray-50 rounded-lg p-3 border border-gray-200">
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] text-gray-500 block mb-0.5">Type</label>
-          <select
-            value={form.decisionType}
-            onChange={(e) => setForm((f) => ({ ...f, decisionType: e.target.value }))}
-            className="w-full text-xs border rounded px-2 py-1 bg-white"
-          >
-            {["entry", "add", "trim", "exit", "review"].map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="text-[10px] text-gray-500 block mb-0.5">Price</label>
-          <input
-            type="number"
-            value={form.priceAtDecision}
-            onChange={(e) => setForm((f) => ({ ...f, priceAtDecision: e.target.value }))}
-            className="w-full text-xs border rounded px-2 py-1"
-            placeholder="Price"
-            step="0.01"
-          />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div>
-          <label className="text-[10px] text-gray-500 block mb-0.5">Quantity</label>
-          <input
-            type="text"
-            value={form.quantity}
-            onChange={(e) => setForm((f) => ({ ...f, quantity: e.target.value }))}
-            className="w-full text-xs border rounded px-2 py-1"
-            placeholder="e.g., 2% GLD"
-          />
-        </div>
-        <div>
-          <label className="text-[10px] text-gray-500 block mb-0.5">Emotional State</label>
-          <select
-            value={form.emotionalState}
-            onChange={(e) => setForm((f) => ({ ...f, emotionalState: e.target.value }))}
-            className="w-full text-xs border rounded px-2 py-1 bg-white"
-          >
-            {["calm", "anxious", "excited", "fearful"].map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div>
-        <label className="text-[10px] text-gray-500 block mb-0.5">Reasoning</label>
-        <textarea
-          value={form.reasoning}
-          onChange={(e) => setForm((f) => ({ ...f, reasoning: e.target.value }))}
-          className="w-full text-xs border rounded px-2 py-1 h-14 resize-none"
-          placeholder="Why this decision?"
-        />
-      </div>
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          disabled={submitting}
-          className="text-[10px] px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-          {submitting ? "Saving..." : "Save"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setIsOpen(false)}
-          className="text-[10px] px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-}
-
-// ── Historical Cycles ─────────────────────────────────────────────
-
-function HistoricalCycles({ currentReturn }: { currentReturn: number | null }) {
-  const cycles = [
-    { era: "1970s", range: "$35 -> $850", pct: 2329, driver: "Nixon shock, inflation" },
-    { era: "2000s", range: "$255 -> $1,921", pct: 653, driver: "GFC, QE" },
-    { era: "Current", range: "$1,050 -> ?", pct: currentReturn, driver: "De-dollarization, fiscal dominance" },
-  ];
-
-  return (
-    <div>
-      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-2">
-        Historical Bull Markets
-      </div>
-      <div className="space-y-1">
-        {cycles.map((c, i) => (
-          <div key={i} className="flex items-center gap-3 px-2 py-1.5 text-[10px]">
-            <span className="font-semibold text-gray-700 w-14 shrink-0">{c.era}</span>
-            <span className="font-mono text-gray-500 w-28 shrink-0">{c.range}</span>
-            <span className="font-mono font-bold text-emerald-600 w-14 shrink-0 text-right">
-              {c.pct !== null ? `+${Math.round(c.pct)}%` : "--"}
-            </span>
-            <span className="text-gray-400 truncate">{c.driver}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ── Main Component ─────────────────────────────────────────────────
 
 export function GoldDetail({ open, onClose }: GoldDetailProps) {
+  const [rulesExpanded, setRulesExpanded] = useState(false);
+
   const { data: goldData, isLoading: goldLoading } = useSWR<GoldData>(
     open ? "/api/gold" : null,
     fetcher,
@@ -676,22 +505,31 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
   const goldPrice = goldData?.livePrice ?? null;
   const goldAth = goldData?.analysis?.ath ?? null;
   const athDist = goldPrice && goldAth ? ((goldPrice - goldAth) / goldAth) * 100 : null;
-  const bullStartPrice = 1050;
-  const currentReturn = goldPrice ? ((goldPrice - bullStartPrice) / bullStartPrice) * 100 : null;
 
-  // Filter signals: exclude warning-only signals from main display
-  const scoredSignals = thesisData?.signals.filter((s) => s.category !== "warning") ?? [];
-  const cftcSignal = thesisData?.signals.find((s) => s.id === "cftc-net-spec");
+  const allSignals = thesisData?.signals ?? [];
+  const cftcSignal = allSignals.find((s) => s.id === "cftc-net-spec");
 
-  // Generate synthesis line
-  const synthesis = thesisData ? generateSynthesis(thesisData.signals) : null;
+  // Compute structural & tactical scores
+  const structuralScore = computeGroupScore(allSignals, STRUCTURAL_IDS);
+  const tacticalScore = computeGroupScore(allSignals, TACTICAL_IDS);
+  const thesisStatus = getThesisStatus(structuralScore);
+  const timingStatus = getTimingStatus(tacticalScore);
+
+  const structuralSignals = STRUCTURAL_IDS.map((id) => allSignals.find((s) => s.id === id)).filter(Boolean) as EvaluatedSignal[];
+  const tacticalSignals = TACTICAL_IDS.map((id) => allSignals.find((s) => s.id === id)).filter(Boolean) as EvaluatedSignal[];
+
+  const synthesis = thesisData ? generateSynthesis(thesisStatus, timingStatus) : null;
+
+  // Pre-commitment summary
+  const rules = thesisData?.preCommitment?.rules ?? [];
+  const rulesSummary = rules.map((r) => `${r.type.charAt(0).toUpperCase() + r.type.slice(1)}: ${r.metCount}/${r.totalCount}`).join(" · ");
 
   const isLoading = goldLoading || thesisLoading;
 
   return (
     <Modal open={open} onClose={onClose} title="Gold Analysis" size="lg">
-      <div className="space-y-5">
-        {/* 1. Price Card with Composite Score + Synthesis */}
+      <div className="space-y-4">
+        {/* 1. Price Card */}
         <div className="rounded-lg border bg-gradient-to-br from-amber-50 to-yellow-50 p-4">
           <div className="flex justify-between items-start">
             <div>
@@ -703,18 +541,8 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
               ) : (
                 <div className="text-2xl font-bold text-gray-400">--</div>
               )}
-              {currentReturn !== null && (
-                <div className="text-[10px] text-amber-700 mt-0.5">
-                  +{Math.round(currentReturn)}% from 2015 cycle start
-                </div>
-              )}
             </div>
             <div className="text-right space-y-1">
-              {thesisData && (
-                <div className={`inline-block text-sm font-bold px-3 py-1.5 rounded ${COMPOSITE_CONFIG[thesisData.compositeRating].color}`}>
-                  {thesisData.compositeScore}/100 - {COMPOSITE_CONFIG[thesisData.compositeRating].label}
-                </div>
-              )}
               {goldData?.gld && (
                 <div className={`text-xs font-medium ${goldData.gld.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}>
                   GLD {goldData.gld.changePercent >= 0 ? "+" : ""}{goldData.gld.changePercent.toFixed(2)}%
@@ -727,93 +555,70 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
               )}
             </div>
           </div>
-          
+
           {/* Synthesis Line */}
           {synthesis && (
             <div className="mt-3 text-xs text-gray-700 font-medium bg-white/60 rounded px-2.5 py-1.5 border border-amber-200">
               {synthesis}
             </div>
           )}
-          
+
           {/* CFTC Warning Badge */}
           <div className="mt-2">
             <CftcWarningBadge signal={cftcSignal} />
           </div>
         </div>
 
-        {/* 2. Signal Panel - scored signals with triggers */}
+        {/* 2. Two Assessment Cards */}
         {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-6 bg-gray-100 rounded animate-pulse" />
+          <div className="grid grid-cols-2 gap-3">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-32 bg-gray-100 rounded-lg animate-pulse" />
             ))}
           </div>
-        ) : thesisData && scoredSignals.length > 0 ? (
-          <div>
-            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
-              Thesis Signals
-            </div>
-            <div className="space-y-0.5">
-              {scoredSignals.map((s) => (
-                <SignalRow key={s.id} signal={s} />
-              ))}
-            </div>
+        ) : thesisData ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <AssessmentCard
+              title="Structural"
+              question="Is the bull thesis intact?"
+              status={thesisStatus}
+              statusConfig={THESIS_STATUS_CONFIG[thesisStatus]}
+              signals={structuralSignals}
+              score={structuralScore}
+            />
+            <AssessmentCard
+              title="Tactical"
+              question="Is now a good entry?"
+              status={timingStatus}
+              statusConfig={TIMING_STATUS_CONFIG[timingStatus]}
+              signals={tacticalSignals}
+              score={tacticalScore}
+            />
           </div>
         ) : null}
 
-        {/* 3. Key Ratios with health colors */}
-        <RatiosGrid ratios={goldData?.ratios ?? null} />
-
-        {/* 4. Historical Bull Markets */}
-        <HistoricalCycles currentReturn={currentReturn} />
-
-        {/* 5. Pre-Commitment Contract */}
+        {/* 3. Pre-Commitment Rules (collapsed by default) */}
         {thesisData?.preCommitment && (
-          <div>
-            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
-              Pre-Commitment Rules
-            </div>
-            <div className="space-y-0.5 border rounded-lg py-1">
-              {thesisData.preCommitment.rules.map((rule, i) => (
-                <PreCommitmentRow key={i} rule={rule} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 6. Recent Decisions */}
-        {thesisData && (
-          <div>
-            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
-              Recent Decisions
-            </div>
-            {thesisData.recentDecisions.length > 0 ? (
-              <div className="space-y-1">
-                {thesisData.recentDecisions.map((d) => (
-                  <div key={d.id} className="flex items-center gap-2 text-[10px] px-2 py-1 rounded hover:bg-gray-50">
-                    <span className="text-gray-400 w-14 shrink-0">
-                      {d.createdAt ? new Date(d.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "--"}
-                    </span>
-                    <span className="font-medium text-gray-700 capitalize w-10">{d.decisionType}</span>
-                    {d.quantity && <span className="text-gray-500">{d.quantity}</span>}
-                    {d.priceAtDecision && (
-                      <span className="text-gray-400 font-mono">{formatUsd(d.priceAtDecision)}</span>
-                    )}
-                    {d.reasoning && (
-                      <span className="text-gray-400 truncate flex-1" title={d.reasoning}>
-                        &ldquo;{d.reasoning}&rdquo;
-                      </span>
-                    )}
-                  </div>
+          <div className="border rounded-lg">
+            <button
+              onClick={() => setRulesExpanded(!rulesExpanded)}
+              className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-gray-50 rounded-lg"
+            >
+              <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                Pre-Commitment Rules
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-500 font-mono">{rulesSummary}</span>
+                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${rulesExpanded ? "rotate-180" : ""}`} />
+              </div>
+            </button>
+            {rulesExpanded && (
+              <div className="space-y-0.5 py-1 border-t">
+                {rules.map((rule, i) => (
+                  <PreCommitmentRow key={i} rule={rule} />
                 ))}
               </div>
-            ) : (
-              <div className="text-[10px] text-gray-400 px-2">No decisions logged yet</div>
             )}
-            <DecisionForm
-              goldPrice={goldPrice}
-              onSubmit={() => mutate("/api/thesis/gold")}
-            />
           </div>
         )}
       </div>

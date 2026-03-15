@@ -11,8 +11,7 @@ import { Indicators } from "./_components/Indicators";
 import { HardAssets } from "./_components/HardAssets";
 import { RegimeDetail } from "./_components/RegimeDetail";
 import { PlaybookSection } from "./_components/playbook/PlaybookSection";
-import { ExpectedReturnsCard } from "./_components/ExpectedReturnsCard";
-// CorrelationMatrix is now embedded inside RegimeStrip
+import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
   Position,
   Summary,
@@ -42,6 +41,7 @@ export default function StocksDashboard() {
   const [congressData, setCongressData] = useState<CongressData | null>(null);
   const [insiderData, setInsiderData] = useState<InsiderData | null>(null);
   const [yieldSpreads, setYieldSpreads] = useState<YieldSpread[]>([]);
+  const [expectedReturns, setExpectedReturns] = useState<ExpectedReturnsResponse | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [regimeDetailOpen, setRegimeDetailOpen] = useState(false);
   const [loading, setLoading] = useState({
@@ -126,6 +126,11 @@ export default function StocksDashboard() {
       .catch(console.error)
       .finally(() => setLoading((prev) => ({ ...prev, insider: false })));
 
+    fetch("/api/valuation/expected-returns")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setExpectedReturns(data))
+      .catch(console.error);
+
     Promise.all([
       fetch("/api/macro").then((res) => (res.ok ? res.json() : null)),
       fetch("/api/gold").then((res) => (res.ok ? res.json() : null)),
@@ -164,14 +169,13 @@ export default function StocksDashboard() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-        {/* Regime + Expected Returns: side by side on desktop, stacked on mobile */}
-        <div className="col-span-full grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="col-span-full">
           <RegimeStrip
             regimeData={regimeData}
             loading={{ regime: loading.regime, sentiment: loading.sentiment }}
             onOpenDetail={() => setRegimeDetailOpen(true)}
+            expectedReturns={expectedReturns}
           />
-          <ExpectedReturnsCard />
         </div>
 
         <PlaybookSection
@@ -192,6 +196,7 @@ export default function StocksDashboard() {
             loading={loading.etfs}
             expandedIds={expandedIds}
             toggleExpanded={toggleExpanded}
+            expectedReturns={expectedReturns}
           />
           <SmartMoney
             congressData={congressData}
@@ -201,9 +206,7 @@ export default function StocksDashboard() {
           />
         </div>
 
-        <HardAssets />
-
-        {/* CorrelationMatrix is now inside RegimeStrip */}
+        <HardAssets expectedReturns={expectedReturns} />
 
         <Sentiment
           sentimentData={sentimentData}

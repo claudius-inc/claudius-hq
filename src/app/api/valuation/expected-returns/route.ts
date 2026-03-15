@@ -408,8 +408,9 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   const assets: AssetValuation[] = [];
 
   // Fetch all quote data in parallel
-  const [spyData, goldData, btcData, tnxData, vixData, irxData, m2] = await Promise.all([
+  const [spyData, gspcData, goldData, btcData, tnxData, vixData, irxData, m2] = await Promise.all([
     fetchQuote("SPY"),
+    fetchQuote("^GSPC"), // S&P 500 index value for display
     getGoldPrice(),
     fetchQuote("BTC-USD"),
     fetchQuote("^TNX"), // 10Y yield
@@ -467,7 +468,8 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
     assets.push({
       symbol: "SPY",
       name: "S&P 500",
-      price: Math.round(spyData.price * 100) / 100,
+      price: Math.round((gspcData?.price ?? spyData.price) * 100) / 100,
+      changePercent: gspcData?.changePercent ?? spyData.changePercent,
       valuation,
       expectedReturn,
       tactical,
