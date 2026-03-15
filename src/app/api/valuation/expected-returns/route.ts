@@ -414,13 +414,11 @@ interface GoldApiResponse {
 
 async function fetchGoldPrice(): Promise<{ price: number; sma200: number; sma50: number } | null> {
   try {
-    // Use internal gold API for accurate gold price
-    // Fix: proper URL construction with correct ternary precedence
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
-      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
-    const goldRes = await fetch(`${baseUrl}/api/gold`, { cache: "no-store" });
+    // Fetch gold futures directly from Yahoo Finance (GC=F)
+    const gcQuote = await yahooFinance.quote("GC=F") as QuoteResult;
+    const goldPrice = gcQuote?.regularMarketPrice;
     
-    if (!goldRes.ok) {
+    if (!goldPrice) {
       // Fallback to GLD ETF * 10
       const gldQuote = await fetchQuote("GLD");
       if (gldQuote) {
@@ -433,26 +431,12 @@ async function fetchGoldPrice(): Promise<{ price: number; sma200: number; sma50:
       return null;
     }
     
-    const goldData: GoldApiResponse = await goldRes.json();
-    if (!goldData.livePrice) {
-      // Fallback to GLD ETF * 10
-      const gldQuote = await fetchQuote("GLD");
-      if (gldQuote) {
-        return {
-          price: gldQuote.price * 10,
-          sma200: gldQuote.sma200 * 10,
-          sma50: gldQuote.sma50 * 10,
-        };
-      }
-      return null;
-    }
-    
-    // For SMAs, still use GLD ETF data scaled up
+    // For SMAs, use GLD ETF data scaled up (gold futures don't have good SMA data)
     const gldQuote = await fetchQuote("GLD");
     return {
-      price: goldData.livePrice,
-      sma200: gldQuote ? gldQuote.sma200 * 10 : goldData.livePrice,
-      sma50: gldQuote ? gldQuote.sma50 * 10 : goldData.livePrice,
+      price: goldPrice,
+      sma200: gldQuote ? gldQuote.sma200 * 10 : goldPrice,
+      sma50: gldQuote ? gldQuote.sma50 * 10 : goldPrice,
     };
   } catch (error) {
     logger.error("api/valuation/expected-returns", "Error fetching gold price", { error });
