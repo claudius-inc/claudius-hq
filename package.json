@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "postbuild": "npx tsx scripts/clear-cache.ts",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",

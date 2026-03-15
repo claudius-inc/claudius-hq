@@ -36,7 +36,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const CACHE_KEY = "valuation:expected-returns";
-const CACHE_MAX_AGE = 60 * 60; // 1 hour
+const CACHE_MAX_AGE = 15 * 60; // 15 minutes
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -643,31 +643,27 @@ export async function GET() {
     // Check cache first
     const cached = await getCache<ExpectedReturnsResponse>(CACHE_KEY, CACHE_MAX_AGE);
 
-    if (cached && !cached.isStale) {
+    // Stale-while-revalidate: return cached data immediately, refresh in background if stale
+    if (cached) {
+      if (cached.isStale) {
+        // Trigger background refresh (don't await)
+        fetchExpectedReturnsData()
+          .then((data) => setCache(CACHE_KEY, data))
+          .catch((e) => logger.warn("api/valuation/expected-returns", "Background refresh failed", { error: e }));
+      }
       return NextResponse.json(cached.data);
     }
 
-    // Fetch fresh data
+    // No cache - must fetch fresh
     const data = await fetchExpectedReturnsData();
-
-    // Cache the result
     await setCache(CACHE_KEY, data);
-
-    // If we had stale cache and fetch failed, return stale data
-    if (data.status === "error" && cached) {
-      return NextResponse.json({
-        ...cached.data,
-        status: "partial",
-        error: "Using cached data due to fetch error",
-      });
-    }
 
     return NextResponse.json(data);
   } catch (error) {
     logger.error("api/valuation/expected-returns", "Error in GET", { error });
 
-    // Try to return cached data on error
-    const cached = await getCache<ExpectedReturnsResponse>(CACHE_KEY, CACHE_MAX_AGE * 2);
+    // Try to return cached data on error (allow older cache)
+    const cached = await getCache<ExpectedReturnsResponse>(CACHE_KEY, CACHE_MAX_AGE * 4);
     if (cached) {
       return NextResponse.json({
         ...cached.data,
