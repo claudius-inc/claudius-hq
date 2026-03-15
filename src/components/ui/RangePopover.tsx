@@ -133,17 +133,25 @@ export function RangePopover({ ranges, currentLabel, unit, children }: RangePopo
   if (isMobile) {
     return (
       <>
-        <button
-          type="button"
+        <span
+          role="button"
+          tabIndex={0}
           className="cursor-pointer"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             setShowSheet(true);
           }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              setShowSheet(true);
+            }
+          }}
         >
           {children}
-        </button>
+        </span>
 
         {showSheet && createPortal(
           <div className="fixed inset-0 z-[9999]" onClick={() => setShowSheet(false)}>
@@ -172,8 +180,9 @@ export function RangePopover({ ranges, currentLabel, unit, children }: RangePopo
   return (
     <HoverCard.Root openDelay={150} closeDelay={200}>
       <HoverCard.Trigger asChild>
-        <button
-          type="button"
+        <span
+          role="button"
+          tabIndex={0}
           className="cursor-pointer"
           onClick={(e) => {
             e.preventDefault();
@@ -181,7 +190,7 @@ export function RangePopover({ ranges, currentLabel, unit, children }: RangePopo
           }}
         >
           {children}
-        </button>
+        </span>
       </HoverCard.Trigger>
       <HoverCard.Portal>
         <HoverCard.Content
