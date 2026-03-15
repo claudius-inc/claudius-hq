@@ -1,8 +1,10 @@
 /**
- * Expected Returns API
+ * Expected Returns API - Phase 2
  * 
  * Fetches current valuations for major asset classes and calculates
  * expected 10-year real returns based on historical relationships.
+ * 
+ * Phase 2: Enhanced tactical overlay with RSI, VIX, yield curve, sentiment.
  */
 
 import { NextResponse } from "next/server";
@@ -13,6 +15,11 @@ import type {
   ExpectedReturnsResponse,
   AssetValuation,
   AssetSymbol,
+  TacticalOverlay,
+  TacticalSummary,
+  SignalAlignment,
+  SentimentLevel,
+  PositioningZone,
 } from "@/lib/valuation/types";
 import {
   calculateSpyValuation,
@@ -36,6 +43,14 @@ interface QuoteResult {
   regularMarketPrice?: number;
   trailingPE?: number;
   twoHundredDayAverage?: number;
+  fiftyDayAverage?: number;
+  regularMarketChangePercent?: number;
+}
+
+interface ChartQuote {
+  close: number | null;
+  high?: number | null;
+  low?: number | null;
 }
 
 interface FredObservation {
@@ -47,7 +62,10 @@ interface FredResponse {
   observations: FredObservation[];
 }
 
-// Fetch M2 money supply from FRED
+// ---------------------------------------------------------------------------
+// Data Fetchers
+// ---------------------------------------------------------------------------
+
 async function fetchM2(): Promise<number | null> {
   const apiKey = process.env.FRED_API_KEY;
   if (!apiKey) return null;
@@ -66,7 +84,6 @@ async function fetchM2(): Promise<number | null> {
       return null;
     }
 
-    // M2 is in billions
     return parseFloat(data.observations[0].value);
   } catch (error) {
     logger.error("api/valuation/expected-returns", "Error fetching M2", { error });
@@ -74,10 +91,9 @@ async function fetchM2(): Promise<number | null> {
   }
 }
 
-// Fetch Yahoo Finance quote with 200 DMA
 async function fetchQuote(
   symbol: string
-): Promise<{ price: number; sma200: number; pe?: number } | null> {
+): Promise<{ price: number; sma200: number; sma50: number; pe?: number; changePercent?: number } | null> {
   try {
     const quote = (await yahooFinance.quote(symbol)) as QuoteResult;
 
@@ -86,7 +102,9 @@ async function fetchQuote(
     return {
       price: quote.regularMarketPrice,
       sma200: quote.twoHundredDayAverage || quote.regularMarketPrice,
+      sma50: quote.fiftyDayAverage || quote.regularMarketPrice,
       pe: quote.trailingPE,
+      changePercent: quote.regularMarketChangePercent,
     };
   } catch (error) {
     logger.error("api/valuation/expected-returns", `Error fetching ${symbol}`, { error });
@@ -94,12 +112,14 @@ async function fetchQuote(
   }
 }
 
-// Fetch historical data for 200 DMA calculation
-async function fetch200DMA(symbol: string): Promise<number | null> {
+async function fetchHistoricalData(
+  symbol: string,
+  days: number = 300
+): Promise<{ closes: number[]; highs: number[]; lows: number[] } | null> {
   try {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - 300); // ~200 trading days
+    startDate.setDate(startDate.getDate() - days);
 
     const chart = await yahooFinance.chart(symbol, {
       period1: startDate,
@@ -107,45 +127,341 @@ async function fetch200DMA(symbol: string): Promise<number | null> {
       interval: "1d",
     });
 
-    const closes = chart.quotes
+    const quotes = chart.quotes as ChartQuote[];
+    const closes = quotes
       .map((q) => q.close)
       .filter((c): c is number => c !== null && c !== undefined);
+    const highs = quotes
+      .map((q) => q.high)
+      .filter((h): h is number => h !== null && h !== undefined);
+    const lows = quotes
+      .map((q) => q.low)
+      .filter((l): l is number => l !== null && l !== undefined);
 
-    if (closes.length < 200) return null;
-
-    const last200 = closes.slice(-200);
-    return last200.reduce((a, b) => a + b, 0) / 200;
+    return { closes, highs, lows };
   } catch (error) {
-    logger.error("api/valuation/expected-returns", `Error fetching 200DMA for ${symbol}`, { error });
+    logger.error("api/valuation/expected-returns", `Error fetching history for ${symbol}`, { error });
     return null;
   }
 }
 
+// ---------------------------------------------------------------------------
+// Technical Indicators
+// ---------------------------------------------------------------------------
+
+function calculateRSI(closes: number[], period: number = 14): number | null {
+  if (closes.length < period + 1) return null;
+
+  const recentCloses = closes.slice(-period - 1);
+  let gains = 0;
+  let losses = 0;
+
+  for (let i = 1; i < recentCloses.length; i++) {
+    const change = recentCloses[i] - recentCloses[i - 1];
+    if (change > 0) {
+      gains += change;
+    } else {
+      losses += Math.abs(change);
+    }
+  }
+
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return Math.round((100 - 100 / (1 + rs)) * 10) / 10;
+}
+
+function calculateSMA(values: number[], period: number): number | null {
+  if (values.length < period) return null;
+  const slice = values.slice(-period);
+  return slice.reduce((a, b) => a + b, 0) / period;
+}
+
+// ---------------------------------------------------------------------------
+// Sentiment & Positioning
+// ---------------------------------------------------------------------------
+
+function determineBtcSentiment(
+  price: number,
+  sma200: number,
+  rsi: number | null,
+  changePercent: number | null
+): SentimentLevel {
+  // Proxy for Fear & Greed based on available data
+  let score = 50; // neutral
+
+  // Position vs 200 DMA
+  const deviation = ((price - sma200) / sma200) * 100;
+  if (deviation > 30) score += 25;
+  else if (deviation > 15) score += 15;
+  else if (deviation > 0) score += 5;
+  else if (deviation < -30) score -= 25;
+  else if (deviation < -15) score -= 15;
+  else if (deviation < 0) score -= 5;
+
+  // RSI contribution
+  if (rsi !== null) {
+    if (rsi > 80) score += 20;
+    else if (rsi > 70) score += 10;
+    else if (rsi < 20) score -= 20;
+    else if (rsi < 30) score -= 10;
+  }
+
+  // Recent momentum
+  if (changePercent !== null) {
+    if (changePercent > 5) score += 10;
+    else if (changePercent < -5) score -= 10;
+  }
+
+  // Map score to sentiment
+  if (score >= 75) return "extreme-greed";
+  if (score >= 55) return "greed";
+  if (score <= 25) return "extreme-fear";
+  if (score <= 45) return "fear";
+  return "neutral";
+}
+
+function determineGoldPositioning(): PositioningZone {
+  // CFTC COT data is weekly and requires separate API
+  // For now, use neutral as default with note to user
+  // In production, would fetch from Quandl or similar
+  return "neutral";
+}
+
+function getVixBias(vix: number): "bullish" | "neutral" | "bearish" {
+  // VIX interpretation:
+  // < 15: Complacent (can be contrarian bearish)
+  // 15-25: Normal
+  // > 25: Fear (can be contrarian bullish)
+  // > 35: Extreme fear (strong contrarian bullish)
+  if (vix > 35) return "bullish"; // Extreme fear = contrarian buy signal
+  if (vix > 25) return "neutral"; // Elevated but not extreme
+  if (vix < 12) return "bearish"; // Extreme complacency = caution
+  return "neutral";
+}
+
+function getRsiBias(rsi: number | null): "bullish" | "neutral" | "bearish" {
+  if (rsi === null) return "neutral";
+  if (rsi > 70) return "bearish"; // Overbought
+  if (rsi < 30) return "bullish"; // Oversold
+  return "neutral";
+}
+
+function getYieldCurveBias(slope: number): "bullish" | "neutral" | "bearish" {
+  // Positive slope (10Y > 2Y) = normal, economically constructive
+  // Negative slope = inverted, recession warning
+  if (slope < -0.5) return "bearish"; // Deeply inverted
+  if (slope < 0) return "neutral"; // Mildly inverted
+  if (slope > 1) return "bullish"; // Steep positive slope
+  return "neutral";
+}
+
+// ---------------------------------------------------------------------------
+// Tactical Bias Calculator
+// ---------------------------------------------------------------------------
+
+function calculateTacticalBias(
+  vs200dma: "below" | "at" | "above",
+  vs50dma: "below" | "at" | "above" | undefined,
+  rsi: number | null,
+  vix: number | undefined,
+  yieldCurveSlope: number | undefined,
+  sentiment: SentimentLevel | undefined
+): { bias: "bullish" | "neutral" | "bearish"; note: string } {
+  let bullishSignals = 0;
+  let bearishSignals = 0;
+  const notes: string[] = [];
+
+  // 200 DMA
+  if (vs200dma === "above") bullishSignals++;
+  else if (vs200dma === "below") bearishSignals++;
+
+  // 50 DMA
+  if (vs50dma === "above") bullishSignals++;
+  else if (vs50dma === "below") bearishSignals++;
+
+  // RSI
+  if (rsi !== null) {
+    if (rsi > 70) {
+      bearishSignals++;
+      notes.push("overbought");
+    } else if (rsi < 30) {
+      bullishSignals++;
+      notes.push("oversold");
+    }
+  }
+
+  // VIX (contrarian)
+  if (vix !== undefined) {
+    const vixBias = getVixBias(vix);
+    if (vixBias === "bullish") {
+      bullishSignals++;
+      notes.push("fear spike");
+    } else if (vixBias === "bearish") {
+      bearishSignals++;
+      notes.push("complacent");
+    }
+  }
+
+  // Yield curve
+  if (yieldCurveSlope !== undefined) {
+    const curveBias = getYieldCurveBias(yieldCurveSlope);
+    if (curveBias === "bearish") {
+      bearishSignals++;
+      notes.push("curve inverted");
+    } else if (curveBias === "bullish") {
+      bullishSignals++;
+    }
+  }
+
+  // Sentiment
+  if (sentiment !== undefined) {
+    if (sentiment === "extreme-fear" || sentiment === "fear") {
+      bullishSignals++; // Contrarian
+      notes.push("fear");
+    } else if (sentiment === "extreme-greed" || sentiment === "greed") {
+      bearishSignals++; // Contrarian
+      notes.push("euphoria");
+    }
+  }
+
+  // Determine bias
+  let bias: "bullish" | "neutral" | "bearish" = "neutral";
+  if (bullishSignals > bearishSignals + 1) bias = "bullish";
+  else if (bearishSignals > bullishSignals + 1) bias = "bearish";
+
+  return {
+    bias,
+    note: notes.length > 0 ? notes.slice(0, 2).join(", ") : undefined,
+  } as { bias: "bullish" | "neutral" | "bearish"; note: string };
+}
+
+// ---------------------------------------------------------------------------
+// Tactical Summary Calculator
+// ---------------------------------------------------------------------------
+
+function calculateTacticalSummary(assets: AssetValuation[]): TacticalSummary {
+  const aligned: AssetSymbol[] = [];
+  const divergent: AssetSymbol[] = [];
+
+  for (const asset of assets) {
+    const strategicBias =
+      asset.valuation.zone === "cheap"
+        ? "bullish"
+        : asset.valuation.zone === "expensive"
+        ? "bearish"
+        : "neutral";
+
+    const tacticalBias = asset.tactical.bias;
+
+    if (strategicBias === tacticalBias || strategicBias === "neutral" || tacticalBias === "neutral") {
+      aligned.push(asset.symbol);
+    } else {
+      divergent.push(asset.symbol);
+    }
+  }
+
+  // Determine overall alignment
+  let alignment: SignalAlignment;
+  const alignedBullish = assets.filter(
+    (a) =>
+      aligned.includes(a.symbol) &&
+      a.valuation.zone === "cheap" &&
+      a.tactical.bias === "bullish"
+  ).length;
+  const alignedBearish = assets.filter(
+    (a) =>
+      aligned.includes(a.symbol) &&
+      a.valuation.zone === "expensive" &&
+      a.tactical.bias === "bearish"
+  ).length;
+
+  if (alignedBullish >= 2) alignment = "strong-buy";
+  else if (alignedBullish >= 1 && divergent.length === 0) alignment = "buy";
+  else if (alignedBearish >= 2) alignment = "strong-sell";
+  else if (alignedBearish >= 1 && divergent.length === 0) alignment = "sell";
+  else alignment = "mixed";
+
+  // Generate message
+  let message: string;
+  if (alignment === "strong-buy") {
+    message = `Strong setup: ${aligned.filter((s) => assets.find((a) => a.symbol === s)?.valuation.zone === "cheap").join(", ")} cheap and trending up`;
+  } else if (alignment === "strong-sell") {
+    message = `Caution: multiple assets expensive and weakening`;
+  } else if (divergent.length > 0) {
+    message = `Mixed signals on ${divergent.join(", ")} - tactical diverges from valuation`;
+  } else {
+    message = `No strong conviction - monitor for clearer signals`;
+  }
+
+  return { alignment, message, aligned, divergent };
+}
+
+// ---------------------------------------------------------------------------
+// Main Fetch Function
+// ---------------------------------------------------------------------------
+
 async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   const assets: AssetValuation[] = [];
 
-  // Fetch all data in parallel
-  const [spyData, gldData, btcData, tnxData, m2] = await Promise.all([
+  // Fetch all quote data in parallel
+  const [spyData, gldData, btcData, tnxData, vixData, irxData, m2] = await Promise.all([
     fetchQuote("SPY"),
     fetchQuote("GLD"),
     fetchQuote("BTC-USD"),
-    fetchQuote("^TNX"),
+    fetchQuote("^TNX"), // 10Y yield
+    fetchQuote("^VIX"), // VIX
+    fetchQuote("^IRX"), // 13-week T-bill (proxy for short-term)
     fetchM2(),
   ]);
 
-  // Also fetch 200 DMAs in parallel for tactical signals
-  const [btcSma200] = await Promise.all([
-    btcData ? fetch200DMA("BTC-USD") : Promise.resolve(null),
+  // Fetch historical data for RSI calculations
+  const [spyHistory, btcHistory] = await Promise.all([
+    spyData ? fetchHistoricalData("SPY", 30) : Promise.resolve(null),
+    btcData ? fetchHistoricalData("BTC-USD", 30) : Promise.resolve(null),
   ]);
+
+  // Calculate RSIs
+  const spyRsi = spyHistory ? calculateRSI(spyHistory.closes) : null;
+  const btcRsi = btcHistory ? calculateRSI(btcHistory.closes) : null;
+
+  // VIX level
+  const vixLevel = vixData?.price;
+
+  // Yield curve slope (10Y - 2Y approximated by 10Y - 13wk/4)
+  // Note: ^IRX is 13-week in percent, rough approximation for short end
+  const yieldCurveSlope =
+    tnxData && irxData ? tnxData.price - irxData.price : undefined;
 
   // ---------------------------------------------------------------------------
   // S&P 500
   // ---------------------------------------------------------------------------
   if (spyData) {
-    // Use trailing PE if available, otherwise estimate ~30 (current market)
     const pe = spyData.pe ?? 30;
     const { valuation, expectedReturn } = calculateSpyValuation(pe);
     const vs200dma = determineTacticalSignal(spyData.price, spyData.sma200);
+    const vs50dma = determineTacticalSignal(spyData.price, spyData.sma50);
+
+    const { bias, note } = calculateTacticalBias(
+      vs200dma,
+      vs50dma,
+      spyRsi,
+      vixLevel,
+      undefined,
+      undefined
+    );
+
+    const tactical: TacticalOverlay = {
+      vs200dma,
+      momentum: determineMomentum(vs200dma),
+      vs50dma,
+      rsi: spyRsi ?? undefined,
+      vix: vixLevel,
+      bias,
+      note,
+    };
 
     assets.push({
       symbol: "SPY",
@@ -153,10 +469,7 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
       price: Math.round(spyData.price * 100) / 100,
       valuation,
       expectedReturn,
-      tactical: {
-        vs200dma,
-        momentum: determineMomentum(vs200dma),
-      },
+      tactical,
     });
   }
 
@@ -164,12 +477,23 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   // Gold
   // ---------------------------------------------------------------------------
   if (gldData && m2) {
-    // GLD tracks gold at ~1/10 of spot price, so estimate spot
     const goldSpot = gldData.price * 10;
-    // Gold/M2 ratio (M2 is in billions, gold in USD)
     const goldM2Ratio = goldSpot / m2;
     const { valuation, expectedReturn } = calculateGoldValuation(goldM2Ratio);
     const vs200dma = determineTacticalSignal(gldData.price, gldData.sma200);
+    const vs50dma = determineTacticalSignal(gldData.price, gldData.sma50);
+    const positioning = determineGoldPositioning();
+
+    const { bias, note } = calculateTacticalBias(vs200dma, vs50dma, null, undefined, undefined, undefined);
+
+    const tactical: TacticalOverlay = {
+      vs200dma,
+      momentum: determineMomentum(vs200dma),
+      vs50dma,
+      positioning,
+      bias,
+      note,
+    };
 
     assets.push({
       symbol: "GLD",
@@ -177,15 +501,15 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
       price: Math.round(goldSpot * 100) / 100,
       valuation,
       expectedReturn,
-      tactical: {
-        vs200dma,
-        momentum: determineMomentum(vs200dma),
-      },
+      tactical,
     });
   } else if (gldData) {
-    // Fallback: no M2 data, use simple valuation
+    // Fallback without M2
     const goldSpot = gldData.price * 10;
     const vs200dma = determineTacticalSignal(gldData.price, gldData.sma200);
+    const vs50dma = determineTacticalSignal(gldData.price, gldData.sma50);
+
+    const { bias, note } = calculateTacticalBias(vs200dma, vs50dma, null, undefined, undefined, undefined);
 
     assets.push({
       symbol: "GLD",
@@ -204,6 +528,9 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
       tactical: {
         vs200dma,
         momentum: determineMomentum(vs200dma),
+        vs50dma,
+        bias,
+        note,
       },
     });
   }
@@ -214,8 +541,35 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   if (btcData) {
     const cycleYear = getBtcCyclePosition();
     const { valuation, expectedReturn } = calculateBtcValuation(cycleYear);
-    const sma200 = btcSma200 || btcData.sma200;
+    const sma200 = btcData.sma200;
     const vs200dma = determineTacticalSignal(btcData.price, sma200);
+    const vs50dma = determineTacticalSignal(btcData.price, btcData.sma50);
+
+    const sentiment = determineBtcSentiment(
+      btcData.price,
+      sma200,
+      btcRsi,
+      btcData.changePercent ?? null
+    );
+
+    const { bias, note } = calculateTacticalBias(
+      vs200dma,
+      vs50dma,
+      btcRsi,
+      undefined,
+      undefined,
+      sentiment
+    );
+
+    const tactical: TacticalOverlay = {
+      vs200dma,
+      momentum: determineMomentum(vs200dma),
+      vs50dma,
+      rsi: btcRsi ?? undefined,
+      sentiment,
+      bias,
+      note,
+    };
 
     assets.push({
       symbol: "BTC",
@@ -226,10 +580,7 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
         metric: `Yr ${Math.ceil(cycleYear)}`,
       },
       expectedReturn,
-      tactical: {
-        vs200dma,
-        momentum: determineMomentum(vs200dma),
-      },
+      tactical,
     });
   }
 
@@ -237,9 +588,28 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   // Bonds (10Y Treasury)
   // ---------------------------------------------------------------------------
   if (tnxData) {
-    // ^TNX is already the yield percentage
     const yield10y = tnxData.price;
     const { valuation, expectedReturn } = calculateBondValuation(yield10y);
+
+    const { bias, note } = calculateTacticalBias(
+      "at",
+      undefined,
+      null,
+      undefined,
+      yieldCurveSlope,
+      undefined
+    );
+
+    const tactical: TacticalOverlay = {
+      vs200dma: "at", // Yields interpreted differently
+      momentum: "neutral",
+      yieldCurveSlope:
+        yieldCurveSlope !== undefined
+          ? Math.round(yieldCurveSlope * 100) / 100
+          : undefined,
+      bias,
+      note: yieldCurveSlope !== undefined && yieldCurveSlope < 0 ? "inverted" : note,
+    };
 
     assets.push({
       symbol: "TLT",
@@ -247,19 +617,18 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
       price: yield10y,
       valuation,
       expectedReturn,
-      tactical: {
-        vs200dma: "at", // Yields don't have meaningful 200 DMA signals
-        momentum: "neutral",
-      },
+      tactical,
     });
   }
 
-  // Calculate ranking
+  // Calculate ranking and tactical summary
   const relativeRanking = rankAssetsByExpectedReturn(assets) as AssetSymbol[];
+  const tacticalSummary = calculateTacticalSummary(assets);
 
   return {
     assets,
     relativeRanking,
+    tacticalSummary,
     updatedAt: new Date().toISOString(),
     status: assets.length === 4 ? "live" : assets.length > 0 ? "partial" : "error",
   };
@@ -307,6 +676,12 @@ export async function GET() {
       {
         assets: [],
         relativeRanking: [],
+        tacticalSummary: {
+          alignment: "mixed",
+          message: "Unable to calculate - data unavailable",
+          aligned: [],
+          divergent: [],
+        },
         updatedAt: new Date().toISOString(),
         status: "error",
         error: "Failed to fetch valuation data",

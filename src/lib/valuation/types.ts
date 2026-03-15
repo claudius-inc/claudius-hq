@@ -12,6 +12,10 @@ export type TacticalSignal = "below" | "at" | "above";
 
 export type MomentumSignal = "bearish" | "neutral" | "bullish";
 
+export type SentimentLevel = "fear" | "neutral" | "greed" | "extreme-fear" | "extreme-greed";
+
+export type PositioningZone = "extreme-long" | "long" | "neutral" | "short" | "extreme-short";
+
 export interface ValuationMetric {
   /** Metric name (e.g., "PE", "Au/M2", "Yield") */
   metric: string;
@@ -35,6 +39,22 @@ export interface TacticalOverlay {
   vs200dma: TacticalSignal;
   /** Short-term momentum */
   momentum: MomentumSignal;
+  /** Position relative to 50 DMA (for SPY) */
+  vs50dma?: TacticalSignal;
+  /** RSI 14-day (for SPY) */
+  rsi?: number;
+  /** VIX level (for SPY) */
+  vix?: number;
+  /** Yield curve slope: 10Y - 2Y (for bonds) */
+  yieldCurveSlope?: number;
+  /** Sentiment level (for BTC) */
+  sentiment?: SentimentLevel;
+  /** CFTC positioning zone (for Gold) */
+  positioning?: PositioningZone;
+  /** Composite tactical bias */
+  bias: "bullish" | "neutral" | "bearish";
+  /** Brief tactical note */
+  note?: string;
 }
 
 export interface AssetValuation {
@@ -52,11 +72,26 @@ export interface AssetValuation {
   tactical: TacticalOverlay;
 }
 
+export type SignalAlignment = "strong-buy" | "buy" | "mixed" | "sell" | "strong-sell";
+
+export interface TacticalSummary {
+  /** Overall alignment between strategic and tactical */
+  alignment: SignalAlignment;
+  /** Brief summary message */
+  message: string;
+  /** Assets with aligned signals (strategic + tactical agree) */
+  aligned: AssetSymbol[];
+  /** Assets with divergent signals */
+  divergent: AssetSymbol[];
+}
+
 export interface ExpectedReturnsResponse {
   /** Array of asset valuations */
   assets: AssetValuation[];
   /** Assets ranked by expected return (highest first) */
   relativeRanking: AssetSymbol[];
+  /** Combined tactical summary */
+  tacticalSummary: TacticalSummary;
   /** Timestamp of last update */
   updatedAt: string;
   /** Status of data fetch */

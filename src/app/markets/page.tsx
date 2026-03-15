@@ -12,6 +12,7 @@ import { HardAssets } from "./_components/HardAssets";
 import { RegimeDetail } from "./_components/RegimeDetail";
 import { PlaybookSection } from "./_components/playbook/PlaybookSection";
 import { ExpectedReturnsCard } from "./_components/ExpectedReturnsCard";
+import { CorrelationMatrix } from "./_components/CorrelationMatrix";
 import type {
   Position,
   Summary,
@@ -198,7 +199,10 @@ export default function StocksDashboard() {
 
         <HardAssets />
 
-        <ExpectedReturnsCard />
+        <div className="space-y-4">
+          <ExpectedReturnsCard />
+          <CorrelationMatrix />
+        </div>
 
         <Sentiment
           sentimentData={sentimentData}
