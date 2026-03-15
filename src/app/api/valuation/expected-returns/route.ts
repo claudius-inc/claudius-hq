@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { getCache, setCache } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
+import { getGoldPrice, type GoldPriceData } from "@/lib/gold-price";
 import type {
   ExpectedReturnsResponse,
   AssetValuation,
@@ -403,63 +404,13 @@ function calculateTacticalSummary(assets: AssetValuation[]): TacticalSummary {
 // Main Fetch Function
 // ---------------------------------------------------------------------------
 
-interface GoldApiResponse {
-  livePrice: number | null;
-  gld?: {
-    price?: number;
-    fiftyTwoWeekHigh?: number;
-    fiftyTwoWeekLow?: number;
-  };
-}
-
-async function fetchGoldPrice(): Promise<{ price: number; sma200: number; sma50: number } | null> {
-  try {
-    // Fetch gold futures directly from Yahoo Finance (GC=F)
-    const gcQuote = await yahooFinance.quote("GC=F") as QuoteResult;
-    const goldPrice = gcQuote?.regularMarketPrice;
-    
-    if (!goldPrice) {
-      // Fallback to GLD ETF * 10
-      const gldQuote = await fetchQuote("GLD");
-      if (gldQuote) {
-        return {
-          price: gldQuote.price * 10,
-          sma200: gldQuote.sma200 * 10,
-          sma50: gldQuote.sma50 * 10,
-        };
-      }
-      return null;
-    }
-    
-    // For SMAs, use GLD ETF data scaled up (gold futures don't have good SMA data)
-    const gldQuote = await fetchQuote("GLD");
-    return {
-      price: goldPrice,
-      sma200: gldQuote ? gldQuote.sma200 * 10 : goldPrice,
-      sma50: gldQuote ? gldQuote.sma50 * 10 : goldPrice,
-    };
-  } catch (error) {
-    logger.error("api/valuation/expected-returns", "Error fetching gold price", { error });
-    // Fallback to GLD ETF * 10
-    const gldQuote = await fetchQuote("GLD");
-    if (gldQuote) {
-      return {
-        price: gldQuote.price * 10,
-        sma200: gldQuote.sma200 * 10,
-        sma50: gldQuote.sma50 * 10,
-      };
-    }
-    return null;
-  }
-}
-
 async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   const assets: AssetValuation[] = [];
 
   // Fetch all quote data in parallel
   const [spyData, goldData, btcData, tnxData, vixData, irxData, m2] = await Promise.all([
     fetchQuote("SPY"),
-    fetchGoldPrice(),
+    getGoldPrice(),
     fetchQuote("BTC-USD"),
     fetchQuote("^TNX"), // 10Y yield
     fetchQuote("^VIX"), // VIX
