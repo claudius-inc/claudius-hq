@@ -29,7 +29,7 @@ const BACKTEST_TOUCHES = [
   { date: "Jan 2015", price: 200, duration: "Weeks at MA", peakPrice: 20000, returnPct: 9600 },
   { date: "Dec 2018", price: 3100, duration: "Days", peakPrice: 20000, returnPct: 530 },
   { date: "Mar 2020", price: 5400, duration: "3 days", peakPrice: 64000, returnPct: 1160 },
-  { date: "Jun 2022", price: 22000, duration: "4 months", peakPrice: 126000, returnPct: 616 },
+  { date: "Jun 2022", price: 15588, duration: "4 months", peakPrice: 126000, returnPct: 708 },
 ];
 
 async function fetchBtcData() {

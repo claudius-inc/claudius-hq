@@ -38,24 +38,26 @@ const SP500_PE_PERCENTILES = {
 };
 
 // ---------------------------------------------------------------------------
-// Gold/M2 Ratio → Expected 10Y Return
-// Gold price / M2 money supply (in billions)
-// Historical range: ~2 (cheap) to ~8 (expensive)
+// M2/Gold Ratio → Expected 10Y Return
+// M2 money supply (billions) / Gold price ($/oz)
+// Higher = gold cheap (more money per oz). Lower = gold expensive.
+// Historical range: ~2 (1980 peak, expensive) to ~18 (2000 bottom, cheap)
 // ---------------------------------------------------------------------------
 export const GOLD_M2_LOOKUP: ReturnLookupTable = [
-  { min: 0, max: 2.5, expectedReturn: 8, confidence: "medium" },
-  { min: 2.5, max: 3.5, expectedReturn: 5, confidence: "medium" },
-  { min: 3.5, max: 4.5, expectedReturn: 3, confidence: "medium" },
-  { min: 4.5, max: 6, expectedReturn: 1, confidence: "low" },
-  { min: 6, max: 100, expectedReturn: -1, confidence: "low" },
+  { min: 0, max: 3, expectedReturn: -2, confidence: "low" },
+  { min: 3, max: 6, expectedReturn: 0, confidence: "medium" },
+  { min: 6, max: 10, expectedReturn: 3, confidence: "medium" },
+  { min: 10, max: 15, expectedReturn: 6, confidence: "medium" },
+  { min: 15, max: 100, expectedReturn: 8, confidence: "medium" },
 ];
 
+// Historical M2/Gold percentiles (1970-2026)
 const GOLD_M2_PERCENTILES = {
-  p10: 2.0,
-  p25: 2.8,
-  p50: 3.8,
-  p75: 5.2,
-  p90: 6.5,
+  p10: 3,
+  p25: 6,
+  p50: 9,
+  p75: 13,
+  p90: 17,
 };
 
 // ---------------------------------------------------------------------------
@@ -165,18 +167,19 @@ export function calculateSpyValuation(pe: number): {
   };
 }
 
-export function calculateGoldValuation(goldM2Ratio: number): {
+export function calculateGoldValuation(m2GoldRatio: number): {
   valuation: ValuationMetric;
   expectedReturn: ExpectedReturn;
 } {
-  const percentile = calculatePercentile(goldM2Ratio, GOLD_M2_PERCENTILES);
-  const zone = determineValuationZone(percentile);
-  const expectedReturn = lookupExpectedReturn(goldM2Ratio, GOLD_M2_LOOKUP);
+  const percentile = calculatePercentile(m2GoldRatio, GOLD_M2_PERCENTILES);
+  // Inverted: high M2/Gold = gold cheap, low = gold expensive
+  const zone = percentile >= 75 ? "cheap" : percentile >= 25 ? "fair" : "expensive";
+  const expectedReturn = lookupExpectedReturn(m2GoldRatio, GOLD_M2_LOOKUP);
 
   return {
     valuation: {
-      metric: "Au/M2",
-      value: Math.round(goldM2Ratio * 100) / 100,
+      metric: "M2/Au",
+      value: Math.round(m2GoldRatio * 10) / 10,
       percentile,
       zone,
     },

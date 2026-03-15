@@ -91,8 +91,8 @@ function formatSignalValue(value: number | null, unit: string): string {
 
 // ── Structural / Tactical Scoring ─────────────────────────────────
 
-const STRUCTURAL_IDS = ["cb-demand", "m2-growth", "deficit-gdp"];
-const TACTICAL_IDS = ["tips-yield", "dxy", "etf-flow-momentum"];
+const STRUCTURAL_IDS = ["cb-demand", "m2-gold-ratio", "deficit-gdp"];
+const TACTICAL_IDS = ["tips-yield", "dxy"];
 
 type ThesisStatus = "INTACT" | "WEAKENING" | "BROKEN";
 type TimingStatus = "BUY" | "HOLD" | "WAIT";
@@ -192,10 +192,9 @@ function CftcWarningBadge({ signal }: { signal: EvaluatedSignal | undefined }) {
 const SIGNAL_FRIENDLY_NAME: Record<string, string> = {
   "tips-yield": "Real Yields (TIPS)",
   "cb-demand": "Central Bank Buying",
-  "m2-growth": "M2 Money Supply Growth",
+  "m2-gold-ratio": "M2 / Gold Ratio",
   "dxy": "US Dollar (DXY)",
   "deficit-gdp": "US Deficit / GDP",
-  "etf-flow-momentum": "ETF Flow Momentum",
   "cftc-net-spec": "Speculative Positioning",
 };
 
@@ -203,8 +202,7 @@ const SIGNAL_TRIGGERS: Record<string, string> = {
   "tips-yield": "Watch: Fed pivot, CPI surprise",
   "cb-demand": "Watch: PBOC/RBI quarterly reports",
   "dxy": "Watch: EUR moves, USD liquidity",
-  "m2-growth": "Watch: Fed balance sheet, QE/QT shifts",
-  "etf-flow-momentum": "Watch: GLD holdings weekly change",
+  "m2-gold-ratio": "Watch: FRED M2SL monthly release, gold price moves",
   "deficit-gdp": "Watch: Budget negotiations, recession",
   "cftc-net-spec": "Watch: COT report Fridays",
 };
@@ -224,12 +222,12 @@ const SIGNAL_EXPLANATIONS: Record<string, Record<string, string>> = {
     bearish: "Central bank buying below trend",
     "strong-bearish": "Central banks not buying - missing a key demand pillar",
   },
-  "m2-growth": {
-    "strong-bullish": "Money supply expanding rapidly (>8% YoY) - strong debasement tailwind",
-    bullish: "M2 growing above trend - supportive for gold",
-    neutral: "Money supply growth moderate",
-    bearish: "M2 growth slowing - less monetary inflation pressure",
-    "strong-bearish": "Money supply contracting - deflationary, headwind for gold",
+  "m2-gold-ratio": {
+    "strong-bullish": "Gold very cheap vs money supply - strong structural undervaluation",
+    bullish: "Gold cheap relative to M2 - room to appreciate",
+    neutral: "Gold fairly valued relative to money supply",
+    bearish: "Gold rich vs M2 - less upside from valuation",
+    "strong-bearish": "Gold expensive relative to money supply - valuation headwind",
   },
   dxy: {
     "strong-bullish": "Dollar very weak - gold priced in USD gets cheaper for global buyers",
@@ -244,13 +242,6 @@ const SIGNAL_EXPLANATIONS: Record<string, Record<string, string>> = {
     neutral: "Deficit around 3% - roughly the level that stabilizes debt-to-GDP ratio",
     bearish: "Deficit below 3% - fiscal position improving",
     "strong-bearish": "Near surplus - strong fiscal discipline, removes a key gold catalyst",
-  },
-  "etf-flow-momentum": {
-    "strong-bullish": "Strong ETF inflows - institutional buying momentum",
-    bullish: "Positive ETF flows - demand building",
-    neutral: "ETF flows flat - no clear direction",
-    bearish: "ETF outflows - selling pressure",
-    "strong-bearish": "Heavy ETF redemptions - institutions exiting",
   },
   "cftc-net-spec": {
     "strong-bullish": "Speculators underweight - room for new buying to push prices up",
@@ -401,6 +392,11 @@ function ExpandableSignalRow({ signal }: { signal: EvaluatedSignal }) {
               <span className="text-[9px] text-blue-700 leading-tight">
                 Note: Gold has rallied despite positive real yields since 2022 because central bank buying has been the dominant driver.
               </span>
+            </div>
+          )}
+          {signal.id === "cb-demand" && (
+            <div className="text-[9px] text-gray-400 mt-1">
+              Data as of Q4 2025 (WGC annual report)
             </div>
           )}
           <SignalRangeBar signal={signal} />

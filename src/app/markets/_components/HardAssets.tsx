@@ -185,7 +185,7 @@ export function HardAssets({ expectedReturns }: { expectedReturns?: ExpectedRetu
             <>
               {goldValuation && (
                 <span className="text-[10px] text-gray-400 shrink-0">
-                  Au/M2 <span className={`font-medium ${goldValuation.valuation.zone === "cheap" ? "text-emerald-600" : goldValuation.valuation.zone === "expensive" ? "text-red-600" : "text-gray-600"}`}>{goldValuation.valuation.value.toFixed(1)}</span>
+                  M2/Au <span className={`font-medium ${goldValuation.valuation.zone === "cheap" ? "text-emerald-600" : goldValuation.valuation.zone === "expensive" ? "text-red-600" : "text-gray-600"}`}>{goldValuation.valuation.value.toFixed(1)}</span>
                 </span>
               )}
               <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">{formatUsd(goldPrice)}</span>

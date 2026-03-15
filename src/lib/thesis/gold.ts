@@ -7,8 +7,8 @@ import type {
 } from "./types";
 import type { SignalDataResolver } from "./engine";
 import { db } from "@/db";
-import { cftcPositions, goldFlows } from "@/db/schema";
-import { desc, eq, and, gte } from "drizzle-orm";
+import { cftcPositions } from "@/db/schema";
+import { desc, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import YahooFinance from "yahoo-finance2";
 
@@ -38,21 +38,21 @@ export const GOLD_SIGNAL_DEFINITIONS: ThesisSignalDefinition[] = [
     category: "primary",
     source: { type: "manual", key: "wgc_cb_tonnes" },
     bullishDirection: "above",
-    thresholds: [400, 600, 800, 1000],
+    thresholds: [300, 500, 700, 1000],
     weight: 14,
     detail: ">800T annual = structural demand",
     unit: "T",
   },
   {
-    id: "m2-growth",
-    name: "M2 Growth",
+    id: "m2-gold-ratio",
+    name: "M2/Gold Ratio",
     category: "primary",
-    source: { type: "fred_yoy", key: "M2SL" },
+    source: { type: "derived", key: "m2_gold_ratio" },
     bullishDirection: "above",
-    thresholds: [2, 4, 6, 8],
+    thresholds: [3, 6, 10, 15],
     weight: 8,
-    detail: "Money supply growth YoY - higher = bullish for gold",
-    unit: "%",
+    detail: "M2 (billions) / Gold price - higher = gold cheaper",
+    unit: "x",
   },
 
   // Secondary signals
@@ -78,18 +78,6 @@ export const GOLD_SIGNAL_DEFINITIONS: ThesisSignalDefinition[] = [
     detail: "3% stabilizes debt/GDP; >4.5% outside recession is historically abnormal",
     unit: "%",
   },
-  {
-    id: "etf-flow-momentum",
-    name: "ETF Flow Momentum",
-    category: "secondary",
-    source: { type: "derived", key: "gld_7d_change" },
-    bullishDirection: "above",
-    thresholds: [-2, -0.5, 0.5, 2],
-    weight: 5,
-    detail: "GLD holdings 7-day change - inflows = bullish",
-    unit: "%",
-  },
-
   // Warning-only signal (excluded from composite score)
   {
     id: "cftc-net-spec",
@@ -113,7 +101,7 @@ export const GOLD_DEFAULT_ENTRY_CONDITIONS: PreCommitmentRule = {
   conditions: [
     { signalId: "tips-yield", label: "TIPS < 1%", operator: "lt", value: 1 },
     { signalId: "cb-demand", label: "WGC > 800T", operator: "gt", value: 800 },
-    { signalId: "m2-growth", label: "M2 YoY > 4%", operator: "gt", value: 4 },
+    { signalId: "m2-gold-ratio", label: "M2/Au > 10", operator: "gt", value: 10 },
   ],
 };
 
@@ -124,7 +112,7 @@ export const GOLD_DEFAULT_CHANGE_CONDITIONS: PreCommitmentRule = {
   conditions: [
     { signalId: "tips-yield", label: "TIPS > 2% for 2Q", operator: "gt", value: 2, durationQuarters: 2 },
     { signalId: "cb-demand", label: "WGC selling", operator: "lt", value: 400 },
-    { signalId: "m2-growth", label: "M2 contracting", operator: "lt", value: 0 },
+    { signalId: "m2-gold-ratio", label: "M2/Au < 4 (gold expensive)", operator: "lt", value: 4 },
   ],
 };
 
@@ -147,6 +135,25 @@ export const GOLD_THESIS_CONFIG: ThesisAssetConfig = {
   thesisChangeConditions: GOLD_DEFAULT_CHANGE_CONDITIONS,
   reviewTriggers: GOLD_DEFAULT_REVIEW_TRIGGERS,
 };
+
+// ── Hardcoded Data (updated manually from WGC reports) ──────────────
+// Source: World Gold Council quarterly demand reports
+// Key: annual central bank net purchases in tonnes
+// Last updated: Q4 2025 (full year). Update when new WGC report is published.
+const HARDCODED_CB_DEMAND: Record<number, number> = {
+  2021: 450.1,
+  2022: 1080.0,
+  2023: 1050.8,
+  2024: 1092.4,
+  2025: 863.3,
+};
+
+function getLatestCbDemand(): { current: number; previous: number | null } {
+  const years = Object.keys(HARDCODED_CB_DEMAND).map(Number).sort((a, b) => b - a);
+  const current = HARDCODED_CB_DEMAND[years[0]];
+  const previous = years.length > 1 ? HARDCODED_CB_DEMAND[years[1]] : null;
+  return { current, previous };
+}
 
 // ── Signal Data Resolver ────────────────────────────────────────────
 
@@ -224,8 +231,10 @@ export class GoldSignalDataResolver implements SignalDataResolver {
       case "derived":
         return this.resolveDerived(source.key);
 
-      case "manual":
-        return this.resolveManual(source.key);
+      case "manual": {
+        if (source.key === "wgc_cb_tonnes") return getLatestCbDemand().current;
+        return null;
+      }
 
       default:
         return null;
@@ -248,13 +257,25 @@ export class GoldSignalDataResolver implements SignalDataResolver {
           return (quote as { regularMarketPreviousClose?: number }).regularMarketPreviousClose ?? null;
         } catch { return null; }
       }
-      case "derived": {
-        // Previous derived values not currently supported
+      case "manual": {
+        if (source.key === "wgc_cb_tonnes") return getLatestCbDemand().previous;
         return null;
       }
       default:
         return null;
     }
+  }
+
+  private async resolveDerived(key: string): Promise<number | null> {
+    if (key === "m2_gold_ratio") {
+      const [m2, goldPrice] = await Promise.all([
+        fetchFredValue("M2SL"),
+        fetchYahooPrice("GC=F"),
+      ]);
+      if (!m2 || !goldPrice) return null;
+      return Math.round((m2 / goldPrice) * 10) / 10;
+    }
+    return null;
   }
 
   private async resolveCftcPercentile(commodity: string): Promise<number | null> {
@@ -284,56 +305,4 @@ export class GoldSignalDataResolver implements SignalDataResolver {
     }
   }
 
-  private async resolveDerived(key: string): Promise<number | null> {
-    switch (key) {
-      case "gld_7d_change": {
-        // Calculate 7-day change in GLD shares outstanding from goldFlows table
-        try {
-          const rows = await db
-            .select()
-            .from(goldFlows)
-            .where(eq(goldFlows.source, "yahoo"))
-            .orderBy(desc(goldFlows.date))
-            .limit(10);
-
-          if (rows.length < 2) return null;
-          
-          const latest = rows[0].gldSharesOutstanding;
-          // Find row closest to 7 days ago
-          const weekAgo = rows.find((_, i) => i >= 5) ?? rows[rows.length - 1];
-          const weekAgoShares = weekAgo.gldSharesOutstanding;
-          
-          if (latest === null || weekAgoShares === null || weekAgoShares === 0) return null;
-          return ((latest - weekAgoShares) / weekAgoShares) * 100;
-        } catch (e) {
-          logger.error("thesis/gold", "GLD flow momentum resolve failed", { error: e });
-          return null;
-        }
-      }
-
-      default:
-        return null;
-    }
-  }
-
-  private async resolveManual(key: string): Promise<number | null> {
-    if (key === "wgc_cb_tonnes") {
-      try {
-        const rows = await db
-          .select()
-          .from(goldFlows)
-          .where(and(eq(goldFlows.source, "wgc")))
-          .orderBy(desc(goldFlows.date))
-          .limit(4);
-
-        if (rows.length === 0) return null;
-        const total = rows.reduce((acc, r) => acc + (r.centralBankTonnes ?? 0), 0);
-        return Math.round(total);
-      } catch (e) {
-        logger.error("thesis/gold", "WGC manual resolve failed", { error: e });
-        return null;
-      }
-    }
-    return null;
-  }
 }

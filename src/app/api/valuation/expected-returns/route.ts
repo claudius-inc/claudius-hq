@@ -481,8 +481,8 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   // ---------------------------------------------------------------------------
   if (goldData && m2) {
     const goldSpot = goldData.price;
-    const goldM2Ratio = goldSpot / m2;
-    const { valuation, expectedReturn } = calculateGoldValuation(goldM2Ratio);
+    const m2GoldRatio = m2 / goldSpot;
+    const { valuation, expectedReturn } = calculateGoldValuation(m2GoldRatio);
     const vs200dma = determineTacticalSignal(goldData.price, goldData.sma200);
     const vs50dma = determineTacticalSignal(goldData.price, goldData.sma50);
     const positioning = determineGoldPositioning();
@@ -519,7 +519,7 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
       name: "Gold",
       price: Math.round(goldSpot * 100) / 100,
       valuation: {
-        metric: "Au/M2",
+        metric: "M2/Au",
         value: 0,
         percentile: 50,
         zone: "fair",
