@@ -391,7 +391,9 @@ export const goldAnalysis = sqliteTable("gold_analysis", {
   athDate: text("ath_date"),
   keyLevels: text("key_levels"), // JSON: [{ level: number, significance: string }]
   scenarios: text("scenarios"), // JSON: [{ name: string, probability: number, priceRange: string, description: string }]
-  thesisNotes: text("thesis_notes"), // Markdown
+  thesisNotes: text("thesis_notes"), // Markdown — qualitative narrative only
+  cyclePhase: integer("cycle_phase").default(3), // 1=Accumulation, 2=Markup, 3=Acceleration, 4=Mania
+  catalysts: text("catalysts"), // JSON: { bull: string[], bear: string[] }
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
 

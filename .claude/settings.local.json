@@ -5,7 +5,11 @@
       "Bash(grep:*)",
       "Bash(tail:*)",
       "Bash(npx tsc:*)",
-      "Bash(for f:*)"
+      "Bash(for f:*)",
+      "Bash(find:*)",
+      "WebSearch",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(npx tsx:*)"
     ]
   }
 }

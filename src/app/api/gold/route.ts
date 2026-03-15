@@ -40,6 +40,22 @@ interface QuoteResult {
   fiftyTwoWeekLow?: number;
 }
 
+interface HistoricalRow {
+  date: Date;
+  close: number | null;
+}
+
+/** Compute EMA from daily closes */
+function computeEma(closes: number[], period: number): number | null {
+  if (closes.length < period) return null;
+  const k = 2 / (period + 1);
+  let ema = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
+  for (let i = period; i < closes.length; i++) {
+    ema = closes[i] * k + ema * (1 - k);
+  }
+  return Math.round(ema * 100) / 100;
+}
+
 async function fetchGoldData() {
   // Fetch analysis from DB
   const analysis = await db
@@ -60,6 +76,19 @@ async function fetchGoldData() {
   let dxyData = null;
   let realYieldsData = null;
 
+  // Live ratios
+  let ratios: {
+    dowGold: number | null;
+    goldSilver: number | null;
+    m2Gold: number | null;
+  } = { dowGold: null, goldSilver: null, m2Gold: null };
+
+  // Moving averages
+  let movingAverages: {
+    ema50: number | null;
+    ema200: number | null;
+  } = { ema50: null, ema200: null };
+
   try {
     const gcQuote = await yahooFinance.quote("GC=F") as QuoteResult;
     livePrice = gcQuote.regularMarketPrice || null;
@@ -76,8 +105,30 @@ async function fetchGoldData() {
       changePercent: gldQuote.regularMarketChangePercent,
     };
 
+    // Fetch ratios in parallel
     try {
-      const dxyQuote = await yahooFinance.quote("DX-Y.NYB") as QuoteResult;
+      const [djiQuote, siQuote, dxyQuote, tnxQuote, tipsValue] = await Promise.all([
+        yahooFinance.quote("^DJI") as Promise<QuoteResult>,
+        yahooFinance.quote("SI=F") as Promise<QuoteResult>,
+        yahooFinance.quote("DX-Y.NYB") as Promise<QuoteResult>,
+        yahooFinance.quote("^TNX") as Promise<QuoteResult>,
+        fetchFredValue("DFII10"),
+      ]);
+
+      // Ratios
+      if (livePrice && djiQuote.regularMarketPrice) {
+        ratios.dowGold = Math.round((djiQuote.regularMarketPrice / livePrice) * 100) / 100;
+      }
+      if (livePrice && siQuote.regularMarketPrice) {
+        ratios.goldSilver = Math.round((livePrice / siQuote.regularMarketPrice) * 100) / 100;
+      }
+      // M2/Gold: latest FRED M2 (trillions) vs gold price (thousands)
+      const m2Value = await fetchFredValue("M2SL"); // M2 in billions
+      if (m2Value && livePrice) {
+        ratios.m2Gold = Math.round((m2Value / livePrice) * 100) / 100;
+      }
+
+      // DXY
       if (dxyQuote.regularMarketPrice) {
         dxyData = {
           price: dxyQuote.regularMarketPrice,
@@ -86,10 +137,8 @@ async function fetchGoldData() {
         };
       }
 
-      const tnxQuote = await yahooFinance.quote("^TNX") as QuoteResult;
+      // Real yields
       const tnxPrice = tnxQuote.regularMarketPrice ?? null;
-      const tipsValue = await fetchFredValue("DFII10");
-
       if (tipsValue !== null || tnxPrice !== null) {
         const realYield = tipsValue ?? (tnxPrice! - LATEST_CPI_YOY);
         realYieldsData = {
@@ -102,7 +151,27 @@ async function fetchGoldData() {
         };
       }
     } catch (e) {
-      logger.error("api/gold", "Error fetching macro data (DXY/TNX)", { error: e });
+      logger.error("api/gold", "Error fetching macro/ratio data", { error: e });
+    }
+
+    // Fetch daily historical for EMAs
+    try {
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 300); // ~300 calendar days for 200 trading days
+      const hist = (await yahooFinance.chart("GC=F", {
+        period1: startDate,
+        period2: new Date(),
+        interval: "1d",
+      })).quotes as HistoricalRow[];
+
+      const closes = hist
+        .map((h) => h.close)
+        .filter((c): c is number => c !== null && c > 0);
+
+      movingAverages.ema50 = computeEma(closes, 50);
+      movingAverages.ema200 = computeEma(closes, 200);
+    } catch (e) {
+      logger.error("api/gold", "Error fetching gold historical for EMAs", { error: e });
     }
   } catch (e) {
     logger.error("api/gold", "Error fetching gold price", { error: e });
@@ -111,13 +180,17 @@ async function fetchGoldData() {
   const currentAnalysis = analysis[0] || null;
 
   let keyLevels: unknown[] = [];
-  let scenarios: unknown[] = [];
+  let catalysts: { bull: string[]; bear: string[] } | null = null;
   if (currentAnalysis) {
     try {
       keyLevels = currentAnalysis.keyLevels ? JSON.parse(currentAnalysis.keyLevels) : [];
-      scenarios = currentAnalysis.scenarios ? JSON.parse(currentAnalysis.scenarios) : [];
     } catch (e) {
-      logger.error("api/gold", "Error parsing JSON", { error: e });
+      logger.error("api/gold", "Error parsing keyLevels JSON", { error: e });
+    }
+    try {
+      catalysts = currentAnalysis.catalysts ? JSON.parse(currentAnalysis.catalysts) : null;
+    } catch (e) {
+      logger.error("api/gold", "Error parsing catalysts JSON", { error: e });
     }
   }
 
@@ -125,12 +198,14 @@ async function fetchGoldData() {
     analysis: currentAnalysis ? {
       ...currentAnalysis,
       keyLevels,
-      scenarios,
+      catalysts,
     } : null,
     livePrice,
     gld: gldData,
     dxy: dxyData,
     realYields: realYieldsData,
+    ratios,
+    movingAverages,
     flows: flows.map(f => ({ ...f })),
   };
 }
@@ -175,7 +250,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { keyLevels, scenarios, thesisNotes, ath, athDate } = body;
+    const { keyLevels, scenarios, thesisNotes, ath, athDate, cyclePhase, catalysts } = body;
 
     const existing = await db
       .select()
@@ -189,6 +264,8 @@ export async function POST(request: NextRequest) {
       thesisNotes: thesisNotes || null,
       ath: ath || null,
       athDate: athDate || null,
+      cyclePhase: cyclePhase ?? null,
+      catalysts: catalysts ? JSON.stringify(catalysts) : null,
       updatedAt: new Date().toISOString(),
     };
 

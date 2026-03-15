@@ -83,9 +83,9 @@ export const GOLD_SIGNAL_DEFINITIONS: ThesisSignalDefinition[] = [
     category: "secondary",
     source: { type: "fred", key: "FYFSGDA188S" },
     bullishDirection: "below", // more negative = larger deficit = more bullish for gold
-    thresholds: [-8, -6, -4, -2],
+    thresholds: [-6, -4.5, -3, -1.5],
     weight: 5,
-    detail: ">5% deficit = debasement signal",
+    detail: "3% stabilizes debt/GDP; >4.5% outside recession is historically abnormal",
     unit: "%",
   },
   {
@@ -118,9 +118,9 @@ export const GOLD_SIGNAL_DEFINITIONS: ThesisSignalDefinition[] = [
     category: "sentiment",
     source: { type: "derived", key: "gold_div_spy" },
     bullishDirection: "below", // lower ratio = gold cheaper relative to stocks
-    thresholds: [0.3, 0.4, 0.55, 0.7],
+    thresholds: [3.5, 4.5, 5.5, 6.5],
     weight: 3,
-    detail: "Mean-reverting — >0.7 = gold expensive vs stocks",
+    detail: "Mean-reverting — >6.5 = gold expensive vs stocks",
     unit: "",
   },
 ];
@@ -154,7 +154,7 @@ export const GOLD_DEFAULT_REVIEW_TRIGGERS: PreCommitmentRule = {
   logic: "any",
   conditions: [
     { signalId: "cftc-net-spec", label: "CFTC crowded", operator: "gt", value: 75 },
-    { signalId: "gold-sp-ratio", label: "Au/SP > 0.7", operator: "gt", value: 0.7 },
+    { signalId: "gold-sp-ratio", label: "Au/SP > 6.5", operator: "gt", value: 6.5 },
   ],
 };
 
@@ -169,19 +169,26 @@ export const GOLD_THESIS_CONFIG: ThesisAssetConfig = {
 
 // ── Signal Data Resolver ────────────────────────────────────────────
 
-async function fetchFredValue(seriesId: string): Promise<number | null> {
-  if (!FRED_API_KEY) return null;
+async function fetchFredValues(seriesId: string, count: number = 1): Promise<number[]> {
+  if (!FRED_API_KEY) return [];
   try {
-    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=5`;
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=10`;
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const data = await res.json();
-    const obs = data.observations?.find((o: { value: string }) => o.value !== ".");
-    return obs ? parseFloat(obs.value) : null;
+    const valid = (data.observations ?? [])
+      .filter((o: { value: string }) => o.value !== ".")
+      .map((o: { value: string }) => parseFloat(o.value));
+    return valid.slice(0, count);
   } catch (e) {
     logger.error("thesis/gold", `FRED fetch failed for ${seriesId}`, { error: e });
-    return null;
+    return [];
   }
+}
+
+async function fetchFredValue(seriesId: string): Promise<number | null> {
+  const vals = await fetchFredValues(seriesId, 1);
+  return vals[0] ?? null;
 }
 
 async function fetchYahooPrice(ticker: string): Promise<number | null> {
@@ -216,6 +223,43 @@ export class GoldSignalDataResolver implements SignalDataResolver {
       case "manual":
         return this.resolveManual(source.key);
 
+      default:
+        return null;
+    }
+  }
+
+  async resolvePrevious(signalId: string, source: { type: string; key: string }): Promise<number | null> {
+    switch (source.type) {
+      case "fred": {
+        const vals = await fetchFredValues(source.key, 2);
+        if (signalId === "hy-spread" && vals[1] !== undefined) return vals[1] * 100;
+        return vals[1] ?? null;
+      }
+      case "yahoo": {
+        try {
+          const quote = await yahooFinance.quote(source.key);
+          return (quote as { regularMarketPreviousClose?: number }).regularMarketPreviousClose ?? null;
+        } catch { return null; }
+      }
+      case "derived": {
+        if (source.key === "gold_div_spy") {
+          try {
+            const [goldQ, spyQ] = await Promise.all([
+              yahooFinance.quote("GC=F"),
+              yahooFinance.quote("SPY"),
+            ]);
+            const goldPrev = (goldQ as { regularMarketPreviousClose?: number }).regularMarketPreviousClose;
+            const spyPrev = (spyQ as { regularMarketPreviousClose?: number }).regularMarketPreviousClose;
+            if (goldPrev && spyPrev) return Math.round((goldPrev / spyPrev) * 100) / 100;
+          } catch { /* fall through */ }
+        }
+        if (source.key === "fed_funds_minus_cpi") {
+          // Same approximation as resolve — previous FRED value
+          const vals = await fetchFredValues("FEDFUNDS", 2);
+          if (vals[1] !== undefined) return vals[1] - 2.9;
+        }
+        return null;
+      }
       default:
         return null;
     }

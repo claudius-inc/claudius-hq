@@ -19,6 +19,8 @@ import { computeCompositeScore, scoreToRating } from "./scoring";
  */
 export interface SignalDataResolver {
   resolve(signalId: string, source: { type: string; key: string }): Promise<number | null>;
+  /** Optional: resolve previous value for trend display */
+  resolvePrevious?(signalId: string, source: { type: string; key: string }): Promise<number | null>;
 }
 
 /**
@@ -62,19 +64,25 @@ export async function evaluateSignals(
 ): Promise<ThesisSignalSnapshot> {
   const signals: EvaluatedSignal[] = await Promise.all(
     definitions.map(async (def) => {
-      const value = await resolver.resolve(def.id, def.source);
+      const [value, previousValue] = await Promise.all([
+        resolver.resolve(def.id, def.source),
+        resolver.resolvePrevious?.(def.id, def.source) ?? Promise.resolve(null),
+      ]);
       const { rating, score } = rateSignal(def, value);
       return {
         id: def.id,
         name: def.name,
         category: def.category,
         currentValue: value,
+        previousValue,
         rating,
         score,
         weightedScore: score * def.weight,
         weight: def.weight,
         detail: def.detail,
         unit: def.unit,
+        thresholds: def.thresholds,
+        bullishDirection: def.bullishDirection,
       };
     }),
   );

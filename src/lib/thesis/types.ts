@@ -34,6 +34,8 @@ export interface EvaluatedSignal {
   name: string;
   category: SignalCategory;
   currentValue: number | null;
+  /** Previous value for trend display (e.g., prior month FRED, previous close Yahoo) */
+  previousValue: number | null;
   rating: SignalRating;
   /** Raw score 0-100 for this signal */
   score: number;
@@ -42,6 +44,10 @@ export interface EvaluatedSignal {
   weight: number;
   detail: string;
   unit: string;
+  /** Threshold boundaries [t0, t1, t2, t3] from signal definition */
+  thresholds: number[];
+  /** "below" = lower values are bullish, "above" = higher values are bullish */
+  bullishDirection: "below" | "above";
 }
 
 export interface ThesisSignalSnapshot {
