@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, stockScans } from "@/db";
 import { desc, eq } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
 
 // GET /api/stocks/scans — list all scans (latest first)
 export async function GET(req: NextRequest) {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { searchParams } = new URL(req.url);
     const scanType = searchParams.get("type");
     const limit = parseInt(searchParams.get("limit") || "10");

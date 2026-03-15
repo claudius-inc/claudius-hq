@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import {
   acpState,
@@ -12,8 +13,10 @@ import { eq, desc, gte } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 // GET: Returns consolidated dashboard data
-export async function GET() {
+export async function GET(_req: NextRequest) {
+  if (!checkApiAuth(_req)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(_req)) return unauthorizedResponse();
     // 1. Get current state
     const stateRows = await db.select().from(acpState).where(eq(acpState.id, 1));
     const state = stateRows[0] ?? {

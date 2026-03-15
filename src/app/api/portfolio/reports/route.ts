@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, portfolioReports } from "@/db";
 import { desc } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
 
 // GET /api/portfolio/reports — List all portfolio reports
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
     const reports = await db
       .select()
       .from(portfolioReports)

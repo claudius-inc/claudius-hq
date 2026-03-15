@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, portfolioHoldings, watchlist } from "@/db";
 import { eq, desc } from "drizzle-orm";
 
@@ -15,8 +16,10 @@ function toSnakeCase(r: Record<string, unknown>) {
 }
 
 // GET /api/portfolio/holdings — List all holdings
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
     const rows = await db
       .select()
       .from(portfolioHoldings)

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, themes, themeStocks } from "@/db";
 import { desc } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
@@ -133,8 +134,10 @@ function findLeader(stockPerfs: ThemePerformance[]): { ticker: string; performan
 }
 
 // GET /api/themes - List all themes with performance
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
     // Get all themes
     const allThemes = await db.select().from(themes).orderBy(themes.name);
 

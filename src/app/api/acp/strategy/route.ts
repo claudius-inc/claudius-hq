@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { acpStrategy, ACP_STRATEGY_CATEGORIES } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -15,7 +16,9 @@ function checkAuth(req: NextRequest): boolean {
 
 // GET: Fetch all strategy params (or by category)
 export async function GET(req: NextRequest) {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { searchParams } = new URL(req.url);
     const category = searchParams.get("category");
 

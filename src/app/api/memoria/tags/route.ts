@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, memoriaTags } from "@/db";
 import { asc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
     const tags = await db.select().from(memoriaTags).orderBy(asc(memoriaTags.name));
     return NextResponse.json({ tags });
   } catch (e) {

@@ -1,3 +1,4 @@
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { NextRequest, NextResponse } from 'next/server';
 import { db, ibkrImports, ibkrTrades, ibkrIncome, ibkrPositions, ibkrPortfolioMeta } from '@/db';
 import { eq, desc, asc } from 'drizzle-orm';
@@ -5,8 +6,10 @@ import { logger } from "@/lib/logger";
 
 export const runtime = 'nodejs';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
     const imports = await db
       .select()
       .from(ibkrImports)

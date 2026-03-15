@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { acpState } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -14,8 +15,10 @@ function checkAuth(req: NextRequest): boolean {
 }
 
 // GET: Fetch current ACP state
-export async function GET() {
+export async function GET(_req: NextRequest) {
+  if (!checkApiAuth(_req)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(_req)) return unauthorizedResponse();
     const rows = await db.select().from(acpState).where(eq(acpState.id, 1));
     
     if (rows.length === 0) {

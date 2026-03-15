@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { goldAnalysis, goldFlows } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -117,7 +118,9 @@ async function fetchGoldData() {
 
 // GET /api/gold - Returns current analysis, live price, and recent flows
 export async function GET(request: NextRequest) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
     const fresh = request.nextUrl.searchParams.get("fresh") === "true";
 
     if (!fresh) {

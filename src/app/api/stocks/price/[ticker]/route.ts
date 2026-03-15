@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import YahooFinance from "yahoo-finance2";
 
 // Instantiate Yahoo Finance client
@@ -21,6 +22,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { ticker: string } }
 ) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   const { ticker } = params;
   const upperTicker = ticker.toUpperCase();
 

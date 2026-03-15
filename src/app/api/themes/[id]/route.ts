@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, themes, themeStocks } from "@/db";
 import { eq } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
@@ -160,6 +161,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
     const { id } = params;
     const numericId = parseInt(id, 10);

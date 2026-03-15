@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { revalidatePath } from "next/cache";
 import { db, stockReports, researchJobs } from "@/db";
 import { desc, eq } from "drizzle-orm";
@@ -6,7 +7,9 @@ import { isApiAuthenticated } from "@/lib/auth";
 
 // GET /api/stocks/reports — list all reports, optionally filter by ticker
 export async function GET(req: NextRequest) {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { searchParams } = new URL(req.url);
     const ticker = searchParams.get("ticker");
 

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, stockScans } from "@/db";
 import { desc, eq } from "drizzle-orm";
 
@@ -8,7 +9,9 @@ interface RouteParams {
 
 // GET /api/stocks/scans/[type] — get latest scan by type
 export async function GET(req: NextRequest, { params }: RouteParams) {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { type } = await params;
     
     const [scan] = await db

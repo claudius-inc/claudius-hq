@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { revalidatePath } from "next/cache";
 import { db, researchJobs } from "@/db";
 import { eq } from "drizzle-orm";
@@ -8,6 +9,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { jobId: string } }
 ) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   const { jobId } = params;
 
   try {

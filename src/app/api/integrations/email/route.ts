@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { client } from "@/db";
 import { logger } from "@/lib/logger";
 
@@ -51,8 +52,10 @@ export async function POST(request: NextRequest) {
 
 // GET - read recent emails (protected by API key)
 export async function GET(request: NextRequest) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   const apiKey = request.headers.get("x-api-key");
   if (apiKey !== process.env.HQ_API_KEY) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

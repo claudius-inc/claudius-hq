@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpActivities, acpOfferings, acpWalletSnapshots } from "@/db/schema";
@@ -16,7 +17,9 @@ function checkAuth(req: NextRequest): boolean {
 
 // GET: Fetch activities with optional filters
 export async function GET(req: NextRequest) {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
   const { searchParams } = new URL(req.url);
+  if (!checkApiAuth(req)) return unauthorizedResponse();
   const limit = parseInt(searchParams.get("limit") || "50");
   const type = searchParams.get("type");
 

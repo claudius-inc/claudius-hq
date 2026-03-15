@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db } from "@/db";
 import { acpMarketing, ACP_MARKETING_STATUSES } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -19,7 +20,9 @@ interface RouteParams {
 
 // GET: Fetch a single campaign
 export async function GET(req: NextRequest, { params }: RouteParams) {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(req)) return unauthorizedResponse();
     const { id } = await params;
     const campaignId = parseInt(id);
     

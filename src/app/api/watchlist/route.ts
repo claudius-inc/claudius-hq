@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkApiAuth, unauthorizedResponse } from "@/lib/api-auth";
 import { db, watchlist } from "@/db";
 import { desc, eq } from "drizzle-orm";
 
 // GET /api/watchlist — List all watchlist items
-export async function GET() {
+export async function GET(request: NextRequest) {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
   try {
+  if (!checkApiAuth(request)) return unauthorizedResponse();
     const items = await db.select().from(watchlist).orderBy(desc(watchlist.addedAt));
     return NextResponse.json({ items });
   } catch (e) {
