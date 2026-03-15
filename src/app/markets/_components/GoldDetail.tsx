@@ -2,16 +2,13 @@
 
 import useSWR, { mutate } from "swr";
 import { useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { Modal } from "@/components/ui/Modal";
 import {
   TrendingUp,
   TrendingDown,
   Plus,
-  ArrowUpRight,
-  ArrowDownRight,
   AlertTriangle,
+  Info,
 } from "lucide-react";
 import type { EvaluatedSignal, SignalRating, CompositeRating, RuleEvaluation } from "@/lib/thesis/types";
 
@@ -34,9 +31,6 @@ interface GoldData {
   analysis: {
     ath: number | null;
     athDate: string | null;
-    keyLevels?: Array<{ level: number; significance: string }>;
-    thesisNotes?: string;
-    catalysts?: { bull: string[]; bear: string[] } | null;
   } | null;
 }
 
@@ -105,6 +99,49 @@ function formatSignalValue(value: number | null, unit: string): string {
   return value.toFixed(2);
 }
 
+// ── Synthesis Generator ───────────────────────────────────────────
+
+function generateSynthesis(signals: EvaluatedSignal[]): string {
+  const cbSignal = signals.find((s) => s.id === "cb-demand");
+  const tipsSignal = signals.find((s) => s.id === "tips-yield");
+  const dxySignal = signals.find((s) => s.id === "dxy");
+  const m2Signal = signals.find((s) => s.id === "m2-growth");
+
+  const cbBullish = cbSignal && ["strong-bullish", "bullish"].includes(cbSignal.rating);
+  const tipsBearish = tipsSignal && ["bearish", "strong-bearish"].includes(tipsSignal.rating);
+  const dxyBullish = dxySignal && ["strong-bullish", "bullish"].includes(dxySignal.rating);
+  const m2Bullish = m2Signal && ["strong-bullish", "bullish"].includes(m2Signal.rating);
+
+  // CB buying overriding real yields headwind
+  if (cbBullish && tipsBearish) {
+    return "CB buying (1000T+/yr) overriding real yield headwind. Secular bull intact.";
+  }
+
+  // All bullish
+  if (cbBullish && !tipsBearish && dxyBullish && m2Bullish) {
+    return "All macro drivers aligned bullish. Strong accumulation environment.";
+  }
+
+  // Dollar weakness driving
+  if (dxyBullish && !cbBullish) {
+    return "Dollar weakness supporting gold. Watch for CB demand confirmation.";
+  }
+
+  // Mixed signals
+  const bullishCount = signals.filter((s) => ["strong-bullish", "bullish"].includes(s.rating)).length;
+  const bearishCount = signals.filter((s) => ["bearish", "strong-bearish"].includes(s.rating)).length;
+
+  if (bullishCount > bearishCount) {
+    return "Net bullish signal mix. Secular bull continues with near-term crosscurrents.";
+  }
+
+  if (bearishCount > bullishCount) {
+    return "Caution: More headwinds than tailwinds. Watch for thesis deterioration.";
+  }
+
+  return "Mixed signals. Hold existing position, no new adds.";
+}
+
 // ── CFTC Warning Badge ────────────────────────────────────────────
 
 function CftcWarningBadge({ signal }: { signal: EvaluatedSignal | undefined }) {
@@ -133,7 +170,34 @@ function CftcWarningBadge({ signal }: { signal: EvaluatedSignal | undefined }) {
   );
 }
 
-// ── Live Ratios Grid ──────────────────────────────────────────────
+// ── Key Ratios with Health Colors ─────────────────────────────────
+
+interface RatioHealth {
+  color: string;
+  label: string;
+}
+
+function getRatioHealth(key: string, value: number): RatioHealth {
+  switch (key) {
+    case "dowGold":
+      // Higher = gold cheap relative to stocks
+      if (value > 8) return { color: "border-emerald-300 bg-emerald-50", label: "Gold cheap" };
+      if (value < 4) return { color: "border-red-300 bg-red-50", label: "Gold expensive" };
+      return { color: "border-amber-300 bg-amber-50", label: "Fair value" };
+    case "goldSilver":
+      // Higher = silver cheap relative to gold
+      if (value > 80) return { color: "border-emerald-300 bg-emerald-50", label: "Silver cheap" };
+      if (value < 50) return { color: "border-red-300 bg-red-50", label: "Silver rich" };
+      return { color: "border-amber-300 bg-amber-50", label: "Normal" };
+    case "m2Gold":
+      // Higher = gold cheap relative to money supply
+      if (value > 5) return { color: "border-emerald-300 bg-emerald-50", label: "Gold cheap" };
+      if (value < 3) return { color: "border-red-300 bg-red-50", label: "Gold expensive" };
+      return { color: "border-amber-300 bg-amber-50", label: "Fair value" };
+    default:
+      return { color: "border-gray-200 bg-gray-50", label: "" };
+  }
+}
 
 const RATIO_INFO: Record<string, { label: string; peakLabel: string; peak: number; desc: string }> = {
   dowGold: {
@@ -170,14 +234,19 @@ function RatiosGrid({ ratios }: { ratios: GoldData["ratios"] }) {
         {entries.map(([key, value]) => {
           const info = RATIO_INFO[key];
           if (!info) return null;
+          const health = getRatioHealth(key, value);
           return (
-            <div key={key} className="bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+            <div key={key} className={`rounded-lg p-2.5 border-2 ${health.color}`}>
               <div className="text-[10px] text-gray-500 mb-0.5">{info.label}</div>
               <div className="text-sm font-bold text-gray-900 font-mono">{value.toFixed(1)}</div>
+              {health.label && (
+                <div className="text-[9px] font-medium text-gray-600 mt-0.5">
+                  {health.label}
+                </div>
+              )}
               <div className="text-[9px] text-gray-400 mt-0.5">
                 {info.peakLabel}: {info.peak}
               </div>
-              <div className="text-[9px] text-gray-400 mt-1 leading-tight">{info.desc}</div>
             </div>
           );
         })}
@@ -186,108 +255,7 @@ function RatiosGrid({ ratios }: { ratios: GoldData["ratios"] }) {
   );
 }
 
-// ── Strategy Levels ───────────────────────────────────────────────
-
-function StrategyLevels({
-  goldPrice,
-  ema50,
-  ema200,
-  keyLevels,
-}: {
-  goldPrice: number | null;
-  ema50: number | null;
-  ema200: number | null;
-  keyLevels: Array<{ level: number; significance: string }>;
-}) {
-  const allLevels: Array<{ level: number; label: string; type: "ema" | "key" }> = [];
-  if (ema50) allLevels.push({ level: ema50, label: "50-day EMA", type: "ema" });
-  if (ema200) allLevels.push({ level: ema200, label: "200-day EMA", type: "ema" });
-  keyLevels.forEach((kl) => allLevels.push({ level: kl.level, label: kl.significance, type: "key" }));
-
-  if (allLevels.length === 0) return null;
-
-  allLevels.sort((a, b) => b.level - a.level);
-
-  return (
-    <div>
-      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
-        Key Levels & Strategy
-      </div>
-      <div className="space-y-1">
-        {allLevels.map((lvl, i) => {
-          const isAbove = goldPrice && goldPrice >= lvl.level;
-          const dist = goldPrice ? ((goldPrice - lvl.level) / lvl.level) * 100 : null;
-          const isEma = lvl.type === "ema";
-          return (
-            <div
-              key={i}
-              className={`flex items-center justify-between rounded-lg p-2 border ${
-                isAbove
-                  ? "bg-emerald-50 border-emerald-200"
-                  : "bg-gray-50 border-gray-200"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {isAbove ? (
-                  <TrendingUp className="w-3 h-3 text-emerald-500" />
-                ) : (
-                  <TrendingDown className="w-3 h-3 text-gray-400" />
-                )}
-                <span className={`text-xs font-medium ${isEma ? "text-blue-700" : "text-gray-900"}`}>
-                  {formatUsd(lvl.level)}
-                </span>
-                {dist !== null && (
-                  <span className={`text-[10px] font-mono ${isAbove ? "text-emerald-500" : "text-gray-400"}`}>
-                    {dist >= 0 ? "+" : ""}{dist.toFixed(1)}%
-                  </span>
-                )}
-              </div>
-              <span className={`text-[10px] ${isEma ? "text-blue-600 font-medium" : "text-gray-500"}`}>
-                {lvl.label}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Catalysts ─────────────────────────────────────────────────────
-
-function CatalystsPanel({ catalysts }: { catalysts: { bull: string[]; bear: string[] } }) {
-  return (
-    <div>
-      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5 px-2">
-        Catalysts to Watch
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        <div className="bg-emerald-50 rounded-lg p-2.5 border border-emerald-100">
-          <div className="text-[10px] font-semibold text-emerald-700 mb-1.5 flex items-center gap-1">
-            <ArrowUpRight className="w-3 h-3" /> Bull Triggers
-          </div>
-          <ul className="space-y-1">
-            {catalysts.bull.map((c, i) => (
-              <li key={i} className="text-[10px] text-emerald-800 leading-tight">{c}</li>
-            ))}
-          </ul>
-        </div>
-        <div className="bg-red-50 rounded-lg p-2.5 border border-red-100">
-          <div className="text-[10px] font-semibold text-red-700 mb-1.5 flex items-center gap-1">
-            <ArrowDownRight className="w-3 h-3" /> Bear Triggers
-          </div>
-          <ul className="space-y-1">
-            {catalysts.bear.map((c, i) => (
-              <li key={i} className="text-[10px] text-red-800 leading-tight">{c}</li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Signal Explanations ───────────────────────────────────────────
+// ── Signal Explanations & Triggers ────────────────────────────────
 
 const SIGNAL_FRIENDLY_NAME: Record<string, string> = {
   "tips-yield": "Real Yields (TIPS)",
@@ -297,6 +265,16 @@ const SIGNAL_FRIENDLY_NAME: Record<string, string> = {
   "deficit-gdp": "US Deficit / GDP",
   "etf-flow-momentum": "ETF Flow Momentum",
   "cftc-net-spec": "Speculative Positioning",
+};
+
+const SIGNAL_TRIGGERS: Record<string, string> = {
+  "tips-yield": "Watch: Fed pivot, CPI surprise",
+  "cb-demand": "Watch: PBOC/RBI quarterly reports",
+  "dxy": "Watch: EUR moves, USD liquidity",
+  "m2-growth": "Watch: Fed balance sheet, QE/QT shifts",
+  "etf-flow-momentum": "Watch: GLD holdings weekly change",
+  "deficit-gdp": "Watch: Budget negotiations, recession",
+  "cftc-net-spec": "Watch: COT report Fridays",
 };
 
 const SIGNAL_EXPLANATIONS: Record<string, Record<string, string>> = {
@@ -445,12 +423,15 @@ function TrendArrow({ signal }: { signal: EvaluatedSignal }) {
   );
 }
 
-// ── Signal Panel ───────────────────────────────────────────────────
+// ── Signal Row with Trigger ───────────────────────────────────────
 
 function SignalRow({ signal }: { signal: EvaluatedSignal }) {
   const cfg = RATING_CONFIG[signal.rating];
   const friendlyName = SIGNAL_FRIENDLY_NAME[signal.id] ?? signal.name;
   const explanation = getExplanation(signal);
+  const trigger = SIGNAL_TRIGGERS[signal.id];
+  const showRealYieldsNote = signal.id === "tips-yield" && ["bearish", "strong-bearish"].includes(signal.rating);
+
   return (
     <div className="py-2 px-2.5 rounded-lg hover:bg-gray-50">
       <div className="flex items-center justify-between">
@@ -468,6 +449,19 @@ function SignalRow({ signal }: { signal: EvaluatedSignal }) {
       <div className="text-[10px] text-gray-500 mt-0.5 leading-relaxed">
         {explanation}
       </div>
+      {trigger && (
+        <div className="text-[9px] text-blue-600 mt-0.5 font-medium">
+          {trigger}
+        </div>
+      )}
+      {showRealYieldsNote && (
+        <div className="flex items-start gap-1 mt-1.5 p-1.5 bg-blue-50 rounded border border-blue-100">
+          <Info className="w-3 h-3 text-blue-500 mt-0.5 shrink-0" />
+          <span className="text-[9px] text-blue-700 leading-tight">
+            Note: Gold has rallied despite positive real yields since 2022 because central bank buying has been the dominant driver.
+          </span>
+        </div>
+      )}
       <SignalRangeBar signal={signal} />
     </div>
   );
@@ -689,12 +683,15 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
   const scoredSignals = thesisData?.signals.filter((s) => s.category !== "warning") ?? [];
   const cftcSignal = thesisData?.signals.find((s) => s.id === "cftc-net-spec");
 
+  // Generate synthesis line
+  const synthesis = thesisData ? generateSynthesis(thesisData.signals) : null;
+
   const isLoading = goldLoading || thesisLoading;
 
   return (
     <Modal open={open} onClose={onClose} title="Gold Analysis" size="lg">
       <div className="space-y-5">
-        {/* Price Card with Composite Score */}
+        {/* 1. Price Card with Composite Score + Synthesis */}
         <div className="rounded-lg border bg-gradient-to-br from-amber-50 to-yellow-50 p-4">
           <div className="flex justify-between items-start">
             <div>
@@ -731,19 +728,20 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
             </div>
           </div>
           
+          {/* Synthesis Line */}
+          {synthesis && (
+            <div className="mt-3 text-xs text-gray-700 font-medium bg-white/60 rounded px-2.5 py-1.5 border border-amber-200">
+              {synthesis}
+            </div>
+          )}
+          
           {/* CFTC Warning Badge */}
-          <div className="mt-3">
+          <div className="mt-2">
             <CftcWarningBadge signal={cftcSignal} />
           </div>
         </div>
 
-        {/* Historical Cycles */}
-        <HistoricalCycles currentReturn={currentReturn} />
-
-        {/* Live Ratios */}
-        <RatiosGrid ratios={goldData?.ratios ?? null} />
-
-        {/* Signal Panel - 5 scored signals */}
+        {/* 2. Signal Panel - scored signals with triggers */}
         {isLoading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((i) => (
@@ -763,11 +761,17 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
           </div>
         ) : null}
 
-        {/* Pre-Commitment Contract */}
+        {/* 3. Key Ratios with health colors */}
+        <RatiosGrid ratios={goldData?.ratios ?? null} />
+
+        {/* 4. Historical Bull Markets */}
+        <HistoricalCycles currentReturn={currentReturn} />
+
+        {/* 5. Pre-Commitment Contract */}
         {thesisData?.preCommitment && (
           <div>
             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
-              Pre-Commitment
+              Pre-Commitment Rules
             </div>
             <div className="space-y-0.5 border rounded-lg py-1">
               {thesisData.preCommitment.rules.map((rule, i) => (
@@ -777,20 +781,7 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
           </div>
         )}
 
-        {/* Catalysts */}
-        {goldData?.analysis?.catalysts && (
-          <CatalystsPanel catalysts={goldData.analysis.catalysts} />
-        )}
-
-        {/* Key Levels & Strategy */}
-        <StrategyLevels
-          goldPrice={goldPrice}
-          ema50={goldData?.movingAverages?.ema50 ?? null}
-          ema200={goldData?.movingAverages?.ema200 ?? null}
-          keyLevels={goldData?.analysis?.keyLevels ?? []}
-        />
-
-        {/* Decision Log */}
+        {/* 6. Recent Decisions */}
         {thesisData && (
           <div>
             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
@@ -823,20 +814,6 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
               goldPrice={goldPrice}
               onSubmit={() => mutate("/api/thesis/gold")}
             />
-          </div>
-        )}
-
-        {/* Thesis Notes */}
-        {goldData?.analysis?.thesisNotes && (
-          <div>
-            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
-              Thesis Notes
-            </div>
-            <div className="text-xs text-gray-600 bg-gray-50 rounded-lg p-3 prose prose-xs prose-gray max-w-none [&_table]:w-full [&_table]:text-[10px] [&_th]:text-left [&_th]:py-1 [&_th]:px-2 [&_th]:border-b [&_th]:border-gray-200 [&_th]:font-semibold [&_td]:py-1 [&_td]:px-2 [&_td]:border-b [&_td]:border-gray-100">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {goldData.analysis.thesisNotes}
-              </ReactMarkdown>
-            </div>
           </div>
         )}
       </div>
