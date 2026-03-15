@@ -415,9 +415,9 @@ interface GoldApiResponse {
 async function fetchGoldPrice(): Promise<{ price: number; sma200: number; sma50: number } | null> {
   try {
     // Use internal gold API for accurate gold price
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'http://localhost:3000';
+    // Fix: proper URL construction with correct ternary precedence
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL 
+      || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
     const goldRes = await fetch(`${baseUrl}/api/gold`, { cache: "no-store" });
     
     if (!goldRes.ok) {
@@ -645,6 +645,8 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
       valuation: {
         ...valuation,
         metric: `Halving Yr ${cycleYearNum}/4`,
+        // Clear the value to avoid showing "1.9" next to "Halving Yr 2/4"
+        value: null as unknown as number,
       },
       expectedReturn,
       tactical,

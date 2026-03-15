@@ -12,7 +12,7 @@ import { HardAssets } from "./_components/HardAssets";
 import { RegimeDetail } from "./_components/RegimeDetail";
 import { PlaybookSection } from "./_components/playbook/PlaybookSection";
 import { ExpectedReturnsCard } from "./_components/ExpectedReturnsCard";
-import { CorrelationMatrix } from "./_components/CorrelationMatrix";
+// CorrelationMatrix is now embedded inside RegimeStrip
 import type {
   Position,
   Summary,
@@ -203,7 +203,7 @@ export default function StocksDashboard() {
 
         <HardAssets />
 
-        <CorrelationMatrix />
+        {/* CorrelationMatrix is now inside RegimeStrip */}
 
         <Sentiment
           sentimentData={sentimentData}

@@ -1,11 +1,16 @@
+"use client";
+
+import { useState } from "react";
 import { Skeleton } from "@/components/Skeleton";
 import { Landmark, ArrowRight, HelpCircle } from "lucide-react";
 import { RangePopover } from "@/components/ui/RangePopover";
+import { Modal } from "@/components/ui/Modal";
 import {
   realYieldRanges,
   debtToGdpRanges,
   deficitToGdpRanges,
 } from "./constants";
+import { CorrelationTrigger, CorrelationModalContent, useCorrelationData } from "./CorrelationMatrix";
 import type { RegimeData } from "./types";
 
 interface RegimeStripProps {
@@ -15,8 +20,14 @@ interface RegimeStripProps {
 }
 
 export function RegimeStrip({ regimeData, loading, onOpenDetail }: RegimeStripProps) {
+  const [correlationOpen, setCorrelationOpen] = useState(false);
+  const { data: correlationData, isLoading: correlationLoading } = useCorrelationData();
+  const alertCount = correlationData?.alerts?.length ?? 0;
+
   return (
-    <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4 h-full">
+    <>
+      <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4 h-full flex flex-col">
+        {/* Main regime button */}
         <button
           type="button"
           disabled={loading.regime || loading.sentiment || !regimeData}
@@ -194,6 +205,32 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail }: RegimeStripPr
             )}
           </div>
         </button>
-    </div>
+
+        {/* Correlation Matrix trigger - embedded in regime card */}
+        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center justify-end">
+          <CorrelationTrigger 
+            onClick={() => setCorrelationOpen(true)} 
+            alertCount={alertCount}
+            loading={correlationLoading}
+          />
+        </div>
+      </div>
+
+      {/* Correlation Modal */}
+      <Modal
+        open={correlationOpen}
+        onClose={() => setCorrelationOpen(false)}
+        title="Correlation Matrix"
+        size="md"
+      >
+        {correlationLoading ? (
+          <div className="space-y-2">
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : (
+          <CorrelationModalContent data={correlationData} />
+        )}
+      </Modal>
+    </>
   );
 }
