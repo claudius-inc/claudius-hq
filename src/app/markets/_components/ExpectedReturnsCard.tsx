@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
-import { TrendingUp, TrendingDown, Minus, ChevronRight, Target, Activity, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, ChevronRight, Target, Activity, AlertTriangle, Grid3X3 } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
+import { CorrelationMatrixModal } from "./CorrelationMatrix";
 import type { ExpectedReturnsResponse, AssetValuation, TacticalSummary, SignalAlignment } from "@/lib/valuation/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null));
@@ -146,18 +148,29 @@ function CompactAssetRow({ asset }: { asset: AssetValuation }) {
   );
 }
 
-function RankingStrip({ ranking }: { ranking: string[] }) {
+function RankingStrip({ ranking, onCorrelationClick }: { ranking: string[]; onCorrelationClick?: () => void }) {
   return (
-    <div className="flex items-center gap-1 px-2.5 py-1.5 bg-gray-50 border-t border-gray-100">
-      <span className="text-[9px] text-gray-400">Rank:</span>
-      {ranking.map((symbol, i) => (
-        <span key={symbol} className="flex items-center">
-          <span className="text-[9px] font-medium text-gray-600">{symbol}</span>
-          {i < ranking.length - 1 && (
-            <ChevronRight className="w-2.5 h-2.5 text-gray-300" />
-          )}
-        </span>
-      ))}
+    <div className="flex items-center justify-between px-2.5 py-1.5 bg-gray-50 border-t border-gray-100">
+      <div className="flex items-center gap-1">
+        <span className="text-[9px] text-gray-400">Rank:</span>
+        {ranking.map((symbol, i) => (
+          <span key={symbol} className="flex items-center">
+            <span className="text-[9px] font-medium text-gray-600">{symbol}</span>
+            {i < ranking.length - 1 && (
+              <ChevronRight className="w-2.5 h-2.5 text-gray-300" />
+            )}
+          </span>
+        ))}
+      </div>
+      {onCorrelationClick && (
+        <button
+          onClick={onCorrelationClick}
+          className="flex items-center gap-1 text-[9px] text-blue-600 hover:text-blue-700"
+        >
+          <Grid3X3 className="w-3 h-3" />
+          <span>Correlations</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -203,6 +216,7 @@ function TacticalSummaryStrip({ summary }: { summary: TacticalSummary }) {
 }
 
 export function ExpectedReturnsCard() {
+  const [showCorrelations, setShowCorrelations] = useState(false);
   const { data, isLoading } = useSWR<ExpectedReturnsResponse>(
     "/api/valuation/expected-returns",
     fetcher,
@@ -231,7 +245,10 @@ export function ExpectedReturnsCard() {
             {data.assets.map((asset) => (
               <CompactAssetRow key={asset.symbol} asset={asset} />
             ))}
-            <RankingStrip ranking={data.relativeRanking} />
+            <RankingStrip 
+              ranking={data.relativeRanking} 
+              onCorrelationClick={() => setShowCorrelations(true)}
+            />
             {data.tacticalSummary && (
               <TacticalSummaryStrip summary={data.tacticalSummary} />
             )}
@@ -242,6 +259,11 @@ export function ExpectedReturnsCard() {
           </div>
         )}
       </div>
+
+      <CorrelationMatrixModal 
+        open={showCorrelations} 
+        onClose={() => setShowCorrelations(false)} 
+      />
     </div>
   );
 }

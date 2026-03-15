@@ -223,6 +223,28 @@ export function CorrelationModalContent({ data }: { data: CorrelationsResponse |
 }
 
 // Standalone card version (kept for backwards compatibility)
+// Standalone modal component for use in other cards
+export function CorrelationMatrixModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { data, isLoading } = useCorrelationData();
+  
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Correlation Matrix"
+      size="md"
+    >
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : (
+        <CorrelationModalContent data={data} />
+      )}
+    </Modal>
+  );
+}
+
 export function CorrelationMatrix() {
   const [isOpen, setIsOpen] = useState(false);
   const { data, isLoading } = useCorrelationData();
