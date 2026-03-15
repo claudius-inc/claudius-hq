@@ -1,10 +1,10 @@
 // ── Thesis Engine Types ───────────────────────────────────────────────
 
 export type SignalRating = "strong-bullish" | "bullish" | "neutral" | "bearish" | "strong-bearish";
-export type SignalCategory = "primary" | "secondary" | "sentiment";
+export type SignalCategory = "primary" | "secondary" | "sentiment" | "warning";
 export type CompositeRating = "strong-buy" | "buy" | "neutral" | "caution" | "avoid";
 
-export type SignalSourceType = "fred" | "yahoo" | "cftc" | "derived" | "manual";
+export type SignalSourceType = "fred" | "fred_yoy" | "yahoo" | "cftc" | "derived" | "manual";
 
 export interface SignalSource {
   type: SignalSourceType;

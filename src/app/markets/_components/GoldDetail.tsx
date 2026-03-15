@@ -11,6 +11,7 @@ import {
   Plus,
   ArrowUpRight,
   ArrowDownRight,
+  AlertTriangle,
 } from "lucide-react";
 import type { EvaluatedSignal, SignalRating, CompositeRating, RuleEvaluation } from "@/lib/thesis/types";
 
@@ -35,7 +36,6 @@ interface GoldData {
     athDate: string | null;
     keyLevels?: Array<{ level: number; significance: string }>;
     thesisNotes?: string;
-    cyclePhase?: number | null;
     catalysts?: { bull: string[]; bear: string[] } | null;
   } | null;
 }
@@ -89,11 +89,11 @@ const RATING_CONFIG: Record<SignalRating, { label: string; color: string; icon: 
 };
 
 const COMPOSITE_CONFIG: Record<CompositeRating, { label: string; color: string }> = {
-  "strong-buy": { label: "Strong Buy", color: "text-emerald-700 bg-emerald-100" },
-  buy: { label: "Buy", color: "text-emerald-600 bg-emerald-50" },
-  neutral: { label: "Neutral", color: "text-gray-600 bg-gray-100" },
-  caution: { label: "Caution", color: "text-amber-600 bg-amber-50" },
-  avoid: { label: "Avoid", color: "text-red-600 bg-red-50" },
+  "strong-buy": { label: "ACCUMULATE", color: "text-emerald-700 bg-emerald-100" },
+  buy: { label: "ACCUMULATE", color: "text-emerald-600 bg-emerald-50" },
+  neutral: { label: "HOLD", color: "text-gray-600 bg-gray-100" },
+  caution: { label: "CAUTION", color: "text-amber-600 bg-amber-50" },
+  avoid: { label: "AVOID", color: "text-red-600 bg-red-50" },
 };
 
 function formatSignalValue(value: number | null, unit: string): string {
@@ -105,47 +105,30 @@ function formatSignalValue(value: number | null, unit: string): string {
   return value.toFixed(2);
 }
 
-// ── Cycle Phase Indicator ─────────────────────────────────────────
+// ── CFTC Warning Badge ────────────────────────────────────────────
 
-const CYCLE_PHASES = [
-  { label: "Accumulation", desc: "Smart money buys, public ignores" },
-  { label: "Markup", desc: "Trend emerges, institutions join" },
-  { label: "Acceleration", desc: "Broad participation, price surges" },
-  { label: "Mania", desc: "Euphoria, retail FOMO, blow-off top" },
-];
-
-function CyclePhaseIndicator({ phase }: { phase: number }) {
+function CftcWarningBadge({ signal }: { signal: EvaluatedSignal | undefined }) {
+  if (!signal || signal.currentValue === null) return null;
+  
+  const percentile = signal.currentValue;
+  const isCrowded = percentile > 75;
+  const isWashedOut = percentile < 25;
+  
+  if (!isCrowded && !isWashedOut) return null;
+  
   return (
-    <div>
-      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2 px-2">
-        Cycle Position
-      </div>
-      <div className="flex gap-1">
-        {CYCLE_PHASES.map((p, i) => {
-          const phaseNum = i + 1;
-          const isCurrent = phaseNum === phase;
-          const isPast = phaseNum < phase;
-          return (
-            <div key={i} className="flex-1">
-              <div
-                className={`h-1.5 rounded-full mb-1 ${
-                  isCurrent
-                    ? "bg-amber-500"
-                    : isPast
-                    ? "bg-amber-300"
-                    : "bg-gray-200"
-                }`}
-              />
-              <div className={`text-[10px] font-medium ${isCurrent ? "text-amber-700" : "text-gray-400"}`}>
-                {p.label}
-              </div>
-              {isCurrent && (
-                <div className="text-[9px] text-gray-500 mt-0.5">{p.desc}</div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+    <div className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${
+      isCrowded 
+        ? "bg-amber-50 border-amber-200 text-amber-700" 
+        : "bg-blue-50 border-blue-200 text-blue-700"
+    }`}>
+      <AlertTriangle className="w-3.5 h-3.5" />
+      <span className="text-xs font-medium">
+        {isCrowded 
+          ? `CFTC Crowded (${Math.round(percentile)}th %ile)` 
+          : `CFTC Washed Out (${Math.round(percentile)}th %ile)`
+        }
+      </span>
     </div>
   );
 }
@@ -216,7 +199,6 @@ function StrategyLevels({
   ema200: number | null;
   keyLevels: Array<{ level: number; significance: string }>;
 }) {
-  // Merge EMAs with key levels
   const allLevels: Array<{ level: number; label: string; type: "ema" | "key" }> = [];
   if (ema50) allLevels.push({ level: ema50, label: "50-day EMA", type: "ema" });
   if (ema200) allLevels.push({ level: ema200, label: "200-day EMA", type: "ema" });
@@ -224,7 +206,6 @@ function StrategyLevels({
 
   if (allLevels.length === 0) return null;
 
-  // Sort descending so highest level is first
   allLevels.sort((a, b) => b.level - a.level);
 
   return (
@@ -310,79 +291,63 @@ function CatalystsPanel({ catalysts }: { catalysts: { bull: string[]; bear: stri
 
 const SIGNAL_FRIENDLY_NAME: Record<string, string> = {
   "tips-yield": "Real Yields (TIPS)",
-  "dxy": "US Dollar (DXY)",
   "cb-demand": "Central Bank Buying",
-  "5y5y-breakeven": "Inflation Expectations",
-  "hy-spread": "Credit Stress",
+  "m2-growth": "M2 Money Supply Growth",
+  "dxy": "US Dollar (DXY)",
   "deficit-gdp": "US Deficit / GDP",
-  "real-policy-rate": "Real Fed Rate",
+  "etf-flow-momentum": "ETF Flow Momentum",
   "cftc-net-spec": "Speculative Positioning",
-  "gold-sp-ratio": "Gold vs S&P 500",
 };
 
 const SIGNAL_EXPLANATIONS: Record<string, Record<string, string>> = {
   "tips-yield": {
-    "strong-bullish": "Real yields deeply negative — gold thrives when cash loses purchasing power",
-    bullish: "Real yields low — holding gold costs little vs bonds",
-    neutral: "Real yields moderate — neither helping nor hurting gold",
-    bearish: "Real yields elevated — bonds offer real return, competing with gold",
-    "strong-bearish": "Real yields high — strong headwind, bonds much more attractive than gold",
-  },
-  dxy: {
-    "strong-bullish": "Dollar very weak — gold priced in USD gets cheaper for global buyers",
-    bullish: "Dollar soft — tailwind for gold prices",
-    neutral: "Dollar in middle range — no strong push either way",
-    bearish: "Dollar strong — makes gold expensive for foreign buyers",
-    "strong-bearish": "Dollar surging — major headwind for gold",
+    "strong-bullish": "Real yields deeply negative - gold thrives when cash loses purchasing power",
+    bullish: "Real yields low - holding gold costs little vs bonds",
+    neutral: "Real yields moderate - neither helping nor hurting gold",
+    bearish: "Real yields elevated - bonds offer real return, competing with gold",
+    "strong-bearish": "Real yields high - strong headwind, bonds much more attractive than gold",
   },
   "cb-demand": {
-    "strong-bullish": "Central banks buying aggressively (>1,000T/yr) — structural floor under prices",
-    bullish: "Central banks buying steadily — supports demand",
+    "strong-bullish": "Central banks buying aggressively (>1,000T/yr) - structural floor under prices",
+    bullish: "Central banks buying steadily - supports demand",
     neutral: "Central bank buying at normal levels",
     bearish: "Central bank buying below trend",
-    "strong-bearish": "Central banks not buying — missing a key demand pillar",
+    "strong-bearish": "Central banks not buying - missing a key demand pillar",
   },
-  "5y5y-breakeven": {
-    "strong-bullish": "Markets pricing in high long-term inflation — gold's sweet spot",
-    bullish: "Inflation expectations rising — investors seek inflation hedges",
-    neutral: "Inflation expectations well-anchored around target",
-    bearish: "Low inflation expectations — less need for gold as hedge",
-    "strong-bearish": "Deflation fears — gold usually underperforms in deflation",
+  "m2-growth": {
+    "strong-bullish": "Money supply expanding rapidly (>8% YoY) - strong debasement tailwind",
+    bullish: "M2 growing above trend - supportive for gold",
+    neutral: "Money supply growth moderate",
+    bearish: "M2 growth slowing - less monetary inflation pressure",
+    "strong-bearish": "Money supply contracting - deflationary, headwind for gold",
   },
-  "hy-spread": {
-    "strong-bullish": "Credit markets stressed — flight to safety benefits gold",
-    bullish: "Spreads widening — rising risk aversion supports gold",
-    neutral: "Credit markets calm — no fear bid for gold",
-    bearish: "Spreads tight — risk appetite high, gold less appealing",
-    "strong-bearish": "Spreads very tight — complacency, no safe-haven demand",
+  dxy: {
+    "strong-bullish": "Dollar very weak - gold priced in USD gets cheaper for global buyers",
+    bullish: "Dollar soft - tailwind for gold prices",
+    neutral: "Dollar in middle range - no strong push either way",
+    bearish: "Dollar strong - makes gold expensive for foreign buyers",
+    "strong-bearish": "Dollar surging - major headwind for gold",
   },
   "deficit-gdp": {
-    "strong-bullish": "Deficit >6% of GDP — crisis-level spending without a crisis, serious debasement risk",
-    bullish: "Deficit 4.5-6% — well above the 3% sustainability line, historically only seen in recessions",
-    neutral: "Deficit around 3% — roughly the level that stabilizes debt-to-GDP ratio",
-    bearish: "Deficit below 3% — fiscal position improving, less need for gold as a hedge",
-    "strong-bearish": "Near surplus — strong fiscal discipline, removes a key gold catalyst",
+    "strong-bullish": "Deficit >6% of GDP - crisis-level spending without a crisis, serious debasement risk",
+    bullish: "Deficit 4.5-6% - well above the 3% sustainability line",
+    neutral: "Deficit around 3% - roughly the level that stabilizes debt-to-GDP ratio",
+    bearish: "Deficit below 3% - fiscal position improving",
+    "strong-bearish": "Near surplus - strong fiscal discipline, removes a key gold catalyst",
   },
-  "real-policy-rate": {
-    "strong-bullish": "Fed rate deeply negative in real terms — effectively paying you to borrow, great for gold",
-    bullish: "Real rate negative — Fed behind the curve, supports gold",
-    neutral: "Real rate near zero — neutral for gold",
-    bearish: "Fed rate positive in real terms — tighter policy headwind for gold",
-    "strong-bearish": "Aggressively positive real rate — strong headwind for gold",
+  "etf-flow-momentum": {
+    "strong-bullish": "Strong ETF inflows - institutional buying momentum",
+    bullish: "Positive ETF flows - demand building",
+    neutral: "ETF flows flat - no clear direction",
+    bearish: "ETF outflows - selling pressure",
+    "strong-bearish": "Heavy ETF redemptions - institutions exiting",
   },
   "cftc-net-spec": {
-    "strong-bullish": "Speculators underweight — room for new buying to push prices up",
-    bullish: "Positioning light — not crowded, healthy setup",
-    neutral: "Positioning average — no extreme signal",
-    bearish: "Speculators getting crowded — less room for new longs",
-    "strong-bearish": "Extremely crowded long — contrarian warning, vulnerable to a shakeout",
-  },
-  "gold-sp-ratio": {
-    "strong-bullish": "Gold cheap vs stocks — historically strong forward returns from here",
-    bullish: "Gold reasonably valued vs stocks",
-    neutral: "Gold/stocks ratio at average levels",
-    bearish: "Gold expensive vs stocks — outperformance may be stretched",
-    "strong-bearish": "Gold very expensive vs stocks — mean reversion risk is high",
+    "strong-bullish": "Speculators underweight - room for new buying to push prices up",
+    bullish: "Positioning light - not crowded, healthy setup",
+    neutral: "Positioning average - no extreme signal",
+    bearish: "Speculators getting crowded - less room for new longs",
+    "strong-bearish": "Extremely crowded long - contrarian warning, vulnerable to a shakeout",
   },
 };
 
@@ -504,22 +469,6 @@ function SignalRow({ signal }: { signal: EvaluatedSignal }) {
         {explanation}
       </div>
       <SignalRangeBar signal={signal} />
-    </div>
-  );
-}
-
-function SignalGroup({ title, signals }: { title: string; signals: EvaluatedSignal[] }) {
-  if (signals.length === 0) return null;
-  return (
-    <div>
-      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
-        {title}
-      </div>
-      <div className="space-y-0.5">
-        {signals.map((s) => (
-          <SignalRow key={s.id} signal={s} />
-        ))}
-      </div>
     </div>
   );
 }
@@ -691,9 +640,9 @@ function DecisionForm({ goldPrice, onSubmit }: { goldPrice: number | null; onSub
 
 function HistoricalCycles({ currentReturn }: { currentReturn: number | null }) {
   const cycles = [
-    { era: "1970s", range: "$35 → $850", pct: 2329, driver: "Nixon shock, inflation" },
-    { era: "2000s", range: "$255 → $1,921", pct: 653, driver: "GFC, QE" },
-    { era: "Current", range: "$1,050 → ?", pct: currentReturn, driver: "De-dollarization, fiscal dominance" },
+    { era: "1970s", range: "$35 -> $850", pct: 2329, driver: "Nixon shock, inflation" },
+    { era: "2000s", range: "$255 -> $1,921", pct: 653, driver: "GFC, QE" },
+    { era: "Current", range: "$1,050 -> ?", pct: currentReturn, driver: "De-dollarization, fiscal dominance" },
   ];
 
   return (
@@ -733,15 +682,14 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
   const goldPrice = goldData?.livePrice ?? null;
   const goldAth = goldData?.analysis?.ath ?? null;
   const athDist = goldPrice && goldAth ? ((goldPrice - goldAth) / goldAth) * 100 : null;
-  const bullStartPrice = 1050; // 2015 low — current cycle start
+  const bullStartPrice = 1050;
   const currentReturn = goldPrice ? ((goldPrice - bullStartPrice) / bullStartPrice) * 100 : null;
 
-  const primarySignals = thesisData?.signals.filter((s) => s.category === "primary") ?? [];
-  const secondarySignals = thesisData?.signals.filter((s) => s.category === "secondary") ?? [];
-  const sentimentSignals = thesisData?.signals.filter((s) => s.category === "sentiment") ?? [];
+  // Filter signals: exclude warning-only signals from main display
+  const scoredSignals = thesisData?.signals.filter((s) => s.category !== "warning") ?? [];
+  const cftcSignal = thesisData?.signals.find((s) => s.id === "cftc-net-spec");
 
   const isLoading = goldLoading || thesisLoading;
-  const cyclePhase = goldData?.analysis?.cyclePhase ?? 3;
 
   return (
     <Modal open={open} onClose={onClose} title="Gold Analysis" size="lg">
@@ -766,8 +714,8 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
             </div>
             <div className="text-right space-y-1">
               {thesisData && (
-                <div className={`inline-block text-xs font-semibold px-2 py-1 rounded ${COMPOSITE_CONFIG[thesisData.compositeRating].color}`}>
-                  {thesisData.compositeScore}/100 {COMPOSITE_CONFIG[thesisData.compositeRating].label}
+                <div className={`inline-block text-sm font-bold px-3 py-1.5 rounded ${COMPOSITE_CONFIG[thesisData.compositeRating].color}`}>
+                  {thesisData.compositeScore}/100 - {COMPOSITE_CONFIG[thesisData.compositeRating].label}
                 </div>
               )}
               {goldData?.gld && (
@@ -782,10 +730,12 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
               )}
             </div>
           </div>
+          
+          {/* CFTC Warning Badge */}
+          <div className="mt-3">
+            <CftcWarningBadge signal={cftcSignal} />
+          </div>
         </div>
-
-        {/* Cycle Phase */}
-        <CyclePhaseIndicator phase={cyclePhase} />
 
         {/* Historical Cycles */}
         <HistoricalCycles currentReturn={currentReturn} />
@@ -793,18 +743,23 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
         {/* Live Ratios */}
         <RatiosGrid ratios={goldData?.ratios ?? null} />
 
-        {/* Signal Panel */}
+        {/* Signal Panel - 5 scored signals */}
         {isLoading ? (
           <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="h-6 bg-gray-100 rounded animate-pulse" />
             ))}
           </div>
-        ) : thesisData ? (
-          <div className="space-y-3">
-            <SignalGroup title="Primary Signals" signals={primarySignals} />
-            <SignalGroup title="Secondary Signals" signals={secondarySignals} />
-            <SignalGroup title="Contrarian Checks" signals={sentimentSignals} />
+        ) : thesisData && scoredSignals.length > 0 ? (
+          <div>
+            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">
+              Thesis Signals
+            </div>
+            <div className="space-y-0.5">
+              {scoredSignals.map((s) => (
+                <SignalRow key={s.id} signal={s} />
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -871,7 +826,7 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
           </div>
         )}
 
-        {/* Thesis Notes — qualitative narrative only */}
+        {/* Thesis Notes */}
         {goldData?.analysis?.thesisNotes && (
           <div>
             <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">

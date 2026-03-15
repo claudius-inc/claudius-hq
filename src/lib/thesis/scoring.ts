@@ -7,6 +7,7 @@ const CATEGORY_WEIGHTS: Record<SignalCategory, number> = {
   primary: 0.5,
   secondary: 0.3,
   sentiment: 0.2,
+  warning: 0, // Warning signals excluded from composite scoring
 };
 
 /**
@@ -19,6 +20,7 @@ export function computeCompositeScore(signals: EvaluatedSignal[]): number {
     primary: [],
     secondary: [],
     sentiment: [],
+    warning: [],
   };
 
   for (const s of signals) {

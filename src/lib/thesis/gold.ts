@@ -8,7 +8,7 @@ import type {
 import type { SignalDataResolver } from "./engine";
 import { db } from "@/db";
 import { cftcPositions, goldFlows } from "@/db/schema";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, gte } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import YahooFinance from "yahoo-finance2";
 
@@ -17,30 +17,20 @@ const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 const FRED_API_KEY = process.env.FRED_API_KEY;
 
 // ── Signal Definitions ──────────────────────────────────────────────
+// Note: CFTC is excluded from composite scoring (warning-only)
 
 export const GOLD_SIGNAL_DEFINITIONS: ThesisSignalDefinition[] = [
-  // Primary signals (weight 6-10)
+  // Primary signals
   {
     id: "tips-yield",
     name: "TIPS Yield",
     category: "primary",
     source: { type: "fred", key: "DFII10" },
     bullishDirection: "below",
-    thresholds: [-0.5, 0.5, 1.5, 2.0], // <-0.5 strong-bullish, <0.5 bullish, <1.5 neutral, <2.0 bearish, >=2.0 strong-bearish
-    weight: 10,
-    detail: "#1 driver — negative real yields = bullish",
+    thresholds: [-0.5, 0.5, 1.5, 2.0],
+    weight: 12,
+    detail: "#1 driver - negative real yields = bullish",
     unit: "%",
-  },
-  {
-    id: "dxy",
-    name: "DXY",
-    category: "primary",
-    source: { type: "yahoo", key: "DX-Y.NYB" },
-    bullishDirection: "below",
-    thresholds: [95, 100, 105, 110],
-    weight: 7,
-    detail: "Inverse correlation — weak dollar = bullish",
-    unit: "",
   },
   {
     id: "cb-demand",
@@ -49,79 +39,68 @@ export const GOLD_SIGNAL_DEFINITIONS: ThesisSignalDefinition[] = [
     source: { type: "manual", key: "wgc_cb_tonnes" },
     bullishDirection: "above",
     thresholds: [400, 600, 800, 1000],
-    weight: 8,
+    weight: 14,
     detail: ">800T annual = structural demand",
     unit: "T",
   },
   {
-    id: "5y5y-breakeven",
-    name: "5Y5Y BkEvn",
+    id: "m2-growth",
+    name: "M2 Growth",
     category: "primary",
-    source: { type: "fred", key: "T5YIFR" },
+    source: { type: "fred_yoy", key: "M2SL" },
     bullishDirection: "above",
-    thresholds: [1.8, 2.0, 2.5, 3.0],
-    weight: 6,
-    detail: ">2.5% = inflation expectations unanchoring",
+    thresholds: [2, 4, 6, 8],
+    weight: 8,
+    detail: "Money supply growth YoY - higher = bullish for gold",
     unit: "%",
   },
 
-  // Secondary signals (weight 5)
+  // Secondary signals
   {
-    id: "hy-spread",
-    name: "HY Spread",
+    id: "dxy",
+    name: "DXY",
     category: "secondary",
-    source: { type: "fred", key: "BAMLH0A0HYM2" },
-    bullishDirection: "above",
-    thresholds: [200, 350, 500, 700],
-    weight: 5,
-    detail: "Crisis hedge — widening spreads = gold bid",
-    unit: "bps",
+    source: { type: "yahoo", key: "DX-Y.NYB" },
+    bullishDirection: "below",
+    thresholds: [95, 100, 105, 110],
+    weight: 4,
+    detail: "Inverse correlation - weak dollar = bullish",
+    unit: "",
   },
   {
     id: "deficit-gdp",
     name: "Deficit/GDP",
     category: "secondary",
     source: { type: "fred", key: "FYFSGDA188S" },
-    bullishDirection: "below", // more negative = larger deficit = more bullish for gold
+    bullishDirection: "below",
     thresholds: [-6, -4.5, -3, -1.5],
     weight: 5,
     detail: "3% stabilizes debt/GDP; >4.5% outside recession is historically abnormal",
     unit: "%",
   },
   {
-    id: "real-policy-rate",
-    name: "Real Policy",
+    id: "etf-flow-momentum",
+    name: "ETF Flow Momentum",
     category: "secondary",
-    source: { type: "derived", key: "fed_funds_minus_cpi" },
-    bullishDirection: "below",
-    thresholds: [-2, -1, 0, 1],
+    source: { type: "derived", key: "gld_7d_change" },
+    bullishDirection: "above",
+    thresholds: [-2, -0.5, 0.5, 2],
     weight: 5,
-    detail: "Negative = Fed behind curve, bullish gold",
+    detail: "GLD holdings 7-day change - inflows = bullish",
     unit: "%",
   },
 
-  // Sentiment / Contrarian checks (weight 3-4)
+  // Warning-only signal (excluded from composite score)
   {
     id: "cftc-net-spec",
     name: "CFTC Net Spec",
-    category: "sentiment",
+    category: "warning",
     source: { type: "cftc", key: "gold" },
-    bullishDirection: "below", // Lower percentile = less crowded = more room to run
-    thresholds: [30, 50, 75, 90],
-    weight: 4,
-    detail: "Crowding check — >75th %ile = warning",
+    bullishDirection: "below",
+    thresholds: [25, 50, 75, 90],
+    weight: 0, // Excluded from composite scoring
+    detail: "Crowding check - >75th or <25th %ile = warning",
     unit: "%ile",
-  },
-  {
-    id: "gold-sp-ratio",
-    name: "Gold/S&P",
-    category: "sentiment",
-    source: { type: "derived", key: "gold_div_spy" },
-    bullishDirection: "below", // lower ratio = gold cheaper relative to stocks
-    thresholds: [3.5, 4.5, 5.5, 6.5],
-    weight: 3,
-    detail: "Mean-reverting — >6.5 = gold expensive vs stocks",
-    unit: "",
   },
 ];
 
@@ -133,8 +112,8 @@ export const GOLD_DEFAULT_ENTRY_CONDITIONS: PreCommitmentRule = {
   logic: "all",
   conditions: [
     { signalId: "tips-yield", label: "TIPS < 1%", operator: "lt", value: 1 },
-    { signalId: "dxy", label: "DXY < 105", operator: "lt", value: 105 },
     { signalId: "cb-demand", label: "WGC > 800T", operator: "gt", value: 800 },
+    { signalId: "m2-growth", label: "M2 YoY > 4%", operator: "gt", value: 4 },
   ],
 };
 
@@ -145,6 +124,7 @@ export const GOLD_DEFAULT_CHANGE_CONDITIONS: PreCommitmentRule = {
   conditions: [
     { signalId: "tips-yield", label: "TIPS > 2% for 2Q", operator: "gt", value: 2, durationQuarters: 2 },
     { signalId: "cb-demand", label: "WGC selling", operator: "lt", value: 400 },
+    { signalId: "m2-growth", label: "M2 contracting", operator: "lt", value: 0 },
   ],
 };
 
@@ -153,8 +133,9 @@ export const GOLD_DEFAULT_REVIEW_TRIGGERS: PreCommitmentRule = {
   label: "Review Triggers",
   logic: "any",
   conditions: [
-    { signalId: "cftc-net-spec", label: "CFTC crowded", operator: "gt", value: 75 },
-    { signalId: "gold-sp-ratio", label: "Au/SP > 6.5", operator: "gt", value: 6.5 },
+    { signalId: "cftc-net-spec", label: "CFTC crowded (>75th)", operator: "gt", value: 75 },
+    { signalId: "cftc-net-spec", label: "CFTC washed out (<25th)", operator: "lt", value: 25 },
+    { signalId: "dxy", label: "DXY > 110", operator: "gt", value: 110 },
   ],
 };
 
@@ -172,14 +153,14 @@ export const GOLD_THESIS_CONFIG: ThesisAssetConfig = {
 async function fetchFredValues(seriesId: string, count: number = 1): Promise<number[]> {
   if (!FRED_API_KEY) return [];
   try {
-    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=10`;
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=20`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
     const valid = (data.observations ?? [])
       .filter((o: { value: string }) => o.value !== ".")
-      .map((o: { value: string }) => parseFloat(o.value));
-    return valid.slice(0, count);
+      .map((o: { value: string; date: string }) => ({ value: parseFloat(o.value), date: o.date }));
+    return valid.slice(0, count).map((v: { value: number }) => v.value);
   } catch (e) {
     logger.error("thesis/gold", `FRED fetch failed for ${seriesId}`, { error: e });
     return [];
@@ -189,6 +170,28 @@ async function fetchFredValues(seriesId: string, count: number = 1): Promise<num
 async function fetchFredValue(seriesId: string): Promise<number | null> {
   const vals = await fetchFredValues(seriesId, 1);
   return vals[0] ?? null;
+}
+
+async function fetchFredYoYChange(seriesId: string): Promise<number | null> {
+  if (!FRED_API_KEY) return null;
+  try {
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=15`;
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const obs = (data.observations ?? [])
+      .filter((o: { value: string }) => o.value !== ".")
+      .map((o: { value: string; date: string }) => ({ value: parseFloat(o.value), date: o.date }));
+    
+    if (obs.length < 13) return null;
+    const current = obs[0].value;
+    const yearAgo = obs[12].value;
+    if (yearAgo === 0) return null;
+    return ((current - yearAgo) / yearAgo) * 100;
+  } catch (e) {
+    logger.error("thesis/gold", `FRED YoY fetch failed for ${seriesId}`, { error: e });
+    return null;
+  }
 }
 
 async function fetchYahooPrice(ticker: string): Promise<number | null> {
@@ -205,10 +208,11 @@ export class GoldSignalDataResolver implements SignalDataResolver {
   async resolve(signalId: string, source: { type: string; key: string }): Promise<number | null> {
     switch (source.type) {
       case "fred": {
-        const val = await fetchFredValue(source.key);
-        // HY spread: FRED reports in %, convert to bps
-        if (signalId === "hy-spread" && val !== null) return val * 100;
-        return val;
+        return fetchFredValue(source.key);
+      }
+
+      case "fred_yoy": {
+        return fetchFredYoYChange(source.key);
       }
 
       case "yahoo":
@@ -232,8 +236,11 @@ export class GoldSignalDataResolver implements SignalDataResolver {
     switch (source.type) {
       case "fred": {
         const vals = await fetchFredValues(source.key, 2);
-        if (signalId === "hy-spread" && vals[1] !== undefined) return vals[1] * 100;
         return vals[1] ?? null;
+      }
+      case "fred_yoy": {
+        // Previous YoY would require more complex calculation, skip for now
+        return null;
       }
       case "yahoo": {
         try {
@@ -242,22 +249,7 @@ export class GoldSignalDataResolver implements SignalDataResolver {
         } catch { return null; }
       }
       case "derived": {
-        if (source.key === "gold_div_spy") {
-          try {
-            const [goldQ, spyQ] = await Promise.all([
-              yahooFinance.quote("GC=F"),
-              yahooFinance.quote("SPY"),
-            ]);
-            const goldPrev = (goldQ as { regularMarketPreviousClose?: number }).regularMarketPreviousClose;
-            const spyPrev = (spyQ as { regularMarketPreviousClose?: number }).regularMarketPreviousClose;
-            if (goldPrev && spyPrev) return Math.round((goldPrev / spyPrev) * 100) / 100;
-          } catch { /* fall through */ }
-        }
-        if (source.key === "fed_funds_minus_cpi") {
-          // Same approximation as resolve — previous FRED value
-          const vals = await fetchFredValues("FEDFUNDS", 2);
-          if (vals[1] !== undefined) return vals[1] - 2.9;
-        }
+        // Previous derived values not currently supported
         return null;
       }
       default:
@@ -294,27 +286,29 @@ export class GoldSignalDataResolver implements SignalDataResolver {
 
   private async resolveDerived(key: string): Promise<number | null> {
     switch (key) {
-      case "fed_funds_minus_cpi": {
-        const [fedFunds, cpi] = await Promise.all([
-          fetchFredValue("FEDFUNDS"),
-          fetchFredValue("CPIAUCSL"),
-        ]);
-        if (fedFunds === null || cpi === null) return null;
-        // CPI is an index, we need YoY %. Approximate with latest known.
-        // Use core PCE as proxy since CPI requires 12-month calc
-        const corePce = await fetchFredValue("PCEPILFE");
-        // PCEPILFE is also an index — fall back to simple estimate
-        // Real policy rate ≈ fed funds - trailing CPI YoY (use 2.9% fallback)
-        return fedFunds - 2.9;
-      }
+      case "gld_7d_change": {
+        // Calculate 7-day change in GLD shares outstanding from goldFlows table
+        try {
+          const rows = await db
+            .select()
+            .from(goldFlows)
+            .where(eq(goldFlows.source, "yahoo"))
+            .orderBy(desc(goldFlows.date))
+            .limit(10);
 
-      case "gold_div_spy": {
-        const [gold, spy] = await Promise.all([
-          fetchYahooPrice("GC=F"),
-          fetchYahooPrice("SPY"),
-        ]);
-        if (gold === null || spy === null) return null;
-        return Math.round((gold / spy) * 100) / 100;
+          if (rows.length < 2) return null;
+          
+          const latest = rows[0].gldSharesOutstanding;
+          // Find row closest to 7 days ago
+          const weekAgo = rows.find((_, i) => i >= 5) ?? rows[rows.length - 1];
+          const weekAgoShares = weekAgo.gldSharesOutstanding;
+          
+          if (latest === null || weekAgoShares === null || weekAgoShares === 0) return null;
+          return ((latest - weekAgoShares) / weekAgoShares) * 100;
+        } catch (e) {
+          logger.error("thesis/gold", "GLD flow momentum resolve failed", { error: e });
+          return null;
+        }
       }
 
       default:
