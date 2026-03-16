@@ -87,6 +87,19 @@ export interface TacticalSummary {
   divergent: AssetSymbol[];
 }
 
+export type ErpZone = "attractive" | "fair" | "thin" | "expensive";
+
+export interface ErpData {
+  /** S&P 500 earnings yield: (1/PE) × 100 */
+  earningsYield: number;
+  /** 10Y Treasury yield (risk-free rate proxy) */
+  riskFreeRate: number;
+  /** Equity risk premium: earningsYield − riskFreeRate */
+  value: number;
+  /** Interpretation zone */
+  zone: ErpZone;
+}
+
 export interface ExpectedReturnsResponse {
   /** Array of asset valuations */
   assets: AssetValuation[];
@@ -94,6 +107,8 @@ export interface ExpectedReturnsResponse {
   relativeRanking: AssetSymbol[];
   /** Combined tactical summary */
   tacticalSummary: TacticalSummary;
+  /** Equity risk premium (earnings yield − risk-free rate) */
+  erp?: ErpData;
   /** Timestamp of last update */
   updatedAt: string;
   /** Status of data fetch */

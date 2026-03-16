@@ -7,6 +7,7 @@ import {
   realYieldRanges,
   debtToGdpRanges,
   deficitToGdpRanges,
+  erpRanges,
 } from "./constants";
 import type { RegimeData } from "./types";
 import type { ExpectedReturnsResponse, SignalAlignment } from "@/lib/valuation/types";
@@ -136,6 +137,39 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail, expectedReturns
               </>
             ) : regimeData ? (
               <>
+                {expectedReturns?.erp && (
+                  <RangePopover
+                    ranges={erpRanges}
+                    currentLabel={
+                      expectedReturns.erp.zone === "expensive"
+                        ? "Expensive"
+                        : expectedReturns.erp.zone === "thin"
+                          ? "Thin"
+                          : expectedReturns.erp.zone === "fair"
+                            ? "Fair"
+                            : "Attractive"
+                    }
+                    unit="%"
+                  >
+                    <div className="text-center cursor-pointer hover:opacity-80 transition-opacity text-[10px] text-gray-400">
+                      <span className="opacity-60">ERP </span>
+                      <span
+                        className={`font-bold ${
+                          expectedReturns.erp.zone === "expensive"
+                            ? "text-red-600"
+                            : expectedReturns.erp.zone === "thin"
+                              ? "text-amber-600"
+                              : expectedReturns.erp.zone === "attractive"
+                                ? "text-emerald-600"
+                                : "text-gray-700"
+                        }`}
+                      >
+                        {expectedReturns.erp.value.toFixed(1)}%
+                      </span>
+                      <HelpCircle className="w-2.5 h-2.5 text-gray-300 hover:text-gray-500 inline-block ml-0.5 -mt-0.5 transition-colors" />
+                    </div>
+                  </RangePopover>
+                )}
                 {regimeData.indicators.realYield !== null && (
                   <RangePopover
                     ranges={realYieldRanges}

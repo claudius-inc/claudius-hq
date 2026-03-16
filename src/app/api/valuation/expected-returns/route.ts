@@ -27,6 +27,7 @@ import {
   calculateGoldValuation,
   calculateBtcValuation,
   calculateBondValuation,
+  calculateErp,
   getBtcCyclePosition,
   determineTacticalSignal,
   determineMomentum,
@@ -269,7 +270,8 @@ function calculateTacticalBias(
   rsi: number | null,
   vix: number | undefined,
   yieldCurveSlope: number | undefined,
-  sentiment: SentimentLevel | undefined
+  sentiment: SentimentLevel | undefined,
+  erpZone?: "attractive" | "fair" | "thin" | "expensive"
 ): { bias: "bullish" | "neutral" | "bearish"; note: string } {
   let bullishSignals = 0;
   let bearishSignals = 0;
@@ -326,6 +328,15 @@ function calculateTacticalBias(
       bearishSignals++; // Contrarian
       notes.push("euphoria");
     }
+  }
+
+  // Equity Risk Premium
+  if (erpZone === "expensive") {
+    bearishSignals++;
+    notes.push("low ERP");
+  } else if (erpZone === "attractive") {
+    bullishSignals++;
+    notes.push("high ERP");
   }
 
   // Determine bias
@@ -437,6 +448,12 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
   const yieldCurveSlope =
     tnxData && irxData ? tnxData.price - irxData.price : undefined;
 
+  // Equity Risk Premium
+  const erp =
+    spyData?.pe && tnxData
+      ? calculateErp(spyData.pe, tnxData.price)
+      : undefined;
+
   // ---------------------------------------------------------------------------
   // S&P 500
   // ---------------------------------------------------------------------------
@@ -452,7 +469,8 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
       spyRsi,
       vixLevel,
       undefined,
-      undefined
+      undefined,
+      erp?.zone
     );
 
     const tactical: TacticalOverlay = {
@@ -635,6 +653,7 @@ async function fetchExpectedReturnsData(): Promise<ExpectedReturnsResponse> {
     assets,
     relativeRanking,
     tacticalSummary,
+    erp,
     updatedAt: new Date().toISOString(),
     status: assets.length === 4 ? "live" : assets.length > 0 ? "partial" : "error",
   };

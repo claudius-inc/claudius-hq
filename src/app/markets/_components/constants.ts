@@ -10,6 +10,13 @@ import {
 } from "lucide-react";
 import { createElement } from "react";
 
+export const erpRanges = [
+  { label: "Expensive", min: null, max: 1, meaning: "Bonds competitive, low compensation for equity risk", marketImpact: "Favor bonds over equities, caution warranted" },
+  { label: "Thin", min: 1, max: 2, meaning: "Below-average equity risk premium", marketImpact: "Equities priced for perfection, limited margin of safety" },
+  { label: "Fair", min: 2, max: 4, meaning: "Normal equity risk premium", marketImpact: "Balanced risk/reward between stocks and bonds" },
+  { label: "Attractive", min: 4, max: null, meaning: "High compensation for equity risk", marketImpact: "Equities cheap vs bonds, favor stocks" },
+];
+
 export const vixRanges = [
   { label: "Low", min: null, max: 15, meaning: "Complacency, low fear", marketImpact: "Bullish but watch for reversal" },
   { label: "Moderate", min: 15, max: 20, meaning: "Normal market conditions", marketImpact: "Healthy risk appetite" },

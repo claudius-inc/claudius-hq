@@ -12,6 +12,8 @@ import type {
   ConfidenceLevel,
   TacticalSignal,
   MomentumSignal,
+  ErpData,
+  ErpZone,
 } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -250,6 +252,23 @@ export function getBtcCycleLabel(cycleYear: number): string {
   if (cycleYear < 2) return "Year 2 (Mid-Cycle)";
   if (cycleYear < 3) return "Year 3 (Late Cycle)";
   return "Year 4 (Pre-Halving)";
+}
+
+// ---------------------------------------------------------------------------
+// Equity Risk Premium
+// ---------------------------------------------------------------------------
+
+export function calculateErp(pe: number, yield10y: number): ErpData {
+  const earningsYield = (1 / pe) * 100;
+  const value = earningsYield - yield10y;
+  const zone: ErpZone =
+    value > 4 ? "attractive" : value > 2 ? "fair" : value > 1 ? "thin" : "expensive";
+  return {
+    earningsYield: Math.round(earningsYield * 100) / 100,
+    riskFreeRate: Math.round(yield10y * 100) / 100,
+    value: Math.round(value * 100) / 100,
+    zone,
+  };
 }
 
 // ---------------------------------------------------------------------------
