@@ -262,7 +262,7 @@ export function calculateErp(pe: number, yield10y: number): ErpData {
   const earningsYield = (1 / pe) * 100;
   const value = earningsYield - yield10y;
   const zone: ErpZone =
-    value > 4 ? "attractive" : value > 2 ? "fair" : value > 1 ? "thin" : "expensive";
+    value > 6 ? "extreme" : value > 4 ? "attractive" : value > 2 ? "fair" : value > 0 ? "thin" : "negative";
   return {
     earningsYield: Math.round(earningsYield * 100) / 100,
     riskFreeRate: Math.round(yield10y * 100) / 100,

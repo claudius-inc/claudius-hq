@@ -87,7 +87,7 @@ export interface TacticalSummary {
   divergent: AssetSymbol[];
 }
 
-export type ErpZone = "attractive" | "fair" | "thin" | "expensive";
+export type ErpZone = "negative" | "thin" | "fair" | "attractive" | "extreme";
 
 export interface ErpData {
   /** S&P 500 earnings yield: (1/PE) × 100 */

@@ -141,13 +141,15 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail, expectedReturns
                   <RangePopover
                     ranges={erpRanges}
                     currentLabel={
-                      expectedReturns.erp.zone === "expensive"
-                        ? "Expensive"
-                        : expectedReturns.erp.zone === "thin"
+                      expectedReturns.erp.value < 0
+                        ? "Negative"
+                        : expectedReturns.erp.value < 2
                           ? "Thin"
-                          : expectedReturns.erp.zone === "fair"
+                          : expectedReturns.erp.value < 4
                             ? "Fair"
-                            : "Attractive"
+                            : expectedReturns.erp.value < 6
+                              ? "Attractive"
+                              : "Extreme"
                     }
                     unit="%"
                   >
@@ -155,11 +157,11 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail, expectedReturns
                       <span className="opacity-60">ERP </span>
                       <span
                         className={`font-bold ${
-                          expectedReturns.erp.zone === "expensive"
+                          expectedReturns.erp.value < 0
                             ? "text-red-600"
-                            : expectedReturns.erp.zone === "thin"
+                            : expectedReturns.erp.value < 2
                               ? "text-amber-600"
-                              : expectedReturns.erp.zone === "attractive"
+                              : expectedReturns.erp.value >= 4
                                 ? "text-emerald-600"
                                 : "text-gray-700"
                         }`}

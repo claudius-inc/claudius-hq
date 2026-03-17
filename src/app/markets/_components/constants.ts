@@ -11,10 +11,11 @@ import {
 import { createElement } from "react";
 
 export const erpRanges = [
-  { label: "Expensive", min: null, max: 1, meaning: "Bonds competitive, low compensation for equity risk", marketImpact: "Favor bonds over equities, caution warranted" },
-  { label: "Thin", min: 1, max: 2, meaning: "Below-average equity risk premium", marketImpact: "Equities priced for perfection, limited margin of safety" },
-  { label: "Fair", min: 2, max: 4, meaning: "Normal equity risk premium", marketImpact: "Balanced risk/reward between stocks and bonds" },
-  { label: "Attractive", min: 4, max: null, meaning: "High compensation for equity risk", marketImpact: "Equities cheap vs bonds, favor stocks" },
+  { label: "Negative", min: null, max: 0, meaning: "Stocks yield less than risk-free bonds — only seen during dot-com bubble and 2024-26", marketImpact: "Historically rare, preceded major equity drawdowns" },
+  { label: "Thin", min: 0, max: 2, meaning: "Below-average premium (median ~4%) — limited compensation for equity risk", marketImpact: "Bonds competitive, equities priced for perfection" },
+  { label: "Fair", min: 2, max: 4, meaning: "Normal range — adequate compensation for equity volatility", marketImpact: "Balanced risk/reward between stocks and bonds" },
+  { label: "Attractive", min: 4, max: 6, meaning: "Above-average premium — equities offer meaningful edge over bonds", marketImpact: "Favor equities, historically strong forward returns" },
+  { label: "Extreme", min: 6, max: null, meaning: "Crisis-level premium — seen in 2008-09, early 1980s recessions", marketImpact: "Generational equity buying opportunity if economy stabilizes" },
 ];
 
 export const vixRanges = [

@@ -229,6 +229,7 @@ export default function StocksDashboard() {
         onClose={() => setRegimeDetailOpen(false)}
         regimeData={regimeData}
         macroIndicators={macroIndicators}
+        expectedReturns={expectedReturns}
       />
     </>
   );

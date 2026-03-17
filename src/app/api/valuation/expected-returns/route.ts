@@ -271,7 +271,7 @@ function calculateTacticalBias(
   vix: number | undefined,
   yieldCurveSlope: number | undefined,
   sentiment: SentimentLevel | undefined,
-  erpZone?: "attractive" | "fair" | "thin" | "expensive"
+  erpZone?: "negative" | "thin" | "fair" | "attractive" | "extreme"
 ): { bias: "bullish" | "neutral" | "bearish"; note: string } {
   let bullishSignals = 0;
   let bearishSignals = 0;
@@ -331,10 +331,10 @@ function calculateTacticalBias(
   }
 
   // Equity Risk Premium
-  if (erpZone === "expensive") {
+  if (erpZone === "negative" || erpZone === "thin") {
     bearishSignals++;
     notes.push("low ERP");
-  } else if (erpZone === "attractive") {
+  } else if (erpZone === "attractive" || erpZone === "extreme") {
     bullishSignals++;
     notes.push("high ERP");
   }

@@ -11,12 +11,14 @@ import {
   Scale,
 } from "lucide-react";
 import type { RegimeData, MacroIndicator } from "./types";
+import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 
 interface RegimeDetailProps {
   open: boolean;
   onClose: () => void;
   regimeData: RegimeData | null;
   macroIndicators: MacroIndicator[];
+  expectedReturns?: ExpectedReturnsResponse | null;
 }
 
 interface GoldApiData {
@@ -39,6 +41,7 @@ export function RegimeDetail({
   onClose,
   regimeData,
   macroIndicators,
+  expectedReturns,
 }: RegimeDetailProps) {
   const { data: goldData } = useSWR<GoldApiData>(
     open ? "/api/gold" : null,
@@ -81,13 +84,48 @@ export function RegimeDetail({
           </div>
         )}
 
-        {/* Financial Repression Indicators */}
+        {/* Regime Metrics */}
         <div>
           <h2 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Scale className="w-4 h-4 text-gray-500" />
-            Financial Repression Indicators
+            Regime Metrics
           </h2>
           <div className="grid grid-cols-2 gap-3 mb-4">
+            {/* ERP */}
+            {expectedReturns?.erp ? (
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-[10px] text-gray-500 mb-1">Equity Risk Premium</div>
+                <div className={`text-lg font-bold ${
+                  expectedReturns.erp.zone === "negative" ? "text-red-600"
+                    : expectedReturns.erp.zone === "thin" ? "text-amber-600"
+                    : expectedReturns.erp.zone === "attractive" || expectedReturns.erp.zone === "extreme" ? "text-emerald-600"
+                    : "text-gray-700"
+                }`}>
+                  {expectedReturns.erp.value.toFixed(2)}%
+                </div>
+                <div className="text-[10px] text-gray-400 mt-0.5">
+                  Earnings yield {expectedReturns.erp.earningsYield.toFixed(1)}% − risk-free {expectedReturns.erp.riskFreeRate.toFixed(1)}%
+                </div>
+                <div className={`text-[10px] mt-1 font-medium ${
+                  expectedReturns.erp.zone === "negative" ? "text-red-600"
+                    : expectedReturns.erp.zone === "thin" ? "text-amber-600"
+                    : expectedReturns.erp.zone === "attractive" || expectedReturns.erp.zone === "extreme" ? "text-emerald-600"
+                    : "text-gray-500"
+                }`}>
+                  {expectedReturns.erp.zone === "negative" ? "Negative — stocks yield less than bonds (dot-com level)"
+                    : expectedReturns.erp.zone === "thin" ? "Thin — below median of ~4%, limited margin of safety"
+                    : expectedReturns.erp.zone === "fair" ? "Fair — normal compensation for equity risk"
+                    : expectedReturns.erp.zone === "attractive" ? "Attractive — equities cheap vs bonds"
+                    : "Extreme — crisis-level buying opportunity"}
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-lg p-3">
+                <div className="text-[10px] text-gray-500 mb-1">Equity Risk Premium</div>
+                <div className="text-lg font-bold text-gray-400">—</div>
+                <div className="text-[10px] text-gray-400 mt-0.5">Earnings yield − risk-free rate</div>
+              </div>
+            )}
             <IndicatorCard
               label="Real Yield"
               value={indicators.realYield}

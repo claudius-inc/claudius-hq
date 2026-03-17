@@ -9,7 +9,13 @@
       "Bash(find:*)",
       "WebSearch",
       "Bash(npx drizzle-kit:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "WebFetch(domain:fred.stlouisfed.org)",
+      "WebFetch(domain:datahub.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.multpl.com)",
+      "WebFetch(domain:posix4e.github.io)",
+      "WebFetch(domain:data.nasdaq.com)"
     ]
   }
 }
