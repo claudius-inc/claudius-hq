@@ -16,29 +16,32 @@ export async function generateMetadata({
 }: {
   params: { ticker: string };
 }): Promise<Metadata> {
-  const ticker = params.ticker.toUpperCase();
+  const slug = decodeURIComponent(params.ticker);
   try {
     await ensureDB();
+    // Try slug first, then ticker
     const result = await db.execute({
-      sql: "SELECT company_name, title FROM stock_reports WHERE ticker = ? ORDER BY created_at DESC LIMIT 1",
-      args: [ticker],
+      sql: "SELECT company_name, title, ticker FROM stock_reports WHERE slug = ? OR UPPER(ticker) = UPPER(?) ORDER BY created_at DESC LIMIT 1",
+      args: [slug, slug],
     });
     if (result.rows.length > 0) {
       const report = result.rows[0] as unknown as {
         company_name: string;
         title: string;
+        ticker: string;
       };
       if (report.company_name) {
-        return { title: `${ticker} - ${report.company_name}` };
+        return { title: `${report.ticker} - ${report.company_name}` };
       } else if (report.title) {
         const match = report.title.match(/^([^(]+)\s*\(/);
         if (match) {
-          return { title: `${ticker} - ${match[1].trim()}` };
+          return { title: `${report.ticker} - ${match[1].trim()}` };
         }
+        return { title: report.title };
       }
     }
   } catch {}
-  return { title: ticker };
+  return { title: slug };
 }
 
 // Custom renderer to add IDs to headings
@@ -73,7 +76,7 @@ export default async function ReportDetailPage({
 }: PageProps) {
   await ensureDB();
   const { ticker } = params;
-  const decodedTicker = decodeURIComponent(ticker).toUpperCase();
+  const slug = decodeURIComponent(ticker);
   const selectedReportId = searchParams.report
     ? parseInt(searchParams.report, 10)
     : null;
@@ -83,9 +86,10 @@ export default async function ReportDetailPage({
 
   try {
     if (selectedReportId) {
+      // When a specific report is selected, find it by ID and verify slug/ticker match
       const result = await db.execute({
-        sql: "SELECT * FROM stock_reports WHERE id = ? AND UPPER(ticker) = ?",
-        args: [selectedReportId, decodedTicker],
+        sql: "SELECT * FROM stock_reports WHERE id = ? AND (slug = ? OR UPPER(ticker) = UPPER(?))",
+        args: [selectedReportId, slug, slug],
       });
       if (result.rows.length > 0) {
         report = result.rows[0] as unknown as StockReport;
@@ -93,9 +97,10 @@ export default async function ReportDetailPage({
     }
 
     if (!report) {
+      // Query by slug first, then fallback to ticker
       const result = await db.execute({
-        sql: "SELECT * FROM stock_reports WHERE UPPER(ticker) = ? ORDER BY created_at DESC LIMIT 1",
-        args: [decodedTicker],
+        sql: "SELECT * FROM stock_reports WHERE slug = ? OR UPPER(ticker) = UPPER(?) ORDER BY created_at DESC LIMIT 1",
+        args: [slug, slug],
       });
       if (result.rows.length > 0) {
         report = result.rows[0] as unknown as StockReport;
@@ -103,9 +108,10 @@ export default async function ReportDetailPage({
     }
 
     if (report) {
+      // Get older reports with same slug or ticker
       const older = await db.execute({
-        sql: "SELECT id, ticker, title, created_at FROM stock_reports WHERE UPPER(ticker) = ? AND id != ? ORDER BY created_at DESC",
-        args: [decodedTicker, report.id],
+        sql: "SELECT id, ticker, slug, title, created_at FROM stock_reports WHERE (slug = ? OR UPPER(ticker) = UPPER(?)) AND id != ? ORDER BY created_at DESC",
+        args: [slug, slug, report.id],
       });
       olderReports = older.rows as unknown as StockReport[];
     }
@@ -172,7 +178,7 @@ export default async function ReportDetailPage({
                 Research
               </Link>
               <span>›</span>
-              <span className="text-gray-900 font-medium">{decodedTicker}</span>
+              <span className="text-gray-900 font-medium">{report?.ticker || slug}</span>
             </div>
             {report && (
               <ReportActions
@@ -185,7 +191,7 @@ export default async function ReportDetailPage({
                   }[]
                 }
                 currentReportId={report.id}
-                ticker={decodedTicker}
+                ticker={report.ticker}
                 content={report.content}
                 companyName={report.company_name || undefined}
               />
@@ -244,13 +250,14 @@ export default async function ReportDetailPage({
                       const olderReport = r as unknown as {
                         id: number;
                         ticker: string;
+                        slug: string;
                         title: string;
                         created_at: string;
                       };
                       return (
                         <li key={olderReport.id}>
                           <Link
-                            href={`/markets/research/${decodedTicker}?report=${olderReport.id}`}
+                            href={`/markets/research/${olderReport.slug || olderReport.ticker}?report=${olderReport.id}`}
                             className="text-sm text-gray-600 hover:text-emerald-600 transition-colors inline-flex items-center gap-2"
                           >
                             <span className="text-gray-400">•</span>
@@ -277,7 +284,7 @@ export default async function ReportDetailPage({
               No reports found
             </h3>
             <p className="text-sm text-gray-500">
-              No research reports for {decodedTicker} yet
+              No research reports for {slug} yet
             </p>
             <Link
               href="/markets"

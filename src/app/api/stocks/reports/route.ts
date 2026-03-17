@@ -4,14 +4,24 @@ import { db, stockReports, researchJobs } from "@/db";
 import { desc, eq } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
 
-// GET /api/stocks/reports — list all reports, optionally filter by ticker
+// GET /api/stocks/reports — list all reports, optionally filter by ticker or slug
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const ticker = searchParams.get("ticker");
+    const slug = searchParams.get("slug");
 
     let query = db.select().from(stockReports);
 
+    // Filter by slug first (preferred for URL routing)
+    if (slug) {
+      const reports = await query
+        .where(eq(stockReports.slug, slug))
+        .orderBy(desc(stockReports.createdAt));
+      return NextResponse.json({ reports });
+    }
+
+    // Fallback to ticker filter
     if (ticker) {
       const reports = await query
         .where(eq(stockReports.ticker, ticker.toUpperCase()))
@@ -51,7 +61,14 @@ function extractCompanyName(title: string, ticker: string): string {
   return "";
 }
 
+// Helper to determine if a string looks like a ticker (all caps, optionally with . or -)
+function looksLikeTicker(str: string): boolean {
+  return /^[A-Z0-9]+([.-][A-Z0-9]+)?$/.test(str);
+}
+
 // POST /api/stocks/reports — add a new report
+// For sun-tzu reports: ticker is required, slug defaults to ticker
+// For thematic/comparative/portfolio reports: slug is required (kebab-case)
 export async function POST(req: NextRequest) {
   if (!isApiAuthenticated(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -59,17 +76,40 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { ticker, title, content, report_type, company_name, related_tickers } = body;
+    const { ticker, slug, title, content, report_type, company_name, related_tickers } = body;
 
-    if (!ticker || !content) {
-      return NextResponse.json(
-        { error: "ticker and content are required" },
-        { status: 400 }
-      );
+    const reportType = report_type || "sun-tzu";
+    const isTickerReport = reportType === "sun-tzu";
+
+    // Validation based on report type
+    if (isTickerReport) {
+      if (!ticker || !content) {
+        return NextResponse.json(
+          { error: "ticker and content are required for sun-tzu reports" },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Thematic/comparative/portfolio reports require slug
+      if (!slug || !content) {
+        return NextResponse.json(
+          { error: "slug and content are required for thematic/comparative/portfolio reports" },
+          { status: 400 }
+        );
+      }
+      // Validate slug format (kebab-case)
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug)) {
+        return NextResponse.json(
+          { error: "slug must be kebab-case (lowercase letters, numbers, hyphens)" },
+          { status: 400 }
+        );
+      }
     }
 
-    const cleanTicker = ticker.toUpperCase();
-    const finalTitle = title || `Sun Tzu Report: ${cleanTicker}`;
+    // Determine final values
+    const cleanTicker = ticker ? ticker.toUpperCase() : slug.toUpperCase();
+    const finalSlug = isTickerReport ? (slug || ticker.toUpperCase()) : slug;
+    const finalTitle = title || (isTickerReport ? `Sun Tzu Report: ${cleanTicker}` : `Report: ${slug}`);
     
     // Use provided company_name or extract from title
     const finalCompanyName = company_name || extractCompanyName(finalTitle, cleanTicker);
@@ -88,17 +128,18 @@ export async function POST(req: NextRequest) {
       .insert(stockReports)
       .values({
         ticker: cleanTicker,
+        slug: finalSlug,
         title: finalTitle,
         content,
-        reportType: report_type || "sun-tzu",
+        reportType,
         companyName: finalCompanyName,
         relatedTickers: relatedTickersJson,
       })
       .returning();
 
-    // Purge ISR cache so the new report appears immediately
+    // Purge ISR cache
     revalidatePath("/markets/research");
-    revalidatePath(`/markets/research/${cleanTicker}`);
+    revalidatePath(`/markets/research/${finalSlug}`);
 
     return NextResponse.json({ report: newReport }, { status: 201 });
   } catch (e) {
@@ -106,7 +147,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PATCH /api/stocks/reports?id=123 — update a report's fields (company_name, ticker)
+// PATCH /api/stocks/reports?id=123 — update a report's fields (company_name, ticker, slug, report_type)
 export async function PATCH(req: NextRequest) {
   if (!isApiAuthenticated(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -129,11 +170,11 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { company_name, ticker, report_type } = body;
+    const { company_name, ticker, slug, report_type } = body;
 
-    if (company_name === undefined && ticker === undefined && report_type === undefined) {
+    if (company_name === undefined && ticker === undefined && slug === undefined && report_type === undefined) {
       return NextResponse.json(
-        { error: "At least one field (company_name, ticker, or report_type) is required" },
+        { error: "At least one field (company_name, ticker, slug, or report_type) is required" },
         { status: 400 }
       );
     }
@@ -148,11 +189,28 @@ export async function PATCH(req: NextRequest) {
       updateData.ticker = ticker.toUpperCase();
     }
 
+    if (slug !== undefined) {
+      // Validate slug format if not a ticker
+      if (slug && !/^[a-z0-9]+(-[a-z0-9]+)*$/.test(slug) && !/^[A-Z0-9]+([.-][A-Z0-9]+)?$/.test(slug)) {
+        return NextResponse.json(
+          { error: "slug must be kebab-case (for thematic) or TICKER format (for sun-tzu)" },
+          { status: 400 }
+        );
+      }
+      updateData.slug = slug;
+    }
+
     if (report_type !== undefined) {
       updateData.reportType = report_type;
     }
 
     await db.update(stockReports).set(updateData).where(eq(stockReports.id, reportId));
+
+    // Purge cache for old and new slugs
+    revalidatePath("/markets/research");
+    if (slug) {
+      revalidatePath(`/markets/research/${slug}`);
+    }
 
     return NextResponse.json({ success: true, id: reportId });
   } catch (e) {
