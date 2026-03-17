@@ -42,10 +42,11 @@ export interface Idea {
 export interface StockReport {
   id: number;
   ticker: string;
+  slug: string | null; // URL identifier - ticker for sun-tzu, kebab-case for thematic
   title: string;
   company_name: string;
   content: string;
-  report_type: string;
+  report_type: string; // sun-tzu, thematic, comparative, portfolio, market
   related_tickers: string; // JSON array for comparison reports, e.g. '["ENPH","NXT","FSLR"]'
   created_at: string;
 }

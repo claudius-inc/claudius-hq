@@ -74,9 +74,14 @@ export const ideas = sqliteTable("ideas", {
 // Stock Research
 // ============================================================================
 
+// Report types: sun-tzu (single stock), thematic, comparative, portfolio, market
+export const REPORT_TYPES = ["sun-tzu", "thematic", "comparative", "portfolio", "market"] as const;
+export type ReportType = (typeof REPORT_TYPES)[number];
+
 export const stockReports = sqliteTable("stock_reports", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  ticker: text("ticker").notNull(),
+  ticker: text("ticker").notNull(), // For sun-tzu: actual ticker. For thematic: primary reference ticker (optional)
+  slug: text("slug"), // URL identifier. kebab-case for thematic, ticker for sun-tzu
   title: text("title").notNull().default(""),
   content: text("content").notNull().default(""),
   reportType: text("report_type").notNull().default("sun-tzu"),
