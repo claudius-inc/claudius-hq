@@ -132,6 +132,9 @@ export interface ThemePerformance {
   status: ThemeStockStatus;
   notes: string | null;
   price_gap_percent: number | null;
+  // Crowding fields
+  crowdingScore?: number;
+  crowdingLevel?: string;
 }
 
 export interface ThemeWithPerformance extends Theme {
@@ -144,4 +147,7 @@ export interface ThemeWithPerformance extends Theme {
     performance_1m: number | null;
   } | null;
   stock_performances?: ThemePerformance[];
+  // Theme-level crowding (average of stocks)
+  crowdingScore?: number;
+  crowdingLevel?: string;
 }

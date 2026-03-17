@@ -4,6 +4,7 @@ import { desc } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
 import { Theme, ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { logger } from "@/lib/logger";
+import { getCrowdingScores, aggregateCrowdingScores, CrowdingScore } from "@/lib/crowding";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -61,7 +62,10 @@ function calcPerformance(start: number | null, end: number | null): number | nul
 }
 
 // Get all stock performances for a theme (for list view, no watchlist data)
-async function getStockPerformances(tickers: string[]): Promise<ThemePerformance[]> {
+async function getStockPerformances(
+  tickers: string[],
+  crowdingMap?: Map<string, CrowdingScore>
+): Promise<ThemePerformance[]> {
   const performances: ThemePerformance[] = [];
 
   for (const ticker of tickers) {
@@ -74,6 +78,7 @@ async function getStockPerformances(tickers: string[]): Promise<ThemePerformance
       ]);
 
       const quoteData = quote as { regularMarketPrice?: number; shortName?: string } | null;
+      const crowding = crowdingMap?.get(ticker);
 
       performances.push({
         ticker,
@@ -86,6 +91,8 @@ async function getStockPerformances(tickers: string[]): Promise<ThemePerformance
         status: "watching",
         notes: null,
         price_gap_percent: null,
+        crowdingScore: crowding?.score,
+        crowdingLevel: crowding?.level,
       });
     } catch {
       performances.push({
@@ -152,8 +159,11 @@ export async function GET(request: NextRequest) {
     // Get unique tickers across all themes
     const allTickers = Array.from(new Set(allStocks.map((s) => s.ticker)));
 
-    // Fetch performances for all tickers at once
-    const allPerformances = await getStockPerformances(allTickers);
+    // Fetch crowding scores for all tickers
+    const crowdingMap = await getCrowdingScores(allTickers);
+
+    // Fetch performances for all tickers at once (with crowding)
+    const allPerformances = await getStockPerformances(allTickers, crowdingMap);
     const perfMap = new Map(allPerformances.map((p) => [p.ticker, p]));
 
     // Build themed response
@@ -162,6 +172,12 @@ export async function GET(request: NextRequest) {
       const stockPerfs = tickers
         .map((t) => perfMap.get(t))
         .filter((p): p is ThemePerformance => p !== undefined);
+
+      // Aggregate crowding for theme
+      const themeCrowdingScores = tickers
+        .map((t) => crowdingMap.get(t))
+        .filter((s): s is CrowdingScore => s !== undefined);
+      const themeCrowding = aggregateCrowdingScores(themeCrowdingScores);
 
       return {
         id: theme.id,
@@ -173,6 +189,8 @@ export async function GET(request: NextRequest) {
         performance_1m: calcBasketPerformance(stockPerfs, "performance_1m"),
         performance_3m: calcBasketPerformance(stockPerfs, "performance_3m"),
         leader: findLeader(stockPerfs),
+        crowdingScore: themeCrowding.score,
+        crowdingLevel: themeCrowding.level,
       };
     });
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { PageHero } from "@/components/PageHero";
 import { detectRegime } from "./_components/helpers";
 import { RegimeStrip } from "./_components/RegimeStrip";
+import { RegimeCrowding } from "./_components/RegimeCrowding";
 import { Barometers } from "./_components/Barometers";
 import { Sentiment } from "./_components/Sentiment";
 import { SmartMoney } from "./_components/SmartMoney";
@@ -176,6 +177,10 @@ export default function StocksDashboard() {
             onOpenDetail={() => setRegimeDetailOpen(true)}
             expectedReturns={expectedReturns}
           />
+        </div>
+
+        <div className="col-span-full lg:col-span-1">
+          <RegimeCrowding />
         </div>
 
         <PlaybookSection

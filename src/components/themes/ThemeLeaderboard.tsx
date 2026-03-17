@@ -7,6 +7,7 @@ import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { ThemeExpandedRow } from "./ThemeExpandedRow";
 import { SuggestedStock } from "./types";
 import { formatPercent, getPercentColor } from "./utils";
+import { getCrowdingBgColor, getCrowdingDescription } from "@/lib/crowding-utils";
 
 interface ThemeLeaderboardProps {
   themes: ThemeWithPerformance[];
@@ -56,6 +57,7 @@ export function ThemeLeaderboard({
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">1W</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">1M</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">3M</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Crowd</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leader</th>
               <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
             </tr>
@@ -89,6 +91,18 @@ export function ThemeLeaderboard({
                   </td>
                   <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_3m)}`}>
                     {formatPercent(theme.performance_3m)}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    {theme.crowdingScore !== undefined ? (
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCrowdingBgColor(theme.crowdingScore)}`}
+                        title={getCrowdingDescription(theme.crowdingLevel as "contrarian" | "early" | "forming" | "crowded" | "extreme")}
+                      >
+                        {theme.crowdingScore}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {theme.leader ? (
