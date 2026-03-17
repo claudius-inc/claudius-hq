@@ -60,6 +60,11 @@ const primaryTabs: PrimaryTab[] = [
     href: "/markets/themes",
     activePaths: ["/markets/themes"],
   },
+  {
+    label: "Oil Crisis",
+    href: "/markets/oil-crisis",
+    activePaths: ["/markets/oil-crisis"],
+  },
 ];
 
 /* ── Component ────────────────────────────────────────────── */
