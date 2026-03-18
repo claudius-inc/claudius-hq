@@ -152,3 +152,29 @@ export interface YieldSpread {
   interpretation: string;
   color: "green" | "amber" | "gray";
 }
+
+export interface CrowdingData {
+  overall: {
+    score: number;
+    level: "contrarian" | "forming" | "crowded";
+    description: string;
+    components: {
+      ownership: number;
+      analyst: number;
+      positioning: number;
+    };
+  };
+  breakdown: Array<{
+    ticker: string;
+    name: string;
+    score: number;
+    level: "contrarian" | "forming" | "crowded";
+  }>;
+  sectors: Array<{
+    ticker: string;
+    name: string;
+    score: number;
+    level: "contrarian" | "forming" | "crowded";
+  }>;
+  timestamp: string;
+}

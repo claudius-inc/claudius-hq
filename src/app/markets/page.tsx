@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { PageHero } from "@/components/PageHero";
 import { detectRegime } from "./_components/helpers";
 import { RegimeStrip } from "./_components/RegimeStrip";
-import { RegimeCrowding } from "./_components/RegimeCrowding";
+
 import { Barometers } from "./_components/Barometers";
 import { Sentiment } from "./_components/Sentiment";
 import { SmartMoney } from "./_components/SmartMoney";
@@ -24,6 +24,7 @@ import type {
   CongressData,
   InsiderData,
   YieldSpread,
+  CrowdingData,
 } from "./_components/types";
 
 export default function StocksDashboard() {
@@ -42,6 +43,7 @@ export default function StocksDashboard() {
   const [congressData, setCongressData] = useState<CongressData | null>(null);
   const [insiderData, setInsiderData] = useState<InsiderData | null>(null);
   const [yieldSpreads, setYieldSpreads] = useState<YieldSpread[]>([]);
+  const [crowdingData, setCrowdingData] = useState<CrowdingData | null>(null);
   const [expectedReturns, setExpectedReturns] = useState<ExpectedReturnsResponse | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [regimeDetailOpen, setRegimeDetailOpen] = useState(false);
@@ -132,6 +134,11 @@ export default function StocksDashboard() {
       .then((data) => setExpectedReturns(data))
       .catch(console.error);
 
+    fetch("/api/markets/regime")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setCrowdingData(data))
+      .catch(console.error);
+
     Promise.all([
       fetch("/api/macro").then((res) => (res.ok ? res.json() : null)),
       fetch("/api/gold").then((res) => (res.ok ? res.json() : null)),
@@ -179,10 +186,6 @@ export default function StocksDashboard() {
           />
         </div>
 
-        <div className="col-span-full lg:col-span-1">
-          <RegimeCrowding />
-        </div>
-
         <PlaybookSection
           macroIndicators={macroIndicators}
           yieldSpreads={yieldSpreads}
@@ -216,6 +219,7 @@ export default function StocksDashboard() {
         <Sentiment
           sentimentData={sentimentData}
           breadthData={breadthData}
+          crowdingData={crowdingData}
           expandedIds={expandedIds}
           toggleExpanded={toggleExpanded}
         />

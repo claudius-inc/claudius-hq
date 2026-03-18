@@ -1,11 +1,13 @@
 import { Skeleton } from "@/components/Skeleton";
 import { ChevronRight, Gauge } from "lucide-react";
 import { vixRanges, putCallRanges, breadthRanges, termStructureRanges } from "./constants";
-import type { SentimentData, BreadthData } from "./types";
+import { getCrowdingBgColor } from "@/lib/crowding-utils";
+import type { SentimentData, BreadthData, CrowdingData } from "./types";
 
 interface SentimentProps {
   sentimentData: SentimentData | null;
   breadthData: BreadthData | null;
+  crowdingData: CrowdingData | null;
   expandedIds: Set<string>;
   toggleExpanded: (id: string) => void;
 }
@@ -70,7 +72,7 @@ function getRangeColor(label: string) {
   return map[label] || "bg-gray-100 text-gray-700";
 }
 
-export function Sentiment({ sentimentData, breadthData, expandedIds, toggleExpanded }: SentimentProps) {
+export function Sentiment({ sentimentData, breadthData, crowdingData, expandedIds, toggleExpanded }: SentimentProps) {
   return (
     <div>
       <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
@@ -438,6 +440,103 @@ export function Sentiment({ sentimentData, breadthData, expandedIds, toggleExpan
             )}
           </div>
         )}
+
+        {/* Market Crowding Row */}
+        <div>
+          <button
+            disabled={!crowdingData}
+            onClick={() => crowdingData && toggleExpanded("sentiment-crowding")}
+            className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors disabled:hover:bg-transparent"
+          >
+            <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${expandedIds.has("sentiment-crowding") ? "rotate-90" : ""}`} />
+            <span className="text-xs font-medium text-gray-900 flex-1 min-w-0 truncate">Market Crowding</span>
+            {crowdingData ? (
+              <>
+                <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">{crowdingData.overall.score}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${getCrowdingBgColor(crowdingData.overall.score)}`}>
+                  {crowdingData.overall.level.charAt(0).toUpperCase() + crowdingData.overall.level.slice(1)}
+                </span>
+              </>
+            ) : (
+              <>
+                <Skeleton className="h-3 w-8" />
+                <Skeleton className="h-4 w-14 rounded-full" />
+              </>
+            )}
+          </button>
+          {expandedIds.has("sentiment-crowding") && crowdingData && (
+            <div className="px-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-100">
+              <p className="text-[10px] text-gray-500 mb-2">Aggregate positioning sentiment combining institutional ownership, analyst ratings, and fund flows. Contrarian indicator — high crowding often precedes corrections.</p>
+              <div className="space-y-2">
+                <div className="bg-blue-50 rounded-lg p-2.5">
+                  <h4 className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-1">Current Reading</h4>
+                  <p className="text-[10px] text-gray-700 mb-1">
+                    <strong>Score:</strong> {crowdingData.overall.score}/100
+                    <span className={`ml-2 ${getCrowdingBgColor(crowdingData.overall.score)} px-1.5 py-0.5 rounded`}>
+                      {crowdingData.overall.level}
+                    </span>
+                  </p>
+                  <div className="flex items-center gap-3 text-[10px] text-gray-700">
+                    <span><strong>Ownership:</strong> {crowdingData.overall.components.ownership}</span>
+                    <span><strong>Analyst:</strong> {crowdingData.overall.components.analyst}</span>
+                    <span><strong>Positioning:</strong> {crowdingData.overall.components.positioning}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-700 mt-1"><strong>Market Impact:</strong> {crowdingData.overall.description}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-2.5">
+                  <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Why It Matters</h4>
+                  <p className="text-[10px] text-gray-700">When everyone owns the same positions (crowded), there are no new buyers left — only potential sellers. High crowding precedes selloffs. Low crowding (contrarian) means few own it — potential for upside if sentiment shifts.</p>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Interpretation Guide</h4>
+                  <div className="space-y-1">
+                    {[
+                      { label: "Contrarian", min: 70, max: null, meaning: "Under-owned, potential opportunity" },
+                      { label: "Forming", min: 40, max: 70, meaning: "Neutral positioning, no extreme" },
+                      { label: "Crowded", min: null, max: 40, meaning: "Over-owned, correction risk elevated" },
+                    ].map((range, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex flex-wrap items-start gap-1 text-[10px] p-1 rounded ${
+                          crowdingData.overall.level === range.label.toLowerCase()
+                            ? getCrowdingBgColor(crowdingData.overall.score) + " ring-1 ring-offset-1 ring-gray-300"
+                            : "bg-gray-50"
+                        }`}
+                      >
+                        <span className="font-medium w-24 shrink-0">{range.label}</span>
+                        <span className="text-gray-500 w-16 shrink-0 tabular-nums">
+                          {range.min !== null ? range.min : "<"}{range.min !== null && range.max !== null ? " – " : ""}{range.max !== null ? range.max : "+"}
+                        </span>
+                        <span className="text-gray-600 flex-1">{range.meaning}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Market Breakdown</h4>
+                  <div className="grid grid-cols-2 gap-1">
+                    {crowdingData.breakdown.slice(0, 6).map((item) => (
+                      <div key={item.ticker} className="flex items-center justify-between py-0.5 px-1.5 rounded bg-white">
+                        <span className="text-[10px] text-gray-700">{item.ticker}</span>
+                        <span className={`text-[10px] px-1 py-0.5 rounded ${getCrowdingBgColor(item.score)}`}>
+                          {item.score}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Assets Affected</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {["S&P 500 (SPY)", "Growth stocks (QQQ)", "Small caps (IWM)", "International (EFA/EEM)"].map((asset, idx) => (
+                      <span key={idx} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{asset}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
