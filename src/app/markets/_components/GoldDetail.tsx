@@ -21,6 +21,7 @@ interface GoldData {
     dowGold: number | null;
     goldSilver: number | null;
     m2Gold: number | null;
+    m2Value: number | null;
   } | null;
   movingAverages: {
     ema50: number | null;
@@ -348,13 +349,14 @@ function TrendArrow({ signal }: { signal: EvaluatedSignal }) {
 
 // ── Expandable Signal Row ─────────────────────────────────────────
 
-function ExpandableSignalRow({ signal }: { signal: EvaluatedSignal }) {
+function ExpandableSignalRow({ signal, m2Value }: { signal: EvaluatedSignal; m2Value?: number | null }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = RATING_CONFIG[signal.rating];
   const friendlyName = SIGNAL_FRIENDLY_NAME[signal.id] ?? signal.name;
   const explanation = getExplanation(signal);
   const trigger = SIGNAL_TRIGGERS[signal.id];
   const showRealYieldsNote = signal.id === "tips-yield" && ["bearish", "strong-bearish"].includes(signal.rating);
+  const showM2Value = signal.id === "m2-gold-ratio" && m2Value !== null && m2Value !== undefined;
 
   return (
     <div>
@@ -399,6 +401,11 @@ function ExpandableSignalRow({ signal }: { signal: EvaluatedSignal }) {
               Data as of Q4 2025 (WGC annual report)
             </div>
           )}
+          {showM2Value && (
+            <div className="text-[9px] text-gray-400 mt-1">
+              US M2 Money Supply: <span className="font-mono font-medium text-gray-600">${m2Value}T</span>
+            </div>
+          )}
           <SignalRangeBar signal={signal} />
         </div>
       )}
@@ -415,6 +422,7 @@ function AssessmentCard({
   statusConfig,
   signals,
   score,
+  m2Value,
 }: {
   title: string;
   question: string;
@@ -422,6 +430,7 @@ function AssessmentCard({
   statusConfig: { color: string; bg: string };
   signals: EvaluatedSignal[];
   score: number;
+  m2Value?: number | null;
 }) {
   return (
     <div className="rounded-lg border bg-white p-3">
@@ -439,7 +448,7 @@ function AssessmentCard({
       </div>
       <div className="space-y-0">
         {signals.map((s) => (
-          <ExpandableSignalRow key={s.id} signal={s} />
+          <ExpandableSignalRow key={s.id} signal={s} m2Value={m2Value} />
         ))}
       </div>
     </div>
@@ -581,6 +590,7 @@ export function GoldDetail({ open, onClose }: GoldDetailProps) {
               statusConfig={THESIS_STATUS_CONFIG[thesisStatus]}
               signals={structuralSignals}
               score={structuralScore}
+              m2Value={goldData?.ratios?.m2Value}
             />
             <AssessmentCard
               title="Tactical"

@@ -81,7 +81,8 @@ async function fetchGoldData() {
     dowGold: number | null;
     goldSilver: number | null;
     m2Gold: number | null;
-  } = { dowGold: null, goldSilver: null, m2Gold: null };
+    m2Value: number | null; // Raw M2 money supply in trillions
+  } = { dowGold: null, goldSilver: null, m2Gold: null, m2Value: null };
 
   // Moving averages
   let movingAverages: {
@@ -122,10 +123,11 @@ async function fetchGoldData() {
       if (livePrice && siQuote.regularMarketPrice) {
         ratios.goldSilver = Math.round((livePrice / siQuote.regularMarketPrice) * 100) / 100;
       }
-      // M2/Gold: latest FRED M2 (trillions) vs gold price (thousands)
-      const m2Value = await fetchFredValue("M2SL"); // M2 in billions
-      if (m2Value && livePrice) {
-        ratios.m2Gold = Math.round((m2Value / livePrice) * 100) / 100;
+      // M2/Gold: latest FRED M2 (billions from FRED) vs gold price
+      const m2Billions = await fetchFredValue("M2SL"); // M2 in billions
+      if (m2Billions && livePrice) {
+        ratios.m2Gold = Math.round((m2Billions / livePrice) * 100) / 100;
+        ratios.m2Value = Math.round(m2Billions / 100) / 10; // Convert to trillions with 1 decimal
       }
 
       // DXY
