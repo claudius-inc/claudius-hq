@@ -435,6 +435,25 @@ export async function POST(req: NextRequest) {
       const stockData = await batchFetchStocks(tickers, benchmarkReturns);
       totalScreened = stockData.length;
       
+      // If no data fetched (Yahoo timeout), return sample data
+      if (stockData.length === 0) {
+        logger.warn("acp/stock-scan", `No stocks fetched for ${market}, returning sample data`);
+        return NextResponse.json({
+          success: true,
+          data: {
+            market,
+            scan_timestamp: new Date().toISOString(),
+            total_screened: 0,
+            picks: [],
+            notice: "Live data temporarily unavailable. Try again shortly.",
+          },
+          meta: {
+            weights: { momentum: 0.35, fundamentals: 0.35, technicals: 0.30 },
+            cache_ttl_seconds: 60, // Short cache for empty results
+          },
+        });
+      }
+      
       // Score and rank
       picks = scoreAndRankStocks(stockData);
       
