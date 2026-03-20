@@ -179,85 +179,6 @@ export const telegramPending = sqliteTable("telegram_pending", {
 });
 
 // ============================================================================
-// IBKR Trade History
-// ============================================================================
-
-export const ibkrImports = sqliteTable("ibkr_imports", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  filename: text("filename").notNull(),
-  statementStart: text("statement_start"),
-  statementEnd: text("statement_end"),
-  tradeCount: integer("trade_count").default(0),
-  dividendCount: integer("dividend_count").default(0),
-  createdAt: text("created_at").default(sql`(datetime('now'))`),
-});
-
-export const ibkrTrades = sqliteTable("ibkr_trades", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  importId: integer("import_id").references(() => ibkrImports.id),
-  tradeDate: text("trade_date").notNull(),
-  settleDate: text("settle_date"),
-  symbol: text("symbol").notNull(),
-  description: text("description"),
-  assetClass: text("asset_class"),
-  action: text("action").notNull(),
-  quantity: real("quantity").notNull(),
-  price: real("price").notNull(),
-  currency: text("currency").notNull().default("USD"),
-  fxRate: real("fx_rate").default(1.0),
-  proceeds: real("proceeds"),
-  costBasis: real("cost_basis"),
-  realizedPnl: real("realized_pnl"),
-  commission: real("commission").default(0),
-  fees: real("fees").default(0),
-  createdAt: text("created_at").default(sql`(datetime('now'))`),
-});
-
-export const ibkrIncome = sqliteTable("ibkr_income", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  importId: integer("import_id").references(() => ibkrImports.id),
-  date: text("date").notNull(),
-  symbol: text("symbol").notNull(),
-  description: text("description"),
-  incomeType: text("income_type").notNull(),
-  amount: real("amount").notNull(),
-  currency: text("currency").notNull().default("USD"),
-  fxRate: real("fx_rate").default(1.0),
-  createdAt: text("created_at").default(sql`(datetime('now'))`),
-});
-
-export const ibkrFxRates = sqliteTable("ibkr_fx_rates", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  date: text("date").notNull(),
-  fromCurrency: text("from_currency").notNull(),
-  toCurrency: text("to_currency").notNull(),
-  rate: real("rate").notNull(),
-  createdAt: text("created_at").default(sql`(datetime('now'))`),
-});
-
-export const ibkrPositions = sqliteTable("ibkr_positions", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  symbol: text("symbol").notNull().unique(),
-  quantity: real("quantity").notNull(),
-  avgCost: real("avg_cost").notNull(),
-  currency: text("currency").notNull().default("USD"),
-  totalCost: real("total_cost").notNull(),
-  totalCostBase: real("total_cost_base").default(0),
-  realizedPnl: real("realized_pnl").default(0),
-  realizedPnlBase: real("realized_pnl_base").default(0),
-  avgFxRate: real("avg_fx_rate").default(1),
-  lastUpdated: text("last_updated").default(sql`(datetime('now'))`),
-});
-
-export const ibkrPortfolioMeta = sqliteTable("ibkr_portfolio_meta", {
-  id: integer("id").primaryKey(),
-  totalRealizedPnl: real("total_realized_pnl").default(0),
-  totalRealizedPnlBase: real("total_realized_pnl_base").default(0),
-  baseCurrency: text("base_currency").default("SGD"),
-  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
-});
-
-// ============================================================================
 // Type exports
 // ============================================================================
 
@@ -293,24 +214,6 @@ export type NewTelegramUser = typeof telegramUsers.$inferInsert;
 
 export type TelegramPendingAction = typeof telegramPending.$inferSelect;
 export type NewTelegramPendingAction = typeof telegramPending.$inferInsert;
-
-export type IbkrImport = typeof ibkrImports.$inferSelect;
-export type NewIbkrImport = typeof ibkrImports.$inferInsert;
-
-export type IbkrTrade = typeof ibkrTrades.$inferSelect;
-export type NewIbkrTrade = typeof ibkrTrades.$inferInsert;
-
-export type IbkrIncomeRecord = typeof ibkrIncome.$inferSelect;
-export type NewIbkrIncomeRecord = typeof ibkrIncome.$inferInsert;
-
-export type IbkrFxRate = typeof ibkrFxRates.$inferSelect;
-export type NewIbkrFxRate = typeof ibkrFxRates.$inferInsert;
-
-export type IbkrPosition = typeof ibkrPositions.$inferSelect;
-export type NewIbkrPosition = typeof ibkrPositions.$inferInsert;
-
-export type IbkrPortfolioMeta = typeof ibkrPortfolioMeta.$inferSelect;
-export type NewIbkrPortfolioMeta = typeof ibkrPortfolioMeta.$inferInsert;
 
 // ============================================================================
 // Trade Journal

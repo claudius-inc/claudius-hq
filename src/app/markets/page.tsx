@@ -14,8 +14,6 @@ import { RegimeDetail } from "./_components/RegimeDetail";
 import { PlaybookSection } from "./_components/playbook/PlaybookSection";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
-  Position,
-  Summary,
   MacroIndicator,
   MarketEtf,
   RegimeData,
@@ -28,11 +26,6 @@ import type {
 } from "./_components/types";
 
 export default function StocksDashboard() {
-  const [portfolioData, setPortfolioData] = useState<{
-    positions: Position[];
-    summary: Summary | null;
-    baseCurrency: string;
-  } | null>(null);
   const [macroIndicators, setMacroIndicators] = useState<MacroIndicator[]>([]);
   const [sentimentData, setSentimentData] = useState<SentimentData | null>(
     null,
@@ -48,7 +41,6 @@ export default function StocksDashboard() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [regimeDetailOpen, setRegimeDetailOpen] = useState(false);
   const [loading, setLoading] = useState({
-    portfolio: true,
     macro: true,
     sentiment: true,
     etfs: true,
@@ -68,18 +60,6 @@ export default function StocksDashboard() {
   };
 
   useEffect(() => {
-    fetch("/api/ibkr/positions")
-      .then((res) => res.json())
-      .then((data) => {
-        setPortfolioData({
-          positions: data.positions || [],
-          summary: data.summary || null,
-          baseCurrency: data.baseCurrency || "SGD",
-        });
-      })
-      .catch(console.error)
-      .finally(() => setLoading((prev) => ({ ...prev, portfolio: false })));
-
     fetch("/api/macro")
       .then((res) => res.json())
       .then((data) => {
