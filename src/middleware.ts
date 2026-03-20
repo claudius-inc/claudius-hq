@@ -21,7 +21,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // All other APIs (including /api/acp/) require auth
+  // ACP endpoints: public APIs for agent-to-agent commerce
+  // These are consumed by external agents on Virtuals.io ACP
+  if (pathname.startsWith("/api/acp/")) {
+    return NextResponse.next();
+  }
+
+  // All other APIs require auth
 
   // API routes: check API key OR session cookie
   if (pathname.startsWith("/api/")) {
