@@ -26,9 +26,6 @@ export type Potential = (typeof POTENTIALS)[number];
 export const RESEARCH_JOB_STATUSES = ["pending", "processing", "complete", "failed"] as const;
 export type ResearchJobStatus = (typeof RESEARCH_JOB_STATUSES)[number];
 
-export const WATCHLIST_STATUSES = ["watching", "accumulating", "graduated"] as const;
-export type WatchlistStatus = (typeof WATCHLIST_STATUSES)[number];
-
 export const THEME_STOCK_STATUSES = ["watching", "accumulating", "holding"] as const;
 export type ThemeStockStatus = (typeof THEME_STOCK_STATUSES)[number];
 
@@ -113,18 +110,8 @@ export const researchJobs = sqliteTable("research_jobs", {
 });
 
 // ============================================================================
-// Watchlist & Portfolio
+// Portfolio
 // ============================================================================
-
-export const watchlist = sqliteTable("watchlist", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  ticker: text("ticker").notNull().unique(),
-  targetPrice: real("target_price"),
-  notes: text("notes"),
-  status: text("status").default("watching"),
-  addedAt: text("added_at").default(sql`(datetime('now'))`),
-  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
-});
 
 export const portfolioHoldings = sqliteTable("portfolio_holdings", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -165,27 +152,6 @@ export const themeStocks = sqliteTable("theme_stocks", {
   status: text("status").default("watching"),
   notes: text("notes"),
   addedAt: text("added_at").default(sql`(datetime('now'))`),
-});
-
-// ============================================================================
-// Stock Alerts
-// ============================================================================
-
-export const ALERT_STATUSES = ["watching", "triggered", "paused"] as const;
-export type AlertStatus = (typeof ALERT_STATUSES)[number];
-
-export const stockAlerts = sqliteTable("stock_alerts", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  ticker: text("ticker").notNull(),
-  accumulateLow: real("accumulate_low"),
-  accumulateHigh: real("accumulate_high"),
-  strongBuyLow: real("strong_buy_low"),
-  strongBuyHigh: real("strong_buy_high"),
-  status: text("status").default("watching"),
-  lastTriggered: text("last_triggered"),
-  notes: text("notes"),
-  createdAt: text("created_at").default(sql`(datetime('now'))`),
-  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
 
 // ============================================================================
@@ -310,9 +276,6 @@ export type NewResearchPage = typeof researchPages.$inferInsert;
 export type ResearchJob = typeof researchJobs.$inferSelect;
 export type NewResearchJob = typeof researchJobs.$inferInsert;
 
-export type WatchlistItem = typeof watchlist.$inferSelect;
-export type NewWatchlistItem = typeof watchlist.$inferInsert;
-
 export type PortfolioHolding = typeof portfolioHoldings.$inferSelect;
 export type NewPortfolioHolding = typeof portfolioHoldings.$inferInsert;
 
@@ -348,9 +311,6 @@ export type NewIbkrPosition = typeof ibkrPositions.$inferInsert;
 
 export type IbkrPortfolioMeta = typeof ibkrPortfolioMeta.$inferSelect;
 export type NewIbkrPortfolioMeta = typeof ibkrPortfolioMeta.$inferInsert;
-
-export type StockAlert = typeof stockAlerts.$inferSelect;
-export type NewStockAlert = typeof stockAlerts.$inferInsert;
 
 // ============================================================================
 // Trade Journal

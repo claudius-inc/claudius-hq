@@ -1,7 +1,7 @@
 // Telegram Bot Command Handlers
 // Consolidated handlers using Drizzle ORM
 
-import { db, portfolioHoldings, themes, themeStocks, stockReports, telegramUsers, watchlist } from "@/db";
+import { db, portfolioHoldings, themes, themeStocks, stockReports, telegramUsers } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
 import { formatPrice, formatPercent, getEmoji, getPeriodKeyboard } from "../utils";
@@ -348,38 +348,4 @@ export async function handleSectors(period: TimePeriod = "1w"): Promise<SectorsR
   };
 }
 
-// ===== WATCHLIST =====
 
-export async function handleWatchlist(): Promise<string> {
-  const items = await db
-    .select()
-    .from(watchlist)
-    .orderBy(desc(watchlist.addedAt));
-
-  if (items.length === 0) {
-    return "👀 <b>Watchlist</b>\n\nNo items yet. Add them at claudiusinc.com/markets/watchlist";
-  }
-
-  const lines: string[] = ["👀 <b>Watchlist</b>\n"];
-  
-  for (const item of items) {
-    try {
-      const quote = await yahooFinance.quote(item.ticker) as QuoteResult;
-      const price = quote?.regularMarketPrice ?? 0;
-      const change = quote?.regularMarketChangePercent ?? 0;
-      
-      let targetInfo = "";
-      if (item.targetPrice) {
-        const gap = ((price - item.targetPrice) / item.targetPrice) * 100;
-        targetInfo = ` (target: ${formatPrice(item.targetPrice)}, ${formatPercent(gap)})`;
-      }
-      
-      lines.push(`${item.ticker}  ${formatPrice(price)}  ${formatPercent(change)} ${getEmoji(change)}${targetInfo}`);
-    } catch {
-      lines.push(`${item.ticker}  - (error)`);
-    }
-  }
-
-  lines.push(`\nclaudiusinc.com/markets/watchlist`);
-  return lines.join("\n");
-}

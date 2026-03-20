@@ -29,16 +29,7 @@ const primaryTabs: PrimaryTab[] = [
   {
     label: "Portfolio",
     href: "/markets/portfolio",
-    activePaths: [
-      "/markets/portfolio",
-      "/markets/portfolio/watchlist",
-      "/markets/alerts",
-    ],
-    subTabs: [
-      { href: "/markets/portfolio", label: "Holdings", exact: true },
-      { href: "/markets/portfolio/watchlist", label: "Watchlist" },
-      { href: "/markets/alerts", label: "Alerts" },
-    ],
+    activePaths: ["/markets/portfolio"],
   },
   {
     label: "Research",

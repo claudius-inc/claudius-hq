@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, portfolioHoldings, watchlist } from "@/db";
+import { db, portfolioHoldings } from "@/db";
 import { eq, desc } from "drizzle-orm";
 
 function toSnakeCase(r: Record<string, unknown>) {
@@ -68,15 +68,6 @@ export async function POST(req: NextRequest) {
         shares: shares ?? null,
       })
       .returning();
-
-    // Also mark the stock as graduated in watchlist if it exists
-    await db
-      .update(watchlist)
-      .set({
-        status: "graduated",
-        updatedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
-      })
-      .where(eq(watchlist.ticker, upperTicker));
 
     return NextResponse.json({ holding: toSnakeCase(newHolding) }, { status: 201 });
   } catch (e) {

@@ -63,21 +63,6 @@ export interface ResearchPage {
 }
 
 // Portfolio types
-export type WatchlistStatus = "watching" | "accumulating" | "graduated";
-
-export interface WatchlistItem {
-  id: number;
-  ticker: string;
-  target_price: number | null;
-  notes: string | null;
-  status: WatchlistStatus;
-  added_at: string;
-  updated_at: string;
-  // Enriched fields (from price API)
-  current_price?: number;
-  price_gap_percent?: number;
-}
-
 export interface PortfolioHolding {
   id: number;
   ticker: string;

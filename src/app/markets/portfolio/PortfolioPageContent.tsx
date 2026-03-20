@@ -5,15 +5,15 @@ import { PortfolioHolding, PortfolioReport } from "@/lib/types";
 import { PortfolioTab } from "@/components/PortfolioTab";
 import { ClarityJournal } from "@/components/ClarityJournal";
 
-type TabId = "holdings" | "clarity";
+type TabId = "clarity" | "holdings";
 
 const TABS: { id: TabId; label: string }[] = [
+  { id: "clarity", label: "Journal" },
   { id: "holdings", label: "Holdings" },
-  { id: "clarity", label: "Clarity Journal" },
 ];
 
 export function PortfolioPageContent() {
-  const [activeTab, setActiveTab] = useState<TabId>("holdings");
+  const [activeTab, setActiveTab] = useState<TabId>("clarity");
   const [holdings, setHoldings] = useState<PortfolioHolding[]>([]);
   const [portfolioReports, setPortfolioReports] = useState<PortfolioReport[]>([]);
   const [loading, setLoading] = useState(true);

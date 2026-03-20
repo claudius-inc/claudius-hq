@@ -2,7 +2,7 @@
  * Portfolio Service
  * Handles portfolio holdings, reports, and analysis
  */
-import { db, portfolioHoldings, portfolioReports, watchlist } from "@/db";
+import { db, portfolioHoldings, portfolioReports } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import type { PortfolioHolding, PortfolioReport } from "@/db/schema";
 
@@ -65,15 +65,6 @@ export async function createHolding(
       shares: input.shares ?? null,
     })
     .returning();
-
-  // Also mark the stock as graduated in watchlist if it exists
-  await db
-    .update(watchlist)
-    .set({
-      status: "graduated",
-      updatedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
-    })
-    .where(eq(watchlist.ticker, upperTicker));
 
   return { holding: newHolding };
 }

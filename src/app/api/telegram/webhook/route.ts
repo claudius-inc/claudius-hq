@@ -18,7 +18,6 @@ import {
   handleAlertThreshold,
   handleStart,
   handleHelp,
-  handleWatchlist,
 } from "@/lib/telegram/handlers";
 import { ALLOWED_USER_IDS, type TelegramUpdate, type TimePeriod, type InlineKeyboardButton } from "@/lib/telegram/types";
 
@@ -122,10 +121,6 @@ export async function POST(request: NextRequest) {
         
       case "/portfolio":
         response = await handlePortfolio();
-        break;
-        
-      case "/watchlist":
-        response = await handleWatchlist();
         break;
         
       case "/themes": {
