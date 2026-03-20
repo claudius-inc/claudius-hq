@@ -8,7 +8,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { isApiAuthenticated } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 
 // ─── Scoring Functions (inlined) ─────────────────────────────────────────────
@@ -370,14 +369,7 @@ function processAndScoreCoins(coins: CoinGeckoMarketData[]): AltPick[] {
 // ─── Route Handler ───────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  // Auth check
-  if (!isApiAuthenticated(req)) {
-    return NextResponse.json(
-      { success: false, error: { code: "UNAUTHORIZED", message: "Missing or invalid API key" } },
-      { status: 401 }
-    );
-  }
-
+  // Note: Auth handled by middleware for /api/acp/* routes (public ACP endpoints)
   try {
     const body: AltPicksRequest = await req.json();
     const {
