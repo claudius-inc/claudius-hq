@@ -212,7 +212,7 @@ export async function POST(req: NextRequest) {
       (q) => q.close !== null && q.high !== null && q.low !== null
     );
 
-    if (validQuotes.length < 50) {
+    if (validQuotes.length < 20) {
       return NextResponse.json(
         {
           success: false,
