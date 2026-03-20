@@ -32,21 +32,25 @@ const ASSET_CONFIG = {
     name: "Bitcoin",
     yahooSymbol: "BTC-USD",
     coingeckoId: "bitcoin",
+    binanceSymbol: "BTCUSDT",
   },
   ETH: {
     name: "Ethereum",
     yahooSymbol: "ETH-USD",
     coingeckoId: "ethereum",
+    binanceSymbol: "ETHUSDT",
   },
   SOL: {
     name: "Solana",
     yahooSymbol: "SOL-USD",
     coingeckoId: "solana",
+    binanceSymbol: "SOLUSDT",
   },
   HYPE: {
     name: "Hyperliquid",
     yahooSymbol: "HYPE-USD",
     coingeckoId: "hyperliquid",
+    binanceSymbol: null, // Not on Binance
   },
 } as const;
 
@@ -217,18 +221,68 @@ export async function POST(req: NextRequest) {
           } as QuoteResult;
         }
       } catch (cgErr) {
-        logger.error("api/acp/crypto-signal", `CoinGecko fallback failed for ${asset}`, { error: cgErr });
-        return NextResponse.json(
-          {
-            success: false,
-            error: {
-              code: "DATA_UNAVAILABLE",
-              message: `Failed to fetch price data for ${asset}`,
+        logger.warn("api/acp/crypto-signal", `CoinGecko fallback failed for ${asset}`, { error: cgErr });
+        
+        // Third fallback: Binance (unlimited, no rate limit)
+        if (config.binanceSymbol) {
+          try {
+            const [klineRes, tickerRes] = await Promise.all([
+              fetch(`https://api.binance.com/api/v3/klines?symbol=${config.binanceSymbol}&interval=1d&limit=${days}`),
+              fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${config.binanceSymbol}`),
+            ]);
+
+            if (klineRes.ok) {
+              const klines = await klineRes.json();
+              quotes = klines.map((k: string[]) => ({
+                date: new Date(Number(k[0])),
+                open: parseFloat(k[1]),
+                high: parseFloat(k[2]),
+                low: parseFloat(k[3]),
+                close: parseFloat(k[4]),
+                volume: parseFloat(k[5]),
+              }));
+            }
+
+            if (tickerRes.ok) {
+              const ticker = await tickerRes.json();
+              currentQuote = {
+                regularMarketPrice: parseFloat(ticker.lastPrice),
+                regularMarketChangePercent: parseFloat(ticker.priceChangePercent),
+                regularMarketVolume: parseFloat(ticker.volume) * parseFloat(ticker.lastPrice),
+                marketCap: 0, // Binance doesn't provide market cap
+              } as QuoteResult;
+            }
+
+            logger.info("api/acp/crypto-signal", `Using Binance fallback for ${asset}`);
+          } catch (binanceErr) {
+            logger.error("api/acp/crypto-signal", `All sources failed for ${asset}`, { error: binanceErr });
+            return NextResponse.json(
+              {
+                success: false,
+                error: {
+                  code: "DATA_UNAVAILABLE",
+                  message: `Failed to fetch price data for ${asset}`,
+                },
+                meta: { request_id: requestId },
+              },
+              { status: 503 }
+            );
+          }
+        } else {
+          // No Binance symbol available (HYPE)
+          logger.error("api/acp/crypto-signal", `All sources failed for ${asset} (no Binance)`, { error: cgErr });
+          return NextResponse.json(
+            {
+              success: false,
+              error: {
+                code: "DATA_UNAVAILABLE",
+                message: `Failed to fetch price data for ${asset}`,
+              },
+              meta: { request_id: requestId },
             },
-            meta: { request_id: requestId },
-          },
-          { status: 503 }
-        );
+            { status: 503 }
+          );
+        }
       }
     }
 
