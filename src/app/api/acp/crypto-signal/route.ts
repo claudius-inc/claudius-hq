@@ -175,14 +175,22 @@ export async function POST(req: NextRequest) {
     } catch (yahooErr) {
       logger.warn("api/acp/crypto-signal", `Yahoo Finance failed for ${asset}`, { error: yahooErr });
       
-      // Fallback to CoinGecko for price only
+      // Fallback to CoinGecko
       try {
-        const cgRes = await fetch(
-          `https://api.coingecko.com/api/v3/coins/${config.coingeckoId}/market_chart?vs_currency=usd&days=${days}`,
-          { cache: "no-store" }
-        );
-        if (cgRes.ok) {
-          const cgData = await cgRes.json();
+        // Fetch both price history and current market data
+        const [chartRes, coinRes] = await Promise.all([
+          fetch(
+            `https://api.coingecko.com/api/v3/coins/${config.coingeckoId}/market_chart?vs_currency=usd&days=${days}`,
+            { cache: "no-store" }
+          ),
+          fetch(
+            `https://api.coingecko.com/api/v3/coins/${config.coingeckoId}?localization=false&tickers=false&community_data=false&developer_data=false`,
+            { cache: "no-store" }
+          ),
+        ]);
+
+        if (chartRes.ok) {
+          const cgData = await chartRes.json();
           quotes = cgData.prices.map((p: [number, number]) => ({
             date: new Date(p[0]),
             close: p[1],
@@ -192,7 +200,19 @@ export async function POST(req: NextRequest) {
             volume: 0,
           }));
         }
-      } catch {
+
+        if (coinRes.ok) {
+          const coinData = await coinRes.json();
+          // Create a pseudo QuoteResult from CoinGecko data
+          currentQuote = {
+            regularMarketPrice: coinData.market_data?.current_price?.usd ?? 0,
+            regularMarketChangePercent: coinData.market_data?.price_change_percentage_24h ?? 0,
+            regularMarketVolume: coinData.market_data?.total_volume?.usd ?? 0,
+            marketCap: coinData.market_data?.market_cap?.usd ?? 0,
+          } as QuoteResult;
+        }
+      } catch (cgErr) {
+        logger.error("api/acp/crypto-signal", `CoinGecko fallback failed for ${asset}`, { error: cgErr });
         return NextResponse.json(
           {
             success: false,
