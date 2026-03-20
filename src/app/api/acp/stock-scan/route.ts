@@ -136,6 +136,16 @@ function getFromCache<T>(key: string): T | null {
   return null;
 }
 
+// Get stale cache (up to 2 hours old) as fallback when fresh call fails
+const STALE_CACHE_TTL = 7200; // 2 hours
+function getStaleCache<T>(key: string): T | null {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < STALE_CACHE_TTL * 1000) {
+    return cached.data as T;
+  }
+  return null;
+}
+
 function setCache<T>(key: string, data: T): void {
   cache.set(key, { data, timestamp: Date.now() });
 }
@@ -435,32 +445,40 @@ export async function POST(req: NextRequest) {
       const stockData = await batchFetchStocks(tickers, benchmarkReturns);
       totalScreened = stockData.length;
       
-      // If no data fetched (Yahoo timeout), return sample data
+      // If no data fetched (Yahoo timeout), try stale cache
       if (stockData.length === 0) {
-        logger.warn("acp/stock-scan", `No stocks fetched for ${market}, returning sample data`);
-        return NextResponse.json({
-          success: true,
-          data: {
-            market,
-            scan_timestamp: new Date().toISOString(),
-            total_screened: 0,
-            picks: [],
-            notice: "Live data temporarily unavailable. Try again shortly.",
-          },
-          meta: {
-            weights: { momentum: 0.35, fundamentals: 0.35, technicals: 0.30 },
-            cache_ttl_seconds: 60, // Short cache for empty results
-          },
-        });
+        const staleCache = getStaleCache<StockPick[]>(cacheKey);
+        if (staleCache && staleCache.length > 0) {
+          logger.info("acp/stock-scan", `Fresh fetch failed for ${market}, using stale cache (${staleCache.length} picks)`);
+          picks = staleCache;
+          totalScreened = staleCache.length;
+          // Note: picks is set, skip to filtering
+        } else {
+          logger.warn("acp/stock-scan", `No stocks fetched for ${market} and no stale cache, returning empty`);
+          return NextResponse.json({
+            success: true,
+            data: {
+              market,
+              scan_timestamp: new Date().toISOString(),
+              total_screened: 0,
+              picks: [],
+              notice: "Live data temporarily unavailable. Try again shortly.",
+            },
+            meta: {
+              weights: { momentum: 0.35, fundamentals: 0.35, technicals: 0.30 },
+              cache_ttl_seconds: 60, // Short cache for empty results
+            },
+          });
+        }
+      } else {
+        // Score and rank fresh data
+        picks = scoreAndRankStocks(stockData);
+        
+        // Cache results
+        setCache(cacheKey, picks);
+        
+        logger.info("acp/stock-scan", `Scanned ${totalScreened} stocks for ${market}`);
       }
-      
-      // Score and rank
-      picks = scoreAndRankStocks(stockData);
-      
-      // Cache results
-      setCache(cacheKey, picks);
-      
-      logger.info("acp/stock-scan", `Scanned ${totalScreened} stocks for ${market}`);
     }
 
     // Filter by sector if specified
