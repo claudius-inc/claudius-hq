@@ -172,6 +172,11 @@ export async function POST(req: NextRequest) {
 
       quotes = chartData.quotes || [];
       currentQuote = quote;
+      
+      // If Yahoo returned empty data, fall back to CoinGecko
+      if (quotes.length === 0) {
+        throw new Error("Yahoo returned empty data");
+      }
     } catch (yahooErr) {
       logger.warn("api/acp/crypto-signal", `Yahoo Finance failed for ${asset}`, { error: yahooErr });
       
