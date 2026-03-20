@@ -1071,3 +1071,22 @@ export type NewThesisDecisionLogEntry = typeof thesisDecisionLog.$inferInsert;
 
 export type CftcPosition = typeof cftcPositions.$inferSelect;
 export type NewCftcPosition = typeof cftcPositions.$inferInsert;
+
+// ============================================================================
+// Investment Clarity Journal
+// ============================================================================
+
+export const CLARITY_DECISIONS = ["buy", "sell", "hold", "wait"] as const;
+export type ClarityDecision = (typeof CLARITY_DECISIONS)[number];
+
+export const clarityJournals = sqliteTable("clarity_journals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  asset: text("asset").notNull().default(""),
+  decision: text("decision"), // buy, sell, hold, wait, null
+  data: text("data").notNull().default("{}"), // JSON with all field values
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export type ClarityJournal = typeof clarityJournals.$inferSelect;
+export type NewClarityJournal = typeof clarityJournals.$inferInsert;
