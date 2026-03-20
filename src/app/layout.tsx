@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegistration } from "@/components/ServiceWorkerRegistration";
+import { ChartReviewFAB } from "@/components/ChartReviewFAB";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -55,6 +56,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-gray-50 text-gray-900 min-h-screen`}>
         <ServiceWorkerRegistration />
         {children}
+        <ChartReviewFAB />
       </body>
     </html>
   );
