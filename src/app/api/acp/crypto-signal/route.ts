@@ -413,6 +413,18 @@ export async function POST(req: NextRequest) {
       else if (fearGreed.value < 40) marketTrend = "RISK_OFF";
     }
 
+    // Calculate Mayer Multiple for BTC (price / 200-day SMA)
+    let mayerMultiple: number | null = null;
+    let mayerZone: string | null = null;
+    if (asset === "BTC" && smas && smas.sma_200 > 0) {
+      mayerMultiple = Math.round((currentPrice / smas.sma_200) * 100) / 100;
+      if (mayerMultiple < 0.8) mayerZone = "UNDERVALUED";
+      else if (mayerMultiple < 1.0) mayerZone = "ACCUMULATION";
+      else if (mayerMultiple < 1.4) mayerZone = "FAIR_VALUE";
+      else if (mayerMultiple < 2.4) mayerZone = "ELEVATED";
+      else mayerZone = "OVERHEATED";
+    }
+
     // Build response
     const response = {
       success: true,
@@ -476,6 +488,14 @@ export async function POST(req: NextRequest) {
             ratio: 1,
             trend: "STABLE",
           },
+          // Mayer Multiple (BTC only) - price / 200-day SMA
+          // < 0.8 = undervalued, 0.8-1.0 = accumulation, 1.0-1.4 = fair, 1.4-2.4 = elevated, > 2.4 = overheated
+          ...(mayerMultiple !== null && {
+            mayer: {
+              value: mayerMultiple,
+              zone: mayerZone,
+            },
+          }),
         },
 
         context: {
