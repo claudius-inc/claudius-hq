@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 
-const API_KEY = process.env.HQ_API_KEY;
-
 // War started on Feb 28, 2026
 const WAR_START_DATE = new Date("2026-02-28T00:00:00Z");
 
@@ -51,12 +49,7 @@ interface WarUpdateResponse {
   eventsReturned: number;
 }
 
-function checkAuth(req: NextRequest): boolean {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === API_KEY;
-}
+
 
 async function loadState(): Promise<WarMonitorState> {
   // Always return default state (serverless-compatible)
@@ -202,10 +195,6 @@ function extractCasualties(events: string[]): WarUpdateResponse["casualties"] {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const body = await req.json().catch(() => ({}));
     const { since, includeMarketImpact = true, limit = 20 } = body as {
