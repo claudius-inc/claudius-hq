@@ -114,8 +114,8 @@ interface StockData {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const RATE_LIMIT_MS = 100; // 100ms between requests
-const MAX_CONCURRENT = 5;
+const RATE_LIMIT_MS = 50; // 100ms between requests
+const MAX_CONCURRENT = 10;
 const CACHE_TTL = 900; // 15 minutes
 
 // Simple in-memory cache
