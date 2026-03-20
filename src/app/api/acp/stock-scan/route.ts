@@ -5,14 +5,6 @@ import { stockScans } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
-const API_KEY = process.env.HQ_API_KEY;
-
-function checkAuth(req: NextRequest): boolean {
-  const auth = req.headers.get("authorization");
-  if (!auth?.startsWith("Bearer ")) return false;
-  return auth.slice(7) === API_KEY;
-}
-
 const requestSchema = z.object({
   market: z.string().transform(s => s.toUpperCase()).pipe(z.enum(["US", "HK", "JP", "SGX"])).default("US"),
   count: z.number().min(1).max(25).default(10),
@@ -28,10 +20,6 @@ const MARKET_MAP: Record<string, string[]> = {
 };
 
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const requestId = crypto.randomUUID().slice(0, 8);
   
   try {
