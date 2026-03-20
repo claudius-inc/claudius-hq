@@ -147,20 +147,20 @@ function EndpointCard({
   };
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
+    <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h3 className="text-lg font-semibold text-white">{endpoint.name}</h3>
-          <p className="text-sm text-gray-400">{endpoint.description}</p>
+          <h3 className="text-lg font-semibold text-gray-900">{endpoint.name}</h3>
+          <p className="text-sm text-gray-600">{endpoint.description}</p>
         </div>
-        <span className="px-2 py-1 text-xs font-mono bg-blue-900/50 text-blue-400 rounded">
+        <span className="px-2 py-1 text-xs font-mono bg-blue-100 text-blue-700 rounded">
           {endpoint.method}
         </span>
       </div>
 
       {/* Path */}
-      <div className="mb-4 p-2 bg-gray-950 rounded font-mono text-sm text-gray-300 overflow-x-auto">
+      <div className="mb-4 p-2 bg-gray-100 rounded font-mono text-sm text-gray-700 overflow-x-auto">
         {endpoint.path}
       </div>
 
@@ -169,12 +169,12 @@ function EndpointCard({
         <div className="space-y-3 mb-4">
           {endpoint.fields.map((field) => (
             <div key={field.name} className="flex items-center gap-3">
-              <label className="text-sm text-gray-400 min-w-[140px]">
+              <label className="text-sm text-gray-600 min-w-[140px]">
                 {field.label}:
               </label>
               {field.type === "select" ? (
                 <select
-                  className="flex-1 px-3 py-2 bg-gray-950 border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded text-gray-900 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={String(formData[field.name] ?? "")}
                   onChange={(e) => handleFieldChange(field.name, e.target.value)}
                 >
@@ -187,7 +187,7 @@ function EndpointCard({
               ) : field.type === "text" ? (
                 <input
                   type="text"
-                  className="flex-1 px-3 py-2 bg-gray-950 border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded text-gray-900 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={String(formData[field.name] ?? "")}
                   placeholder={field.placeholder}
                   onChange={(e) => handleFieldChange(field.name, e.target.value)}
@@ -195,7 +195,7 @@ function EndpointCard({
               ) : field.type === "number" ? (
                 <input
                   type="number"
-                  className="flex-1 px-3 py-2 bg-gray-950 border border-gray-700 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 bg-gray-50 border border-gray-300 rounded text-gray-900 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                   value={String(formData[field.name] ?? "")}
                   placeholder={field.placeholder}
                   onChange={(e) =>
@@ -205,7 +205,7 @@ function EndpointCard({
               ) : field.type === "checkbox" ? (
                 <input
                   type="checkbox"
-                  className="w-5 h-5 bg-gray-950 border border-gray-700 rounded"
+                  className="w-5 h-5 bg-gray-50 border border-gray-300 rounded"
                   checked={Boolean(formData[field.name])}
                   onChange={(e) => handleFieldChange(field.name, e.target.checked)}
                 />
@@ -221,7 +221,7 @@ function EndpointCard({
         disabled={loading}
         className={`w-full py-2 px-4 rounded font-medium text-sm transition-colors ${
           loading
-            ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+            ? "bg-gray-300 text-gray-500 cursor-not-allowed"
             : "bg-blue-600 hover:bg-blue-700 text-white"
         }`}
       >
@@ -230,7 +230,7 @@ function EndpointCard({
 
       {/* Error Display */}
       {error && (
-        <div className="mt-4 p-3 bg-red-900/30 border border-red-800 rounded text-red-400 text-sm">
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded text-red-600 text-sm">
           <strong>Error:</strong> {error}
         </div>
       )}
@@ -239,15 +239,15 @@ function EndpointCard({
       {response && (
         <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-400">Response:</span>
+            <span className="text-sm text-gray-600">Response:</span>
             <button
               onClick={() => navigator.clipboard.writeText(JSON.stringify(response, null, 2))}
-              className="text-xs text-blue-400 hover:text-blue-300"
+              className="text-xs text-blue-600 hover:text-blue-500"
             >
               Copy JSON
             </button>
           </div>
-          <pre className="p-3 bg-gray-950 rounded text-xs text-green-400 overflow-auto max-h-96 font-mono">
+          <pre className="p-3 bg-gray-100 rounded text-xs text-gray-800 overflow-auto max-h-96 font-mono">
             {JSON.stringify(response, null, 2)}
           </pre>
         </div>
@@ -268,14 +268,14 @@ export default function AcpTestPage() {
       />
 
       {/* API Key Input */}
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-        <h3 className="text-lg font-semibold text-white mb-3">API Configuration</h3>
+      <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">API Configuration</h3>
         <div className="flex items-center gap-3">
-          <label className="text-sm text-gray-400 min-w-[100px]">API Key:</label>
+          <label className="text-sm text-gray-600 min-w-[100px]">API Key:</label>
           <div className="flex-1 relative">
             <input
               type={showKey ? "text" : "password"}
-              className="w-full px-3 py-2 pr-20 bg-gray-950 border border-gray-700 rounded text-white text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-full px-3 py-2 pr-20 bg-gray-50 border border-gray-300 rounded text-gray-900 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               placeholder="Enter HQ_API_KEY"
@@ -283,7 +283,7 @@ export default function AcpTestPage() {
             <button
               type="button"
               onClick={() => setShowKey(!showKey)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-white"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 hover:text-gray-700"
             >
               {showKey ? "Hide" : "Show"}
             </button>
@@ -302,27 +302,27 @@ export default function AcpTestPage() {
       </div>
 
       {/* Quick Reference */}
-      <div className="bg-gray-900 border border-gray-800 rounded-lg p-5">
-        <h3 className="text-lg font-semibold text-white mb-3">Quick Reference</h3>
-        <div className="text-sm text-gray-400 space-y-2">
+      <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">Quick Reference</h3>
+        <div className="text-sm text-gray-600 space-y-2">
           <p>
-            <strong className="text-gray-300">Crypto Signal:</strong> Returns BUY/SELL/HOLD with
+            <strong className="text-gray-800">Crypto Signal:</strong> Returns BUY/SELL/HOLD with
             technical indicators, funding rates, and sentiment.
           </p>
           <p>
-            <strong className="text-gray-300">Gold Signal:</strong> Technical + macro analysis
+            <strong className="text-gray-800">Gold Signal:</strong> Technical + macro analysis
             including RSI, MACD, Fed rates, DXY, and price targets.
           </p>
           <p>
-            <strong className="text-gray-300">Stock Scan:</strong> Screens stocks by market using
+            <strong className="text-gray-800">Stock Scan:</strong> Screens stocks by market using
             fundamental + technical scoring.
           </p>
           <p>
-            <strong className="text-gray-300">Alt Picks:</strong> Curated altcoin picks with
+            <strong className="text-gray-800">Alt Picks:</strong> Curated altcoin picks with
             analysis and risk assessment.
           </p>
           <p>
-            <strong className="text-gray-300">War Update:</strong> Middle East conflict events with
+            <strong className="text-gray-800">War Update:</strong> Middle East conflict events with
             risk level, casualties, and market implications.
           </p>
         </div>
