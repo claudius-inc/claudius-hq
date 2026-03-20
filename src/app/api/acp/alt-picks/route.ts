@@ -10,13 +10,54 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isApiAuthenticated } from "@/lib/auth";
 import { logger } from "@/lib/logger";
-import {
-  calculateAltMomentumScore,
-  calculateAltVolumeScore,
-  calculateAltMarketRankScore,
-  calculateAltCompositeScore,
-  calculateFDVRatio,
-} from "../_lib/scoring";
+
+// ─── Scoring Functions (inlined) ─────────────────────────────────────────────
+
+interface AltMetrics {
+  priceChange24h: number;
+  priceChange7d: number;
+  priceChange30d: number;
+  volume24h: number;
+  marketCap: number;
+  marketCapRank: number;
+}
+
+function calculateAltMomentumScore(metrics: AltMetrics): number {
+  const w24h = 0.5, w7d = 0.3, w30d = 0.2;
+  
+  // Normalize to 0-10 scale (cap at ±50%)
+  const norm24h = Math.min(10, Math.max(0, (metrics.priceChange24h + 50) / 10));
+  const norm7d = Math.min(10, Math.max(0, (metrics.priceChange7d + 50) / 10));
+  const norm30d = Math.min(10, Math.max(0, (metrics.priceChange30d + 50) / 10));
+  
+  return norm24h * w24h + norm7d * w7d + norm30d * w30d;
+}
+
+function calculateAltVolumeScore(metrics: AltMetrics): number {
+  const volumeRatio = metrics.volume24h / (metrics.marketCap || 1);
+  
+  // Volume/MCap ratio of 0.1 (10%) = score of 10
+  return Math.min(10, volumeRatio * 100);
+}
+
+function calculateAltMarketRankScore(rank: number): number {
+  // Top 10 = 10, Top 50 = 8, Top 100 = 6, Top 250 = 4, else = 2
+  if (rank <= 10) return 10;
+  if (rank <= 50) return 8;
+  if (rank <= 100) return 6;
+  if (rank <= 250) return 4;
+  return 2;
+}
+
+function calculateAltCompositeScore(scores: { momentum: number; volume: number; marketRank: number }): number {
+  // Weights: Momentum 50%, Volume 25%, Market Rank 25%
+  return scores.momentum * 0.5 + scores.volume * 0.25 + scores.marketRank * 0.25;
+}
+
+function calculateFDVRatio(mcap: number, fdv: number | null): number {
+  if (!fdv || fdv === 0) return 1;
+  return mcap / fdv;
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
