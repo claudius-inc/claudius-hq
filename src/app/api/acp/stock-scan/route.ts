@@ -14,7 +14,7 @@ function checkAuth(req: NextRequest): boolean {
 }
 
 const requestSchema = z.object({
-  market: z.enum(["US", "HK", "JP", "SGX"]).default("US"),
+  market: z.string().transform(s => s.toUpperCase()).pipe(z.enum(["US", "HK", "JP", "SGX"])).default("US"),
   count: z.number().min(1).max(25).default(10),
   min_score: z.number().min(0).max(100).default(0),
 });

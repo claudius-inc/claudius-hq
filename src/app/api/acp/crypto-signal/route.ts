@@ -56,9 +56,9 @@ const ASSET_CONFIG = {
 
 type AssetKey = keyof typeof ASSET_CONFIG;
 
-// Request validation
+// Request validation (case-insensitive asset)
 const RequestSchema = z.object({
-  asset: z.enum(["BTC", "ETH", "SOL", "HYPE"]),
+  asset: z.string().transform(s => s.toUpperCase()).pipe(z.enum(["BTC", "ETH", "SOL", "HYPE"])),
   timeframe: z.enum(["4h", "daily", "weekly"]).default("daily"),
 });
 
