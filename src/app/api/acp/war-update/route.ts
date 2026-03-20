@@ -222,8 +222,14 @@ export async function POST(req: NextRequest) {
       limit?: number;
     };
 
-    // Load state from memory file
-    const state = await loadState();
+    // Load state (use default on Vercel)
+    let state: WarMonitorState;
+    try {
+      state = await loadState();
+    } catch (loadErr) {
+      logger.error("api/acp/war-update", "Failed to load state", { error: loadErr });
+      state = getDefaultState();
+    }
     
     // Calculate cutoff date
     const sinceDate = since 
