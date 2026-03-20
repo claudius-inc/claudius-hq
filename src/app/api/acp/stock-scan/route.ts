@@ -114,9 +114,10 @@ interface StockData {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const RATE_LIMIT_MS = 50; // 100ms between requests
-const MAX_CONCURRENT = 10;
+const RATE_LIMIT_MS = 50; // 50ms between batches
+const MAX_CONCURRENT = 5; // Reduced for Vercel 10s timeout
 const CACHE_TTL = 900; // 15 minutes
+const HARD_TIMEOUT_MS = 8000; // 8s hard timeout (Vercel limit is 10s)
 
 // Simple in-memory cache
 const cache = new Map<string, { data: unknown; timestamp: number }>();
@@ -278,12 +279,24 @@ async function batchFetchStocks(
   benchmarkReturns: { oneMonth: number; threeMonth: number; sixMonth: number }
 ): Promise<StockData[]> {
   const results: StockData[] = [];
+  const startTime = Date.now();
   
-  // Process in batches
+  // Process in batches with hard timeout
   for (let i = 0; i < tickers.length; i += MAX_CONCURRENT) {
+    // Check hard timeout before starting next batch
+    if (Date.now() - startTime > HARD_TIMEOUT_MS) {
+      logger.warn("acp/stock-scan", `Hard timeout reached after ${results.length} stocks, skipping remaining`);
+      break;
+    }
+    
     const batch = tickers.slice(i, i + MAX_CONCURRENT);
     const batchResults = await Promise.all(
-      batch.map(ticker => fetchStockData(ticker, benchmarkReturns))
+      batch.map(ticker => 
+        Promise.race([
+          fetchStockData(ticker, benchmarkReturns),
+          sleep(3000).then(() => null), // 3s per-stock timeout
+        ])
+      )
     );
     
     for (const result of batchResults) {
@@ -292,7 +305,7 @@ async function batchFetchStocks(
     
     // Rate limit between batches
     if (i + MAX_CONCURRENT < tickers.length) {
-      await sleep(RATE_LIMIT_MS * MAX_CONCURRENT);
+      await sleep(RATE_LIMIT_MS);
     }
   }
   
@@ -461,7 +474,6 @@ export async function POST(req: NextRequest) {
           fundamentals: 0.35,
           technicals: 0.30,
         },
-        data_source: "yahoo-finance",
         cache_ttl_seconds: CACHE_TTL,
       },
     });

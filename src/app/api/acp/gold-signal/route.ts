@@ -397,7 +397,6 @@ export async function POST(req: NextRequest) {
       reasoning,
 
       timestamp: new Date().toISOString(),
-      dataSource: "Yahoo Finance + FRED",
       processingTimeMs: Date.now() - startTime,
     };
 
@@ -442,6 +441,6 @@ export async function GET() {
       "macro (Fed Funds Rate, DXY, Real Rate, 10Y Yield)",
       "reasoning summary",
     ],
-    dataSources: ["Yahoo Finance (GC=F)", "FRED (Fed Funds, Treasury, Breakeven)"],
+    // dataSources removed per Mr Z request
   });
 }

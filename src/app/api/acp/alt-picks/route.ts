@@ -420,7 +420,6 @@ export async function POST(req: NextRequest) {
           volume: 0.25,
           market_rank: 0.25,
         },
-        data_source: "coingecko",
         cache_ttl_seconds: CACHE_TTL,
       },
     });

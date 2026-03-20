@@ -32,25 +32,22 @@ export const US_SECTORS = [
   "Materials",
 ] as const;
 
-// S&P 30 (top 30 US stocks by market cap - optimized for Vercel serverless)
+// S&P 15 (top 15 US stocks by market cap - optimized for Vercel 10s timeout)
 export const US_TICKERS = [
-  "AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "BRK-B", "UNH", "JNJ",
-  "V", "XOM", "JPM", "MA", "PG", "HD", "CVX", "LLY", "ABBV", "MRK",
-  "AVGO", "PEP", "KO", "PFE", "COST", "TMO", "CSCO", "WMT", "MCD", "ACN",
+  "AAPL", "MSFT", "AMZN", "NVDA", "GOOGL", "META", "TSLA", "BRK-B", "UNH", "JPM",
+  "V", "XOM", "LLY", "AVGO", "MA",
 ];
 
-// HSI 25 constituents (Hong Kong - optimized for Vercel serverless)
+// HSI 12 constituents (Hong Kong - optimized for Vercel 10s timeout)
 export const HK_TICKERS = [
-  "0005", "0011", "0016", "0027", "0066", "0175", "0267", "0388", "0669", "0700",
-  "0823", "0857", "0883", "0939", "0941", "1038", "1211", "1299", "1398", "1810",
-  "2318", "2628", "3690", "9618", "9988",
+  "0005", "0016", "0388", "0700", "0823", "0939", "0941", "1211", "1299", "1398",
+  "2318", "9988",
 ].map(num => `${num.padStart(4, "0")}.HK`);
 
-// Nikkei 25 (top 25 Japan stocks by weight - optimized for Vercel serverless)
+// Nikkei 12 (top 12 Japan stocks by weight - optimized for Vercel 10s timeout)
 export const JP_TICKERS = [
   "7203", "8306", "9984", "6758", "9432", "6861", "8035", "6902", "6501", "8058",
-  "7267", "6367", "9433", "4063", "6954", "4502", "8031", "6971", "7974", "8316",
-  "6098", "9022", "4503", "8801", "4661",
+  "7267", "7974",
 ].map(num => `${num}.T`);
 
 /**

@@ -212,13 +212,13 @@ export async function POST(req: NextRequest) {
       (q) => q.close !== null && q.high !== null && q.low !== null
     );
 
-    if (validQuotes.length < 20) {
+    if (validQuotes.length < 5) {
       return NextResponse.json(
         {
           success: false,
           error: {
             code: "DATA_UNAVAILABLE",
-            message: `Insufficient historical data for ${asset}`,
+            message: `Insufficient historical data for ${asset} (got ${validQuotes.length} points, need 5+)`,
           },
           meta: { request_id: requestId },
         },
@@ -406,10 +406,6 @@ export async function POST(req: NextRequest) {
           market_trend: marketTrend,
         },
 
-        sources: {
-          price: currentQuote ? "yahoo" : "coingecko",
-          last_updated: new Date().toISOString(),
-        },
       },
 
       meta: {
