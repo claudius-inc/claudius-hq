@@ -272,14 +272,30 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch macro data from FRED and Yahoo
-    const [fedFunds, tenYear, breakeven, dxyQuote] = await Promise.all([
+    const [fedFunds, tenYear, breakeven, m2Billions, dxyQuote] = await Promise.all([
       fetchFredSeries("FEDFUNDS"),
       fetchFredSeries("DGS10"),
       fetchFredSeries("T10YIE"),
+      fetchFredSeries("M2SL"), // M2 Money Supply in billions
       yahooFinance.quote("DX-Y.NYB").catch(() => null) as Promise<QuoteResult | null>,
     ]);
 
     const dxy = dxyQuote?.regularMarketPrice ?? null;
+    
+    // Calculate M2/Gold ratio (M2 in billions / gold price)
+    // Lower = gold expensive vs money supply, Higher = gold cheap
+    const m2GoldRatio = m2Billions && currentPrice > 0 
+      ? Math.round((m2Billions / currentPrice) * 100) / 100 
+      : null;
+    
+    // Central Bank buying data (WGC quarterly reports, hardcoded)
+    // Last update: Q4 2025
+    const centralBankBuying = {
+      tonnes: 863.3,
+      year: 2025,
+      trend: "BULLISH" as const, // sustained buying above 500t/year since 2022
+      source: "WGC Q4 2025",
+    };
 
     // Calculate real rate (Fed Funds - Core CPI, approximated with breakeven)
     let realRate: number | null = null;
@@ -313,9 +329,20 @@ export async function POST(req: NextRequest) {
       else if (dxy > 105) goldBearFactors.push("Strong USD (DXY > 105)");
     }
 
+    // M2/Gold ratio
+    if (m2GoldRatio !== null) {
+      // Historical context: ratio of 3-5 = gold expensive, 10-15 = gold cheap
+      if (m2GoldRatio < 5) goldBearFactors.push(`M2/Gold ratio low (${m2GoldRatio}) - gold rich vs money supply`);
+      else if (m2GoldRatio > 10) goldBullFactors.push(`M2/Gold ratio high (${m2GoldRatio}) - gold cheap vs money supply`);
+    }
+
+    // Central bank buying (strong structural support)
+    if (centralBankBuying.tonnes > 500) {
+      goldBullFactors.push(`Central banks buying steadily (${centralBankBuying.tonnes}t in ${centralBankBuying.year})`);
+    }
+
     // Geopolitical
     goldBullFactors.push("Geopolitical uncertainty (safe-haven demand)");
-    goldBullFactors.push("Central bank gold accumulation");
 
     // Determine signal
     const { signal, confidence } = determineGoldSignal(
@@ -390,6 +417,11 @@ export async function POST(req: NextRequest) {
         realRate,
         tenYearYield: tenYear,
         breakeven10Y: breakeven,
+        // M2/Gold valuation (lower = gold expensive, higher = gold cheap)
+        m2GoldRatio,
+        m2MoneySupply: m2Billions ? Math.round(m2Billions / 100) / 10 : null, // in trillions
+        // Central bank structural demand
+        centralBankBuying,
         goldBullFactors,
         goldBearFactors,
       },
