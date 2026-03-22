@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AcpOfferingRow } from "./AcpOfferingRow";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Search, SlidersHorizontal, Key, Eye, EyeOff } from "lucide-react";
 
 interface Offering {
   id: number;
@@ -40,6 +40,8 @@ export function AcpOfferingsTable({
   const [sortField, setSortField] = useState<SortField>("revenue");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
 
   // Get unique categories
   const categories = Array.from(
@@ -121,9 +123,37 @@ export function AcpOfferingsTable({
   );
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200">
-      {/* Filters */}
-      <div className="p-4 border-b border-gray-100 space-y-3 md:space-y-0 md:flex md:items-center md:gap-4">
+    <div className="space-y-4">
+      {/* API Key Input */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex items-center gap-3">
+          <Key className="w-4 h-4 text-gray-400" />
+          <label className="text-sm text-gray-600 font-medium">API Key:</label>
+          <div className="flex-1 relative max-w-md">
+            <input
+              type={showKey ? "text" : "password"}
+              className="w-full px-3 py-2 pr-16 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Enter HQ_API_KEY for testing"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
+            >
+              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <p className="text-xs text-gray-500 mt-2 ml-7">
+          Required for testing API endpoints. Expand any offering row to test its API.
+        </p>
+      </div>
+
+      <div className="bg-white rounded-lg border border-gray-200">
+        {/* Filters */}
+        <div className="p-4 border-b border-gray-100 space-y-3 md:space-y-0 md:flex md:items-center md:gap-4">
         <div className="relative flex-1 max-w-xs">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -185,12 +215,14 @@ export function AcpOfferingsTable({
                     key={offering.id}
                     offering={offering}
                     experiments={offeringExperiments}
+                    apiKey={apiKey}
                   />
                 );
               })
             )}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );

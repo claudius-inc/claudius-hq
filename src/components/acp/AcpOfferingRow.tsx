@@ -2,6 +2,7 @@
 
 import { FlaskConical, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
+import { OfferingTestPanel, SUPPORTED_OFFERINGS } from "./OfferingTestPanel";
 
 interface Offering {
   id: number;
@@ -25,11 +26,13 @@ interface Experiment {
 interface AcpOfferingRowProps {
   offering: Offering;
   experiments?: Experiment[];
+  apiKey?: string;
 }
 
-export function AcpOfferingRow({ offering, experiments = [] }: AcpOfferingRowProps) {
+export function AcpOfferingRow({ offering, experiments = [], apiKey = "" }: AcpOfferingRowProps) {
   const [expanded, setExpanded] = useState(false);
   const hasExperiments = experiments.length > 0;
+  const hasTestApi = SUPPORTED_OFFERINGS.includes(offering.name);
   const isLowPerformer = (offering.jobCount ?? 0) < 5 && offering.lastJobAt;
 
   // Check if no jobs in last 7 days
@@ -142,6 +145,9 @@ export function AcpOfferingRow({ offering, experiments = [] }: AcpOfferingRowPro
                     </div>
                   ))}
                 </div>
+              )}
+              {hasTestApi && (
+                <OfferingTestPanel offeringName={offering.name} apiKey={apiKey} />
               )}
             </div>
           </td>
