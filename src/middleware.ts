@@ -27,6 +27,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Health endpoint: public for monitoring/uptime checks
+  if (pathname === "/api/health") {
+    return NextResponse.next();
+  }
+
   // All other APIs require auth
 
   // API routes: check API key OR session cookie
