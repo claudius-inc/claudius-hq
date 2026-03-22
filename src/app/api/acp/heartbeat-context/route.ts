@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
+
+// Force dynamic rendering - prevent Vercel from caching
+export const dynamic = "force-dynamic";
 import {
   acpState,
   acpTasks,
@@ -25,7 +28,7 @@ export async function GET(_req: NextRequest) {
   try {
     // 1. Get current state
     const stateRows = await db.select().from(acpState).where(eq(acpState.id, 1));
-    const state = stateRows[0] ?? {
+    let state = stateRows[0] ?? {
       id: 1,
       currentPillar: "quality",
       currentEpoch: null,
@@ -41,6 +44,48 @@ export async function GET(_req: NextRequest) {
       lastHeartbeat: null,
       updatedAt: new Date().toISOString(),
     };
+
+    // 1b. Auto-rotate epoch if expired (ACP epochs are 7 days)
+    const now = new Date();
+    if (state.epochEnd) {
+      const epochEndDate = new Date(state.epochEnd);
+      if (now > epochEndDate && state.currentEpoch !== null) {
+        // Calculate how many epochs have passed
+        const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+        const msSinceEnd = now.getTime() - epochEndDate.getTime();
+        const epochsPassed = Math.floor(msSinceEnd / msPerWeek) + 1;
+        
+        const newEpochNumber = state.currentEpoch + epochsPassed;
+        const newEpochStart = new Date(epochEndDate.getTime() + (epochsPassed - 1) * msPerWeek);
+        const newEpochEnd = new Date(newEpochStart.getTime() + msPerWeek);
+        
+        // Update epoch in database
+        await db
+          .update(acpState)
+          .set({
+            currentEpoch: newEpochNumber,
+            epochStart: newEpochStart.toISOString().split('T')[0],
+            epochEnd: newEpochEnd.toISOString().split('T')[0],
+            jobsThisEpoch: 0,
+            revenueThisEpoch: 0,
+            updatedAt: new Date().toISOString(),
+          })
+          .where(eq(acpState.id, 1));
+        
+        // Refresh state after update
+        const updatedRows = await db.select().from(acpState).where(eq(acpState.id, 1));
+        if (updatedRows[0]) {
+          state = updatedRows[0];
+        }
+        
+        logger.info("heartbeat-context", "Auto-rotated epoch", {
+          from: state.currentEpoch ? state.currentEpoch - epochsPassed : null,
+          to: newEpochNumber,
+          epochStart: newEpochStart.toISOString().split('T')[0],
+          epochEnd: newEpochEnd.toISOString().split('T')[0],
+        });
+      }
+    }
 
     // 2. Get highest priority pending task
     const pendingTasks = await db
