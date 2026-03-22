@@ -401,6 +401,7 @@ export const acpOfferings = sqliteTable("acp_offerings", {
   deliverable: text("deliverable"), // What the offering returns
   requiredFunds: integer("required_funds").default(0), // Whether funds are required
   listedOnAcp: integer("listed_on_acp").default(0), // Synced from actual ACP marketplace
+  doNotRelist: integer("do_not_relist").default(0), // Set to 1 when manually delisted; prevents auto-relist
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });

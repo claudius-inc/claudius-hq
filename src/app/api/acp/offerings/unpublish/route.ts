@@ -89,11 +89,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Update isActive in DB
+    // Update isActive and set doNotRelist to prevent auto-relist
     await db
       .update(acpOfferings)
       .set({
         isActive: 0,
+        listedOnAcp: 0,
+        doNotRelist: 1, // Prevent automation from re-listing this offering
         updatedAt: new Date().toISOString(),
       })
       .where(eq(acpOfferings.id, offering.id));

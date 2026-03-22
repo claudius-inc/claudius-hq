@@ -171,7 +171,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, listedOnAcp, price, isActive, jobCount, totalRevenue } = body;
+    const { name, listedOnAcp, price, isActive, jobCount, totalRevenue, doNotRelist } = body;
 
     if (!name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -196,6 +196,9 @@ export async function PATCH(req: NextRequest) {
     }
     if (typeof jobCount === "number") updates.jobCount = jobCount;
     if (typeof totalRevenue === "number") updates.totalRevenue = totalRevenue;
+    if (typeof doNotRelist === "boolean" || typeof doNotRelist === "number") {
+      updates.doNotRelist = doNotRelist ? 1 : 0;
+    }
 
     await db
       .update(acpOfferings)
