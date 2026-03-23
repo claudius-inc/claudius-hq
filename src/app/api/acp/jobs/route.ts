@@ -37,13 +37,15 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "20", 10);
     const roleFilter = searchParams.get("role");
 
-    // Get agent info for wallet verification
+    // Get agent info for wallet verification (optional, falls back to default)
     let walletAddress = MY_ADDRESS;
-    try {
-      const agentInfo = await getAgentInfo();
-      walletAddress = agentInfo.walletAddress || MY_ADDRESS;
-    } catch {
-      // Use default address if API fails
+    if (process.env.LITE_AGENT_API_KEY) {
+      try {
+        const agentInfo = await getAgentInfo();
+        walletAddress = agentInfo.walletAddress || MY_ADDRESS;
+      } catch {
+        // Use default address if API fails
+      }
     }
 
     // Get job stats from our database (aggregated per offering)

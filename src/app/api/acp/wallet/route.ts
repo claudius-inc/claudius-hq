@@ -96,6 +96,14 @@ async function getTokenBalances(walletAddress: string): Promise<WalletBalance[]>
  * No client auth required - server uses HQ_API_KEY internally.
  */
 export async function GET() {
+  // Check for required env var first
+  if (!process.env.LITE_AGENT_API_KEY) {
+    logger.warn("api/acp/wallet", "LITE_AGENT_API_KEY not configured");
+    return NextResponse.json(
+      { error: "Wallet integration not configured", details: "Missing LITE_AGENT_API_KEY" },
+      { status: 503 }
+    );
+  }
 
   try {
     // Get wallet address from Virtuals API
