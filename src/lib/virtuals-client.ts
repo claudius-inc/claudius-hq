@@ -20,6 +20,10 @@ interface VirtualsRequestOptions {
   body?: unknown;
 }
 
+interface VirtualsApiResponse<T> {
+  data: T;
+}
+
 async function virtualsRequest<T>(endpoint: string, options: VirtualsRequestOptions = {}): Promise<T> {
   const { method = "GET", body } = options;
   
@@ -37,7 +41,9 @@ async function virtualsRequest<T>(endpoint: string, options: VirtualsRequestOpti
     throw new Error(`Virtuals API error (${response.status}): ${errorText}`);
   }
 
-  return response.json();
+  // Virtuals API wraps responses in {data: ...}
+  const json = await response.json() as VirtualsApiResponse<T>;
+  return json.data;
 }
 
 // Types
