@@ -76,16 +76,15 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       walletAddress,
-      offerings: jobs,
+      jobs: jobs,
       stats: {
-        totalOfferings: jobs.length,
+        total: jobs.length,
         totalJobs,
         asProvider,
         asClient,
         revenueUsdc: totalRevenue,
-        spentUsdc: 0, // Not tracking client spending yet
+        spentUsdc: 0,
       },
-      note: "Job stats are aggregated from DB. Individual job details available via GET /acp/jobs/{id} on Virtuals API.",
     });
   } catch (err) {
     const error = err as Error;
