@@ -3,7 +3,7 @@ import { getAgentInfo } from "@/lib/virtuals-client";
 import { logger } from "@/lib/logger";
 import { ethers } from "ethers";
 
-const API_KEY = process.env.HQ_API_KEY;
+// HQ_API_KEY is used internally by virtuals-client for authenticated calls
 
 // Base mainnet RPC (public endpoint, consider using Alchemy/Infura for production)
 const BASE_RPC = "https://mainnet.base.org";
@@ -30,12 +30,8 @@ const TOKENS: Record<string, { address: string; decimals: number; name: string }
 // ERC20 ABI for balanceOf
 const ERC20_ABI = ["function balanceOf(address owner) view returns (uint256)"];
 
-function checkAuth(req: NextRequest): boolean {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === API_KEY;
-}
+// No auth required for read-only wallet balance
+// Server uses HQ_API_KEY internally for Virtuals API calls
 
 interface WalletBalance {
   symbol: string;
@@ -96,12 +92,10 @@ async function getTokenBalances(walletAddress: string): Promise<WalletBalance[]>
 /**
  * GET /api/acp/wallet
  *
- * Returns wallet address and balances from Virtuals API + Base RPC
+ * Returns wallet address and balances from Virtuals API + Base RPC.
+ * No client auth required - server uses HQ_API_KEY internally.
  */
-export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+export async function GET() {
 
   try {
     // Get wallet address from Virtuals API

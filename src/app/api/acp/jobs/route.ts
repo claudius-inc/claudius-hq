@@ -5,17 +5,13 @@ import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { sql } from "drizzle-orm";
 
-const API_KEY = process.env.HQ_API_KEY;
+// HQ_API_KEY is used internally by virtuals-client for authenticated calls
 
 // Our provider address
 const MY_ADDRESS = "0x46D4f9f23948fBbeF6b104B0cB571b3F6e551B6F";
 
-function checkAuth(req: NextRequest): boolean {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === API_KEY;
-}
+// No auth required for read-only job stats
+// Server uses HQ_API_KEY internally for Virtuals API calls
 
 interface JobSummary {
   name: string;
@@ -36,10 +32,6 @@ interface JobSummary {
  *   - role: filter by "provider" or "client" (optional, currently only provider supported)
  */
 export async function GET(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20", 10);

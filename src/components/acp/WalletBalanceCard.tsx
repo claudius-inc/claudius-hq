@@ -21,25 +21,17 @@ interface WalletData {
   };
 }
 
-interface WalletBalanceCardProps {
-  apiKey: string;
-}
-
-export function WalletBalanceCard({ apiKey }: WalletBalanceCardProps) {
+export function WalletBalanceCard() {
   const [data, setData] = useState<WalletData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchBalance = useCallback(async () => {
-    if (!apiKey) return;
-    
     setLoading(true);
     setError(null);
     
     try {
-      const res = await fetch("/api/acp/wallet", {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
+      const res = await fetch("/api/acp/wallet");
       
       if (!res.ok) {
         throw new Error(await res.text());
@@ -52,24 +44,11 @@ export function WalletBalanceCard({ apiKey }: WalletBalanceCardProps) {
     } finally {
       setLoading(false);
     }
-  }, [apiKey]);
+  }, []);
 
   useEffect(() => {
-    if (apiKey) {
-      fetchBalance();
-    }
-  }, [apiKey, fetchBalance]);
-
-  if (!apiKey) {
-    return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="flex items-center gap-2 text-gray-400">
-          <Wallet className="w-5 h-5" />
-          <span className="text-sm">Enter API key above to view wallet balance</span>
-        </div>
-      </div>
-    );
-  }
+    fetchBalance();
+  }, [fetchBalance]);
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">

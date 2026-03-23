@@ -25,19 +25,16 @@ interface JobsData {
 }
 
 interface RecentJobsTableProps {
-  apiKey: string;
   limit?: number;
 }
 
-export function RecentJobsTable({ apiKey, limit = 15 }: RecentJobsTableProps) {
+export function RecentJobsTable({ limit = 15 }: RecentJobsTableProps) {
   const [data, setData] = useState<JobsData | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<"all" | "provider" | "client">("all");
 
   const fetchJobs = useCallback(async () => {
-    if (!apiKey) return;
-    
     setLoading(true);
     setError(null);
     
@@ -47,9 +44,7 @@ export function RecentJobsTable({ apiKey, limit = 15 }: RecentJobsTableProps) {
         params.set("role", roleFilter);
       }
       
-      const res = await fetch(`/api/acp/jobs?${params}`, {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
+      const res = await fetch(`/api/acp/jobs?${params}`);
       
       if (!res.ok) {
         throw new Error(await res.text());
@@ -62,29 +57,16 @@ export function RecentJobsTable({ apiKey, limit = 15 }: RecentJobsTableProps) {
     } finally {
       setLoading(false);
     }
-  }, [apiKey, limit, roleFilter]);
+  }, [limit, roleFilter]);
 
   useEffect(() => {
-    if (apiKey) {
-      fetchJobs();
-    }
-  }, [apiKey, roleFilter, fetchJobs]);
+    fetchJobs();
+  }, [roleFilter, fetchJobs]);
 
   const truncateAddress = (addr: string) => {
     if (!addr || addr.length < 12) return addr;
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
-
-  if (!apiKey) {
-    return (
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <div className="flex items-center gap-2 text-gray-400">
-          <Briefcase className="w-5 h-5" />
-          <span className="text-sm">Enter API key above to view recent jobs</span>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200">

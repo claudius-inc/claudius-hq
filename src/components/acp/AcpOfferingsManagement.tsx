@@ -45,10 +45,10 @@ export function AcpOfferingsManagement({ initialOfferings }: AcpOfferingsManagem
 
   return (
     <div className="space-y-6">
-      {/* Wallet Balance */}
-      <WalletBalanceCard apiKey={apiKey} key={`wallet-${refreshKey}`} />
+      {/* Wallet Balance - loads automatically (server-side auth) */}
+      <WalletBalanceCard key={`wallet-${refreshKey}`} />
 
-      {/* Offerings Table */}
+      {/* Offerings Table - requires API key for toggle/edit operations */}
       <AcpOfferingsTable
         offerings={offerings}
         apiKey={apiKey}
@@ -56,8 +56,8 @@ export function AcpOfferingsManagement({ initialOfferings }: AcpOfferingsManagem
         onRefresh={refreshOfferings}
       />
 
-      {/* Recent Jobs */}
-      <RecentJobsTable apiKey={apiKey} limit={15} key={`jobs-${refreshKey}`} />
+      {/* Recent Jobs - loads automatically (server-side auth) */}
+      <RecentJobsTable limit={15} key={`jobs-${refreshKey}`} />
     </div>
   );
 }
