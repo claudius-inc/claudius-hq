@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getAgentInfo } from "@/lib/virtuals-client";
 import { logger } from "@/lib/logger";
 import { ethers } from "ethers";
