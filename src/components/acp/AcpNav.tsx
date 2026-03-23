@@ -8,7 +8,7 @@ export function AcpNav() {
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex items-center justify-between py-2">
           <Link
-            href="/acp/offerings"
+            href="/acp"
             className="text-sm font-semibold text-gray-900"
           >
             ACP Offerings
