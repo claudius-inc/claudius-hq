@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { PageHero } from "@/components/PageHero";
-import { AcpOfferingsTable } from "@/components/acp/AcpOfferingsTable";
+import { AcpOfferingsManagement } from "@/components/acp/AcpOfferingsManagement";
 
 export const revalidate = 60;
 
@@ -18,15 +18,17 @@ async function getOfferingsData() {
 export default async function AcpOfferingsPage() {
   const { offerings } = await getOfferingsData();
   const activeCount = offerings.filter((o) => o.isActive).length;
+  const totalRevenue = offerings.reduce((sum, o) => sum + (o.totalRevenue ?? 0), 0);
+  const totalJobs = offerings.reduce((sum, o) => sum + (o.jobCount ?? 0), 0);
 
   return (
     <div className="space-y-6">
       <PageHero
-        title="Offerings"
-        subtitle={`${activeCount} active of ${offerings.length} total`}
+        title="ACP Offerings"
+        subtitle={`${activeCount}/20 active • ${totalJobs} jobs • $${totalRevenue.toFixed(2)} revenue`}
       />
 
-      <AcpOfferingsTable offerings={offerings} />
+      <AcpOfferingsManagement initialOfferings={offerings} />
     </div>
   );
 }

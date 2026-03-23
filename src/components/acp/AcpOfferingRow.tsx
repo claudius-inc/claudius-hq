@@ -1,8 +1,9 @@
 "use client";
 
-import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, Pencil, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { OfferingTestPanel, SUPPORTED_OFFERINGS } from "./OfferingTestPanel";
+import { EditOfferingModal } from "./EditOfferingModal";
 
 interface Offering {
   id: number;
@@ -20,16 +21,69 @@ interface Offering {
 interface AcpOfferingRowProps {
   offering: Offering;
   apiKey?: string;
+  onToggled?: () => void;
 }
 
-export function AcpOfferingRow({ offering, apiKey = "" }: AcpOfferingRowProps) {
+export function AcpOfferingRow({ offering, apiKey = "", onToggled }: AcpOfferingRowProps) {
   const [expanded, setExpanded] = useState(false);
+  const [toggling, setToggling] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [localIsActive, setLocalIsActive] = useState(!!offering.isActive);
+  
   const hasTestApi = SUPPORTED_OFFERINGS.includes(offering.name);
   const isLowPerformer = (offering.jobCount ?? 0) < 5 && offering.lastJobAt;
 
   const noRecentJobs = offering.lastJobAt
     ? new Date(offering.lastJobAt) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     : false;
+
+  const handleToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!apiKey) {
+      alert("Please enter API key first");
+      return;
+    }
+
+    setToggling(true);
+
+    try {
+      const endpoint = localIsActive
+        ? "/api/acp/offerings/unpublish"
+        : "/api/acp/offerings/publish";
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: offering.name }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to toggle");
+      }
+
+      setLocalIsActive(!localIsActive);
+      onToggled?.();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to toggle offering");
+    } finally {
+      setToggling(false);
+    }
+  };
+
+  const handleEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!apiKey) {
+      alert("Please enter API key first");
+      return;
+    }
+    setEditModalOpen(true);
+  };
 
   return (
     <>
@@ -74,15 +128,38 @@ export function AcpOfferingRow({ offering, apiKey = "" }: AcpOfferingRowProps) {
           </span>
         </td>
         <td className="px-4 py-3">
-          <span
-            className={`inline-flex px-2 py-0.5 text-xs rounded-full ${
-              offering.isActive
-                ? "bg-green-50 text-green-700"
-                : "bg-gray-100 text-gray-500"
-            }`}
-          >
-            {offering.isActive ? "Active" : "Inactive"}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* Toggle Switch */}
+            <button
+              onClick={handleToggle}
+              disabled={toggling || !apiKey}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                localIsActive ? "bg-green-500" : "bg-gray-200"
+              } ${(!apiKey || toggling) ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              {toggling ? (
+                <span className="absolute inset-0 flex items-center justify-center">
+                  <Loader2 className="w-3 h-3 animate-spin text-white" />
+                </span>
+              ) : (
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                    localIsActive ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              )}
+            </button>
+
+            {/* Edit Button */}
+            <button
+              onClick={handleEdit}
+              disabled={!apiKey}
+              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Edit offering"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          </div>
         </td>
       </tr>
       {expanded && (
@@ -120,6 +197,16 @@ export function AcpOfferingRow({ offering, apiKey = "" }: AcpOfferingRowProps) {
           </td>
         </tr>
       )}
+
+      <EditOfferingModal
+        offering={offering}
+        apiKey={apiKey}
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSaved={() => {
+          onToggled?.();
+        }}
+      />
     </>
   );
 }

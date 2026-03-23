@@ -171,7 +171,7 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { name, listedOnAcp, price, isActive, jobCount, totalRevenue, doNotRelist } = body;
+    const { name, listedOnAcp, price, description, isActive, jobCount, totalRevenue, doNotRelist, category } = body;
 
     if (!name) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
@@ -191,6 +191,8 @@ export async function PATCH(req: NextRequest) {
     
     if (typeof listedOnAcp === "boolean") updates.listedOnAcp = listedOnAcp ? 1 : 0;
     if (typeof price === "number") updates.price = price;
+    if (typeof description === "string") updates.description = description;
+    if (typeof category === "string") updates.category = category;
     if (typeof isActive === "boolean" || typeof isActive === "number") {
       updates.isActive = isActive ? 1 : 0;
     }

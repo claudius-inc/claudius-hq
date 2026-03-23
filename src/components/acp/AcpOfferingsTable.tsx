@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { AcpOfferingRow } from "./AcpOfferingRow";
-import { Search, SlidersHorizontal, Key, Eye, EyeOff } from "lucide-react";
+import { Search, SlidersHorizontal, Key, Eye, EyeOff, RefreshCw } from "lucide-react";
 
 interface Offering {
   id: number;
@@ -19,18 +19,30 @@ interface Offering {
 
 interface AcpOfferingsTableProps {
   offerings: Offering[];
+  apiKey?: string;
+  onApiKeyChange?: (key: string) => void;
+  onRefresh?: () => void;
 }
 
 type SortField = "name" | "price" | "jobs" | "revenue";
 type SortDir = "asc" | "desc";
 
-export function AcpOfferingsTable({ offerings }: AcpOfferingsTableProps) {
+export function AcpOfferingsTable({ 
+  offerings, 
+  apiKey: externalApiKey,
+  onApiKeyChange,
+  onRefresh 
+}: AcpOfferingsTableProps) {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("revenue");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [apiKey, setApiKey] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [internalApiKey, setInternalApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
+
+  const apiKey = externalApiKey ?? internalApiKey;
+  const setApiKey = onApiKeyChange ?? setInternalApiKey;
 
   const categories = Array.from(
     new Set(offerings.map((o) => o.category).filter(Boolean))
@@ -42,6 +54,12 @@ export function AcpOfferingsTable({ offerings }: AcpOfferingsTableProps) {
         return false;
       }
       if (filterCategory !== "all" && o.category !== filterCategory) {
+        return false;
+      }
+      if (filterStatus === "active" && !o.isActive) {
+        return false;
+      }
+      if (filterStatus === "inactive" && o.isActive) {
         return false;
       }
       return true;
@@ -109,8 +127,11 @@ export function AcpOfferingsTable({ offerings }: AcpOfferingsTableProps) {
     </th>
   );
 
+  const activeCount = offerings.filter((o) => o.isActive).length;
+
   return (
     <div className="space-y-4">
+      {/* API Key Input */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex items-center gap-3">
           <Key className="w-4 h-4 text-gray-400" />
@@ -121,7 +142,7 @@ export function AcpOfferingsTable({ offerings }: AcpOfferingsTableProps) {
               className="w-full px-3 py-2 pr-16 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Enter HQ_API_KEY for testing"
+              placeholder="Enter HQ_API_KEY for management"
             />
             <button
               type="button"
@@ -131,12 +152,22 @@ export function AcpOfferingsTable({ offerings }: AcpOfferingsTableProps) {
               {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+          {onRefresh && (
+            <button
+              onClick={onRefresh}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Refresh offerings"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          )}
         </div>
         <p className="text-xs text-gray-500 mt-2 ml-7">
-          Required for testing API endpoints. Expand any offering row to test its API.
+          Required for toggling offerings and editing. {activeCount}/20 offerings active.
         </p>
       </div>
 
+      {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200">
         <div className="p-4 border-b border-gray-100 space-y-3 md:space-y-0 md:flex md:items-center md:gap-4">
           <div className="relative flex-1 max-w-xs">
@@ -163,6 +194,15 @@ export function AcpOfferingsTable({ offerings }: AcpOfferingsTableProps) {
                 </option>
               ))}
             </select>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active Only</option>
+              <option value="inactive">Inactive Only</option>
+            </select>
           </div>
           <div className="text-sm text-gray-500">
             {filtered.length} of {offerings.length} offerings
@@ -178,7 +218,7 @@ export function AcpOfferingsTable({ offerings }: AcpOfferingsTableProps) {
                 <SortHeader field="jobs">Jobs</SortHeader>
                 <SortHeader field="revenue">Revenue</SortHeader>
                 <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -195,6 +235,7 @@ export function AcpOfferingsTable({ offerings }: AcpOfferingsTableProps) {
                     key={offering.id}
                     offering={offering}
                     apiKey={apiKey}
+                    onToggled={onRefresh}
                   />
                 ))
               )}
