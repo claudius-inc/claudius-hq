@@ -17,25 +17,14 @@ interface Offering {
   createdAt?: string | null;
 }
 
-interface Experiment {
-  id: number;
-  offeringId?: number | null;
-  name: string;
-  status?: string | null;
-}
-
 interface AcpOfferingsTableProps {
   offerings: Offering[];
-  experiments?: Experiment[];
 }
 
 type SortField = "name" | "price" | "jobs" | "revenue";
 type SortDir = "asc" | "desc";
 
-export function AcpOfferingsTable({
-  offerings,
-  experiments = [],
-}: AcpOfferingsTableProps) {
+export function AcpOfferingsTable({ offerings }: AcpOfferingsTableProps) {
   const [search, setSearch] = useState("");
   const [sortField, setSortField] = useState<SortField>("revenue");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -43,12 +32,10 @@ export function AcpOfferingsTable({
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
 
-  // Get unique categories
   const categories = Array.from(
     new Set(offerings.map((o) => o.category).filter(Boolean))
   ) as string[];
 
-  // Filter and sort
   const filtered = offerings
     .filter((o) => {
       if (search && !o.name.toLowerCase().includes(search.toLowerCase())) {
@@ -124,7 +111,6 @@ export function AcpOfferingsTable({
 
   return (
     <div className="space-y-4">
-      {/* API Key Input */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
         <div className="flex items-center gap-3">
           <Key className="w-4 h-4 text-gray-400" />
@@ -152,77 +138,69 @@ export function AcpOfferingsTable({
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200">
-        {/* Filters */}
         <div className="p-4 border-b border-gray-100 space-y-3 md:space-y-0 md:flex md:items-center md:gap-4">
-        <div className="relative flex-1 max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search offerings..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <div className="relative flex-1 max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search offerings..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal className="w-4 h-4 text-gray-400" />
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Categories</option>
+              {categories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="text-sm text-gray-500">
+            {filtered.length} of {offerings.length} offerings
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <SlidersHorizontal className="w-4 h-4 text-gray-400" />
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="text-sm text-gray-500">
-          {filtered.length} of {offerings.length} offerings
-        </div>
-      </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b border-gray-100">
-            <tr>
-              <SortHeader field="name">Offering</SortHeader>
-              <SortHeader field="price">Price</SortHeader>
-              <SortHeader field="jobs">Jobs</SortHeader>
-              <SortHeader field="revenue">Revenue</SortHeader>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-50">
-            {filtered.length === 0 ? (
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                  No offerings found
-                </td>
+                <SortHeader field="name">Offering</SortHeader>
+                <SortHeader field="price">Price</SortHeader>
+                <SortHeader field="jobs">Jobs</SortHeader>
+                <SortHeader field="revenue">Revenue</SortHeader>
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
               </tr>
-            ) : (
-              filtered.map((offering) => {
-                const offeringExperiments = experiments.filter(
-                  (e) => e.offeringId === offering.id && e.status === "active"
-                );
-                return (
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                    No offerings found
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((offering) => (
                   <AcpOfferingRow
                     key={offering.id}
                     offering={offering}
-                    experiments={offeringExperiments}
                     apiKey={apiKey}
                   />
-                );
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

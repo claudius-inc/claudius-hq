@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { acpOfferings, acpDecisions } from "@/db/schema";
+import { acpOfferings } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { execSync } from "child_process";
 import * as fs from "fs";
@@ -261,14 +261,6 @@ async function handleCreateOffering(body: CreateOfferingBody) {
     logger.info("api/acp/offerings", `Created offering: ${name}`);
 
     // Log decision for new offering
-    await db.insert(acpDecisions).values({
-      decisionType: "offering_change",
-      offering: name,
-      oldValue: null,
-      newValue: "created",
-      reasoning: "Created via HQ API",
-      outcome: "success",
-    });
   }
 
   // Auto-publish if requested
@@ -310,14 +302,6 @@ async function handleCreateOffering(body: CreateOfferingBody) {
         .where(eq(acpOfferings.id, offeringId));
 
       // Log decision
-      await db.insert(acpDecisions).values({
-        decisionType: "offering_change",
-        offering: name,
-        oldValue: "created",
-        newValue: "published",
-        reasoning: "Auto-published on creation via HQ API",
-        outcome: "success",
-      });
 
       return NextResponse.json({
         success: true,

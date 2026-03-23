@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { acpOfferings, acpDecisions } from "@/db/schema";
+import { acpOfferings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { execSync } from "child_process";
 import { logger } from "@/lib/logger";
@@ -73,14 +73,6 @@ export async function POST(req: NextRequest) {
         logger.info("acp/unpublish", "Offering was not listed, marking as inactive anyway");
       } else {
         // Log the failed attempt
-        await db.insert(acpDecisions).values({
-          decisionType: "offering_change",
-          offering: offering.name,
-          oldValue: "active",
-          newValue: "unpublish_failed",
-          reasoning: `Unpublish attempt failed: ${errorOutput.substring(0, 500)}`,
-          outcome: "failed",
-        });
         
         return NextResponse.json(
           { error: "Failed to unpublish from marketplace", details: errorOutput },
@@ -101,14 +93,6 @@ export async function POST(req: NextRequest) {
       .where(eq(acpOfferings.id, offering.id));
 
     // Log successful decision
-    await db.insert(acpDecisions).values({
-      decisionType: "offering_change",
-      offering: offering.name,
-      oldValue: offering.isActive ? "active" : "inactive",
-      newValue: "unpublished",
-      reasoning: "Unpublished via HQ API",
-      outcome: "success",
-    });
 
     return NextResponse.json({
       success: true,

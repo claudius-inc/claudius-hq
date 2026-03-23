@@ -1,6 +1,6 @@
 "use client";
 
-import { FlaskConical, AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { OfferingTestPanel, SUPPORTED_OFFERINGS } from "./OfferingTestPanel";
 
@@ -17,25 +17,16 @@ interface Offering {
   createdAt?: string | null;
 }
 
-interface Experiment {
-  id: number;
-  name: string;
-  status?: string | null;
-}
-
 interface AcpOfferingRowProps {
   offering: Offering;
-  experiments?: Experiment[];
   apiKey?: string;
 }
 
-export function AcpOfferingRow({ offering, experiments = [], apiKey = "" }: AcpOfferingRowProps) {
+export function AcpOfferingRow({ offering, apiKey = "" }: AcpOfferingRowProps) {
   const [expanded, setExpanded] = useState(false);
-  const hasExperiments = experiments.length > 0;
   const hasTestApi = SUPPORTED_OFFERINGS.includes(offering.name);
   const isLowPerformer = (offering.jobCount ?? 0) < 5 && offering.lastJobAt;
 
-  // Check if no jobs in last 7 days
   const noRecentJobs = offering.lastJobAt
     ? new Date(offering.lastJobAt) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     : false;
@@ -43,9 +34,7 @@ export function AcpOfferingRow({ offering, experiments = [], apiKey = "" }: AcpO
   return (
     <>
       <tr
-        className={`hover:bg-gray-50 cursor-pointer ${
-          expanded ? "bg-blue-50/50" : ""
-        }`}
+        className={`hover:bg-gray-50 cursor-pointer ${expanded ? "bg-blue-50/50" : ""}`}
         onClick={() => setExpanded(!expanded)}
       >
         <td className="px-4 py-3">
@@ -63,12 +52,6 @@ export function AcpOfferingRow({ offering, experiments = [], apiKey = "" }: AcpO
                 {offering.category ?? "uncategorized"}
               </div>
             </div>
-            {hasExperiments && (
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-green-50 text-green-700 rounded">
-                <FlaskConical className="w-3 h-3" />
-                A/B
-              </span>
-            )}
             {isLowPerformer && noRecentJobs && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs bg-orange-50 text-orange-700 rounded">
                 <AlertTriangle className="w-3 h-3" />
@@ -130,22 +113,6 @@ export function AcpOfferingRow({ offering, experiments = [], apiKey = "" }: AcpO
                     : "0.00"}
                 </div>
               </div>
-              {hasExperiments && (
-                <div className="border-t border-gray-200 pt-3 mt-3">
-                  <div className="text-xs font-medium text-gray-700 mb-2">
-                    Active Experiments
-                  </div>
-                  {experiments.map((exp) => (
-                    <div
-                      key={exp.id}
-                      className="flex items-center gap-2 text-sm text-gray-600"
-                    >
-                      <FlaskConical className="w-3.5 h-3.5 text-green-600" />
-                      <span>{exp.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
               {hasTestApi && (
                 <OfferingTestPanel offeringName={offering.name} apiKey={apiKey} />
               )}
