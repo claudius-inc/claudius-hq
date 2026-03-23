@@ -88,12 +88,13 @@ export function AcpOfferingsManagement({
     <div className="space-y-6">
       {/* On-Chain Revenue Card */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <div className="flex items-center justify-between">
+        {/* Mobile: Stacked layout */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-green-50 rounded-lg">
+            <div className="p-2 bg-green-50 rounded-lg flex-shrink-0">
               <LinkIcon className="w-5 h-5 text-green-600" />
             </div>
-            <div>
+            <div className="min-w-0">
               <div className="text-sm text-gray-500">On-Chain Revenue</div>
               <div className="text-2xl font-bold text-gray-900">
                 ${revenue?.totalRevenue?.toFixed(2) || "0.00"}
@@ -103,17 +104,19 @@ export function AcpOfferingsManagement({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-400">
+          
+          {/* Mobile: Full-width button stack */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <span className="text-xs text-gray-400 text-center sm:text-left">
               {formatLastUpdated(revenue?.lastUpdated || null)}
             </span>
             <button
               onClick={syncRevenue}
               disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50"
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 min-h-[44px] sm:min-h-0"
             >
               <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
-              Sync
+              Sync Revenue
             </button>
           </div>
         </div>

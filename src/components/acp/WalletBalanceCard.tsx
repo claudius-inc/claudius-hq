@@ -51,7 +51,7 @@ export function WalletBalanceCard() {
   }, [fetchBalance]);
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-6">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Wallet className="w-5 h-5 text-blue-600" />
@@ -60,7 +60,7 @@ export function WalletBalanceCard() {
         <button
           onClick={fetchBalance}
           disabled={loading}
-          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+          className="p-2.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 min-w-[44px] min-h-[44px] flex items-center justify-center"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
         </button>
@@ -73,7 +73,7 @@ export function WalletBalanceCard() {
       )}
 
       {loading && !data ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           {[...Array(4)].map((_, i) => (
             <div key={i} className="animate-pulse">
               <div className="h-4 bg-gray-200 rounded w-20 mb-2"></div>
@@ -82,43 +82,43 @@ export function WalletBalanceCard() {
           ))}
         </div>
       ) : data ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-green-50 rounded-lg p-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-green-50 rounded-lg p-3 sm:p-4">
             <div className="flex items-center gap-1.5 text-green-700 text-xs font-medium mb-1">
               <Coins className="w-3.5 h-3.5" />
               USDC
             </div>
-            <div className="text-lg font-semibold text-gray-900">
+            <div className="text-lg sm:text-xl font-semibold text-gray-900">
               ${data.summary.usdc.toFixed(2)}
             </div>
           </div>
 
-          <div className="bg-blue-50 rounded-lg p-3">
+          <div className="bg-blue-50 rounded-lg p-3 sm:p-4">
             <div className="flex items-center gap-1.5 text-blue-700 text-xs font-medium mb-1">
               <TrendingUp className="w-3.5 h-3.5" />
               ETH
             </div>
-            <div className="text-lg font-semibold text-gray-900">
-              {data.summary.eth.toFixed(6)}
+            <div className="text-lg sm:text-xl font-semibold text-gray-900">
+              {data.summary.eth.toFixed(4)}
             </div>
           </div>
 
-          <div className="bg-orange-50 rounded-lg p-3">
+          <div className="bg-orange-50 rounded-lg p-3 sm:p-4">
             <div className="flex items-center gap-1.5 text-orange-700 text-xs font-medium mb-1">
               <Bitcoin className="w-3.5 h-3.5" />
               cbBTC
             </div>
-            <div className="text-lg font-semibold text-gray-900">
-              {data.summary.btc.toFixed(8)}
+            <div className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
+              {data.summary.btc.toFixed(6)}
             </div>
           </div>
 
-          <div className="bg-purple-50 rounded-lg p-3">
+          <div className="bg-purple-50 rounded-lg p-3 sm:p-4">
             <div className="flex items-center gap-1.5 text-purple-700 text-xs font-medium mb-1">
               <Wallet className="w-3.5 h-3.5" />
               Total Value
             </div>
-            <div className="text-lg font-semibold text-gray-900">
+            <div className="text-lg sm:text-xl font-semibold text-gray-900">
               ${data.summary.totalValueUsd.toFixed(2)}
             </div>
           </div>
@@ -127,12 +127,12 @@ export function WalletBalanceCard() {
 
       {data && data.balances.length > 4 && (
         <details className="mt-4">
-          <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+          <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700 py-2">
             View all {data.balances.length} tokens
           </summary>
           <div className="mt-2 text-xs text-gray-600 space-y-1">
             {data.balances.map((b) => (
-              <div key={b.symbol} className="flex justify-between">
+              <div key={b.symbol} className="flex justify-between py-1">
                 <span>{b.symbol}</span>
                 <span className="font-mono">{b.balance.toFixed(6)}</span>
               </div>
