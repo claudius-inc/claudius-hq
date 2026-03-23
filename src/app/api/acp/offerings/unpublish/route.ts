@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { execSync } from "child_process";
+import { deleteOffering } from "@/lib/virtuals-client";
 import { logger } from "@/lib/logger";
 
 const API_KEY = process.env.HQ_API_KEY;
-const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
 
 function checkAuth(req: NextRequest): boolean {
   const authHeader = req.headers.get("authorization");
@@ -19,7 +18,7 @@ function checkAuth(req: NextRequest): boolean {
  * POST /api/acp/offerings/unpublish
  * 
  * Unpublishes an offering from the ACP marketplace:
- * 1. Runs `acp sell delete {name}`
+ * 1. Calls Virtuals API to delete offering
  * 2. Updates isActive = 0 in DB
  * 3. Logs decision
  * 
@@ -53,29 +52,23 @@ export async function POST(req: NextRequest) {
     }
 
     const offering = offerings[0];
-    const handlerPath = offering.handlerPath || offering.name;
+    const offeringName = offering.handlerPath || offering.name;
 
-    // Run acp sell delete
-    let deleteOutput = "";
+    // Call Virtuals API to delete offering
     try {
-      deleteOutput = execSync(`cd ${ACP_DIR} && npx tsx bin/acp.ts sell delete ${handlerPath} 2>&1`, {
-        encoding: "utf-8",
-        timeout: 60000,
-      });
-      logger.info("acp/unpublish", `acp sell delete output: ${deleteOutput}`);
+      await deleteOffering(offeringName);
+      logger.info("acp/unpublish", `Deleted offering from Virtuals: ${offeringName}`);
     } catch (err) {
-      const error = err as { stdout?: string; stderr?: string; message?: string };
-      const errorOutput = error.stdout || error.stderr || error.message || String(err);
-      logger.error("acp/unpublish", `acp sell delete failed: ${errorOutput}`);
+      const error = err as Error;
+      const errorMessage = error.message || String(err);
       
       // Check if it's "not listed" error - that's actually okay
-      if (errorOutput.includes("not listed") || errorOutput.includes("Not listed")) {
+      if (errorMessage.includes("not listed") || errorMessage.includes("Not listed") || errorMessage.includes("404")) {
         logger.info("acp/unpublish", "Offering was not listed, marking as inactive anyway");
       } else {
-        // Log the failed attempt
-        
+        logger.error("acp/unpublish", `Failed to delete from Virtuals API: ${errorMessage}`);
         return NextResponse.json(
-          { error: "Failed to unpublish from marketplace", details: errorOutput },
+          { error: "Failed to unpublish from marketplace", details: errorMessage },
           { status: 500 }
         );
       }
@@ -92,13 +85,10 @@ export async function POST(req: NextRequest) {
       })
       .where(eq(acpOfferings.id, offering.id));
 
-    // Log successful decision
-
     return NextResponse.json({
       success: true,
       offering: offering.name,
       message: "Unpublished successfully",
-      output: deleteOutput,
     });
   } catch (error) {
     logger.error("api/acp/offerings/unpublish", "Error unpublishing offering", { error });

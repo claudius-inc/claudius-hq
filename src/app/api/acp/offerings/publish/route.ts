@@ -2,13 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { execSync } from "child_process";
-import * as fs from "fs";
-import * as path from "path";
+import { createOffering } from "@/lib/virtuals-client";
+import { logger } from "@/lib/logger";
 
 const API_KEY = process.env.HQ_API_KEY;
-const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
-const OFFERINGS_DIR = path.join(ACP_DIR, "src/seller/offerings");
 const MAX_OFFERINGS = 20;
 
 function checkAuth(req: NextRequest): boolean {
@@ -61,35 +58,34 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Generate offering.json
-    const offeringDir = path.join(OFFERINGS_DIR, offering.handlerPath || offering.name);
-    if (!fs.existsSync(offeringDir)) {
-      fs.mkdirSync(offeringDir, { recursive: true });
+    // Parse requirements if stored as JSON string
+    let requirements: Record<string, unknown> = {};
+    if (offering.requirements) {
+      try {
+        requirements = JSON.parse(offering.requirements);
+      } catch {
+        // Keep empty if invalid JSON
+      }
     }
 
-    const offeringJson = {
-      name: offering.name,
-      description: offering.description || "",
-      jobFee: offering.price,
-      jobFeeType: "fixed",
-      requiredFunds: offering.requiredFunds === 1,
-      requirement: offering.requirements ? JSON.parse(offering.requirements) : {},
-      deliverable: offering.deliverable || "",
-    };
-
-    fs.writeFileSync(
-      path.join(offeringDir, "offering.json"),
-      JSON.stringify(offeringJson, null, 2)
-    );
-
-    // Run acp sell create
+    // Call Virtuals API to create offering
     try {
-      execSync(`cd ${ACP_DIR} && npx tsx bin/acp.ts sell create ${offering.name}`, {
-        encoding: "utf-8",
-        timeout: 30000,
+      await createOffering({
+        name: offering.name,
+        description: offering.description || "",
+        priceV2: {
+          type: "fixed",
+          value: offering.price || 0,
+        },
+        requiredFunds: offering.requiredFunds === 1,
+        requirement: requirements,
+        deliverable: offering.deliverable || "",
       });
+      
+      logger.info("acp/publish", `Published offering: ${offering.name}`);
     } catch (err: unknown) {
       const error = err as Error;
+      logger.error("acp/publish", `Failed to publish to Virtuals API: ${error.message}`);
       return NextResponse.json({ 
         error: `Failed to publish to marketplace: ${error.message}` 
       }, { status: 500 });
@@ -98,7 +94,11 @@ export async function POST(req: NextRequest) {
     // Update DB
     await db
       .update(acpOfferings)
-      .set({ isActive: 1, updatedAt: new Date().toISOString() })
+      .set({ 
+        isActive: 1, 
+        listedOnAcp: 1,
+        updatedAt: new Date().toISOString() 
+      })
       .where(eq(acpOfferings.id, offering.id));
 
     return NextResponse.json({ 
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
       maxCount: MAX_OFFERINGS
     });
   } catch (error) {
-    console.error("Error publishing offering:", error);
+    logger.error("api/acp/offerings/publish", "Error publishing offering", { error });
     return NextResponse.json({ error: "Failed to publish offering" }, { status: 500 });
   }
 }

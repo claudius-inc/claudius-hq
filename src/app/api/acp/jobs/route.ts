@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { execSync } from "child_process";
+import { getAgentInfo } from "@/lib/virtuals-client";
 import { logger } from "@/lib/logger";
+import { db } from "@/db";
+import { acpOfferings } from "@/db/schema";
+import { sql } from "drizzle-orm";
 
 const API_KEY = process.env.HQ_API_KEY;
-const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
+
+// Our provider address
+const MY_ADDRESS = "0x46D4f9f23948fBbeF6b104B0cB571b3F6e551B6F";
 
 function checkAuth(req: NextRequest): boolean {
   const authHeader = req.headers.get("authorization");
@@ -12,63 +17,23 @@ function checkAuth(req: NextRequest): boolean {
   return token === API_KEY;
 }
 
-interface AcpJob {
-  jobId: string;
+interface JobSummary {
   name: string;
-  price: string;
-  client: string;
-  provider: string;
-  deliverable: string;
-  role: "provider" | "client";
-}
-
-function parseJobsOutput(output: string): AcpJob[] {
-  const jobs: AcpJob[] = [];
-  const lines = output.split("\n");
-  
-  let currentJob: Partial<AcpJob> = {};
-  const myAddress = "0x46D4f9f23948fBbeF6b104B0cB571b3F6e551B6F"; // Our provider address
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    
-    if (trimmed.startsWith("Job ID")) {
-      // Save previous job if exists
-      if (currentJob.jobId) {
-        // Determine if we're provider or client
-        currentJob.role = currentJob.provider === myAddress ? "provider" : "client";
-        jobs.push(currentJob as AcpJob);
-      }
-      currentJob = { jobId: trimmed.replace("Job ID", "").trim() };
-    } else if (trimmed.startsWith("Name")) {
-      currentJob.name = trimmed.replace("Name", "").trim();
-    } else if (trimmed.startsWith("Price")) {
-      currentJob.price = trimmed.replace("Price", "").trim();
-    } else if (trimmed.startsWith("Client")) {
-      currentJob.client = trimmed.replace("Client", "").trim();
-    } else if (trimmed.startsWith("Provider")) {
-      currentJob.provider = trimmed.replace("Provider", "").trim();
-    } else if (trimmed.startsWith("Deliverable")) {
-      currentJob.deliverable = trimmed.replace("Deliverable", "").trim();
-    }
-  }
-
-  // Push last job
-  if (currentJob.jobId) {
-    currentJob.role = currentJob.provider === myAddress ? "provider" : "client";
-    jobs.push(currentJob as AcpJob);
-  }
-
-  return jobs;
+  jobCount: number;
+  totalRevenue: number;
 }
 
 /**
  * GET /api/acp/jobs
  *
- * Returns recent completed jobs from ACP CLI
+ * Returns job statistics from database.
+ * 
+ * Note: The Virtuals API only provides job status by ID (GET /acp/jobs/{id}),
+ * not a list of all completed jobs. Stats are tracked in our DB when jobs complete.
+ * 
  * Query params:
- *   - limit: max number of jobs to return (default: 20)
- *   - role: filter by "provider" or "client" (optional)
+ *   - limit: max number of offerings to return (default: 20)
+ *   - role: filter by "provider" or "client" (optional, currently only provider supported)
  */
 export async function GET(req: NextRequest) {
   if (!checkAuth(req)) {
@@ -78,48 +43,55 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
-    const roleFilter = searchParams.get("role") as "provider" | "client" | null;
+    const roleFilter = searchParams.get("role");
 
-    const output = execSync(`cd ${ACP_DIR} && npx tsx bin/acp.ts job completed 2>&1`, {
-      encoding: "utf-8",
-      timeout: 30000,
-    });
-
-    let jobs = parseJobsOutput(output);
-
-    // Apply role filter if specified
-    if (roleFilter) {
-      jobs = jobs.filter((j) => j.role === roleFilter);
+    // Get agent info for wallet verification
+    let walletAddress = MY_ADDRESS;
+    try {
+      const agentInfo = await getAgentInfo();
+      walletAddress = agentInfo.walletAddress || MY_ADDRESS;
+    } catch {
+      // Use default address if API fails
     }
 
-    // Apply limit
-    jobs = jobs.slice(0, limit);
+    // Get job stats from our database (aggregated per offering)
+    const offerings = await db
+      .select({
+        name: acpOfferings.name,
+        jobCount: acpOfferings.jobCount,
+        totalRevenue: acpOfferings.totalRevenue,
+      })
+      .from(acpOfferings)
+      .where(sql`${acpOfferings.jobCount} > 0`)
+      .orderBy(sql`${acpOfferings.totalRevenue} DESC`)
+      .limit(limit);
 
-    // Calculate stats
-    const providerJobs = jobs.filter((j) => j.role === "provider");
-    const clientJobs = jobs.filter((j) => j.role === "client");
-    
-    // Parse revenue from price strings like "0.2 USDC"
-    const totalRevenue = providerJobs.reduce((sum, j) => {
-      const priceMatch = j.price.match(/([\d.]+)/);
-      return sum + (priceMatch ? parseFloat(priceMatch[1]) : 0);
-    }, 0);
+    const jobs: JobSummary[] = offerings.map((o) => ({
+      name: o.name,
+      jobCount: o.jobCount || 0,
+      totalRevenue: o.totalRevenue || 0,
+    }));
 
-    const totalSpent = clientJobs.reduce((sum, j) => {
-      const priceMatch = j.price.match(/([\d.]+)/);
-      return sum + (priceMatch ? parseFloat(priceMatch[1]) : 0);
-    }, 0);
+    // Calculate totals
+    const totalJobs = jobs.reduce((sum, j) => sum + j.jobCount, 0);
+    const totalRevenue = jobs.reduce((sum, j) => sum + j.totalRevenue, 0);
+
+    // For now, all tracked jobs are as provider
+    const asProvider = roleFilter === "client" ? 0 : totalJobs;
+    const asClient = roleFilter === "provider" ? 0 : 0; // We don't track client jobs yet
 
     return NextResponse.json({
-      jobs,
+      walletAddress,
+      offerings: jobs,
       stats: {
-        total: jobs.length,
-        asProvider: providerJobs.length,
-        asClient: clientJobs.length,
+        totalOfferings: jobs.length,
+        totalJobs,
+        asProvider,
+        asClient,
         revenueUsdc: totalRevenue,
-        spentUsdc: totalSpent,
+        spentUsdc: 0, // Not tracking client spending yet
       },
-      raw: output,
+      note: "Job stats are aggregated from DB. Individual job details available via GET /acp/jobs/{id} on Virtuals API.",
     });
   } catch (err) {
     const error = err as Error;
