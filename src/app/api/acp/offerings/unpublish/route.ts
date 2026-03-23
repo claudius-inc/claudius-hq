@@ -5,15 +5,6 @@ import { eq } from "drizzle-orm";
 import { deleteOffering } from "@/lib/virtuals-client";
 import { logger } from "@/lib/logger";
 
-const API_KEY = process.env.HQ_API_KEY;
-
-function checkAuth(req: NextRequest): boolean {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === API_KEY;
-}
-
 /**
  * POST /api/acp/offerings/unpublish
  * 
@@ -25,9 +16,6 @@ function checkAuth(req: NextRequest): boolean {
  * Body: { id: number } or { name: string }
  */
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   try {
     const body = await req.json();

@@ -18,6 +18,7 @@ async function getOfferingsData() {
 export default async function AcpOfferingsPage() {
   const { offerings } = await getOfferingsData();
   const activeCount = offerings.filter((o) => o.isActive).length;
+  const totalCount = offerings.length;
   const totalRevenue = offerings.reduce((sum, o) => sum + (o.totalRevenue ?? 0), 0);
   const totalJobs = offerings.reduce((sum, o) => sum + (o.jobCount ?? 0), 0);
 
@@ -25,7 +26,7 @@ export default async function AcpOfferingsPage() {
     <div className="space-y-6">
       <PageHero
         title="ACP Offerings"
-        subtitle={`${activeCount}/20 active • ${totalJobs} jobs • $${totalRevenue.toFixed(2)} revenue`}
+        subtitle={`${activeCount} active of ${totalCount} total • ${totalJobs} jobs • $${totalRevenue.toFixed(2)} revenue`}
       />
 
       <AcpOfferingsManagement initialOfferings={offerings} />

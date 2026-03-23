@@ -5,15 +5,7 @@ import { eq } from "drizzle-orm";
 import { createOffering } from "@/lib/virtuals-client";
 import { logger } from "@/lib/logger";
 
-const API_KEY = process.env.HQ_API_KEY;
 const MAX_OFFERINGS = 20;
-
-function checkAuth(req: NextRequest): boolean {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === API_KEY;
-}
 
 async function getActiveOfferingsCount(): Promise<number> {
   const result = await db
@@ -24,9 +16,6 @@ async function getActiveOfferingsCount(): Promise<number> {
 }
 
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   try {
     const body = await req.json();

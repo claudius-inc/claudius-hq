@@ -105,10 +105,9 @@ const OFFERING_ENDPOINTS: Record<string, EndpointConfig> = {
 
 interface OfferingTestPanelProps {
   offeringName: string;
-  apiKey: string;
 }
 
-export function OfferingTestPanel({ offeringName, apiKey }: OfferingTestPanelProps) {
+export function OfferingTestPanel({ offeringName }: OfferingTestPanelProps) {
   const config = OFFERING_ENDPOINTS[offeringName];
   
   const [loading, setLoading] = useState(false);
@@ -134,11 +133,6 @@ export function OfferingTestPanel({ offeringName, apiKey }: OfferingTestPanelPro
   }
 
   const handleSubmit = async () => {
-    if (!apiKey) {
-      setError("Please enter an API key at the top of the page");
-      return;
-    }
-
     setLoading(true);
     setError(null);
     setResponse(null);
@@ -148,7 +142,6 @@ export function OfferingTestPanel({ offeringName, apiKey }: OfferingTestPanelPro
         method: config.method,
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify(formData),
       });

@@ -20,11 +20,10 @@ interface Offering {
 
 interface AcpOfferingRowProps {
   offering: Offering;
-  apiKey?: string;
   onToggled?: () => void;
 }
 
-export function AcpOfferingRow({ offering, apiKey = "", onToggled }: AcpOfferingRowProps) {
+export function AcpOfferingRow({ offering, onToggled }: AcpOfferingRowProps) {
   const [expanded, setExpanded] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -39,12 +38,6 @@ export function AcpOfferingRow({ offering, apiKey = "", onToggled }: AcpOffering
 
   const handleToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    if (!apiKey) {
-      alert("Please enter API key first");
-      return;
-    }
-
     setToggling(true);
 
     try {
@@ -55,7 +48,6 @@ export function AcpOfferingRow({ offering, apiKey = "", onToggled }: AcpOffering
       const res = await fetch(endpoint, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ name: offering.name }),
@@ -78,10 +70,6 @@ export function AcpOfferingRow({ offering, apiKey = "", onToggled }: AcpOffering
 
   const handleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!apiKey) {
-      alert("Please enter API key first");
-      return;
-    }
     setEditModalOpen(true);
   };
 
@@ -132,10 +120,10 @@ export function AcpOfferingRow({ offering, apiKey = "", onToggled }: AcpOffering
             {/* Toggle Switch */}
             <button
               onClick={handleToggle}
-              disabled={toggling || !apiKey}
+              disabled={toggling}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
                 localIsActive ? "bg-green-500" : "bg-gray-200"
-              } ${(!apiKey || toggling) ? "opacity-50 cursor-not-allowed" : ""}`}
+              } ${toggling ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               {toggling ? (
                 <span className="absolute inset-0 flex items-center justify-center">
@@ -153,8 +141,7 @@ export function AcpOfferingRow({ offering, apiKey = "", onToggled }: AcpOffering
             {/* Edit Button */}
             <button
               onClick={handleEdit}
-              disabled={!apiKey}
-              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
               title="Edit offering"
             >
               <Pencil className="w-4 h-4" />
@@ -191,7 +178,7 @@ export function AcpOfferingRow({ offering, apiKey = "", onToggled }: AcpOffering
                 </div>
               </div>
               {hasTestApi && (
-                <OfferingTestPanel offeringName={offering.name} apiKey={apiKey} />
+                <OfferingTestPanel offeringName={offering.name} />
               )}
             </div>
           </td>
@@ -200,7 +187,6 @@ export function AcpOfferingRow({ offering, apiKey = "", onToggled }: AcpOffering
 
       <EditOfferingModal
         offering={offering}
-        apiKey={apiKey}
         isOpen={editModalOpen}
         onClose={() => setEditModalOpen(false)}
         onSaved={() => {

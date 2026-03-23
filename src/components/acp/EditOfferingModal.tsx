@@ -13,7 +13,6 @@ interface Offering {
 
 interface EditOfferingModalProps {
   offering: Offering;
-  apiKey: string;
   isOpen: boolean;
   onClose: () => void;
   onSaved: () => void;
@@ -21,7 +20,6 @@ interface EditOfferingModalProps {
 
 export function EditOfferingModal({
   offering,
-  apiKey,
   isOpen,
   onClose,
   onSaved,
@@ -54,7 +52,6 @@ export function EditOfferingModal({
       const res = await fetch("/api/acp/offerings", {
         method: "PATCH",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -163,7 +160,7 @@ export function EditOfferingModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || !apiKey}
+            disabled={saving}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
           >
             {saving ? (

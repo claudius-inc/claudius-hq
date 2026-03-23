@@ -7,16 +7,8 @@ import * as fs from "fs";
 import * as path from "path";
 import { logger } from "@/lib/logger";
 
-const API_KEY = process.env.HQ_API_KEY;
 const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
 const OFFERINGS_DIR = path.join(ACP_DIR, "src/seller/offerings");
-
-function checkAuth(req: NextRequest): boolean {
-  const authHeader = req.headers.get("authorization");
-  if (!authHeader) return false;
-  const token = authHeader.replace("Bearer ", "");
-  return token === API_KEY;
-}
 
 function detectCategory(name: string): string {
   const marketData = [
@@ -87,10 +79,6 @@ interface CreateOfferingBody {
  * 2. Create single offering: { name, description, price, ..., publish? }
  */
 export async function POST(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const body = await req.json();
 
@@ -165,10 +153,6 @@ async function handleBulkSync(body: BulkSyncBody) {
  * Update specific fields on an offering (e.g., listedOnAcp, price)
  */
 export async function PATCH(req: NextRequest) {
-  if (!checkAuth(req)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const body = await req.json();
     const { name, listedOnAcp, price, description, isActive, jobCount, totalRevenue, doNotRelist, category } = body;

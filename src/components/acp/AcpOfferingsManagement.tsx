@@ -24,14 +24,11 @@ interface AcpOfferingsManagementProps {
 
 export function AcpOfferingsManagement({ initialOfferings }: AcpOfferingsManagementProps) {
   const [offerings, setOfferings] = useState(initialOfferings);
-  const [apiKey, setApiKey] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
 
   const refreshOfferings = useCallback(async () => {
     try {
-      const res = await fetch("/api/acp/offerings", {
-        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-      });
+      const res = await fetch("/api/acp/offerings");
       
       if (res.ok) {
         const data = await res.json();
@@ -41,18 +38,16 @@ export function AcpOfferingsManagement({ initialOfferings }: AcpOfferingsManagem
     } catch (err) {
       console.error("Failed to refresh offerings:", err);
     }
-  }, [apiKey]);
+  }, []);
 
   return (
     <div className="space-y-6">
       {/* Wallet Balance - loads automatically (server-side auth) */}
       <WalletBalanceCard key={`wallet-${refreshKey}`} />
 
-      {/* Offerings Table - requires API key for toggle/edit operations */}
+      {/* Offerings Table */}
       <AcpOfferingsTable
         offerings={offerings}
-        apiKey={apiKey}
-        onApiKeyChange={setApiKey}
         onRefresh={refreshOfferings}
       />
 
