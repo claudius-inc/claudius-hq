@@ -460,14 +460,17 @@ export function ScannerResults({ scan }: Props) {
                   No stocks match your filters
                 </div>
               ) : (
-                filteredResults.map((stock) => (
-                  <StockRow
-                    key={stock.ticker}
-                    stock={stock}
-                    isExpanded={expandedRows.has(stock.ticker)}
-                    onToggle={() => toggleRow(stock.ticker)}
-                  />
-                ))
+                filteredResults.map((stock) => {
+                  const stockKey = `${stock.ticker}-${stock.market}`;
+                  return (
+                    <StockRow
+                      key={stockKey}
+                      stock={stock}
+                      isExpanded={expandedRows.has(stockKey)}
+                      onToggle={() => toggleRow(stockKey)}
+                    />
+                  );
+                })
               )}
             </div>
           </div>
