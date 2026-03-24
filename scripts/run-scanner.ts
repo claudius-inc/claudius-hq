@@ -354,9 +354,7 @@ interface ScanResult {
   market: "US" | "SGX" | "HK" | "JP";
   growth: ScoreComponent;
   financial: ScoreComponent;
-  insider: ScoreComponent;
   technical: ScoreComponent;
-  analyst: ScoreComponent;
   risk: RiskAnalysis;
   revGrowth: number | null;
   grossMargin: number | null;
@@ -393,10 +391,8 @@ interface ChartData {
   price: number;
   high52: number;
   low52: number;
-  sma50: number | null;
-  sma200: number | null;
   position52w: number;
-  // New momentum fields
+  // Momentum fields
   momentum12m1m: number | null; // 12-1 month momentum (excluding last month)
   volatility90d: number | null; // 90-day volatility (std dev of daily returns)
 }
@@ -427,12 +423,6 @@ async function getChartData(ticker: string): Promise<ChartData | null> {
     const price = closes[closes.length - 1];
     const high52 = Math.max(...closes);
     const low52 = Math.min(...closes);
-    
-    const sma = (arr: number[], n: number) =>
-      arr.length >= n ? arr.slice(-n).reduce((a, b) => a + b, 0) / n : null;
-    
-    const sma50 = sma(closes, 50);
-    const sma200 = sma(closes, Math.min(200, closes.length));
     const position52w = high52 !== low52 
       ? ((price - low52) / (high52 - low52)) * 100 
       : 50;
@@ -466,15 +456,20 @@ async function getChartData(ticker: string): Promise<ChartData | null> {
         }
       }
       if (dailyReturns.length >= 30) {
-        const mean = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
-        const variance = dailyReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / dailyReturns.length;
-        const dailyStdDev = Math.sqrt(variance);
-        // Annualize: multiply by sqrt(252)
-        volatility90d = dailyStdDev * Math.sqrt(252) * 100;
+        // Defensive null check before variance calculation
+        if (dailyReturns.length === 0) {
+          volatility90d = null;
+        } else {
+          const mean = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
+          const variance = dailyReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / dailyReturns.length;
+          const dailyStdDev = Math.sqrt(variance);
+          // Annualize: multiply by sqrt(252)
+          volatility90d = dailyStdDev * Math.sqrt(252) * 100;
+        }
       }
     }
 
-    return { price, high52, low52, sma50, sma200, position52w, momentum12m1m, volatility90d };
+    return { price, high52, low52, position52w, momentum12m1m, volatility90d };
   } catch (error) {
     console.error(`[Chart] ${ticker}: failed -`, error);
     return null;
@@ -502,14 +497,8 @@ interface FundamentalsData {
   freeCashflow: number | null;
   priceToFCF: number | null; // P/FCF ratio
   debtToEquity: number | null;
-  divYield: number | null;
   targetPrice: number | null;
   analystCount: number;
-  insiderBuys: number;
-  insiderSells: number;
-  insiderTxCount: number;
-  insiderPct: number | null;
-  instPct: number | null;
   strongBuy: number;
   buy: number;
   hold: number;
@@ -531,7 +520,6 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
         "summaryDetail",
         "earnings",
         "majorHoldersBreakdown",
-        "insiderTransactions",
         "recommendationTrend",
         "incomeStatementHistory",
         "incomeStatementHistoryQuarterly",
@@ -549,7 +537,6 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
     const stats = q.defaultKeyStatistics || {};
     const earnings = q.earnings || {};
     const holders = q.majorHoldersBreakdown || {};
-    const insiderTx = q.insiderTransactions?.transactions || [];
     const recoTrend = q.recommendationTrend?.trend || [];
     const incomeHistory = q.incomeStatementHistory?.incomeStatementHistory || [];
     const incomeQuarterly = q.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
@@ -645,23 +632,6 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
       priceToFCF = marketCap / fcf;
     }
 
-    // Insider activity (last 6 months)
-    let insiderBuys = 0;
-    let insiderSells = 0;
-    const sixMonthsAgo = Date.now() / 1000 - 180 * 86400;
-    
-    for (const tx of insiderTx as any[]) {
-      const date = tx.startDate?.raw || 0;
-      if (date < sixMonthsAgo) continue;
-      const shares = tx.shares?.raw || 0;
-      const txType = tx.transactionText || "";
-      if (txType.includes("Purchase") || tx.ownership === "D") {
-        insiderBuys += shares;
-      } else if (txType.includes("Sale")) {
-        insiderSells += Math.abs(shares);
-      }
-    }
-
     // Analyst recommendations
     const reco = recoTrend[0] || {};
 
@@ -686,14 +656,8 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
       freeCashflow: fin.freeCashflow ?? null,
       priceToFCF,
       debtToEquity: fin.debtToEquity ?? null,
-      divYield: summary.dividendYield ? summary.dividendYield * 100 : null,
       targetPrice: fin.targetMeanPrice ?? null,
       analystCount: fin.numberOfAnalystOpinions || 0,
-      insiderBuys,
-      insiderSells,
-      insiderTxCount: insiderTx.length,
-      insiderPct: holders.insidersPercentHeld ? holders.insidersPercentHeld * 100 : null,
-      instPct: holders.institutionsPercentHeld ? holders.institutionsPercentHeld * 100 : null,
       strongBuy: reco.strongBuy || 0,
       buy: reco.buy || 0,
       hold: reco.hold || 0,
@@ -1214,17 +1178,15 @@ async function runScanner(): Promise<void> {
       // Score each category
       const growth = scoreGrowth(fund);
       const financial = scoreFinancial(fund);
-      const insider = scoreInsider(fund);
       const technical = scoreTechnical(chart);
-      const analyst = scoreAnalyst(fund, chart);
       const risk = calculateRisk(chart, fund, market);
 
+      // Total: Growth (50) + Financial (30) + Technical (20) = 100 max + risk penalty
       const rawScore =
         growth.score +
         financial.score +
         technical.score +
         risk.penalty;
-      // Note: insider.score and analyst.score excluded (removed from scoring)
       const totalScore = Math.max(0, rawScore);
 
       const { tier, tierColor } = classifyStock(totalScore);
@@ -1245,9 +1207,7 @@ async function runScanner(): Promise<void> {
         market,
         growth,
         financial,
-        insider,
         technical,
-        analyst,
         risk,
         source,
         revGrowth: fund.revenueGrowthRaw,
