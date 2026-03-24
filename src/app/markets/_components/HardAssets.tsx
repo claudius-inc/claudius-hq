@@ -60,11 +60,11 @@ interface SilverPriceSnapshot {
 
 const fetcher = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null));
 
-// SWR config: refresh every 60s, revalidate on focus
+// SWR config: refresh every 60s, revalidate on focus, longer deduping
 const swrConfig = {
   refreshInterval: 60000, // 60 seconds
   revalidateOnFocus: true,
-  dedupingInterval: 10000, // 10 seconds
+  dedupingInterval: 30000, // 30 seconds - prevents rapid re-fetches
 };
 
 function formatUsd(n: number, decimals = 0) {

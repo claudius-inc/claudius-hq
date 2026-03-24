@@ -27,7 +27,7 @@ const fetcher = (url: string) =>
 const swrConfig = {
   refreshInterval: 60000,
   revalidateOnFocus: true,
-  dedupingInterval: 10000,
+  dedupingInterval: 30000, // 30 seconds - prevents rapid re-fetches
 };
 
 interface PlaybookPageData {

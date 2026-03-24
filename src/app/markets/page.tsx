@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { mutate } from "swr";
 import { PageHero } from "@/components/PageHero";
 import { detectRegime } from "./_components/helpers";
 import { RegimeStrip } from "./_components/RegimeStrip";
@@ -60,16 +61,19 @@ export default function StocksDashboard() {
     });
   };
 
+  // Refetch key data when tab becomes visible (fixes stale data issue)
   useEffect(() => {
-    fetch("/api/macro")
-      .then((res) => res.json())
-      .then((data) => {
-        setMacroIndicators(data.indicators || []);
-        setYieldSpreads(data.yieldSpreads || []);
-      })
-      .catch(console.error)
-      .finally(() => setLoading((prev) => ({ ...prev, macro: false })));
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        mutate("/api/gold");
+        mutate("/api/macro");
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
+  useEffect(() => {
     fetch("/api/macro/etfs")
       .then((res) => res.json())
       .then((data) => {
@@ -120,16 +124,23 @@ export default function StocksDashboard() {
       .then((data) => setCrowdingData(data))
       .catch(console.error);
 
+    // Single macro fetch for both indicators state AND regime detection
+    // Gold data for regime comes from /api/gold (also used by HardAssets SWR, deduped by cache)
     Promise.all([
       fetch("/api/macro").then((res) => (res.ok ? res.json() : null)),
       fetch("/api/gold").then((res) => (res.ok ? res.json() : null)),
     ])
       .then(
         ([macroData, goldData]: [
-          { indicators?: { id: string; data?: { current: number } }[] } | null,
+          { indicators?: MacroIndicator[]; yieldSpreads?: YieldSpread[] } | null,
           { realYields?: { value: number }; dxy?: { price: number } } | null,
         ]) => {
+          // Set macro indicators state (previously done by separate fetch)
           const indicators = macroData?.indicators || [];
+          setMacroIndicators(indicators);
+          setYieldSpreads(macroData?.yieldSpreads || []);
+
+          // Regime detection
           const findIndicator = (id: string) => {
             const ind = indicators.find((i) => i.id === id);
             return ind?.data?.current ?? null;
@@ -147,7 +158,7 @@ export default function StocksDashboard() {
         },
       )
       .catch(console.error)
-      .finally(() => setLoading((prev) => ({ ...prev, regime: false })));
+      .finally(() => setLoading((prev) => ({ ...prev, macro: false, regime: false })));
   }, []);
 
   return (

@@ -31,7 +31,37 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Stock Scanner
 
-Unified scanner that fetches data from Yahoo Finance for both US growth stocks and SGX stocks, scores them with a single scoring system, and optionally uploads results to HQ for display on `/markets/scanner`.
+The stock scanner runs **automatically every 6 hours** via GitHub Actions and stores pre-computed results in the Turso database. The scanner page at `/markets/scanner` displays these cached results.
+
+### GitHub Actions Scanner
+
+The scanner runs on a schedule and can also be triggered manually:
+
+- **Scheduled**: Every 6 hours (`0 */6 * * *`)
+- **Manual**: Via GitHub Actions → "Run workflow"
+
+#### Setting Up GitHub Secrets
+
+To enable the GitHub Actions scanner, add these secrets to your repository:
+
+1. Go to **Settings → Secrets and variables → Actions**
+2. Click **New repository secret** and add:
+
+| Secret Name          | Description                                         |
+| -------------------- | --------------------------------------------------- |
+| `TURSO_DATABASE_URL` | Your Turso database URL (e.g., `libsql://...`)      |
+| `TURSO_AUTH_TOKEN`   | Your Turso authentication token                     |
+
+#### Manual Trigger
+
+1. Go to **Actions** tab in GitHub
+2. Select **Stock Scanner** workflow
+3. Click **Run workflow**
+4. Optionally specify markets (default: `US,SGX`)
+
+### Legacy CLI Scanner
+
+The original CLI scanner is still available for local testing:
 
 ```bash
 node scripts/unified-scanner.js              # Console output
@@ -43,10 +73,13 @@ node scripts/unified-scanner.js --limit 50   # Show top N
 
 ### Environment Variables
 
-| Variable     | Required       | Description                                          |
-| ------------ | -------------- | ---------------------------------------------------- |
-| `HQ_API_URL` | No             | HQ API base URL (default: `https://claudiusinc.com`) |
-| `HQ_API_KEY` | For `--upload` | API key for authenticating with HQ                   |
+| Variable               | Required         | Description                                          |
+| ---------------------- | ---------------- | ---------------------------------------------------- |
+| `TURSO_DATABASE_URL`   | Yes              | Turso database URL                                   |
+| `TURSO_AUTH_TOKEN`     | Yes              | Turso authentication token                           |
+| `HQ_API_URL`           | No               | HQ API base URL (default: `https://claudiusinc.com`) |
+| `HQ_API_KEY`           | For `--upload`   | API key for authenticating with HQ                   |
+| `SCAN_MARKETS`         | No               | Comma-separated markets (default: `US,SGX`)          |
 
 ## Deploy on Vercel
 

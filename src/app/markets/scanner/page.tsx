@@ -104,7 +104,7 @@ export default async function ScannersPage() {
     <>
       <PageHero
         title="Stock Scanner"
-        subtitle="Automated screening results updated periodically"
+        subtitle="Pre-computed screening results updated every 6 hours"
       />
 
       {/* Scanner Results */}

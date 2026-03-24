@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Search, RefreshCw, Clock, TrendingUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Clock, TrendingUp, Zap } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Select } from "@/components/ui/Select";
 import type { ParsedScan, ScanResult } from "../types";
@@ -266,35 +266,6 @@ export function ScannerResults({ scan }: Props) {
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
   const [marketFilter, setMarketFilter] = useState<MarketFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
-
-  const handleRefresh = useCallback(async () => {
-    setIsRefreshing(true);
-    setRefreshError(null);
-
-    try {
-      const response = await fetch("/api/markets/scanner", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setRefreshError(data.error || "Refresh failed");
-      } else {
-        // Reload the page to get fresh data
-        window.location.reload();
-      }
-    } catch (e) {
-      setRefreshError(String(e));
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, []);
 
   if (!scan) {
     return (
@@ -392,23 +363,12 @@ export function ScannerResults({ scan }: Props) {
             </div>
           )}
 
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <RefreshCw size={14} className={isRefreshing ? "animate-spin" : ""} />
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          <span className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 bg-gray-50 rounded">
+            <Zap size={12} />
+            Auto-updated every 6h
+          </span>
         </div>
       </div>
-
-      {/* Error message */}
-      {refreshError && (
-        <div className="px-3 py-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
-          {refreshError}
-        </div>
-      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">

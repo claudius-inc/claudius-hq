@@ -218,7 +218,8 @@ export async function GET(request: NextRequest) {
     const fresh = request.nextUrl.searchParams.get("fresh") === "true";
 
     if (!fresh) {
-      const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.GOLD, 300);
+      // Reduced TTL from 300s to 60s for fresher data
+      const cached = await getCache<Record<string, unknown>>(CACHE_KEYS.GOLD, 60);
       if (cached && !cached.isStale) {
         return NextResponse.json({
           ...cached.data,
