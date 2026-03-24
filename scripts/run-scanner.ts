@@ -220,6 +220,53 @@ async function fetchScreenerTickers(maxPerScreen = 100): Promise<Set<string>> {
   return tickers;
 }
 
+// Fetch tickers from database (scanner_universe table)
+interface DBTicker {
+  ticker: string;
+  market: string;
+  source: string;
+  enabled: number;
+}
+
+async function fetchTickersFromDB(
+  dbClient: ReturnType<typeof createClient>,
+  markets: string[]
+): Promise<Map<string, { market: string; source: "curated" | "discovered" }> | null> {
+  try {
+    const placeholders = markets.map(() => "?").join(", ");
+    const result = await dbClient.execute({
+      sql: `SELECT ticker, market, source, enabled FROM scanner_universe 
+            WHERE market IN (${placeholders}) AND enabled = 1`,
+      args: markets,
+    });
+
+    if (result.rows.length === 0) {
+      console.log("No tickers found in database, using fallback lists\n");
+      return null;
+    }
+
+    const tickerMap = new Map<string, { market: string; source: "curated" | "discovered" }>();
+    for (const row of result.rows as unknown as DBTicker[]) {
+      tickerMap.set(row.ticker, {
+        market: row.market,
+        source: row.source === "discovered" ? "discovered" : "curated",
+      });
+    }
+
+    console.log(`Loaded ${tickerMap.size} tickers from database`);
+    const values = Array.from(tickerMap.values());
+    const byMarket = markets.map(
+      (m) => `${m}: ${values.filter((v) => v.market === m).length}`
+    );
+    console.log(`  ${byMarket.join(" | ")}\n`);
+
+    return tickerMap;
+  } catch (error) {
+    console.log(`Database fetch failed, using fallback: ${error}\n`);
+    return null;
+  }
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -799,32 +846,44 @@ async function runScanner(): Promise<void> {
   const marketsEnv = process.env.SCAN_MARKETS || "US,SGX";
   const marketsToScan = marketsEnv.split(",").map((m) => m.trim().toUpperCase());
   
-  // Build ticker universe (dynamic for US, static for SGX)
-  const tickerSources = new Map<string, "curated" | "discovered">();
+  // Initialize database client
+  const dbUrl = process.env.TURSO_DATABASE_URL;
+  const dbToken = process.env.TURSO_AUTH_TOKEN;
+  const dbClient = createClient({ url: dbUrl!, authToken: dbToken });
+
+  // Try to fetch from database first, fall back to static lists
+  let tickerSources = await fetchTickersFromDB(dbClient, marketsToScan);
   
-  if (marketsToScan.includes("US")) {
-    // Dynamically fetch from screeners + add curated
-    const usTickers = await fetchScreenerTickers(100);
-    usTickers.forEach(t => {
-      tickerSources.set(t, US_CURATED.includes(t) ? "curated" : "discovered");
-    });
+  if (!tickerSources) {
+    // Fallback: use static lists + screeners
+    console.log("Using fallback ticker lists...\n");
+    tickerSources = new Map<string, { market: string; source: "curated" | "discovered" }>();
+    
+    if (marketsToScan.includes("US")) {
+      // Dynamically fetch from screeners + add curated
+      const usTickers = await fetchScreenerTickers(100);
+      usTickers.forEach(t => {
+        tickerSources!.set(t, {
+          market: "US",
+          source: US_CURATED.includes(t) ? "curated" : "discovered",
+        });
+      });
+    }
+    
+    if (marketsToScan.includes("SGX")) {
+      const sgxSet = new Set(SGX_TICKERS);
+      sgxSet.forEach(t => tickerSources!.set(t, { market: "SGX", source: "curated" }));
+      console.log(`SGX: ${sgxSet.size} tickers`);
+    }
+    
+    if (marketsToScan.includes("HK")) {
+      const hkSet = new Set(HK_TICKERS);
+      hkSet.forEach(t => tickerSources!.set(t, { market: "HK", source: "curated" }));
+      console.log(`HK: ${hkSet.size} tickers`);
+    }
+    console.log("");
   }
   
-  if (marketsToScan.includes("SGX")) {
-    // Use comprehensive SGX list (deduplicated)
-    const sgxSet = new Set(SGX_TICKERS);
-    sgxSet.forEach(t => tickerSources.set(t, "curated"));
-    console.log(`SGX: ${sgxSet.size} tickers`);
-  }
-  
-  if (marketsToScan.includes("HK")) {
-    // Use comprehensive HKEX list (deduplicated)
-    const hkSet = new Set(HK_TICKERS);
-    hkSet.forEach(t => tickerSources.set(t, "curated"));
-    console.log(`HK: ${hkSet.size} tickers`);
-  }
-  
-  console.log("");
   const allTickers = Array.from(tickerSources.keys());
   console.log(`Markets: ${marketsToScan.join(", ")}`);
   console.log(`Universe: ${allTickers.length} tickers\n`);
@@ -835,7 +894,9 @@ async function runScanner(): Promise<void> {
 
   for (const ticker of allTickers) {
     done++;
-    const market = getMarket(ticker);
+    const tickerInfo = tickerSources.get(ticker);
+    const market = (tickerInfo?.market || getMarket(ticker)) as "US" | "SGX" | "HK";
+    const source = tickerInfo?.source || "discovered";
     
     try {
       const [chart, fund] = await Promise.all([
@@ -869,7 +930,7 @@ async function runScanner(): Promise<void> {
       const { tier, tierColor } = classifyStock(totalScore);
       const riskTier = getRiskTier(fund, market);
 
-      const tickerClean = ticker.replace(".SI", "");
+      const tickerClean = ticker.replace(".SI", "").replace(".HK", "");
 
       results.push({
         rank: 0,
@@ -888,7 +949,7 @@ async function runScanner(): Promise<void> {
         technical,
         analyst,
         risk,
-        source: tickerSources.get(ticker) || "discovered",
+        source,
         revGrowth: fund.revenueGrowthRaw,
         grossMargin: fund.grossMargin,
       });

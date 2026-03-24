@@ -317,6 +317,32 @@ export type StockScan = typeof stockScans.$inferSelect;
 export type NewStockScan = typeof stockScans.$inferInsert;
 
 // ============================================================================
+// Scanner Universe - Tickers to scan
+// ============================================================================
+
+export const SCANNER_MARKETS = ["US", "SGX", "HK"] as const;
+export type ScannerMarket = (typeof SCANNER_MARKETS)[number];
+
+export const SCANNER_SOURCES = ["curated", "discovered", "user"] as const;
+export type ScannerSource = (typeof SCANNER_SOURCES)[number];
+
+export const scannerUniverse = sqliteTable("scanner_universe", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ticker: text("ticker").notNull().unique(),
+  market: text("market").notNull(), // US, SGX, HK
+  name: text("name"), // Company name (optional, populated on first scan)
+  sector: text("sector"), // Optional sector/industry
+  source: text("source").default("curated"), // curated, discovered, user
+  enabled: integer("enabled", { mode: "boolean" }).default(true),
+  notes: text("notes"), // Optional notes about why this ticker is included
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export type ScannerTicker = typeof scannerUniverse.$inferSelect;
+export type NewScannerTicker = typeof scannerUniverse.$inferInsert;
+
+// ============================================================================
 // Analyst Tracker
 // ============================================================================
 
