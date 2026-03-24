@@ -1,0 +1,292 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { Plus, Trash2, Search, Filter, ToggleLeft, ToggleRight } from "lucide-react";
+
+interface ScannerTicker {
+  id: number;
+  ticker: string;
+  market: string;
+  name: string | null;
+  sector: string | null;
+  source: string;
+  enabled: boolean;
+  notes: string | null;
+  createdAt: string;
+}
+
+interface Summary {
+  total: number;
+  enabled: number;
+  byMarket: {
+    US: number;
+    SGX: number;
+    HK: number;
+  };
+}
+
+export function UniverseManager() {
+  const [tickers, setTickers] = useState<ScannerTicker[]>([]);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<string>("");
+  const [marketFilter, setMarketFilter] = useState<string>("all");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTicker, setNewTicker] = useState({ ticker: "", market: "US", notes: "" });
+  const [saving, setSaving] = useState<string | null>(null);
+
+  const fetchTickers = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (marketFilter !== "all") params.set("market", marketFilter);
+      
+      const res = await fetch(`/api/scanner/universe?${params}`);
+      const data = await res.json();
+      setTickers(data.tickers || []);
+      setSummary(data.summary || null);
+    } catch (error) {
+      console.error("Failed to fetch tickers:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [marketFilter]);
+
+  useEffect(() => {
+    fetchTickers();
+  }, [fetchTickers]);
+
+  const toggleEnabled = async (ticker: string, enabled: boolean) => {
+    setSaving(ticker);
+    try {
+      await fetch("/api/scanner/universe", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker, enabled }),
+      });
+      setTickers((prev) =>
+        prev.map((t) => (t.ticker === ticker ? { ...t, enabled } : t))
+      );
+    } catch (error) {
+      console.error("Failed to toggle:", error);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const deleteTicker = async (ticker: string) => {
+    if (!confirm(`Remove ${ticker} from scanner universe?`)) return;
+    
+    setSaving(ticker);
+    try {
+      await fetch(`/api/scanner/universe?ticker=${ticker}`, { method: "DELETE" });
+      setTickers((prev) => prev.filter((t) => t.ticker !== ticker));
+      if (summary) {
+        setSummary({ ...summary, total: summary.total - 1 });
+      }
+    } catch (error) {
+      console.error("Failed to delete:", error);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const addTicker = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTicker.ticker.trim()) return;
+
+    setSaving("new");
+    try {
+      const res = await fetch("/api/scanner/universe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticker: newTicker.ticker.toUpperCase(),
+          market: newTicker.market,
+          notes: newTicker.notes || null,
+          source: "user",
+        }),
+      });
+      
+      if (res.ok) {
+        setNewTicker({ ticker: "", market: "US", notes: "" });
+        setShowAddForm(false);
+        fetchTickers();
+      }
+    } catch (error) {
+      console.error("Failed to add:", error);
+    } finally {
+      setSaving(null);
+    }
+  };
+
+  const filteredTickers = tickers.filter((t) => {
+    const matchesSearch = !filter || 
+      t.ticker.toLowerCase().includes(filter.toLowerCase()) ||
+      t.name?.toLowerCase().includes(filter.toLowerCase());
+    return matchesSearch;
+  });
+
+  const marketColors: Record<string, string> = {
+    US: "bg-blue-100 text-blue-700",
+    SGX: "bg-green-100 text-green-700",
+    HK: "bg-red-100 text-red-700",
+  };
+
+  return (
+    <div className="bg-white rounded-lg border p-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg font-semibold">Scanner Universe</h2>
+          {summary && (
+            <p className="text-sm text-gray-500">
+              {summary.enabled} enabled of {summary.total} total • 
+              US: {summary.byMarket.US} | SGX: {summary.byMarket.SGX} | HK: {summary.byMarket.HK}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          <Plus size={16} />
+          Add Ticker
+        </button>
+      </div>
+
+      {/* Add Form */}
+      {showAddForm && (
+        <form onSubmit={addTicker} className="mb-4 p-3 bg-gray-50 rounded-lg border">
+          <div className="flex gap-2 flex-wrap">
+            <input
+              type="text"
+              placeholder="Ticker (e.g., AAPL)"
+              value={newTicker.ticker}
+              onChange={(e) => setNewTicker({ ...newTicker, ticker: e.target.value.toUpperCase() })}
+              className="px-3 py-1.5 border rounded-md text-sm w-32"
+              autoFocus
+            />
+            <select
+              value={newTicker.market}
+              onChange={(e) => setNewTicker({ ...newTicker, market: e.target.value })}
+              className="px-3 py-1.5 border rounded-md text-sm"
+            >
+              <option value="US">US</option>
+              <option value="SGX">SGX</option>
+              <option value="HK">HK</option>
+            </select>
+            <input
+              type="text"
+              placeholder="Notes (optional)"
+              value={newTicker.notes}
+              onChange={(e) => setNewTicker({ ...newTicker, notes: e.target.value })}
+              className="px-3 py-1.5 border rounded-md text-sm flex-1 min-w-[150px]"
+            />
+            <button
+              type="submit"
+              disabled={saving === "new"}
+              className="px-4 py-1.5 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:opacity-50"
+            >
+              {saving === "new" ? "Adding..." : "Add"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddForm(false)}
+              className="px-4 py-1.5 text-gray-600 text-sm hover:text-gray-900"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {/* Filters */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search tickers..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="w-full pl-9 pr-3 py-1.5 border rounded-md text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          <Filter size={16} className="text-gray-400" />
+          <select
+            value={marketFilter}
+            onChange={(e) => setMarketFilter(e.target.value)}
+            className="px-3 py-1.5 border rounded-md text-sm"
+          >
+            <option value="all">All Markets</option>
+            <option value="US">US</option>
+            <option value="SGX">SGX</option>
+            <option value="HK">HK</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Ticker List */}
+      {loading ? (
+        <div className="text-center py-8 text-gray-500">Loading...</div>
+      ) : filteredTickers.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          {filter ? "No tickers match your search" : "No tickers in universe"}
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left">
+                <th className="pb-2 font-medium">Ticker</th>
+                <th className="pb-2 font-medium">Market</th>
+                <th className="pb-2 font-medium hidden sm:table-cell">Source</th>
+                <th className="pb-2 font-medium hidden md:table-cell">Notes</th>
+                <th className="pb-2 font-medium text-center">Enabled</th>
+                <th className="pb-2 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTickers.map((t) => (
+                <tr key={t.id} className={`border-b hover:bg-gray-50 ${!t.enabled ? "opacity-50" : ""}`}>
+                  <td className="py-2 font-mono font-medium">{t.ticker}</td>
+                  <td className="py-2">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${marketColors[t.market] || "bg-gray-100"}`}>
+                      {t.market}
+                    </span>
+                  </td>
+                  <td className="py-2 text-gray-500 hidden sm:table-cell">{t.source}</td>
+                  <td className="py-2 text-gray-500 truncate max-w-[200px] hidden md:table-cell">
+                    {t.notes || "—"}
+                  </td>
+                  <td className="py-2 text-center">
+                    <button
+                      onClick={() => toggleEnabled(t.ticker, !t.enabled)}
+                      disabled={saving === t.ticker}
+                      className="p-1 hover:bg-gray-100 rounded"
+                    >
+                      {t.enabled ? (
+                        <ToggleRight size={20} className="text-green-600" />
+                      ) : (
+                        <ToggleLeft size={20} className="text-gray-400" />
+                      )}
+                    </button>
+                  </td>
+                  <td className="py-2 text-right">
+                    <button
+                      onClick={() => deleteTicker(t.ticker)}
+                      disabled={saving === t.ticker}
+                      className="p-1 text-red-500 hover:bg-red-50 rounded"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
