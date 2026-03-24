@@ -126,6 +126,72 @@ const SGX_TICKERS = [
   "GRQ.SI", "BKW.SI", "1F3.SI", "P15.SI", "U09.SI", "A30.SI",
 ];
 
+// Comprehensive HKEX tickers (~150 major stocks)
+const HK_TICKERS = [
+  // ── HSI Components (Blue Chips) ──
+  "0005.HK", "0011.HK", "0016.HK", "0017.HK", "0027.HK", "0066.HK",
+  "0175.HK", "0241.HK", "0267.HK", "0288.HK", "0386.HK", "0388.HK",
+  "0669.HK", "0700.HK", "0762.HK", "0823.HK", "0857.HK", "0883.HK",
+  "0939.HK", "0941.HK", "0960.HK", "0968.HK", "1038.HK", "1044.HK",
+  "1093.HK", "1109.HK", "1177.HK", "1211.HK", "1299.HK", "1398.HK",
+  "1810.HK", "1876.HK", "1928.HK", "1997.HK", "2007.HK", "2018.HK",
+  "2020.HK", "2269.HK", "2313.HK", "2318.HK", "2319.HK", "2331.HK",
+  "2382.HK", "2388.HK", "2628.HK", "2688.HK", "3690.HK", "3968.HK",
+  "3988.HK", "6098.HK", "6862.HK", "9618.HK", "9888.HK", "9988.HK",
+  "9999.HK",
+  
+  // ── Tech Giants ──
+  "0700.HK", "9988.HK", "9618.HK", "3690.HK", "9888.HK", "1810.HK",
+  "2382.HK", "0268.HK", "0772.HK", "0981.HK", "1024.HK", "1347.HK",
+  "2400.HK", "6618.HK", "9698.HK", "9626.HK", "9961.HK", "9999.HK",
+  "0020.HK", "3888.HK", "6060.HK", "1833.HK", "9866.HK", "9868.HK",
+  
+  // ── Banks & Financials ──
+  "0005.HK", "0011.HK", "0388.HK", "0939.HK", "1398.HK", "3988.HK",
+  "3968.HK", "2388.HK", "2628.HK", "1299.HK", "2318.HK", "2601.HK",
+  "0998.HK", "1658.HK", "6881.HK", "1988.HK", "3328.HK", "6060.HK",
+  
+  // ── Property Developers ──
+  "0016.HK", "0017.HK", "0012.HK", "0001.HK", "0083.HK", "0101.HK",
+  "0688.HK", "1109.HK", "0823.HK", "2007.HK", "0683.HK", "0003.HK",
+  "0004.HK", "1113.HK", "0014.HK", "2202.HK", "0881.HK", "3383.HK",
+  "1972.HK", "0960.HK", "2669.HK", "0813.HK", "3900.HK",
+  
+  // ── Consumer & Retail ──
+  "0027.HK", "0291.HK", "0322.HK", "0151.HK", "1044.HK", "2020.HK",
+  "0168.HK", "0220.HK", "2331.HK", "6862.HK", "9633.HK", "1458.HK",
+  "0914.HK", "6969.HK", "2313.HK", "1928.HK", "0992.HK", "0175.HK",
+  
+  // ── Healthcare & Pharma ──
+  "1177.HK", "2269.HK", "1093.HK", "2359.HK", "6160.HK", "1801.HK",
+  "2196.HK", "1066.HK", "0241.HK", "3692.HK", "6127.HK", "9926.HK",
+  "9995.HK", "2186.HK", "1952.HK", "6185.HK",
+  
+  // ── Industrials ──
+  "0669.HK", "0762.HK", "0386.HK", "0857.HK", "0883.HK", "1088.HK",
+  "0267.HK", "0288.HK", "1800.HK", "2600.HK", "0390.HK", "3898.HK",
+  "1818.HK", "0358.HK", "0914.HK", "1071.HK", "0968.HK",
+  
+  // ── EV & Auto ──
+  "1211.HK", "2015.HK", "0175.HK", "2238.HK", "9868.HK", "0489.HK",
+  "1958.HK", "6699.HK", "2333.HK", "0867.HK", "0285.HK", "3808.HK",
+  
+  // ── Telecoms ──
+  "0941.HK", "0728.HK", "0762.HK", "6823.HK",
+  
+  // ── Utilities & Energy ──
+  "0002.HK", "0003.HK", "0006.HK", "0836.HK", "1038.HK", "0384.HK",
+  "0135.HK", "2688.HK", "0270.HK", "1083.HK",
+  
+  // ── REITs ──
+  "0823.HK", "2778.HK", "0435.HK", "0778.HK", "1881.HK", "1426.HK",
+  "0405.HK", "1503.HK", "6823.HK", "0087.HK",
+  
+  // ── Insurance ──
+  "1299.HK", "2318.HK", "2601.HK", "2628.HK", "0966.HK", "1336.HK",
+  "6186.HK", "1339.HK", "2328.HK",
+];
+
 // Fetch tickers from Yahoo Finance screeners
 async function fetchScreenerTickers(maxPerScreen = 100): Promise<Set<string>> {
   const tickers = new Set<string>();
@@ -181,7 +247,7 @@ interface ScanResult {
   tier: string;
   tierColor: string;
   riskTier: string;
-  market: "US" | "SGX";
+  market: "US" | "SGX" | "HK";
   growth: ScoreComponent;
   financial: ScoreComponent;
   insider: ScoreComponent;
@@ -202,6 +268,7 @@ interface ScanSummary {
   avoid: number;
   usCount: number;
   sgxCount: number;
+  hkCount: number;
 }
 
 // ── Rate Limiting ────────────────────────────────────────────────────────────
@@ -623,7 +690,7 @@ function scoreAnalyst(fund: FundamentalsData, chart: ChartData | null): ScoreCom
   return { score: Math.min(score, 10), max: 10, details };
 }
 
-function calculateRisk(chart: ChartData | null, fund: FundamentalsData, market: "US" | "SGX"): RiskAnalysis {
+function calculateRisk(chart: ChartData | null, fund: FundamentalsData, market: "US" | "SGX" | "HK"): RiskAnalysis {
   let penalty = 0;
   const flags: string[] = [];
 
@@ -666,8 +733,8 @@ function classifyStock(totalScore: number): { tier: string; tierColor: string } 
   return { tier: "AVOID", tierColor: "red" };
 }
 
-function getRiskTier(fund: FundamentalsData, market: "US" | "SGX"): string {
-  if (market === "SGX") {
+function getRiskTier(fund: FundamentalsData, market: "US" | "SGX" | "HK"): string {
+  if (market === "SGX" || market === "HK") {
     const mcapM = fund.mcapM || 0;
     const de = fund.debtToEquity || 0;
     if (mcapM < 50 || de > 200) return "TIER 3";
@@ -682,8 +749,10 @@ function getRiskTier(fund: FundamentalsData, market: "US" | "SGX"): string {
   }
 }
 
-function getMarket(ticker: string): "US" | "SGX" {
-  return ticker.endsWith(".SI") ? "SGX" : "US";
+function getMarket(ticker: string): "US" | "SGX" | "HK" {
+  if (ticker.endsWith(".SI")) return "SGX";
+  if (ticker.endsWith(".HK")) return "HK";
+  return "US";
 }
 
 // ── Database ─────────────────────────────────────────────────────────────────
@@ -745,9 +814,17 @@ async function runScanner(): Promise<void> {
     // Use comprehensive SGX list (deduplicated)
     const sgxSet = new Set(SGX_TICKERS);
     sgxSet.forEach(t => tickerSources.set(t, "curated"));
-    console.log(`SGX: ${sgxSet.size} tickers\n`);
+    console.log(`SGX: ${sgxSet.size} tickers`);
   }
-
+  
+  if (marketsToScan.includes("HK")) {
+    // Use comprehensive HKEX list (deduplicated)
+    const hkSet = new Set(HK_TICKERS);
+    hkSet.forEach(t => tickerSources.set(t, "curated"));
+    console.log(`HK: ${hkSet.size} tickers`);
+  }
+  
+  console.log("");
   const allTickers = Array.from(tickerSources.keys());
   console.log(`Markets: ${marketsToScan.join(", ")}`);
   console.log(`Universe: ${allTickers.length} tickers\n`);
@@ -840,6 +917,7 @@ async function runScanner(): Promise<void> {
     avoid: results.filter((r) => r.totalScore < 35).length,
     usCount: results.filter((r) => r.market === "US").length,
     sgxCount: results.filter((r) => r.market === "SGX").length,
+    hkCount: results.filter((r) => r.market === "HK").length,
   };
 
   // Print summary
@@ -847,7 +925,7 @@ async function runScanner(): Promise<void> {
   console.log(" SUMMARY");
   console.log("=".repeat(80));
   console.log(`Scanned: ${summary.scannedCount}/${summary.universeSize}`);
-  console.log(`US: ${summary.usCount} | SGX: ${summary.sgxCount}`);
+  console.log(`US: ${summary.usCount} | SGX: ${summary.sgxCount} | HK: ${summary.hkCount}`);
   console.log(`HIGH CONVICTION: ${summary.highConviction}`);
   console.log(`SPECULATIVE: ${summary.speculative}`);
   console.log(`WATCHLIST: ${summary.watchlist}`);
