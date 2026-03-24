@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Plus, Trash2, Search, Filter, ToggleLeft, ToggleRight } from "lucide-react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { Plus, Trash2, Search, Filter, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight } from "lucide-react";
+
+const ITEMS_PER_PAGE = 50;
 
 interface ScannerTicker {
   id: number;
@@ -31,6 +33,7 @@ export function UniverseManager() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>("");
   const [marketFilter, setMarketFilter] = useState<string>("all");
+  const [page, setPage] = useState(1);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTicker, setNewTicker] = useState({ ticker: "", market: "US", notes: "" });
   const [saving, setSaving] = useState<string | null>(null);
@@ -119,12 +122,26 @@ export function UniverseManager() {
     }
   };
 
-  const filteredTickers = tickers.filter((t) => {
-    const matchesSearch = !filter || 
-      t.ticker.toLowerCase().includes(filter.toLowerCase()) ||
-      t.name?.toLowerCase().includes(filter.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredTickers = useMemo(() => {
+    return tickers.filter((t) => {
+      const matchesSearch = !filter || 
+        t.ticker.toLowerCase().includes(filter.toLowerCase()) ||
+        t.name?.toLowerCase().includes(filter.toLowerCase());
+      return matchesSearch;
+    });
+  }, [tickers, filter]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredTickers.length / ITEMS_PER_PAGE);
+  const paginatedTickers = useMemo(() => {
+    const start = (page - 1) * ITEMS_PER_PAGE;
+    return filteredTickers.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredTickers, page]);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [filter, marketFilter]);
 
   const marketColors: Record<string, string> = {
     US: "bg-blue-100 text-blue-700",
@@ -247,7 +264,7 @@ export function UniverseManager() {
               </tr>
             </thead>
             <tbody>
-              {filteredTickers.map((t) => (
+              {paginatedTickers.map((t) => (
                 <tr key={t.id} className={`border-b hover:bg-gray-50 ${!t.enabled ? "opacity-50" : ""}`}>
                   <td className="py-2 font-mono font-medium">{t.ticker}</td>
                   <td className="py-2">
@@ -285,6 +302,34 @@ export function UniverseManager() {
               ))}
             </tbody>
           </table>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4 pt-4 border-t">
+              <span className="text-sm text-gray-500">
+                Showing {(page - 1) * ITEMS_PER_PAGE + 1}-{Math.min(page * ITEMS_PER_PAGE, filteredTickers.length)} of {filteredTickers.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="p-1.5 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <span className="text-sm px-2">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className="p-1.5 border rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

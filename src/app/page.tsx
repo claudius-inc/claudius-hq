@@ -11,8 +11,8 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-// Revalidate dashboard every 60 seconds
-export const revalidate = 60;
+// On-demand revalidation via /api/projects (revalidatePath on mutations)
+export const revalidate = false;
 
 async function getData() {
   await ensureDB();

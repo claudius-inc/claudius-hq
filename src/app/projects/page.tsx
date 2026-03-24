@@ -10,7 +10,8 @@ export const metadata: Metadata = {
   title: "Projects",
 };
 
-export const revalidate = 60;
+// On-demand revalidation via /api/projects
+export const revalidate = false;
 
 export default async function ProjectsPage() {
   let projects: Project[] = [];

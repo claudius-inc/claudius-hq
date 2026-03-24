@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db, portfolioHoldings } from "@/db";
 import { eq } from "drizzle-orm";
 
@@ -54,6 +55,10 @@ export async function PUT(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    // Invalidate portfolio pages
+    revalidatePath("/portfolio");
+    console.log(`[api/portfolio/holdings/${numericId}] Revalidated /portfolio after updating holding`);
+
     return NextResponse.json({ holding: toSnakeCase(result) });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -83,6 +88,10 @@ export async function DELETE(
     }
 
     await db.delete(portfolioHoldings).where(eq(portfolioHoldings.id, numericId));
+
+    // Invalidate portfolio pages
+    revalidatePath("/portfolio");
+    console.log(`[api/portfolio/holdings/${numericId}] Revalidated /portfolio after deleting holding`);
 
     return NextResponse.json({ ok: true });
   } catch (e) {

@@ -4,7 +4,8 @@ import { desc, eq } from "drizzle-orm";
 import { PageHero } from "@/components/PageHero";
 import { AcpOfferingsManagement } from "@/components/acp/AcpOfferingsManagement";
 
-export const revalidate = 60;
+// On-demand revalidation when offerings change
+export const revalidate = false;
 
 interface OnChainRevenue {
   totalRevenue: number;

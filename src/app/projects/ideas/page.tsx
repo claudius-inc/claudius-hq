@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   title: "Ideas",
 };
 
-export const revalidate = 60;
+// On-demand revalidation via /api/ideas
+export const revalidate = false;
 
 export default async function IdeasPage() {
   await ensureDB();

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db, themes, themeStocks, THEME_STOCK_STATUSES } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -43,6 +44,11 @@ export async function POST(
         notes: notes ?? null,
       })
       .returning();
+
+    // Invalidate theme pages
+    revalidatePath("/markets/themes");
+    revalidatePath(`/markets/themes/${numericId}`);
+    logger.info("api/themes/[id]/stocks", `Revalidated theme pages after adding ${upperTicker}`);
 
     return NextResponse.json({ stock: newStock }, { status: 201 });
   } catch (e) {
@@ -108,6 +114,11 @@ export async function PATCH(
     if (!updated) {
       return NextResponse.json({ error: "Stock not found in theme" }, { status: 404 });
     }
+
+    // Invalidate theme pages
+    revalidatePath("/markets/themes");
+    revalidatePath(`/markets/themes/${numericId}`);
+    logger.info("api/themes/[id]/stocks", `Revalidated theme pages after updating ${upperTicker}`);
 
     return NextResponse.json({ success: true, stock: updated });
   } catch (e) {

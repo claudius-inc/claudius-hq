@@ -4,8 +4,8 @@ import { ResearchPage, Project } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-// Revalidate research list every 5 minutes
-export const revalidate = 300;
+// On-demand revalidation via project API
+export const revalidate = false;
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const { id } = params;

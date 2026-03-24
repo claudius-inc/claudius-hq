@@ -12,7 +12,8 @@ export const metadata: Metadata = {
   title: "Research | Stocks",
 };
 
-export const revalidate = 60;
+// On-demand revalidation via /api/stocks/reports
+export const revalidate = false;
 
 async function getReports(): Promise<StockReport[]> {
   try {

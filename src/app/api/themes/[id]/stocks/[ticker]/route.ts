@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db, themeStocks } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -31,6 +32,11 @@ export async function DELETE(
     await db
       .delete(themeStocks)
       .where(and(eq(themeStocks.themeId, numericId), eq(themeStocks.ticker, upperTicker)));
+
+    // Invalidate theme pages
+    revalidatePath("/markets/themes");
+    revalidatePath(`/markets/themes/${numericId}`);
+    logger.info("api/themes/[id]/stocks/[ticker]", `Revalidated theme pages after removing ${upperTicker}`);
 
     return NextResponse.json({ success: true });
   } catch (e) {

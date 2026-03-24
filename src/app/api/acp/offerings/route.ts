@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
@@ -145,6 +146,7 @@ async function handleBulkSync(body: BulkSyncBody) {
     }
   }
 
+  revalidatePath("/acp");
   return NextResponse.json({ success: true, count: offerings.length });
 }
 
@@ -191,6 +193,7 @@ export async function PATCH(req: NextRequest) {
       .set(updates)
       .where(eq(acpOfferings.name, name));
 
+    revalidatePath("/acp");
     return NextResponse.json({ success: true, name, updated: Object.keys(updates) });
   } catch (error) {
     logger.error("api/acp/offerings", "Error updating offering", { error });
@@ -289,6 +292,7 @@ async function handleCreateOffering(body: CreateOfferingBody) {
 
       // Log decision
 
+      revalidatePath("/acp");
       return NextResponse.json({
         success: true,
         id: offeringId,
@@ -299,6 +303,7 @@ async function handleCreateOffering(body: CreateOfferingBody) {
     } catch (err) {
       const error = err as { message?: string };
       logger.error("api/acp/offerings", `Auto-publish failed: ${error.message || err}`);
+      revalidatePath("/acp");
       return NextResponse.json({
         success: true,
         id: offeringId,
@@ -310,6 +315,7 @@ async function handleCreateOffering(body: CreateOfferingBody) {
     }
   }
 
+  revalidatePath("/acp");
   return NextResponse.json({
     success: true,
     id: offeringId,

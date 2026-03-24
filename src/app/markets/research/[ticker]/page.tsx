@@ -8,8 +8,8 @@ import { ReportActions } from "@/components/ReportActions";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { AlertTriangle } from "lucide-react";
 
-// Cache stock reports for 1 hour - they don't change once generated
-export const revalidate = 60;
+// On-demand revalidation via /api/stocks/reports - reports are static once generated
+export const revalidate = false;
 
 export async function generateMetadata({
   params,

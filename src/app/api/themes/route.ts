@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db, themes, themeStocks } from "@/db";
 import { desc } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
@@ -228,6 +229,10 @@ export async function POST(request: NextRequest) {
         description: description?.trim() || "",
       })
       .returning();
+
+    // Invalidate theme list pages
+    revalidatePath("/markets/themes");
+    logger.info("api/themes", "Revalidated /markets/themes after theme creation");
 
     return NextResponse.json({ theme: newTheme }, { status: 201 });
   } catch (e) {

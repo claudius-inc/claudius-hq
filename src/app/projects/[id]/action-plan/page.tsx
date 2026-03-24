@@ -5,7 +5,8 @@ import { ActionPlanCard } from "@/components/ActionPlanCard";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-export const revalidate = 60;
+// On-demand revalidation via /api/projects
+export const revalidate = false;
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const { id } = params;

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { db, portfolioHoldings } from "@/db";
 import { eq, desc } from "drizzle-orm";
 
@@ -68,6 +69,10 @@ export async function POST(req: NextRequest) {
         shares: shares ?? null,
       })
       .returning();
+
+    // Invalidate portfolio pages
+    revalidatePath("/portfolio");
+    console.log("[api/portfolio/holdings] Revalidated /portfolio after adding holding");
 
     return NextResponse.json({ holding: toSnakeCase(newHolding) }, { status: 201 });
   } catch (e) {

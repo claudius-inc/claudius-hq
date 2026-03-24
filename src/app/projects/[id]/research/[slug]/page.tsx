@@ -5,8 +5,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { marked } from "marked";
 
-// Revalidate research pages every 5 minutes
-export const revalidate = 300;
+// On-demand revalidation via project API
+export const revalidate = false;
 
 export async function generateMetadata({ params }: { params: { id: string; slug: string } }): Promise<Metadata> {
   const { id, slug } = params;
