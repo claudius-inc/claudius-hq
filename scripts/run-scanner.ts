@@ -542,20 +542,21 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
     const incomeQuarterly = q.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
     const balanceHistory = q.balanceSheetHistory?.balanceSheetStatements || [];
 
-    // Revenue growth calculation (basic QoQ from earnings)
+    // YoY Revenue growth from Yahoo Finance financialData (primary source)
     let revenueGrowth: number | null = null;
+    if (fin.revenueGrowth?.raw != null) {
+      revenueGrowth = fin.revenueGrowth.raw * 100; // Convert ratio to percentage
+    }
+    
+    // QoQ Revenue growth from earnings quarterly data
     let revenueGrowthQoQ: number | null = null;
     const quarterly = earnings.financialsChart?.quarterly;
     if (quarterly && quarterly.length >= 2) {
       const recent = quarterly[quarterly.length - 1]?.revenue?.raw;
       const prev = quarterly[quarterly.length - 2]?.revenue?.raw;
       if (recent && prev && prev > 0) {
-        revenueGrowth = ((recent - prev) / prev) * 100;
-        revenueGrowthQoQ = revenueGrowth;
+        revenueGrowthQoQ = ((recent - prev) / prev) * 100;
       }
-    }
-    if (revenueGrowth === null && fin.revenueGrowth?.raw != null) {
-      revenueGrowth = fin.revenueGrowth.raw * 100;
     }
 
     // 3-year revenue CAGR from annual income statements
