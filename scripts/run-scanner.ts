@@ -24,54 +24,139 @@ const yahooFinance = new YahooFinance();
 const RATE_LIMIT_MS = 400; // 400ms between Yahoo Finance calls
 let lastRequestTime = 0;
 
-// ── Stock Universe ───────────────────────────────────────────────────────────
+// ── Dynamic Stock Universe ───────────────────────────────────────────────────
 
-const US_TICKERS = [
+// Screeners to fetch US stocks from (dynamically discovers opportunities)
+const US_SCREENERS = [
+  "undervalued_large_caps",
+  "undervalued_growth_stocks",
+  "growth_technology_stocks",
+  "aggressive_small_caps",
+  "small_cap_gainers",
+  "day_gainers",
+  "day_losers",
+  "most_actives",
+];
+
+// Curated US tickers (always include these high-conviction names)
+const US_CURATED = [
   // AI Infrastructure
   "NBIS", "CRWV", "APLD", "SMCI", "VRT", "ANET",
-  // AI Software/Platform
+  // AI Software/Platform  
   "PLTR", "SNOW", "DDOG", "MDB", "NET", "CFLT",
   // Cybersecurity
   "CRWD", "PANW", "ZS", "S",
   // Fintech / Payments
-  "AFRM", "SOFI", "DLO", "TOST",
+  "AFRM", "SOFI", "DLO", "TOST", "SQ", "PYPL",
   // E-commerce / Consumer
-  "SHOP", "MELI", "SE", "DUOL",
+  "SHOP", "MELI", "SE", "DUOL", "AMZN",
   // Healthcare Tech
   "HIMS", "DOCS", "CERT",
   // Clean Energy / EV
-  "ENPH", "SEDG", "RIVN", "LCID",
+  "ENPH", "SEDG", "RIVN", "LCID", "TSLA",
   // Space / Defense Tech
   "RKLB", "PL", "ASTS",
+  // Mega caps (benchmarks)
+  "AAPL", "MSFT", "GOOGL", "META", "NVDA", "AMD",
   // Other High Growth
   "CELH", "AXON", "TTD", "BILL",
 ];
 
+// Comprehensive SGX tickers (~200 main listed stocks)
 const SGX_TICKERS = [
-  // STI Components
-  "D05.SI", "O39.SI", "U11.SI", "Z74.SI", "CC3.SI", "C6L.SI",
-  "S58.SI", "C09.SI", "U14.SI", "C31.SI", "S63.SI", "V03.SI",
-  "BS6.SI", "S51.SI", "G13.SI", "BN4.SI", "Y92.SI", "F34.SI",
-  "S68.SI", "H78.SI", "U96.SI", "9CI.SI", "A17U.SI", "M44U.SI",
-  "N2IU.SI", "ME8U.SI", "BUOU.SI", "J36.SI", "C38U.SI", "J69U.SI",
-  "T39.SI",
-  // Mid caps
-  "AWX.SI", "BN2.SI", "B69.SI", "5DD.SI", "F03.SI", "OV8.SI",
-  "1D0.SI", "BDR.SI", "Q0F.SI", "ER0.SI", "WJP.SI", "AIY.SI",
-  "CLW.SI", "544.SI", "RE4.SI", "NO4.SI", "F9D.SI", "S56.SI",
-  "BTP.SI", "E3B.SI", "5CF.SI", "S41.SI", "AGS.SI", "AWG.SI",
-  "BQF.SI", "5HG.SI", "S85.SI", "5TP.SI", "AZR.SI", "5OI.SI",
-  "U09.SI", "A30.SI", "P8Z.SI", "1F3.SI", "P15.SI", "BTOU.SI",
-  "AJBU.SI", "T82U.SI", "SK6U.SI", "OXMU.SI", "AU8U.SI",
-  "CRPU.SI", "CY6U.SI", "JYEU.SI", "HMN.SI", "BEW.SI", "MZH.SI",
-  "EB5.SI", "GRQ.SI", "BKW.SI", "A7RU.SI", "S59.SI", "C2PU.SI",
-  "J91U.SI", "DHLU.SI", "S71.SI", "BDX.SI", "RF7.SI", "5JS.SI",
-  "NR7.SI", "CFA.SI", "S20.SI", "N03.SI", "5G4.SI", "BLU.SI",
-  "A04.SI", "U06.SI", "Z59.SI", "U10.SI", "T13.SI", "5AI.SI",
-  "CHJ.SI", "1A1.SI", "F17.SI", "BHK.SI", "T14.SI", "TQ5.SI",
-  "5G1.SI", "H30.SI", "564.SI", "C8R.SI", "5I4.SI", "YF8.SI",
-  "J85.SI", "OYY.SI", "CWBU.SI", "Z25.SI", "C61U.SI", "40T.SI",
+  // ── STI Components (30) ──
+  "D05.SI", "O39.SI", "U11.SI", "Z74.SI", "C6L.SI", "C09.SI",
+  "S58.SI", "U14.SI", "S63.SI", "V03.SI", "BS6.SI", "G13.SI",
+  "BN4.SI", "Y92.SI", "F34.SI", "S68.SI", "H78.SI", "U96.SI",
+  "9CI.SI", "A17U.SI", "M44U.SI", "N2IU.SI", "ME8U.SI", "BUOU.SI",
+  "J36.SI", "C38U.SI", "J69U.SI", "T39.SI", "CC3.SI", "C52.SI",
+  
+  // ── Banks & Financials ──
+  "D05.SI", "O39.SI", "U11.SI", "S63.SI", "BN4.SI", "S56.SI",
+  "H02.SI", "E5H.SI", "BHG.SI", "OV8.SI", "BRS.SI",
+  
+  // ── REITs (comprehensive) ──
+  "A17U.SI", "M44U.SI", "N2IU.SI", "ME8U.SI", "BUOU.SI", "C38U.SI",
+  "J69U.SI", "T82U.SI", "SK6U.SI", "OXMU.SI", "AU8U.SI", "BTOU.SI",
+  "AJBU.SI", "CRPU.SI", "CY6U.SI", "JYEU.SI", "A7RU.SI", "C2PU.SI",
+  "J91U.SI", "DHLU.SI", "K71U.SI", "UD1U.SI", "MXNU.SI", "HMN.SI",
+  "CWBU.SI", "C61U.SI", "Q1P.SI", "TS0U.SI", "RW0U.SI", "CLAS.SI",
+  
+  // ── Property Developers ──
+  "C09.SI", "U14.SI", "H78.SI", "F25.SI", "P40U.SI", "S59.SI",
+  "OV8.SI", "A26.SI", "L38.SI", "E28.SI", "H13.SI", "NO4.SI",
+  "U06.SI", "H15.SI", "N03.SI", "K03.SI", "P9D.SI", "N01.SI",
+  
+  // ── Tech & Semiconductors ──
+  "BN2.SI", "AWX.SI", "V03.SI", "S85.SI", "1D0.SI", "BDR.SI",
+  "EB5.SI", "5GD.SI", "AZR.SI", "Y35.SI", "RF7.SI", "5GI.SI",
+  "BHK.SI", "5HG.SI", "1A1.SI", "L02.SI", "T14.SI", "5CF.SI",
+  
+  // ── Consumer & Retail ──
+  "F34.SI", "Y92.SI", "G13.SI", "BQF.SI", "5CF.SI", "E3B.SI",
+  "5DD.SI", "OYY.SI", "AGS.SI", "5GF.SI", "502.SI", "A04.SI",
+  "T39.SI", "5OI.SI", "EB5.SI", "42S.SI", "40T.SI", "1A4.SI",
+  
+  // ── Industrials & Manufacturing ──
+  "S68.SI", "U96.SI", "BN4.SI", "S51.SI", "P8Z.SI", "544.SI",
+  "564.SI", "S08.SI", "NR7.SI", "CFA.SI", "J85.SI", "5JS.SI",
+  "T15.SI", "5AI.SI", "CHJ.SI", "F17.SI", "TQ5.SI", "5G1.SI",
+  "H30.SI", "C8R.SI", "5I4.SI", "YF8.SI", "Z25.SI",
+  
+  // ── Offshore & Marine ──
+  "BS6.SI", "S51.SI", "BN2.SI", "S85.SI", "M05.SI", "5G4.SI",
+  "BLU.SI", "5TP.SI", "AWG.SI", "O2I.SI",
+  
+  // ── Transport & Logistics ──
+  "C6L.SI", "S58.SI", "5OQ.SI", "5I4.SI", "S59.SI", "BTP.SI",
+  "5LY.SI", "ER0.SI", "Q0F.SI", "WJP.SI", "D01.SI",
+  
+  // ── Healthcare ──
+  "Q0F.SI", "40T.SI", "5OT.SI", "1A0.SI", "BSL.SI", "MZH.SI",
+  "U10.SI", "T13.SI", "Z59.SI", "S20.SI",
+  
+  // ── Telecoms & Media ──
+  "Z74.SI", "CC3.SI", "S85.SI", "BDX.SI", "S71.SI",
+  
+  // ── Energy & Utilities ──
+  "BN2.SI", "H02.SI", "P8Z.SI", "NC2.SI", "5TP.SI",
+  
+  // ── F&B ──
+  "F34.SI", "5CF.SI", "RE4.SI", "CLW.SI", "BEW.SI", "AIY.SI",
+  "GRQ.SI", "BKW.SI", "1F3.SI", "P15.SI", "U09.SI", "A30.SI",
 ];
+
+// Fetch tickers from Yahoo Finance screeners
+async function fetchScreenerTickers(maxPerScreen = 100): Promise<Set<string>> {
+  const tickers = new Set<string>();
+  
+  console.log("Fetching US stocks from screeners...");
+  
+  for (const screenId of US_SCREENERS) {
+    try {
+      const result = await (yahooFinance.screener as any)({ scrIds: screenId, count: maxPerScreen });
+      const symbols = (result.quotes as Array<{ symbol: string }>)
+        .map((q: { symbol: string }) => q.symbol)
+        .filter((s: string) => !s.includes(".") || s.endsWith(".TO")); // US + Canada, skip non-US
+      
+      symbols.forEach((s: string) => tickers.add(s));
+      console.log(`  ${screenId}: +${symbols.length} (total: ${tickers.size})`);
+      await delay(500); // Rate limit between screener calls
+    } catch (e: any) {
+      console.log(`  ${screenId}: error - ${e.message?.slice(0, 50)}`);
+    }
+  }
+  
+  // Add curated tickers
+  US_CURATED.forEach(t => tickers.add(t));
+  console.log(`  + ${US_CURATED.length} curated → ${tickers.size} total US\n`);
+  
+  return tickers;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -128,10 +213,6 @@ async function rateLimit(): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_MS - elapsed));
   }
   lastRequestTime = Date.now();
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // ── Yahoo Finance Fetchers ───────────────────────────────────────────────────
@@ -649,16 +730,26 @@ async function runScanner(): Promise<void> {
   const marketsEnv = process.env.SCAN_MARKETS || "US,SGX";
   const marketsToScan = marketsEnv.split(",").map((m) => m.trim().toUpperCase());
   
-  // Build ticker universe
-  const allTickers: string[] = [];
+  // Build ticker universe (dynamic for US, static for SGX)
+  const tickerSources = new Map<string, "curated" | "discovered">();
+  
   if (marketsToScan.includes("US")) {
-    allTickers.push(...US_TICKERS);
+    // Dynamically fetch from screeners + add curated
+    const usTickers = await fetchScreenerTickers(100);
+    usTickers.forEach(t => {
+      tickerSources.set(t, US_CURATED.includes(t) ? "curated" : "discovered");
+    });
   }
+  
   if (marketsToScan.includes("SGX")) {
-    allTickers.push(...SGX_TICKERS);
+    // Use comprehensive SGX list (deduplicated)
+    const sgxSet = new Set(SGX_TICKERS);
+    sgxSet.forEach(t => tickerSources.set(t, "curated"));
+    console.log(`SGX: ${sgxSet.size} tickers\n`);
   }
 
-  console.log(`\nMarkets: ${marketsToScan.join(", ")}`);
+  const allTickers = Array.from(tickerSources.keys());
+  console.log(`Markets: ${marketsToScan.join(", ")}`);
   console.log(`Universe: ${allTickers.length} tickers\n`);
 
   const results: ScanResult[] = [];
@@ -720,7 +811,7 @@ async function runScanner(): Promise<void> {
         technical,
         analyst,
         risk,
-        source: "curated",
+        source: tickerSources.get(ticker) || "discovered",
         revGrowth: fund.revenueGrowthRaw,
         grossMargin: fund.grossMargin,
       });
