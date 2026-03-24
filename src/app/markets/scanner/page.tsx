@@ -110,7 +110,7 @@ export default async function ScannersPage() {
       />
 
       {/* Refresh Controls */}
-      <div className="flex justify-end mb-4 px-4">
+      <div className="flex justify-end mb-4">
         <RefreshButton />
       </div>
 
