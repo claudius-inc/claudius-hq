@@ -45,20 +45,18 @@ function formatNumber(value: number | null | undefined, decimals: number = 2): s
   return value.toFixed(decimals);
 }
 
-function ScoreBar({ score, max, label }: { score: number; max: number; label: string }) {
+function ScoreBar({ score, max, label, color }: { score: number; max: number; label: string; color: string }) {
   const pct = Math.round((score / max) * 100);
   return (
-    <div className="flex items-center gap-2 text-xs">
-      <span className="w-20 text-gray-500">{label}</span>
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+    <div className="flex items-center gap-1.5 text-xs min-w-0">
+      <span className="text-gray-600 font-medium shrink-0">{label}</span>
+      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden min-w-[40px]">
         <div
-          className={`h-full rounded-full ${
-            pct >= 70 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-500" : "bg-gray-400"
-          }`}
+          className={`h-full rounded-full ${color}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="w-10 text-right text-gray-600">{score}/{max}</span>
+      <span className="text-gray-700 font-medium shrink-0">{score}/{max}</span>
     </div>
   );
 }
@@ -205,33 +203,29 @@ function StockRow({ stock, isExpanded, onToggle }: {
             </div>
           )}
 
-          {/* Original scoring breakdown */}
-          <div className="space-y-1.5">
-            <h4 className="text-xs font-medium text-gray-700">Base Score Breakdown</h4>
-            <ScoreBar score={stock.growth.score} max={stock.growth.max} label="Growth" />
-            <ScoreBar score={stock.financial.score} max={stock.financial.max} label="Financial" />
-            <ScoreBar score={stock.insider.score} max={stock.insider.max} label="Insider" />
-            <ScoreBar score={stock.technical.score} max={stock.technical.max} label="Technical" />
-            <ScoreBar score={stock.analyst.score} max={stock.analyst.max} label="Analyst" />
+          {/* Score breakdown - 3 categories only */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-medium text-gray-700">Score Breakdown</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <ScoreBar score={stock.growth.score} max={50} label="Growth" color="bg-emerald-500" />
+              <ScoreBar score={stock.financial.score} max={30} label="Financial" color="bg-blue-500" />
+              <ScoreBar score={stock.technical.score} max={20} label="Technical" color="bg-violet-500" />
+            </div>
           </div>
 
-          {/* Score details */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          {/* Score details - 3 categories */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
             <div>
-              <span className="text-gray-500">Growth Details:</span>
+              <span className="text-gray-500">Growth:</span>
               <p className="text-gray-700">{stock.growth.details.join(", ") || "N/A"}</p>
             </div>
             <div>
-              <span className="text-gray-500">Financial Details:</span>
+              <span className="text-gray-500">Financial:</span>
               <p className="text-gray-700">{stock.financial.details.join(", ") || "N/A"}</p>
             </div>
             <div>
               <span className="text-gray-500">Technical:</span>
               <p className="text-gray-700">{stock.technical.details.join(", ") || "N/A"}</p>
-            </div>
-            <div>
-              <span className="text-gray-500">Analyst Sentiment:</span>
-              <p className="text-gray-700">{stock.analyst.details.join(", ") || "N/A"}</p>
             </div>
           </div>
 

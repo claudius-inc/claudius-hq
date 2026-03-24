@@ -713,6 +713,7 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
 function scoreGrowth(fund: FundamentalsData): ScoreComponent {
   let score = 0;
   const details: string[] = [];
+  let usedYoYFallback = false;
 
   // Revenue Growth 3Y: 12 pts (>30% = 12, >20% = 9, >10% = 6, >0% = 3)
   if (fund.revenueGrowth3Y != null) {
@@ -730,6 +731,31 @@ function scoreGrowth(fund: FundamentalsData): ScoreComponent {
       details.push(`Rev3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
     } else {
       details.push(`Rev3Y ${fund.revenueGrowth3Y.toFixed(0)}%`);
+    }
+  } else if (fund.revenueGrowth != null) {
+    // FALLBACK: Use YoY revenue growth from Yahoo Finance when 3Y unavailable
+    // fund.revenueGrowth is already in percentage format (e.g., 500.8 = 500.8%)
+    usedYoYFallback = true;
+    if (fund.revenueGrowth > 100) {
+      score += 12;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 50) {
+      score += 10;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 30) {
+      score += 8;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 20) {
+      score += 6;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 10) {
+      score += 4;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 0) {
+      score += 2;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else {
+      details.push(`YoY ${fund.revenueGrowth.toFixed(0)}%`);
     }
   }
 
@@ -750,6 +776,19 @@ function scoreGrowth(fund: FundamentalsData): ScoreComponent {
     } else {
       details.push(`QoQ ${fund.revenueGrowthQoQ.toFixed(0)}%`);
     }
+  } else if (usedYoYFallback && fund.revenueGrowth != null && fund.revenueGrowth > 30) {
+    // FALLBACK: Estimate QoQ from strong YoY when QoQ unavailable
+    const impliedQoQ = fund.revenueGrowth / 4;
+    if (impliedQoQ > 15) {
+      score += 6; // Reduced credit for estimate
+      details.push(`~QoQ+${impliedQoQ.toFixed(0)}%`);
+    } else if (impliedQoQ > 10) {
+      score += 4;
+      details.push(`~QoQ+${impliedQoQ.toFixed(0)}%`);
+    } else if (impliedQoQ > 5) {
+      score += 2;
+      details.push(`~QoQ+${impliedQoQ.toFixed(0)}%`);
+    }
   }
 
   // Revenue Acceleration: 15 pts (current YoY > prior YoY = 15, same = 7, decelerating = 0)
@@ -764,9 +803,15 @@ function scoreGrowth(fund: FundamentalsData): ScoreComponent {
     } else {
       details.push("Rev decelerating");
     }
+  } else if (usedYoYFallback && fund.revenueGrowth != null && fund.revenueGrowth > 50) {
+    // FALLBACK: Give partial credit for exceptional YoY growth (assumes acceleration)
+    score += 8;
+    details.push("Hypergrowth");
   }
 
-  // Earnings Acceleration: 7 pts (forward PE < trailing PE * 0.85 = 7, < 0.95 = 4)
+  // Earnings Acceleration: 7 pts
+  // For profitable companies: forward PE < trailing PE
+  // For unprofitable companies: use gross margin + revenue growth as proxy
   if (fund.forwardPE && fund.pe && fund.pe > 0 && fund.forwardPE > 0) {
     const ratio = fund.forwardPE / fund.pe;
     if (ratio < 0.85) {
@@ -776,9 +821,21 @@ function scoreGrowth(fund: FundamentalsData): ScoreComponent {
       score += 4;
       details.push("Earnings growing");
     }
+  } else if (fund.pe == null || fund.pe <= 0) {
+    // FALLBACK: Unprofitable company - use gross margin + revenue growth as proxy
+    const gm = fund.grossMargin ?? 0;
+    const revGrowth = fund.revenueGrowth ?? 0;
+    if (gm >= 0.60 && revGrowth >= 50) {
+      score += 5;
+      details.push("Pre-profit hypergrowth");
+    } else if (gm >= 0.40 && revGrowth >= 30) {
+      score += 3;
+      details.push("Pre-profit growth");
+    }
   }
 
   // Gross Margin Trend: 6 pts (improving = 6, stable = 3, declining = 0)
+  // Also give credit for high absolute gross margin when trend unavailable
   if (fund.grossMargin != null && fund.grossMarginPrior != null) {
     const diff = fund.grossMargin - fund.grossMarginPrior;
     if (diff > 0.01) { // Improving by >1%
@@ -791,8 +848,19 @@ function scoreGrowth(fund: FundamentalsData): ScoreComponent {
       details.push(`GM↓ ${(fund.grossMargin * 100).toFixed(0)}%`);
     }
   } else if (fund.grossMargin != null) {
-    // No prior data, give partial credit for having margin data
-    details.push(`GM ${(fund.grossMargin * 100).toFixed(0)}%`);
+    // FALLBACK: Score based on absolute gross margin level
+    if (fund.grossMargin >= 0.70) {
+      score += 6;
+      details.push(`GM ${(fund.grossMargin * 100).toFixed(0)}%`);
+    } else if (fund.grossMargin >= 0.50) {
+      score += 4;
+      details.push(`GM ${(fund.grossMargin * 100).toFixed(0)}%`);
+    } else if (fund.grossMargin >= 0.35) {
+      score += 2;
+      details.push(`GM ${(fund.grossMargin * 100).toFixed(0)}%`);
+    } else {
+      details.push(`GM ${(fund.grossMargin * 100).toFixed(0)}%`);
+    }
   }
 
   return { score: Math.min(score, 50), max: 50, details };
