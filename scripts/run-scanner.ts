@@ -396,6 +396,9 @@ interface ChartData {
   sma50: number | null;
   sma200: number | null;
   position52w: number;
+  // New momentum fields
+  momentum12m1m: number | null; // 12-1 month momentum (excluding last month)
+  volatility90d: number | null; // 90-day volatility (std dev of daily returns)
 }
 
 async function getChartData(ticker: string): Promise<ChartData | null> {
@@ -434,7 +437,44 @@ async function getChartData(ticker: string): Promise<ChartData | null> {
       ? ((price - low52) / (high52 - low52)) * 100 
       : 50;
 
-    return { price, high52, low52, sma50, sma200, position52w };
+    // Calculate 12-1 month momentum (price change from 12 months ago to 1 month ago)
+    // Approximately: 252 trading days/year, 21 trading days/month
+    let momentum12m1m: number | null = null;
+    if (closes.length >= 252) {
+      const price12mAgo = closes[closes.length - 252];
+      const price1mAgo = closes[closes.length - 21] || closes[closes.length - 1];
+      if (price12mAgo > 0) {
+        momentum12m1m = ((price1mAgo - price12mAgo) / price12mAgo) * 100;
+      }
+    } else if (closes.length >= 60) {
+      // Fallback for shorter history: use available data minus last month
+      const priceStart = closes[0];
+      const priceEnd = closes[Math.max(0, closes.length - 21)];
+      if (priceStart > 0) {
+        momentum12m1m = ((priceEnd - priceStart) / priceStart) * 100;
+      }
+    }
+
+    // Calculate 90-day volatility (annualized std dev of daily returns)
+    let volatility90d: number | null = null;
+    const last90 = closes.slice(-90);
+    if (last90.length >= 60) {
+      const dailyReturns: number[] = [];
+      for (let i = 1; i < last90.length; i++) {
+        if (last90[i - 1] > 0) {
+          dailyReturns.push((last90[i] - last90[i - 1]) / last90[i - 1]);
+        }
+      }
+      if (dailyReturns.length >= 30) {
+        const mean = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
+        const variance = dailyReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / dailyReturns.length;
+        const dailyStdDev = Math.sqrt(variance);
+        // Annualize: multiply by sqrt(252)
+        volatility90d = dailyStdDev * Math.sqrt(252) * 100;
+      }
+    }
+
+    return { price, high52, low52, sma50, sma200, position52w, momentum12m1m, volatility90d };
   } catch (error) {
     console.error(`[Chart] ${ticker}: failed -`, error);
     return null;
@@ -449,11 +489,18 @@ interface FundamentalsData {
   forwardPE: number | null;
   pb: number | null;
   roe: number | null;
+  roic: number | null; // Return on Invested Capital
   revenueGrowth: number | null;
   revenueGrowthRaw: number | null;
+  revenueGrowth3Y: number | null; // 3-year revenue CAGR
+  revenueGrowthQoQ: number | null; // Quarter-over-quarter revenue growth
+  revenueGrowthYoYCurrent: number | null; // Current YoY growth
+  revenueGrowthYoYPrior: number | null; // Prior period YoY growth
   grossMargin: number | null;
+  grossMarginPrior: number | null; // For trend analysis
   profitMargin: number | null;
   freeCashflow: number | null;
+  priceToFCF: number | null; // P/FCF ratio
   debtToEquity: number | null;
   divYield: number | null;
   targetPrice: number | null;
@@ -486,6 +533,9 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
         "majorHoldersBreakdown",
         "insiderTransactions",
         "recommendationTrend",
+        "incomeStatementHistory",
+        "incomeStatementHistoryQuarterly",
+        "balanceSheetHistory",
       ],
     });
 
@@ -501,19 +551,98 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
     const holders = q.majorHoldersBreakdown || {};
     const insiderTx = q.insiderTransactions?.transactions || [];
     const recoTrend = q.recommendationTrend?.trend || [];
+    const incomeHistory = q.incomeStatementHistory?.incomeStatementHistory || [];
+    const incomeQuarterly = q.incomeStatementHistoryQuarterly?.incomeStatementHistory || [];
+    const balanceHistory = q.balanceSheetHistory?.balanceSheetStatements || [];
 
-    // Revenue growth calculation
+    // Revenue growth calculation (basic QoQ from earnings)
     let revenueGrowth: number | null = null;
+    let revenueGrowthQoQ: number | null = null;
     const quarterly = earnings.financialsChart?.quarterly;
     if (quarterly && quarterly.length >= 2) {
       const recent = quarterly[quarterly.length - 1]?.revenue?.raw;
       const prev = quarterly[quarterly.length - 2]?.revenue?.raw;
       if (recent && prev && prev > 0) {
         revenueGrowth = ((recent - prev) / prev) * 100;
+        revenueGrowthQoQ = revenueGrowth;
       }
     }
     if (revenueGrowth === null && fin.revenueGrowth?.raw != null) {
       revenueGrowth = fin.revenueGrowth.raw * 100;
+    }
+
+    // 3-year revenue CAGR from annual income statements
+    let revenueGrowth3Y: number | null = null;
+    if (incomeHistory.length >= 4) {
+      const recentRev = incomeHistory[0]?.totalRevenue?.raw;
+      const oldRev = incomeHistory[3]?.totalRevenue?.raw; // 3 years ago
+      if (recentRev && oldRev && oldRev > 0) {
+        // CAGR formula: (end/start)^(1/n) - 1
+        revenueGrowth3Y = (Math.pow(recentRev / oldRev, 1/3) - 1) * 100;
+      }
+    }
+
+    // YoY revenue growth (current vs prior year) from quarterly data
+    let revenueGrowthYoYCurrent: number | null = null;
+    let revenueGrowthYoYPrior: number | null = null;
+    if (incomeQuarterly.length >= 5) {
+      // Current quarter vs same quarter last year
+      const currentQ = incomeQuarterly[0]?.totalRevenue?.raw;
+      const sameQLY = incomeQuarterly[4]?.totalRevenue?.raw;
+      if (currentQ && sameQLY && sameQLY > 0) {
+        revenueGrowthYoYCurrent = ((currentQ - sameQLY) / sameQLY) * 100;
+      }
+      // Prior quarter vs same quarter 2 years ago (for acceleration)
+      if (incomeQuarterly.length >= 6) {
+        const priorQ = incomeQuarterly[1]?.totalRevenue?.raw;
+        const priorQLY = incomeQuarterly[5]?.totalRevenue?.raw;
+        if (priorQ && priorQLY && priorQLY > 0) {
+          revenueGrowthYoYPrior = ((priorQ - priorQLY) / priorQLY) * 100;
+        }
+      }
+    }
+
+    // Gross margin and trend
+    let grossMargin: number | null = fin.grossMargins ?? null;
+    let grossMarginPrior: number | null = null;
+    if (incomeQuarterly.length >= 2) {
+      const gp0 = incomeQuarterly[0]?.grossProfit?.raw;
+      const rev0 = incomeQuarterly[0]?.totalRevenue?.raw;
+      const gp1 = incomeQuarterly[1]?.grossProfit?.raw;
+      const rev1 = incomeQuarterly[1]?.totalRevenue?.raw;
+      if (gp0 && rev0 && rev0 > 0) {
+        grossMargin = gp0 / rev0;
+      }
+      if (gp1 && rev1 && rev1 > 0) {
+        grossMarginPrior = gp1 / rev1;
+      }
+    }
+
+    // ROIC calculation: NOPAT / Invested Capital
+    // NOPAT ≈ Operating Income * (1 - tax rate), Invested Capital ≈ Total Equity + Total Debt - Cash
+    let roic: number | null = null;
+    if (incomeHistory.length > 0 && balanceHistory.length > 0) {
+      const opIncome = incomeHistory[0]?.operatingIncome?.raw;
+      const taxRate = incomeHistory[0]?.incomeTaxExpense?.raw && incomeHistory[0]?.incomeBeforeTax?.raw
+        ? incomeHistory[0].incomeTaxExpense.raw / incomeHistory[0].incomeBeforeTax.raw
+        : 0.25; // Default 25% tax rate
+      const totalEquity = balanceHistory[0]?.totalStockholderEquity?.raw || 0;
+      const totalDebt = balanceHistory[0]?.longTermDebt?.raw || 0;
+      const cash = balanceHistory[0]?.cash?.raw || 0;
+      const investedCapital = totalEquity + totalDebt - cash;
+      
+      if (opIncome && investedCapital > 0) {
+        const nopat = opIncome * (1 - Math.max(0, Math.min(taxRate, 0.5)));
+        roic = (nopat / investedCapital) * 100;
+      }
+    }
+
+    // P/FCF calculation
+    let priceToFCF: number | null = null;
+    const marketCap = price.marketCap || 0;
+    const fcf = fin.freeCashflow;
+    if (marketCap > 0 && fcf && fcf > 0) {
+      priceToFCF = marketCap / fcf;
     }
 
     // Insider activity (last 6 months)
@@ -544,11 +673,18 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
       forwardPE: summary.forwardPE ?? stats.forwardPE ?? null,
       pb: price.priceToBook ?? stats.priceToBook ?? null,
       roe: fin.returnOnEquity ? fin.returnOnEquity * 100 : null,
+      roic,
       revenueGrowth,
       revenueGrowthRaw: fin.revenueGrowth ?? null,
-      grossMargin: fin.grossMargins ?? null,
+      revenueGrowth3Y,
+      revenueGrowthQoQ,
+      revenueGrowthYoYCurrent,
+      revenueGrowthYoYPrior,
+      grossMargin,
+      grossMarginPrior,
       profitMargin: fin.profitMargins ? fin.profitMargins * 100 : null,
       freeCashflow: fin.freeCashflow ?? null,
+      priceToFCF,
       debtToEquity: fin.debtToEquity ?? null,
       divYield: summary.dividendYield ? summary.dividendYield * 100 : null,
       targetPrice: fin.targetMeanPrice ?? null,
@@ -578,180 +714,212 @@ function scoreGrowth(fund: FundamentalsData): ScoreComponent {
   let score = 0;
   const details: string[] = [];
 
-  // ROE (0-15 pts)
-  if (fund.roe != null) {
-    if (fund.roe > 25) {
-      score += 15;
-      details.push(`ROE ${fund.roe.toFixed(0)}%`);
-    } else if (fund.roe > 15) {
-      score += 10;
-      details.push(`ROE ${fund.roe.toFixed(0)}%`);
-    } else if (fund.roe > 10) {
-      score += 5;
-      details.push(`ROE ${fund.roe.toFixed(0)}%`);
-    } else {
-      details.push(`ROE ${fund.roe.toFixed(0)}%`);
-    }
-  }
-
-  // Revenue growth (0-10 pts)
-  if (fund.revenueGrowth != null) {
-    if (fund.revenueGrowth > 20) {
-      score += 10;
-      details.push(`Rev+${fund.revenueGrowth.toFixed(0)}%`);
-    } else if (fund.revenueGrowth > 10) {
-      score += 5;
-      details.push(`Rev+${fund.revenueGrowth.toFixed(0)}%`);
-    } else if (fund.revenueGrowth > 0) {
-      score += 2;
-      details.push(`Rev+${fund.revenueGrowth.toFixed(0)}%`);
-    } else {
-      details.push(`Rev ${fund.revenueGrowth.toFixed(0)}%`);
-    }
-  }
-
-  // Earnings acceleration (0-5 pts)
-  if (fund.forwardPE && fund.pe && fund.forwardPE < fund.pe * 0.9) {
-    score += 5;
-    details.push("Earnings accelerating");
-  }
-
-  // P/E value (0-5 pts)
-  if (fund.pe != null && typeof fund.pe === "number" && fund.pe > 0) {
-    if (fund.pe < 10) {
-      score += 5;
-      details.push(`PE ${fund.pe.toFixed(1)}`);
-    } else if (fund.pe < 15) {
+  // Revenue Growth 3Y: 12 pts (>30% = 12, >20% = 9, >10% = 6, >0% = 3)
+  if (fund.revenueGrowth3Y != null) {
+    if (fund.revenueGrowth3Y > 30) {
+      score += 12;
+      details.push(`Rev3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    } else if (fund.revenueGrowth3Y > 20) {
+      score += 9;
+      details.push(`Rev3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    } else if (fund.revenueGrowth3Y > 10) {
+      score += 6;
+      details.push(`Rev3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    } else if (fund.revenueGrowth3Y > 0) {
       score += 3;
-      details.push(`PE ${fund.pe.toFixed(1)}`);
+      details.push(`Rev3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
     } else {
-      details.push(`PE ${fund.pe.toFixed(1)}`);
+      details.push(`Rev3Y ${fund.revenueGrowth3Y.toFixed(0)}%`);
     }
   }
 
-  return { score: Math.min(score, 35), max: 35, details };
+  // Revenue Growth QoQ: 10 pts (>15% = 10, >10% = 7, >5% = 4, >0% = 2)
+  if (fund.revenueGrowthQoQ != null) {
+    if (fund.revenueGrowthQoQ > 15) {
+      score += 10;
+      details.push(`QoQ+${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    } else if (fund.revenueGrowthQoQ > 10) {
+      score += 7;
+      details.push(`QoQ+${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    } else if (fund.revenueGrowthQoQ > 5) {
+      score += 4;
+      details.push(`QoQ+${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    } else if (fund.revenueGrowthQoQ > 0) {
+      score += 2;
+      details.push(`QoQ+${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    } else {
+      details.push(`QoQ ${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    }
+  }
+
+  // Revenue Acceleration: 15 pts (current YoY > prior YoY = 15, same = 7, decelerating = 0)
+  if (fund.revenueGrowthYoYCurrent != null && fund.revenueGrowthYoYPrior != null) {
+    const diff = fund.revenueGrowthYoYCurrent - fund.revenueGrowthYoYPrior;
+    if (diff > 2) { // Accelerating (with small tolerance)
+      score += 15;
+      details.push("Rev accelerating");
+    } else if (diff >= -2) { // Stable
+      score += 7;
+      details.push("Rev stable");
+    } else {
+      details.push("Rev decelerating");
+    }
+  }
+
+  // Earnings Acceleration: 7 pts (forward PE < trailing PE * 0.85 = 7, < 0.95 = 4)
+  if (fund.forwardPE && fund.pe && fund.pe > 0 && fund.forwardPE > 0) {
+    const ratio = fund.forwardPE / fund.pe;
+    if (ratio < 0.85) {
+      score += 7;
+      details.push("Earnings accelerating");
+    } else if (ratio < 0.95) {
+      score += 4;
+      details.push("Earnings growing");
+    }
+  }
+
+  // Gross Margin Trend: 6 pts (improving = 6, stable = 3, declining = 0)
+  if (fund.grossMargin != null && fund.grossMarginPrior != null) {
+    const diff = fund.grossMargin - fund.grossMarginPrior;
+    if (diff > 0.01) { // Improving by >1%
+      score += 6;
+      details.push(`GM↑ ${(fund.grossMargin * 100).toFixed(0)}%`);
+    } else if (diff >= -0.01) { // Stable
+      score += 3;
+      details.push(`GM ${(fund.grossMargin * 100).toFixed(0)}%`);
+    } else {
+      details.push(`GM↓ ${(fund.grossMargin * 100).toFixed(0)}%`);
+    }
+  } else if (fund.grossMargin != null) {
+    // No prior data, give partial credit for having margin data
+    details.push(`GM ${(fund.grossMargin * 100).toFixed(0)}%`);
+  }
+
+  return { score: Math.min(score, 50), max: 50, details };
 }
 
 function scoreFinancial(fund: FundamentalsData): ScoreComponent {
   let score = 0;
   const details: string[] = [];
 
-  // Free cash flow (0-5 pts)
-  if (fund.freeCashflow != null && fund.freeCashflow > 0) {
-    score += 5;
-    details.push("FCF+");
+  // ROIC: 15 pts (>20% = 15, >15% = 11, >10% = 7, >5% = 3)
+  if (fund.roic != null) {
+    if (fund.roic > 20) {
+      score += 15;
+      details.push(`ROIC ${fund.roic.toFixed(0)}%`);
+    } else if (fund.roic > 15) {
+      score += 11;
+      details.push(`ROIC ${fund.roic.toFixed(0)}%`);
+    } else if (fund.roic > 10) {
+      score += 7;
+      details.push(`ROIC ${fund.roic.toFixed(0)}%`);
+    } else if (fund.roic > 5) {
+      score += 3;
+      details.push(`ROIC ${fund.roic.toFixed(0)}%`);
+    } else {
+      details.push(`ROIC ${fund.roic.toFixed(0)}%`);
+    }
   }
 
-  // Low debt (0-5 pts)
+  // P/FCF: 8 pts (<10 = 8, <15 = 6, <20 = 4, <30 = 2)
+  if (fund.priceToFCF != null && fund.priceToFCF > 0) {
+    if (fund.priceToFCF < 10) {
+      score += 8;
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    } else if (fund.priceToFCF < 15) {
+      score += 6;
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    } else if (fund.priceToFCF < 20) {
+      score += 4;
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    } else if (fund.priceToFCF < 30) {
+      score += 2;
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    } else {
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    }
+  }
+
+  // FCF Positive: 4 pts (yes = 4, no = 0)
+  if (fund.freeCashflow != null && fund.freeCashflow > 0) {
+    score += 4;
+    details.push("FCF+");
+  } else if (fund.freeCashflow != null) {
+    details.push("FCF-");
+  }
+
+  // Debt/Equity: 3 pts (<30% = 3, <50% = 2, <100% = 1)
   if (fund.debtToEquity != null) {
     if (fund.debtToEquity < 30) {
-      score += 5;
-      details.push(`D/E ${fund.debtToEquity.toFixed(0)}`);
+      score += 3;
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
     } else if (fund.debtToEquity < 50) {
-      score += 3;
-      details.push(`D/E ${fund.debtToEquity.toFixed(0)}`);
-    } else {
-      details.push(`D/E ${fund.debtToEquity.toFixed(0)}`);
-    }
-  }
-
-  // Profit margin (0-5 pts)
-  if (fund.profitMargin != null) {
-    if (fund.profitMargin >= 15) {
-      score += 5;
-      details.push(`Margin ${fund.profitMargin.toFixed(0)}%`);
-    } else if (fund.profitMargin >= 8) {
       score += 2;
-      details.push(`Margin ${fund.profitMargin.toFixed(0)}%`);
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    } else if (fund.debtToEquity < 100) {
+      score += 1;
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
     } else {
-      details.push(`Margin ${fund.profitMargin.toFixed(0)}%`);
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
     }
   }
 
-  // P/B valuation (0-5 pts)
-  if (fund.pb != null) {
-    if (fund.pb < 0.8) {
-      score += 5;
-      details.push(`PB ${fund.pb.toFixed(2)}`);
-    } else if (fund.pb < 1.0) {
-      score += 3;
-      details.push(`PB ${fund.pb.toFixed(2)}`);
-    } else {
-      details.push(`PB ${fund.pb.toFixed(2)}`);
-    }
-  }
-
-  return { score: Math.min(score, 20), max: 20, details };
+  return { score: Math.min(score, 30), max: 30, details };
 }
 
-function scoreInsider(fund: FundamentalsData): ScoreComponent {
-  let score = 0;
-  const details: string[] = [];
-
-  if (fund.insiderTxCount > 0) {
-    // Net insider buying (0-15 pts)
-    if (fund.insiderBuys > fund.insiderSells) {
-      score += 15;
-      details.push(`Net Buy ${fund.insiderBuys.toLocaleString()} shares`);
-    }
-    // No selling bonus (0-10 pts)
-    if (fund.insiderSells === 0) {
-      score += 10;
-      details.push("No insider sells");
-    } else {
-      details.push(
-        `Buy:${fund.insiderBuys.toLocaleString()} Sell:${fund.insiderSells.toLocaleString()}`
-      );
-    }
-  } else {
-    // Fallback: high insider ownership (0-5 pts)
-    if (fund.insiderPct != null && fund.insiderPct > 30) {
-      score += 5;
-      details.push(`Insider owns ${fund.insiderPct.toFixed(0)}%`);
-    } else if (fund.insiderPct != null) {
-      details.push(`Insider ${fund.insiderPct.toFixed(0)}%`);
-    } else {
-      details.push("No insider data");
-    }
-  }
-
-  return { score: Math.min(score, 25), max: 25, details };
+function scoreInsider(_fund: FundamentalsData): ScoreComponent {
+  // Insider scoring removed from total - returns empty score
+  return { score: 0, max: 0, details: [] };
 }
 
 function scoreTechnical(chart: ChartData | null): ScoreComponent {
   let score = 0;
   const details: string[] = [];
 
-  if (!chart) return { score: 0, max: 15, details: ["No chart data"] };
+  if (!chart) return { score: 0, max: 20, details: ["No chart data"] };
 
-  // Above 50-day SMA (0-5 pts)
-  if (chart.sma50 && chart.price > chart.sma50) {
-    score += 5;
-    details.push(">50MA");
-  } else {
-    details.push("<50MA");
+  // 12-1 Month Momentum: 12 pts (price change excluding last month: >30% = 12, >20% = 9, >10% = 6, >0% = 3)
+  if (chart.momentum12m1m != null) {
+    if (chart.momentum12m1m > 30) {
+      score += 12;
+      details.push(`Mom+${chart.momentum12m1m.toFixed(0)}%`);
+    } else if (chart.momentum12m1m > 20) {
+      score += 9;
+      details.push(`Mom+${chart.momentum12m1m.toFixed(0)}%`);
+    } else if (chart.momentum12m1m > 10) {
+      score += 6;
+      details.push(`Mom+${chart.momentum12m1m.toFixed(0)}%`);
+    } else if (chart.momentum12m1m > 0) {
+      score += 3;
+      details.push(`Mom+${chart.momentum12m1m.toFixed(0)}%`);
+    } else {
+      details.push(`Mom ${chart.momentum12m1m.toFixed(0)}%`);
+    }
   }
 
-  // Above 200-day SMA (0-5 pts)
-  if (chart.sma200 && chart.price > chart.sma200) {
-    score += 5;
-    details.push(">200MA");
-  } else {
-    details.push("<200MA");
+  // Volatility-Adjusted Momentum: 8 pts (momentum / 90-day volatility: >2 = 8, >1.5 = 6, >1 = 4, >0.5 = 2)
+  if (chart.momentum12m1m != null && chart.volatility90d != null && chart.volatility90d > 0) {
+    const volAdjMom = chart.momentum12m1m / chart.volatility90d;
+    if (volAdjMom > 2) {
+      score += 8;
+      details.push(`VAM ${volAdjMom.toFixed(1)}`);
+    } else if (volAdjMom > 1.5) {
+      score += 6;
+      details.push(`VAM ${volAdjMom.toFixed(1)}`);
+    } else if (volAdjMom > 1) {
+      score += 4;
+      details.push(`VAM ${volAdjMom.toFixed(1)}`);
+    } else if (volAdjMom > 0.5) {
+      score += 2;
+      details.push(`VAM ${volAdjMom.toFixed(1)}`);
+    } else {
+      details.push(`VAM ${volAdjMom.toFixed(1)}`);
+    }
+  } else if (chart.volatility90d != null) {
+    details.push(`Vol ${chart.volatility90d.toFixed(0)}%`);
   }
 
-  // 52-week position (0-5 pts)
-  if (chart.position52w >= 80) {
-    score += 5;
-    details.push(`52W: ${chart.position52w.toFixed(0)}%`);
-  } else if (chart.position52w >= 50) {
-    score += 3;
-    details.push(`52W: ${chart.position52w.toFixed(0)}%`);
-  } else {
-    details.push(`52W: ${chart.position52w.toFixed(0)}%`);
-  }
-
-  return { score: Math.min(score, 15), max: 15, details };
+  return { score: Math.min(score, 20), max: 20, details };
 }
 
 function scoreAnalyst(fund: FundamentalsData, chart: ChartData | null): ScoreComponent {
@@ -986,10 +1154,9 @@ async function runScanner(): Promise<void> {
       const rawScore =
         growth.score +
         financial.score +
-        insider.score +
         technical.score +
-        analyst.score +
         risk.penalty;
+      // Note: insider.score and analyst.score excluded (removed from scoring)
       const totalScore = Math.max(0, rawScore);
 
       const { tier, tierColor } = classifyStock(totalScore);
