@@ -12,6 +12,7 @@ import { Indicators } from "./_components/Indicators";
 import { HardAssets } from "./_components/HardAssets";
 import { RegimeDetail } from "./_components/RegimeDetail";
 import { PlaybookSection } from "./_components/playbook/PlaybookSection";
+import { ValuationCards } from "./_components/ValuationCards";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
   MacroIndicator,
@@ -165,6 +166,8 @@ export default function StocksDashboard() {
             expectedReturns={expectedReturns}
           />
         </div>
+
+        <ValuationCards />
 
         <PlaybookSection
           macroIndicators={macroIndicators}
