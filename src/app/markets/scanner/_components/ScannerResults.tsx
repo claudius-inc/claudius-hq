@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import Link from "next/link";
 import { ChevronDown, ChevronUp, Search, RefreshCw, Clock, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Select } from "@/components/ui/Select";
@@ -100,7 +101,13 @@ function StockRow({ stock, isExpanded, onToggle }: {
 
         <span className="w-8 text-xs text-gray-400 text-right">#{stock.rank}</span>
 
-        <span className="w-16 font-mono font-medium text-gray-900">{stock.ticker}</span>
+        <Link
+          href={`/markets/research/${stock.ticker}`}
+          className="w-16 font-mono font-medium text-gray-900 hover:text-emerald-600 transition-colors"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {stock.ticker}
+        </Link>
 
         {stock.market && (
           <span className={`px-1 py-0.5 text-[9px] font-medium rounded ${getMarketBadgeColor(stock.market)}`}>

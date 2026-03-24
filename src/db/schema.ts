@@ -663,6 +663,7 @@ export const clarityJournals = sqliteTable("clarity_journals", {
   asset: text("asset").notNull().default(""),
   decision: text("decision"), // buy, sell, hold, wait, null
   data: text("data").notNull().default("{}"), // JSON with all field values
+  holdingId: integer("holding_id").references(() => portfolioHoldings.id, { onDelete: "set null" }), // Link to portfolio holding
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });

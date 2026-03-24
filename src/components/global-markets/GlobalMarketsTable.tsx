@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, TrendingUp, TrendingDown, Minus, ChevronUp, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, TrendingUp, TrendingDown, Minus, ChevronUp, ChevronDown, FileText } from "lucide-react";
 import { MarketData } from "./types";
 import { formatPercent, getPercentColor, getPercentBg, getInfoUrl } from "./utils";
 import { RegionBadge } from "./MarketIndicators";
@@ -146,9 +147,14 @@ export function GlobalMarketsTable({ markets }: GlobalMarketsTableProps) {
                   </span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <a href={getInfoUrl(m.ticker)} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-400 hover:text-gray-600 inline-block" title="View ETF details">
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                  <div className="flex items-center gap-1">
+                    <Link href={`/markets/research/${m.ticker}`} className="p-1 text-gray-400 hover:text-emerald-600 inline-block" title="View research">
+                      <FileText className="w-4 h-4" />
+                    </Link>
+                    <a href={getInfoUrl(m.ticker)} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-400 hover:text-gray-600 inline-block" title="View ETF details">
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
                 </td>
               </tr>
             ))}

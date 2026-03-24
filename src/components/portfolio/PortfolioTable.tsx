@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { Briefcase } from "lucide-react";
 import { PortfolioHolding } from "@/lib/types";
 import { HoldingRow } from "./HoldingRow";
+import { HoldingJournalModal } from "./HoldingJournalModal";
 
 interface PortfolioTableProps {
   holdings: PortfolioHolding[];
@@ -26,6 +27,28 @@ export function PortfolioTable({
   const [editAllocation, setEditAllocation] = useState("");
   const [editCostBasis, setEditCostBasis] = useState("");
   const [editShares, setEditShares] = useState("");
+  const [journalCounts, setJournalCounts] = useState<Record<string, number>>({});
+  const [journalHolding, setJournalHolding] = useState<PortfolioHolding | null>(null);
+
+  // Fetch journal counts for all holdings
+  const fetchJournalCounts = useCallback(async () => {
+    if (holdings.length === 0) return;
+    
+    try {
+      const ids = holdings.map((h) => h.id).join(",");
+      const res = await fetch(`/api/clarity-journal/counts?holdingIds=${ids}`);
+      const data = await res.json();
+      if (data.counts) {
+        setJournalCounts(data.counts);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [holdings]);
+
+  useEffect(() => {
+    fetchJournalCounts();
+  }, [fetchJournalCounts]);
 
   const totalAllocation = holdings.reduce((sum, h) => sum + h.target_allocation, 0);
 
@@ -110,6 +133,7 @@ export function PortfolioTable({
               editTicker={editTicker}
               editAllocation={editAllocation}
               editCostBasis={editCostBasis}
+              journalCount={journalCounts[holding.id.toString()] || 0}
               onEditTickerChange={setEditTicker}
               onEditAllocationChange={setEditAllocation}
               onEditCostBasisChange={setEditCostBasis}
@@ -117,6 +141,7 @@ export function PortfolioTable({
               onSaveEdit={() => saveEdit(holding.id)}
               onCancelEdit={cancelEdit}
               onDelete={() => onDeleteHolding(holding.id, holding.ticker)}
+              onOpenJournal={() => setJournalHolding(holding)}
             />
           ))}
           {/* Total Row */}
@@ -127,6 +152,15 @@ export function PortfolioTable({
           </tr>
         </tbody>
       </table>
+
+      {/* Journal Modal */}
+      {journalHolding && (
+        <HoldingJournalModal
+          holding={journalHolding}
+          onClose={() => setJournalHolding(null)}
+          onEntriesChange={fetchJournalCounts}
+        />
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { PreviousReportsDropdown } from "./PreviousReportsDropdown";
 import { ExportMarkdownButton } from "./ExportMarkdownButton";
+import { AddToThemeButton } from "./AddToThemeButton";
 import Link from "next/link";
 
 interface Report {
@@ -54,6 +55,7 @@ export function ReportActions({ olderReports, currentReportId, ticker, content, 
         {olderReports.length > 0 && (
           <PreviousReportsDropdown reports={olderReports} currentReportId={currentReportId} />
         )}
+        <AddToThemeButton ticker={ticker} />
         <ExportMarkdownButton ticker={ticker} content={content} companyName={companyName} />
         <Link
           href={`/markets/research?refresh=${encodeURIComponent(ticker)}`}
@@ -104,6 +106,7 @@ export function ReportActions({ olderReports, currentReportId, ticker, content, 
                 <div className="border-t border-gray-100 my-1" />
               </>
             )}
+            <AddToThemeButton ticker={ticker} variant="menuItem" onClose={() => setOpen(false)} />
             <button
               onClick={handleExport}
               className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"

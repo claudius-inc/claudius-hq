@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { db, stockScans } from "@/db";
 import { desc, eq } from "drizzle-orm";
+import { PageHero } from "@/components/PageHero";
 import { ScannerResults } from "./_components/ScannerResults";
 import { Skeleton } from "@/components/Skeleton";
 import type { ScanResult, ParsedScan } from "./types";
@@ -100,25 +101,16 @@ export default async function ScannersPage() {
   const scan = await getLatestScan();
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="mb-8 pt-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-              Stock Scanner
-            </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Automated screening results updated periodically
-            </p>
-          </div>
-        </div>
-      </div>
+    <>
+      <PageHero
+        title="Stock Scanner"
+        subtitle="Automated screening results updated periodically"
+      />
 
       {/* Scanner Results */}
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
         <ScannerResults scan={scan} />
       </Suspense>
-    </div>
+    </>
   );
 }

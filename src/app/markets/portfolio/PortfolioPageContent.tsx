@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { PortfolioHolding, PortfolioReport } from "@/lib/types";
+import { PageHero } from "@/components/PageHero";
 import { PortfolioTab } from "@/components/PortfolioTab";
 import { ClarityJournal } from "@/components/ClarityJournal";
+import { PortfolioSkeleton } from "@/components/Skeleton";
 
 type TabId = "clarity" | "holdings";
 
@@ -41,42 +43,53 @@ export function PortfolioPageContent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <div className="h-6 w-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      </div>
+      <>
+        <PageHero
+          title="Portfolio"
+          subtitle="Investment clarity journal and holdings"
+        />
+        <PortfolioSkeleton />
+      </>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex gap-6">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
-                activeTab === tab.id
-                  ? "border-emerald-500 text-emerald-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+    <>
+      <PageHero
+        title="Portfolio"
+        subtitle="Investment clarity journal and holdings"
+      />
+
+      <div className="space-y-6">
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex gap-6">
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-3 px-1 border-b-2 text-sm font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? "border-emerald-500 text-emerald-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === "holdings" && (
+          <PortfolioTab
+            initialHoldings={holdings}
+            initialReports={portfolioReports}
+          />
+        )}
+
+        {activeTab === "clarity" && <ClarityJournal />}
       </div>
-
-      {/* Tab Content */}
-      {activeTab === "holdings" && (
-        <PortfolioTab
-          initialHoldings={holdings}
-          initialReports={portfolioReports}
-        />
-      )}
-
-      {activeTab === "clarity" && <ClarityJournal />}
-    </div>
+    </>
   );
 }

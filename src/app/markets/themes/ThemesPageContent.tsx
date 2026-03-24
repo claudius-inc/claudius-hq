@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { ThemeWithPerformance } from "@/lib/types";
+import { PageHero } from "@/components/PageHero";
 import { ThemesTab } from "@/components/ThemesTab";
 import { ThemesTableSkeleton } from "@/components/Skeleton";
 
@@ -29,5 +30,13 @@ export function ThemesPageContent() {
     return <ThemesTableSkeleton />;
   }
 
-  return <ThemesTab initialThemes={themes} />;
+  return (
+    <>
+      <PageHero
+        title="Investment Themes"
+        subtitle="Track themed baskets and sector performance"
+      />
+      <ThemesTab initialThemes={themes} />
+    </>
+  );
 }

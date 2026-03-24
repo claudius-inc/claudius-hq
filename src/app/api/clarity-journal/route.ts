@@ -1,14 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, clarityJournals } from "@/db";
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, sql, and, isNull } from "drizzle-orm";
 
-// GET /api/clarity-journal — List all entries sorted by updatedAt desc
-export async function GET() {
+// GET /api/clarity-journal — List entries, optionally filtered by holdingId
+// Query params:
+//   ?holdingId=123 — only entries linked to this holding
+//   ?unlinked=true — only entries not linked to any holding (for main journal view)
+export async function GET(req: NextRequest) {
   try {
-    const entries = await db
-      .select()
-      .from(clarityJournals)
-      .orderBy(desc(clarityJournals.updatedAt));
+    const url = new URL(req.url);
+    const holdingId = url.searchParams.get("holdingId");
+    const unlinked = url.searchParams.get("unlinked");
+    
+    let query = db.select().from(clarityJournals);
+    
+    if (holdingId) {
+      query = query.where(eq(clarityJournals.holdingId, parseInt(holdingId))) as typeof query;
+    } else if (unlinked === "true") {
+      // Only entries not linked to any holding (legacy behavior for main journal)
+      query = query.where(isNull(clarityJournals.holdingId)) as typeof query;
+    }
+    
+    const entries = await query.orderBy(desc(clarityJournals.updatedAt));
     return NextResponse.json({ entries });
   } catch (e) {
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -19,7 +32,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { asset, decision, data } = body;
+    const { asset, decision, data, holdingId } = body;
 
     const [newEntry] = await db
       .insert(clarityJournals)
@@ -27,6 +40,7 @@ export async function POST(req: NextRequest) {
         asset: asset ?? "",
         decision: decision ?? null,
         data: typeof data === "string" ? data : JSON.stringify(data ?? {}),
+        holdingId: holdingId ?? null,
       })
       .returning();
 

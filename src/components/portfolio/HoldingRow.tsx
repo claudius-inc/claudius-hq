@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Pencil, Trash2, X, Check } from "lucide-react";
+import { Pencil, Trash2, X, Check, StickyNote } from "lucide-react";
 import { PortfolioHolding } from "@/lib/types";
 
 interface HoldingRowProps {
@@ -12,6 +12,7 @@ interface HoldingRowProps {
   editTicker: string;
   editAllocation: string;
   editCostBasis: string;
+  journalCount: number;
   onEditTickerChange: (value: string) => void;
   onEditAllocationChange: (value: string) => void;
   onEditCostBasisChange: (value: string) => void;
@@ -19,6 +20,7 @@ interface HoldingRowProps {
   onSaveEdit: () => void;
   onCancelEdit: () => void;
   onDelete: () => void;
+  onOpenJournal: () => void;
 }
 
 function formatPrice(price: number | null | undefined) {
@@ -39,6 +41,7 @@ export function HoldingRow({
   editTicker,
   editAllocation,
   editCostBasis,
+  journalCount,
   onEditTickerChange,
   onEditAllocationChange,
   onEditCostBasisChange,
@@ -46,6 +49,7 @@ export function HoldingRow({
   onSaveEdit,
   onCancelEdit,
   onDelete,
+  onOpenJournal,
 }: HoldingRowProps) {
   const pl = calculatePL(price, holding.cost_basis);
 
@@ -132,6 +136,18 @@ export function HoldingRow({
             </>
           ) : (
             <>
+              <button
+                onClick={onOpenJournal}
+                className="p-2 -m-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg touch-manipulation relative"
+                title="Journal"
+              >
+                <StickyNote className="w-4 h-4" />
+                {journalCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 bg-emerald-500 text-white text-[10px] font-medium rounded-full flex items-center justify-center">
+                    {journalCount > 9 ? "9+" : journalCount}
+                  </span>
+                )}
+              </button>
               <button
                 onClick={onStartEdit}
                 className="p-2 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg touch-manipulation"

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { TrendingUp, TrendingDown, Minus, ExternalLink, List, ChevronUp, ChevronDown } from "lucide-react";
+import Link from "next/link";
+import { TrendingUp, TrendingDown, Minus, ExternalLink, List, ChevronUp, ChevronDown, FileText } from "lucide-react";
 import { SectorData } from "./types";
 import { formatPercent, getPercentColor, getPercentBg, getHoldingsUrl } from "./utils";
 
@@ -144,6 +145,9 @@ export function SectorTable({ sectors }: SectorTableProps) {
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-1">
+                    <Link href={`/markets/research/${s.ticker}`} className="p-1 text-gray-400 hover:text-emerald-600 inline-block" title="View research">
+                      <FileText className="w-4 h-4" />
+                    </Link>
                     <a href={getHoldingsUrl(s.ticker)} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-400 hover:text-blue-600 inline-block" title="View ETF holdings">
                       <List className="w-4 h-4" />
                     </a>
