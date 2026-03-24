@@ -36,6 +36,14 @@ jobs:
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           SCAN_MARKETS: ${{ github.event.inputs.markets || 'US,SGX,HK' }}
 
+      - name: Revalidate cache
+        if: success()
+        run: |
+          curl -X POST "https://hq.claudiusinc.com/api/scanner/revalidate" \
+            -H "Authorization: Bearer ${{ secrets.HQ_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            --fail --silent --show-error || echo "Revalidation failed (non-critical)"
+
       - name: Summary
         if: always()
         run: |
