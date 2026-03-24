@@ -456,16 +456,11 @@ async function getChartData(ticker: string): Promise<ChartData | null> {
         }
       }
       if (dailyReturns.length >= 30) {
-        // Defensive null check before variance calculation
-        if (dailyReturns.length === 0) {
-          volatility90d = null;
-        } else {
-          const mean = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
-          const variance = dailyReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / dailyReturns.length;
-          const dailyStdDev = Math.sqrt(variance);
-          // Annualize: multiply by sqrt(252)
-          volatility90d = dailyStdDev * Math.sqrt(252) * 100;
-        }
+        const mean = dailyReturns.reduce((a, b) => a + b, 0) / dailyReturns.length;
+        const variance = dailyReturns.reduce((sum, r) => sum + Math.pow(r - mean, 2), 0) / dailyReturns.length;
+        const dailyStdDev = Math.sqrt(variance);
+        // Annualize: multiply by sqrt(252)
+        volatility90d = dailyStdDev * Math.sqrt(252) * 100;
       }
     }
 
@@ -611,11 +606,17 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
     let roic: number | null = null;
     if (incomeHistory.length > 0 && balanceHistory.length > 0) {
       const opIncome = incomeHistory[0]?.operatingIncome?.raw;
-      const taxRate = incomeHistory[0]?.incomeTaxExpense?.raw && incomeHistory[0]?.incomeBeforeTax?.raw
-        ? incomeHistory[0].incomeTaxExpense.raw / incomeHistory[0].incomeBeforeTax.raw
+      const incomeBeforeTax = incomeHistory[0]?.incomeBeforeTax?.raw;
+      const taxExpense = incomeHistory[0]?.incomeTaxExpense?.raw;
+      // Only calculate tax rate if income before tax is positive (avoid division issues for loss-making companies)
+      const taxRate = taxExpense && incomeBeforeTax && incomeBeforeTax > 0
+        ? taxExpense / incomeBeforeTax
         : 0.25; // Default 25% tax rate
       const totalEquity = balanceHistory[0]?.totalStockholderEquity?.raw || 0;
-      const totalDebt = balanceHistory[0]?.longTermDebt?.raw || 0;
+      // Include both long-term and short-term debt in invested capital
+      const longTermDebt = balanceHistory[0]?.longTermDebt?.raw || 0;
+      const shortTermDebt = balanceHistory[0]?.shortLongTermDebt?.raw || balanceHistory[0]?.shortTermDebt?.raw || 0;
+      const totalDebt = longTermDebt + shortTermDebt;
       const cash = balanceHistory[0]?.cash?.raw || 0;
       const investedCapital = totalEquity + totalDebt - cash;
       
@@ -646,7 +647,7 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
       roe: fin.returnOnEquity ? fin.returnOnEquity * 100 : null,
       roic,
       revenueGrowth,
-      revenueGrowthRaw: fin.revenueGrowth ?? null,
+      revenueGrowthRaw: fin.revenueGrowth?.raw ?? null,
       revenueGrowth3Y,
       revenueGrowthQoQ,
       revenueGrowthYoYCurrent,
@@ -741,8 +742,8 @@ function scoreGrowth(fund: FundamentalsData): ScoreComponent {
     } else {
       details.push(`QoQ ${fund.revenueGrowthQoQ.toFixed(0)}%`);
     }
-  } else if (usedYoYFallback && fund.revenueGrowth != null && fund.revenueGrowth > 30) {
-    // FALLBACK: Estimate QoQ from strong YoY when QoQ unavailable
+  } else if (fund.revenueGrowth != null && fund.revenueGrowth > 30) {
+    // FALLBACK: Estimate QoQ from strong YoY when QoQ unavailable (regardless of 3Y availability)
     const impliedQoQ = fund.revenueGrowth / 4;
     if (impliedQoQ > 15) {
       score += 6; // Reduced credit for estimate
@@ -803,7 +804,7 @@ function scoreGrowth(fund: FundamentalsData): ScoreComponent {
   // Also give credit for high absolute gross margin when trend unavailable
   if (fund.grossMargin != null && fund.grossMarginPrior != null) {
     const diff = fund.grossMargin - fund.grossMarginPrior;
-    if (diff > 0.01) { // Improving by >1%
+    if (diff >= 0.01) { // Improving by >=1%
       score += 6;
       details.push(`GM↑ ${(fund.grossMargin * 100).toFixed(0)}%`);
     } else if (diff >= -0.01) { // Stable
@@ -835,19 +836,19 @@ function scoreFinancial(fund: FundamentalsData): ScoreComponent {
   let score = 0;
   const details: string[] = [];
 
-  // ROIC: 15 pts (>20% = 15, >15% = 11, >10% = 7, >5% = 3)
+  // ROIC: 10 pts (>20% = 10, >15% = 7, >10% = 4, >5% = 2)
   if (fund.roic != null) {
     if (fund.roic > 20) {
-      score += 15;
+      score += 10;
       details.push(`ROIC ${fund.roic.toFixed(0)}%`);
     } else if (fund.roic > 15) {
-      score += 11;
-      details.push(`ROIC ${fund.roic.toFixed(0)}%`);
-    } else if (fund.roic > 10) {
       score += 7;
       details.push(`ROIC ${fund.roic.toFixed(0)}%`);
+    } else if (fund.roic > 10) {
+      score += 4;
+      details.push(`ROIC ${fund.roic.toFixed(0)}%`);
     } else if (fund.roic > 5) {
-      score += 3;
+      score += 2;
       details.push(`ROIC ${fund.roic.toFixed(0)}%`);
     } else {
       details.push(`ROIC ${fund.roic.toFixed(0)}%`);
