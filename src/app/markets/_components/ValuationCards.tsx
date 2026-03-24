@@ -4,6 +4,13 @@ import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/Skeleton";
 import { TrendingUp, TrendingDown, Minus, Globe } from "lucide-react";
 
+interface SecondaryIndex {
+  name: string;
+  ticker: string;
+  pe: number | null;
+  change24h: number | null;
+}
+
 interface MarketValuation {
   market: string;
   country: string;
@@ -20,6 +27,7 @@ interface MarketValuation {
   priceToBook: number | null;
   price: number | null;
   change24h: number | null;
+  secondaryIndex?: SecondaryIndex;
 }
 
 const ZONE_STYLES = {
@@ -150,6 +158,23 @@ function ValuationCard({ data }: { data: MarketValuation }) {
           </div>
         )}
       </div>
+
+      {/* Secondary index (e.g., Hang Seng for China) */}
+      {data.secondaryIndex && (
+        <div className="flex items-center justify-between text-[10px] text-gray-500 border-t border-gray-100 pt-2 mt-1">
+          <span className="font-medium">{data.secondaryIndex.name}</span>
+          <div className="flex items-center gap-2">
+            {data.secondaryIndex.pe !== null && (
+              <span>P/E: {data.secondaryIndex.pe.toFixed(1)}x</span>
+            )}
+            {data.secondaryIndex.change24h !== null && (
+              <span className={data.secondaryIndex.change24h > 0 ? "text-emerald-600" : data.secondaryIndex.change24h < 0 ? "text-red-600" : ""}>
+                {data.secondaryIndex.change24h > 0 ? "+" : ""}{data.secondaryIndex.change24h.toFixed(2)}%
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

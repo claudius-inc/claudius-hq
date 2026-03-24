@@ -3,6 +3,13 @@ import YahooFinance from "yahoo-finance2";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
+interface SecondaryIndex {
+  name: string;
+  ticker: string;
+  pe: number | null;
+  change24h: number | null;
+}
+
 interface MarketValuation {
   market: string;
   country: string;
@@ -19,6 +26,7 @@ interface MarketValuation {
   priceToBook: number | null;
   price: number | null;
   change24h: number | null;
+  secondaryIndex?: SecondaryIndex;
 }
 
 // Zone thresholds (as discussed)
@@ -123,11 +131,12 @@ async function fetchUSCape(): Promise<number | null> {
 export async function GET() {
   try {
     // Fetch data for all markets in parallel
-    const [usData, jpData, sgData, cnData, usCape] = await Promise.all([
+    const [usData, jpData, sgData, cnData, hsiData, usCape] = await Promise.all([
       fetchMarketData("SPY"),
       fetchMarketData("^N225"),
       fetchMarketData("^STI"),
       fetchMarketData("000300.SS"), // CSI 300
+      fetchMarketData("^HSI"), // Hang Seng
       fetchUSCape(),
     ]);
 
@@ -205,6 +214,12 @@ export async function GET() {
         priceToBook: cnData.priceToBook,
         price: cnData.price,
         change24h: cnData.change24h,
+        secondaryIndex: {
+          name: "Hang Seng",
+          ticker: "^HSI",
+          pe: hsiData.pe,
+          change24h: hsiData.change24h,
+        },
       },
     ];
 
