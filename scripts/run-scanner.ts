@@ -153,14 +153,16 @@ async function getChartData(ticker: string): Promise<ChartData | null> {
     const startDate = new Date();
     startDate.setFullYear(startDate.getFullYear() - 1);
 
-    const result = await yahooFinance.historical(ticker, {
+    // Use chart() instead of historical() - handles null values better for SGX stocks
+    const result = await yahooFinance.chart(ticker, {
       period1: startDate,
       period2: endDate,
       interval: "1d",
     });
 
-    
-    const closes = (result as any[])
+    // chart() returns { quotes: [...] } structure
+    const quotes = result.quotes || [];
+    const closes = quotes
       .map((bar: { close?: number | null }) => bar.close)
       .filter((c: number | null | undefined): c is number => c !== null && c !== undefined);
 
