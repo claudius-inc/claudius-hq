@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 interface MarketValuation {
   market: string;
@@ -62,45 +64,25 @@ interface MarketData {
   priceToBook: number | null;
 }
 
-function safeGet<T>(obj: unknown, key: string): T | null {
-  if (obj && typeof obj === "object" && key in obj) {
-    return (obj as Record<string, T>)[key] ?? null;
-  }
-  return null;
-}
-
-function extractMarketData(quote: unknown): MarketData {
-  try {
-    const priceData = safeGet<Record<string, unknown>>(quote, "price") ?? {};
-    const summaryData = safeGet<Record<string, unknown>>(quote, "summaryDetail") ?? {};
-    const statsData = safeGet<Record<string, unknown>>(quote, "defaultKeyStatistics") ?? {};
-
-    const divYield = safeGet<number>(summaryData, "dividendYield");
-
-    return {
-      price: safeGet<number>(priceData, "regularMarketPrice"),
-      change24h: safeGet<number>(priceData, "regularMarketChangePercent"),
-      pe: safeGet<number>(summaryData, "trailingPE"),
-      dividendYield: divYield ? divYield * 100 : null,
-      priceToBook: safeGet<number>(statsData, "priceToBook"),
-    };
-  } catch {
-    return {
-      price: null,
-      change24h: null,
-      pe: null,
-      dividendYield: null,
-      priceToBook: null,
-    };
-  }
-}
-
 async function fetchMarketData(ticker: string): Promise<MarketData> {
   try {
     const quote = await yahooFinance.quoteSummary(ticker, {
       modules: ["summaryDetail", "defaultKeyStatistics", "price"],
     });
-    return extractMarketData(quote);
+
+    const priceData = quote.price;
+    const summaryData = quote.summaryDetail;
+    const statsData = quote.defaultKeyStatistics;
+
+    const divYield = summaryData?.dividendYield;
+
+    return {
+      price: priceData?.regularMarketPrice ?? null,
+      change24h: priceData?.regularMarketChangePercent ?? null,
+      pe: summaryData?.trailingPE ?? null,
+      dividendYield: divYield ? Number(divYield) * 100 : null,
+      priceToBook: statsData?.priceToBook ?? null,
+    };
   } catch (e) {
     console.error(`Error fetching ${ticker}:`, e);
     return {
@@ -118,10 +100,10 @@ async function fetchUSCape(): Promise<number | null> {
     const quote = await yahooFinance.quoteSummary("SPY", {
       modules: ["summaryDetail"],
     });
-    const summaryData = safeGet<Record<string, unknown>>(quote, "summaryDetail") ?? {};
-    const ttmPE = safeGet<number>(summaryData, "trailingPE");
+    const ttmPE = quote.summaryDetail?.trailingPE;
     if (ttmPE && typeof ttmPE === "number") {
       // CAPE adjustment factor based on historical relationship
+      // Current CAPE ~37x, TTM P/E ~24x, ratio ~1.5
       return ttmPE * 1.5;
     }
     return null;
