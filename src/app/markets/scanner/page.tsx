@@ -5,6 +5,7 @@ import { desc, eq } from "drizzle-orm";
 import { PageHero } from "@/components/PageHero";
 import { ScannerResults } from "./_components/ScannerResults";
 import { UniverseManager } from "./_components/UniverseManager";
+import { RefreshButton } from "./_components/RefreshButton";
 import { Skeleton } from "@/components/Skeleton";
 import type { ScanResult, ParsedScan } from "./types";
 
@@ -107,6 +108,11 @@ export default async function ScannersPage() {
         title="Stock Scanner"
         subtitle="Pre-computed screening results updated every 6 hours"
       />
+
+      {/* Refresh Controls */}
+      <div className="flex justify-end mb-4 px-4">
+        <RefreshButton />
+      </div>
 
       {/* Scanner Results */}
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
