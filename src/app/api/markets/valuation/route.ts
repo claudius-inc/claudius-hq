@@ -44,6 +44,13 @@ const ZONES = {
     mean: 13,
     range: { min: 8, max: 25 },
   },
+  CHINA: {
+    undervalued: 10,
+    fair: 14,
+    overvalued: 18,
+    mean: 12,
+    range: { min: 6, max: 30 },
+  },
 };
 
 function getZone(
@@ -116,10 +123,11 @@ async function fetchUSCape(): Promise<number | null> {
 export async function GET() {
   try {
     // Fetch data for all markets in parallel
-    const [usData, jpData, sgData, usCape] = await Promise.all([
+    const [usData, jpData, sgData, cnData, usCape] = await Promise.all([
       fetchMarketData("SPY"),
       fetchMarketData("^N225"),
       fetchMarketData("^STI"),
+      fetchMarketData("000300.SS"), // CSI 300
       fetchUSCape(),
     ]);
 
@@ -178,6 +186,25 @@ export async function GET() {
         priceToBook: sgData.priceToBook,
         price: sgData.price,
         change24h: sgData.change24h,
+      },
+      {
+        market: "CHINA",
+        country: "China",
+        flag: "🇨🇳",
+        index: "CSI 300",
+        ticker: "000300.SS",
+        metric: "TTM_PE",
+        value: cnData.pe,
+        historicalMean: ZONES.CHINA.mean,
+        historicalRange: ZONES.CHINA.range,
+        zone: cnData.pe ? getZone(cnData.pe, ZONES.CHINA) : "FAIR",
+        percentOfMean: cnData.pe
+          ? Math.round((cnData.pe / ZONES.CHINA.mean) * 100)
+          : 100,
+        dividendYield: cnData.dividendYield,
+        priceToBook: cnData.priceToBook,
+        price: cnData.price,
+        change24h: cnData.change24h,
       },
     ];
 

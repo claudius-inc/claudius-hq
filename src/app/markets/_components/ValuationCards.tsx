@@ -182,8 +182,8 @@ export function ValuationCards() {
           <span className="text-gray-400"><Globe className="w-3.5 h-3.5" /></span>
           Market Valuations
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {[1, 2, 3].map((i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[1, 2, 3, 4].map((i) => (
             <div key={i} className="card p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <Skeleton className="h-6 w-6 rounded" />
@@ -213,7 +213,7 @@ export function ValuationCards() {
         <span className="text-gray-400"><Globe className="w-3.5 h-3.5" /></span>
         Market Valuations
       </h3>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {valuations.map((v) => (
           <ValuationCard key={v.market} data={v} />
         ))}
