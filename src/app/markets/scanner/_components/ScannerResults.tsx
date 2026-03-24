@@ -322,61 +322,47 @@ export function ScannerResults({ scan }: Props) {
   return (
     <div className="space-y-4">
       {/* Scan info & summary */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm">
-        <div className="flex items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {scannedAt && (
             <span className="flex items-center gap-1 text-gray-500">
               <Clock size={14} />
-              Updated{" "}
               <span className="font-medium text-gray-700">
                 {formatDistanceToNow(scannedAt, { addSuffix: true })}
               </span>
             </span>
           )}
-          <span className="text-gray-400">|</span>
           <span className="text-gray-500">
             {scan.results.length} stocks
-            {scan.results.length > 0 && (
-              <span className="text-gray-400">
-                {" "}({[
-                  usCount > 0 && `US: ${usCount}`,
-                  sgxCount > 0 && `SGX: ${sgxCount}`,
-                  hkCount > 0 && `HK: ${hkCount}`,
-                  jpCount > 0 && `JP: ${jpCount}`,
-                ].filter(Boolean).join(", ")})
-              </span>
-            )}
+            <span className="hidden sm:inline text-gray-400">
+              {" "}({[
+                usCount > 0 && `US: ${usCount}`,
+                sgxCount > 0 && `SGX: ${sgxCount}`,
+                hkCount > 0 && `HK: ${hkCount}`,
+                jpCount > 0 && `JP: ${jpCount}`,
+              ].filter(Boolean).join(", ")})
+            </span>
           </span>
           {hasEnhancedData && (
-            <>
-              <span className="text-gray-400">|</span>
-              <span className="px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-700 rounded font-medium">
-                Enhanced
-              </span>
-            </>
+            <span className="px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-700 rounded font-medium">
+              Enhanced
+            </span>
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          {scan.summary && (
-            <div className="flex gap-2 text-xs">
-              <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded">
-                HC {scan.summary.highConviction}
-              </span>
-              <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded">
-                SPEC {scan.summary.speculative}
-              </span>
-              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded">
-                WL {scan.summary.watchlist}
-              </span>
-            </div>
-          )}
-
-          <span className="flex items-center gap-1 px-2 py-1 text-xs text-gray-500 bg-gray-50 rounded">
-            <Zap size={12} />
-            Auto-updated every 6h
-          </span>
-        </div>
+        {scan.summary && (
+          <div className="flex gap-1.5 text-xs">
+            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">
+              HC {scan.summary.highConviction}
+            </span>
+            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">
+              SPEC {scan.summary.speculative}
+            </span>
+            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
+              WL {scan.summary.watchlist}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Filters */}

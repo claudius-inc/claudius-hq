@@ -98,37 +98,43 @@ export function RefreshButton() {
 
   const isRunning = lastRun?.status === "in_progress" || lastRun?.status === "queued";
 
-  return (
-    <div className="flex items-center gap-3">
-      {/* Last run status */}
-      {lastRun && (
-        <a
-          href={lastRun.htmlUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700"
-        >
-          {getStatusIcon()}
-          <span>
-            {isRunning ? "Running..." : `Updated ${formatTime(lastRun.updatedAt)}`}
-          </span>
-          <ExternalLink size={12} />
-        </a>
-      )}
+  const isError = message?.toLowerCase().includes("fail") || message?.toLowerCase().includes("error");
 
-      {/* Refresh button */}
-      <button
-        onClick={triggerRefresh}
-        disabled={loading || isRunning}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-      >
-        <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-        {loading ? "Triggering..." : isRunning ? "Running..." : "Refresh Now"}
-      </button>
+  return (
+    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+      <div className="flex items-center gap-2">
+        {/* Last run status */}
+        {lastRun && (
+          <a
+            href={lastRun.htmlUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700"
+          >
+            {getStatusIcon()}
+            <span className="hidden sm:inline">
+              {isRunning ? "Running..." : formatTime(lastRun.updatedAt)}
+            </span>
+            <ExternalLink size={12} />
+          </a>
+        )}
+
+        {/* Refresh button */}
+        <button
+          onClick={triggerRefresh}
+          disabled={loading || isRunning}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+          {loading ? "..." : isRunning ? "Running" : "Refresh"}
+        </button>
+      </div>
 
       {/* Message */}
       {message && (
-        <span className="text-xs text-gray-600">{message}</span>
+        <span className={`text-xs ${isError ? "text-red-600" : "text-green-600"}`}>
+          {message}
+        </span>
       )}
     </div>
   );
