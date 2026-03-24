@@ -538,9 +538,10 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
     const balanceHistory = q.balanceSheetHistory?.balanceSheetStatements || [];
 
     // YoY Revenue growth from Yahoo Finance financialData (primary source)
+    // Note: yahoo-finance2 returns this as a plain number (ratio), not an object
     let revenueGrowth: number | null = null;
-    if (fin.revenueGrowth?.raw != null) {
-      revenueGrowth = fin.revenueGrowth.raw * 100; // Convert ratio to percentage
+    if (typeof fin.revenueGrowth === 'number') {
+      revenueGrowth = fin.revenueGrowth * 100; // Convert ratio to percentage
     }
     
     // QoQ Revenue growth from earnings quarterly data
@@ -647,7 +648,7 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
       roe: fin.returnOnEquity ? fin.returnOnEquity * 100 : null,
       roic,
       revenueGrowth,
-      revenueGrowthRaw: fin.revenueGrowth?.raw ?? null,
+      revenueGrowthRaw: typeof fin.revenueGrowth === 'number' ? fin.revenueGrowth : null,
       revenueGrowth3Y,
       revenueGrowthQoQ,
       revenueGrowthYoYCurrent,
