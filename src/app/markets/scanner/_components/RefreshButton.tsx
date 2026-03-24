@@ -103,8 +103,8 @@ export function RefreshButton() {
   return (
     <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
       <div className="flex items-center gap-2">
-        {/* Last run status */}
-        {lastRun && (
+        {/* Last run status - only show when running */}
+        {lastRun && isRunning && (
           <a
             href={lastRun.htmlUrl}
             target="_blank"
@@ -112,9 +112,7 @@ export function RefreshButton() {
             className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700"
           >
             {getStatusIcon()}
-            <span className="hidden sm:inline">
-              {isRunning ? "Running..." : formatTime(lastRun.updatedAt)}
-            </span>
+            <span>Running...</span>
             <ExternalLink size={12} />
           </a>
         )}
