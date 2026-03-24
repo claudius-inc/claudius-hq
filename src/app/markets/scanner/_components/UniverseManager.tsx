@@ -24,6 +24,7 @@ interface Summary {
     US: number;
     SGX: number;
     HK: number;
+    JP: number;
   };
 }
 
@@ -157,7 +158,7 @@ export function UniverseManager() {
           {summary && (
             <p className="text-sm text-gray-500">
               {summary.enabled} enabled of {summary.total} total • 
-              US: {summary.byMarket.US} | SGX: {summary.byMarket.SGX} | HK: {summary.byMarket.HK}
+              US: {summary.byMarket.US} | SGX: {summary.byMarket.SGX} | HK: {summary.byMarket.HK} | JP: {summary.byMarket.JP}
             </p>
           )}
         </div>
@@ -190,6 +191,7 @@ export function UniverseManager() {
               <option value="US">US</option>
               <option value="SGX">SGX</option>
               <option value="HK">HK</option>
+              <option value="JP">Japan</option>
             </select>
             <input
               type="text"
@@ -239,6 +241,7 @@ export function UniverseManager() {
             <option value="US">US</option>
             <option value="SGX">SGX</option>
             <option value="HK">HK</option>
+            <option value="JP">Japan</option>
           </select>
         </div>
       </div>

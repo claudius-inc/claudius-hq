@@ -13,7 +13,7 @@ interface Props {
 
 type TierFilter = "all" | "high" | "speculative" | "watchlist";
 type RiskFilter = "all" | "TIER 1" | "TIER 2" | "TIER 3";
-type MarketFilter = "all" | "US" | "SGX";
+type MarketFilter = "all" | "US" | "SGX" | "HK" | "JP";
 
 function getTierBadgeColor(tier: string): string {
   if (tier.includes("HIGH CONVICTION")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
@@ -316,6 +316,8 @@ export function ScannerResults({ scan }: Props) {
 
   const usCount = scan.summary?.usCount ?? scan.results.filter((r) => r.market === "US").length;
   const sgxCount = scan.summary?.sgxCount ?? scan.results.filter((r) => r.market === "SGX").length;
+  const hkCount = scan.summary?.hkCount ?? scan.results.filter((r) => r.market === "HK").length;
+  const jpCount = scan.summary?.jpCount ?? scan.results.filter((r) => r.market === "JP").length;
 
   return (
     <div className="space-y-4">
@@ -334,8 +336,15 @@ export function ScannerResults({ scan }: Props) {
           <span className="text-gray-400">|</span>
           <span className="text-gray-500">
             {scan.results.length} stocks
-            {(usCount > 0 && sgxCount > 0) && (
-              <span className="text-gray-400"> (US: {usCount}, SGX: {sgxCount})</span>
+            {scan.results.length > 0 && (
+              <span className="text-gray-400">
+                {" "}({[
+                  usCount > 0 && `US: ${usCount}`,
+                  sgxCount > 0 && `SGX: ${sgxCount}`,
+                  hkCount > 0 && `HK: ${hkCount}`,
+                  jpCount > 0 && `JP: ${jpCount}`,
+                ].filter(Boolean).join(", ")})
+              </span>
             )}
           </span>
           {hasEnhancedData && (
@@ -391,6 +400,8 @@ export function ScannerResults({ scan }: Props) {
               { value: "all", label: "All Markets" },
               { value: "US", label: "US" },
               { value: "SGX", label: "SGX" },
+              { value: "HK", label: "HK" },
+              { value: "JP", label: "Japan" },
             ]}
           />
 

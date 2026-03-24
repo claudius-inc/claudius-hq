@@ -48,7 +48,7 @@ export function RefreshButton() {
       const res = await fetch("/api/scanner/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markets: "US,SGX,HK" }),
+        body: JSON.stringify({ markets: "US,SGX,HK,JP" }),
       });
 
       const data = await res.json();

@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       markets:
-        description: 'Markets to scan (comma-separated: US,SGX,HK)'
+        description: 'Markets to scan (comma-separated: US,SGX,HK,JP)'
         required: false
-        default: 'US,SGX,HK'
+        default: 'US,SGX,HK,JP'
 
 jobs:
   scan:
@@ -34,7 +34,7 @@ jobs:
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          SCAN_MARKETS: ${{ github.event.inputs.markets || 'US,SGX,HK' }}
+          SCAN_MARKETS: ${{ github.event.inputs.markets || 'US,SGX,HK,JP' }}
 
       - name: Revalidate cache
         if: success()
@@ -49,4 +49,4 @@ jobs:
         run: |
           echo "## Scanner Results" >> $GITHUB_STEP_SUMMARY
           echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "- Markets: ${{ github.event.inputs.markets || 'US,SGX,HK' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Markets: ${{ github.event.inputs.markets || 'US,SGX,HK,JP' }}" >> $GITHUB_STEP_SUMMARY

@@ -192,6 +192,63 @@ const HK_TICKERS = [
   "6186.HK", "1339.HK", "2328.HK",
 ];
 
+// Comprehensive Japan (TSE) tickers (~200 major stocks)
+const JP_TICKERS = [
+  // ── Nikkei 225 Core ──
+  "7203.T", "6758.T", "9984.T", "6861.T", "8306.T", "8035.T", "9433.T",
+  "6098.T", "4063.T", "6501.T", "7267.T", "4502.T", "4503.T", "4568.T",
+  "6902.T", "7751.T", "7974.T", "8316.T", "8411.T", "9432.T", "9983.T",
+  "6954.T", "8766.T", "8058.T", "8031.T", "3382.T", "7269.T", "2914.T",
+  "6367.T", "4661.T", "6273.T", "6594.T", "4452.T", "9020.T", "9022.T",
+  
+  // ── Tech & Electronics ──
+  "6702.T", "6752.T", "6753.T", "6762.T", "6770.T", "6857.T", "6920.T",
+  "6146.T", "6503.T", "6504.T", "6506.T", "6645.T", "6723.T", "6724.T",
+  "6981.T", "7735.T", "7752.T", "8035.T", "4689.T", "4751.T", "4755.T",
+  "3659.T", "3938.T", "4385.T", "6035.T", "2371.T", "9613.T", "4307.T",
+  
+  // ── Autos & Transport ──
+  "7201.T", "7202.T", "7205.T", "7211.T", "7261.T", "7270.T", "7272.T",
+  "7276.T", "7282.T", "3086.T", "3099.T", "9064.T", "9020.T", "9021.T",
+  "9101.T", "9104.T", "9107.T", "9201.T", "9202.T",
+  
+  // ── Finance & Banks ──
+  "8303.T", "8304.T", "8308.T", "8309.T", "8331.T", "8354.T", "8355.T",
+  "8473.T", "8591.T", "8595.T", "8601.T", "8604.T", "8628.T", "8630.T",
+  "8697.T", "8725.T", "8750.T", "8795.T", "8801.T", "8802.T",
+  
+  // ── Trading Houses (Sogo Shosha) ──
+  "8001.T", "8002.T", "8015.T", "8053.T", "8058.T",
+  
+  // ── Pharma & Healthcare ──
+  "4507.T", "4519.T", "4523.T", "4528.T", "4543.T", "4578.T", "4581.T",
+  "6479.T", "7733.T", "7741.T", "9989.T",
+  
+  // ── Consumer & Retail ──
+  "2801.T", "2802.T", "2871.T", "2875.T", "3086.T", "3099.T", "3141.T",
+  "4452.T", "7453.T", "7532.T", "8233.T", "8252.T", "8267.T", "8273.T",
+  "9843.T", "9861.T", "2702.T", "3563.T", "8028.T",
+  
+  // ── Industrial & Materials ──
+  "3401.T", "3402.T", "3407.T", "4004.T", "4005.T", "4021.T", "4042.T",
+  "4183.T", "4188.T", "4208.T", "4901.T", "4911.T", "5020.T", "5101.T",
+  "5108.T", "5201.T", "5214.T", "5301.T", "5332.T", "5333.T", "5401.T",
+  "5406.T", "5411.T", "5631.T", "5706.T", "5711.T", "5713.T", "5714.T",
+  "5801.T", "5802.T", "5803.T",
+  
+  // ── Real Estate & Construction ──
+  "1801.T", "1802.T", "1803.T", "1812.T", "1925.T", "1928.T", "1963.T",
+  "2501.T", "8801.T", "8802.T", "8804.T", "8830.T", "3003.T", "3289.T",
+  
+  // ── Utilities & Energy ──
+  "9501.T", "9502.T", "9503.T", "9531.T", "9532.T", "5019.T", "5020.T",
+  "5021.T", "1605.T", "1662.T", "1963.T",
+  
+  // ── Gaming & Entertainment ──
+  "9684.T", "9697.T", "3765.T", "4816.T", "2432.T", "7832.T", "7974.T",
+  "6460.T", "7936.T", "9766.T", "4751.T", "9602.T", "4680.T",
+];
+
 // Fetch tickers from Yahoo Finance screeners
 async function fetchScreenerTickers(maxPerScreen = 100): Promise<Set<string>> {
   const tickers = new Set<string>();
@@ -294,7 +351,7 @@ interface ScanResult {
   tier: string;
   tierColor: string;
   riskTier: string;
-  market: "US" | "SGX" | "HK";
+  market: "US" | "SGX" | "HK" | "JP";
   growth: ScoreComponent;
   financial: ScoreComponent;
   insider: ScoreComponent;
@@ -316,6 +373,7 @@ interface ScanSummary {
   usCount: number;
   sgxCount: number;
   hkCount: number;
+  jpCount: number;
 }
 
 // ── Rate Limiting ────────────────────────────────────────────────────────────
@@ -737,7 +795,7 @@ function scoreAnalyst(fund: FundamentalsData, chart: ChartData | null): ScoreCom
   return { score: Math.min(score, 10), max: 10, details };
 }
 
-function calculateRisk(chart: ChartData | null, fund: FundamentalsData, market: "US" | "SGX" | "HK"): RiskAnalysis {
+function calculateRisk(chart: ChartData | null, fund: FundamentalsData, market: "US" | "SGX" | "HK" | "JP"): RiskAnalysis {
   let penalty = 0;
   const flags: string[] = [];
 
@@ -780,8 +838,8 @@ function classifyStock(totalScore: number): { tier: string; tierColor: string } 
   return { tier: "AVOID", tierColor: "red" };
 }
 
-function getRiskTier(fund: FundamentalsData, market: "US" | "SGX" | "HK"): string {
-  if (market === "SGX" || market === "HK") {
+function getRiskTier(fund: FundamentalsData, market: "US" | "SGX" | "HK" | "JP"): string {
+  if (market === "SGX" || market === "HK" || market === "JP") {
     const mcapM = fund.mcapM || 0;
     const de = fund.debtToEquity || 0;
     if (mcapM < 50 || de > 200) return "TIER 3";
@@ -796,9 +854,10 @@ function getRiskTier(fund: FundamentalsData, market: "US" | "SGX" | "HK"): strin
   }
 }
 
-function getMarket(ticker: string): "US" | "SGX" | "HK" {
+function getMarket(ticker: string): "US" | "SGX" | "HK" | "JP" {
   if (ticker.endsWith(".SI")) return "SGX";
   if (ticker.endsWith(".HK")) return "HK";
+  if (ticker.endsWith(".T")) return "JP";
   return "US";
 }
 
@@ -881,6 +940,12 @@ async function runScanner(): Promise<void> {
       hkSet.forEach(t => tickerSources!.set(t, { market: "HK", source: "curated" }));
       console.log(`HK: ${hkSet.size} tickers`);
     }
+    
+    if (marketsToScan.includes("JP")) {
+      const jpSet = new Set(JP_TICKERS);
+      jpSet.forEach(t => tickerSources!.set(t, { market: "JP", source: "curated" }));
+      console.log(`JP: ${jpSet.size} tickers`);
+    }
     console.log("");
   }
   
@@ -895,7 +960,7 @@ async function runScanner(): Promise<void> {
   for (const ticker of allTickers) {
     done++;
     const tickerInfo = tickerSources.get(ticker);
-    const market = (tickerInfo?.market || getMarket(ticker)) as "US" | "SGX" | "HK";
+    const market = (tickerInfo?.market || getMarket(ticker)) as "US" | "SGX" | "HK" | "JP";
     const source = tickerInfo?.source || "discovered";
     
     try {
@@ -979,6 +1044,7 @@ async function runScanner(): Promise<void> {
     usCount: results.filter((r) => r.market === "US").length,
     sgxCount: results.filter((r) => r.market === "SGX").length,
     hkCount: results.filter((r) => r.market === "HK").length,
+    jpCount: results.filter((r) => r.market === "JP").length,
   };
 
   // Print summary
@@ -986,7 +1052,7 @@ async function runScanner(): Promise<void> {
   console.log(" SUMMARY");
   console.log("=".repeat(80));
   console.log(`Scanned: ${summary.scannedCount}/${summary.universeSize}`);
-  console.log(`US: ${summary.usCount} | SGX: ${summary.sgxCount} | HK: ${summary.hkCount}`);
+  console.log(`US: ${summary.usCount} | SGX: ${summary.sgxCount} | HK: ${summary.hkCount} | JP: ${summary.jpCount}`);
   console.log(`HIGH CONVICTION: ${summary.highConviction}`);
   console.log(`SPECULATIVE: ${summary.speculative}`);
   console.log(`WATCHLIST: ${summary.watchlist}`);

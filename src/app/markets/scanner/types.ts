@@ -8,7 +8,7 @@ export interface ScanResult {
   tier: string;
   tierColor: string;
   riskTier: string;
-  market?: "US" | "SGX";
+  market?: "US" | "SGX" | "HK" | "JP";
   growth: { score: number; max: number; details: string[] };
   financial: { score: number; max: number; details: string[] };
   insider: { score: number; max: number; details: string[] };
@@ -39,6 +39,8 @@ export interface ScanSummary {
   avoid: number;
   usCount?: number;
   sgxCount?: number;
+  hkCount?: number;
+  jpCount?: number;
 }
 
 export interface ParsedScan {

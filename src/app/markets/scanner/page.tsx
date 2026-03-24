@@ -59,11 +59,11 @@ async function getLatestScan(): Promise<ParsedScan | null> {
     // Tag with market if not already tagged
     const taggedSi = siResults.map((r) => ({
       ...r,
-      market: (r.market || "US") as "US" | "SGX",
+      market: (r.market || "US") as "US" | "SGX" | "HK" | "JP",
     }));
     const taggedSt = stResults.map((r) => ({
       ...r,
-      market: (r.market || "SGX") as "US" | "SGX",
+      market: (r.market || "SGX") as "US" | "SGX" | "HK" | "JP",
     }));
 
     const merged = [...taggedSi, ...taggedSt].sort(

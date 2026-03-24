@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         US: tickers.filter((t) => t.market === "US").length,
         SGX: tickers.filter((t) => t.market === "SGX").length,
         HK: tickers.filter((t) => t.market === "HK").length,
+        JP: tickers.filter((t) => t.market === "JP").length,
       },
     };
 
