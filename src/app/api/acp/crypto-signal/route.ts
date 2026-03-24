@@ -1,6 +1,13 @@
 /**
  * Crypto Trading Signal API
  * Supports BTC, ETH, SOL, HYPE with technical analysis
+ * 
+ * BTC-specific enhancements:
+ * - Halving cycle context (days since halving, historical patterns)
+ * - Funding rates from perpetual futures
+ * - On-chain metrics (exchange balances, hash rate)
+ * - Multi-timeframe confluence scoring
+ * - Enhanced confidence scoring
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -24,7 +31,285 @@ import {
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
+// ===== BTC HALVING DATA =====
+const BTC_HALVINGS = [
+  { block: 210000, date: new Date("2012-11-28"), reward: 25 },
+  { block: 420000, date: new Date("2016-07-09"), reward: 12.5 },
+  { block: 630000, date: new Date("2020-05-11"), reward: 6.25 },
+  { block: 840000, date: new Date("2024-04-20"), reward: 3.125 },
+];
+
+const HALVING_CYCLE_PATTERNS = {
+  // Days after halving → typical market phase
+  phases: [
+    { start: 0, end: 90, phase: "POST_HALVING_ACCUMULATION", bullish_bias: 0.55 },
+    { start: 91, end: 365, phase: "EARLY_BULL", bullish_bias: 0.70 },
+    { start: 366, end: 548, phase: "PARABOLIC_PHASE", bullish_bias: 0.80 },
+    { start: 549, end: 730, phase: "CYCLE_TOP_ZONE", bullish_bias: 0.45 },
+    { start: 731, end: 1095, phase: "BEAR_MARKET", bullish_bias: 0.30 },
+    { start: 1096, end: 1460, phase: "PRE_HALVING_ACCUMULATION", bullish_bias: 0.60 },
+  ],
+  // Historical cycle performance (ATH vs halving price)
+  historicalMultiples: {
+    "2012": { halvingPrice: 12, cycleATH: 1100, multiple: 91.7 },
+    "2016": { halvingPrice: 650, cycleATH: 20000, multiple: 30.8 },
+    "2020": { halvingPrice: 8600, cycleATH: 69000, multiple: 8.0 },
+    "2024": { halvingPrice: 63000, avgMultiple: 5.5 }, // Conservative estimate
+  },
+};
+
+interface HalvingContext {
+  days_since_halving: number;
+  halving_date: string;
+  current_block_reward: number;
+  next_halving_estimate: string;
+  cycle_phase: string;
+  cycle_bullish_bias: number;
+  historical_note: string;
+}
+
 const API_KEY = process.env.HQ_API_KEY;
+
+// ===== BTC-SPECIFIC DATA FETCHERS =====
+
+function getHalvingContext(): HalvingContext {
+  const now = new Date();
+  const lastHalving = BTC_HALVINGS[BTC_HALVINGS.length - 1];
+  const daysSinceHalving = Math.floor(
+    (now.getTime() - lastHalving.date.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  // Find current cycle phase
+  const currentPhase = HALVING_CYCLE_PATTERNS.phases.find(
+    (p) => daysSinceHalving >= p.start && daysSinceHalving <= p.end
+  ) || HALVING_CYCLE_PATTERNS.phases[HALVING_CYCLE_PATTERNS.phases.length - 1];
+
+  // Estimate next halving (~4 years after last)
+  const nextHalvingDate = new Date(lastHalving.date);
+  nextHalvingDate.setFullYear(nextHalvingDate.getFullYear() + 4);
+
+  // Historical context
+  let historicalNote = "";
+  if (daysSinceHalving < 365) {
+    historicalNote = "First year post-halving historically sees accumulation followed by early bull momentum. Previous cycles saw 2-3x gains in this phase.";
+  } else if (daysSinceHalving < 548) {
+    historicalNote = "12-18 months post-halving historically marks the beginning of parabolic moves. 2012 and 2016 cycles peaked ~18 months after halving.";
+  } else if (daysSinceHalving < 730) {
+    historicalNote = "18-24 months post-halving is historically the cycle top zone. Exercise caution and consider profit-taking strategies.";
+  } else {
+    historicalNote = "Late cycle phase. Historically, this period sees consolidation or bear market before next halving accumulation begins.";
+  }
+
+  return {
+    days_since_halving: daysSinceHalving,
+    halving_date: lastHalving.date.toISOString().split("T")[0],
+    current_block_reward: lastHalving.reward,
+    next_halving_estimate: nextHalvingDate.toISOString().split("T")[0],
+    cycle_phase: currentPhase.phase,
+    cycle_bullish_bias: currentPhase.bullish_bias,
+    historical_note: historicalNote,
+  };
+}
+
+interface FundingRateData {
+  rate: number;
+  rate_annualized: number;
+  sentiment: "EXTREME_LONG" | "LONG_BIAS" | "NEUTRAL" | "SHORT_BIAS" | "EXTREME_SHORT";
+  interpretation: string;
+}
+
+async function fetchBinanceFundingRate(symbol: string = "BTCUSDT"): Promise<FundingRateData | null> {
+  try {
+    const res = await fetch(
+      `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${symbol}&limit=1`,
+      { cache: "no-store" }
+    );
+    if (!res.ok) return null;
+    
+    const data = await res.json();
+    if (!data || data.length === 0) return null;
+    
+    const rate = parseFloat(data[0].fundingRate);
+    const rateAnnualized = rate * 3 * 365 * 100; // 3 funding periods per day
+    
+    // Sentiment interpretation
+    let sentiment: FundingRateData["sentiment"];
+    let interpretation: string;
+    
+    if (rate > 0.001) {
+      sentiment = "EXTREME_LONG";
+      interpretation = "Extremely high funding rate suggests overleveraged longs. Historically precedes corrections.";
+    } else if (rate > 0.0003) {
+      sentiment = "LONG_BIAS";
+      interpretation = "Positive funding indicates more longs than shorts. Bulls paying to hold positions.";
+    } else if (rate < -0.001) {
+      sentiment = "EXTREME_SHORT";
+      interpretation = "Negative funding suggests crowded short positions. Short squeeze potential.";
+    } else if (rate < -0.0003) {
+      sentiment = "SHORT_BIAS";
+      interpretation = "Slightly negative funding indicates bearish sentiment in derivatives.";
+    } else {
+      sentiment = "NEUTRAL";
+      interpretation = "Funding near neutral. No extreme positioning in either direction.";
+    }
+    
+    return {
+      rate: Math.round(rate * 10000) / 10000, // 4 decimal precision
+      rate_annualized: Math.round(rateAnnualized * 100) / 100,
+      sentiment,
+      interpretation,
+    };
+  } catch (e) {
+    logger.warn("api/acp/crypto-signal", "Failed to fetch funding rate", { error: e });
+    return null;
+  }
+}
+
+interface OnChainMetrics {
+  exchange_balance_trend: "INFLOW" | "OUTFLOW" | "STABLE" | null;
+  hash_rate_trend: "INCREASING" | "DECREASING" | "STABLE" | null;
+  active_addresses_24h: number | null;
+  interpretation: string[];
+}
+
+async function fetchOnChainMetrics(): Promise<OnChainMetrics> {
+  const interpretation: string[] = [];
+  let exchangeBalanceTrend: OnChainMetrics["exchange_balance_trend"] = null;
+  let hashRateTrend: OnChainMetrics["hash_rate_trend"] = null;
+  let activeAddresses: number | null = null;
+  
+  try {
+    // Fetch hash rate from blockchain.com (free, no auth)
+    const hashRateRes = await fetch(
+      "https://api.blockchain.info/charts/hash-rate?timespan=30days&format=json",
+      { cache: "no-store" }
+    );
+    
+    if (hashRateRes.ok) {
+      const hashData = await hashRateRes.json();
+      if (hashData.values && hashData.values.length >= 7) {
+        const recent = hashData.values.slice(-7);
+        const older = hashData.values.slice(-14, -7);
+        const recentAvg = recent.reduce((a: number, b: { y: number }) => a + b.y, 0) / recent.length;
+        const olderAvg = older.reduce((a: number, b: { y: number }) => a + b.y, 0) / older.length;
+        
+        if (recentAvg > olderAvg * 1.05) {
+          hashRateTrend = "INCREASING";
+          interpretation.push("Hash rate increasing: miners confident, network security strengthening");
+        } else if (recentAvg < olderAvg * 0.95) {
+          hashRateTrend = "DECREASING";
+          interpretation.push("Hash rate declining: potential miner capitulation or difficulty adjustment");
+        } else {
+          hashRateTrend = "STABLE";
+          interpretation.push("Hash rate stable: network operating normally");
+        }
+      }
+    }
+  } catch (e) {
+    logger.warn("api/acp/crypto-signal", "Failed to fetch hash rate", { error: e });
+  }
+  
+  try {
+    // Fetch active addresses (24h unique addresses)
+    const addrRes = await fetch(
+      "https://api.blockchain.info/charts/n-unique-addresses?timespan=7days&format=json",
+      { cache: "no-store" }
+    );
+    
+    if (addrRes.ok) {
+      const addrData = await addrRes.json();
+      if (addrData.values && addrData.values.length > 0) {
+        const latest = addrData.values[addrData.values.length - 1];
+        activeAddresses = Math.round(latest.y);
+        
+        // Context: 800k-1M is healthy, >1M is high activity
+        if (activeAddresses > 1000000) {
+          interpretation.push("High on-chain activity (>1M addresses): increased network usage");
+        } else if (activeAddresses > 800000) {
+          interpretation.push("Healthy on-chain activity: normal network engagement");
+        } else if (activeAddresses < 600000) {
+          interpretation.push("Low on-chain activity: reduced network usage, possible consolidation");
+        }
+      }
+    }
+  } catch (e) {
+    logger.warn("api/acp/crypto-signal", "Failed to fetch active addresses", { error: e });
+  }
+  
+  // Note: Exchange balance requires paid APIs (Glassnode/CryptoQuant)
+  // We'll indicate this limitation
+  interpretation.push("Exchange flow data requires premium on-chain APIs (Glassnode/CryptoQuant)");
+  
+  return {
+    exchange_balance_trend: exchangeBalanceTrend,
+    hash_rate_trend: hashRateTrend,
+    active_addresses_24h: activeAddresses,
+    interpretation,
+  };
+}
+
+interface FearGreedExtended {
+  value: number;
+  label: string;
+  trend_7d: "IMPROVING" | "DETERIORATING" | "STABLE";
+  historical_values: { value: number; date: string }[];
+  contrarian_signal: string | null;
+}
+
+async function fetchFearGreedExtended(): Promise<FearGreedExtended | null> {
+  try {
+    // Fetch 7 days of data for trend analysis
+    const res = await fetch("https://api.alternative.me/fng/?limit=7", {
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    
+    const data = await res.json();
+    if (!data.data || data.data.length === 0) return null;
+    
+    const values = data.data.map((d: { value: string; timestamp: string }) => ({
+      value: parseInt(d.value),
+      date: new Date(parseInt(d.timestamp) * 1000).toISOString().split("T")[0],
+    }));
+    
+    const currentValue = values[0].value;
+    const oldestValue = values[values.length - 1]?.value || currentValue;
+    
+    // Determine trend
+    let trend: FearGreedExtended["trend_7d"];
+    if (currentValue > oldestValue + 10) trend = "IMPROVING";
+    else if (currentValue < oldestValue - 10) trend = "DETERIORATING";
+    else trend = "STABLE";
+    
+    // Label
+    let label = "Neutral";
+    if (currentValue <= 25) label = "Extreme Fear";
+    else if (currentValue <= 45) label = "Fear";
+    else if (currentValue <= 55) label = "Neutral";
+    else if (currentValue <= 75) label = "Greed";
+    else label = "Extreme Greed";
+    
+    // Contrarian signal
+    let contrarianSignal: string | null = null;
+    if (currentValue <= 20) {
+      contrarianSignal = "CONTRARIAN_BUY: Extreme fear historically marks local bottoms";
+    } else if (currentValue >= 80) {
+      contrarianSignal = "CONTRARIAN_SELL: Extreme greed historically precedes corrections";
+    } else if (currentValue <= 30 && trend === "DETERIORATING") {
+      contrarianSignal = "POTENTIAL_CAPITULATION: Fear increasing, watch for reversal signals";
+    }
+    
+    return {
+      value: currentValue,
+      label,
+      trend_7d: trend,
+      historical_values: values.slice(0, 7),
+      contrarian_signal: contrarianSignal,
+    };
+  } catch {
+    return null;
+  }
+}
 
 // Asset configuration
 const ASSET_CONFIG = {
@@ -89,7 +374,7 @@ function getChartParams(timeframe: string): { interval: "1h" | "1d" | "1wk"; day
   }
 }
 
-// Fetch Fear & Greed Index
+// Simple Fear & Greed (kept for non-BTC assets)
 async function fetchFearGreedIndex(): Promise<{ value: number; label: string } | null> {
   try {
     const res = await fetch("https://api.alternative.me/fng/", {
@@ -108,6 +393,166 @@ async function fetchFearGreedIndex(): Promise<{ value: number; label: string } |
   } catch {
     return null;
   }
+}
+
+// ===== ENHANCED CONFIDENCE SCORING FOR BTC =====
+interface EnhancedSignalResult {
+  action: "BUY" | "SELL" | "HOLD";
+  confidence: number;
+  strength: "STRONG" | "MODERATE" | "WEAK";
+  factor_breakdown: {
+    technical_score: number;
+    sentiment_score: number;
+    cycle_score: number;
+    funding_score: number;
+    total_bullish: number;
+    total_bearish: number;
+  };
+}
+
+function calculateEnhancedBTCSignal(
+  technicalFactors: {
+    rsiSignal: "OVERBOUGHT" | "OVERSOLD" | "NEUTRAL";
+    macdCrossover: "BULLISH" | "BEARISH" | "NONE";
+    priceVsSma: { sma20: boolean; sma50: boolean; sma200: boolean };
+    volumeTrend: "INCREASING" | "DECREASING" | "STABLE";
+    bollingerPosition: string;
+    trend: "BULLISH" | "BEARISH" | "NEUTRAL";
+    mayerMultiple?: number;
+  },
+  fearGreed: FearGreedExtended | null,
+  halvingContext: HalvingContext,
+  fundingRate: FundingRateData | null,
+  onChain: OnChainMetrics
+): EnhancedSignalResult {
+  let technicalBullish = 0;
+  let technicalBearish = 0;
+  let sentimentBullish = 0;
+  let sentimentBearish = 0;
+  
+  // === TECHNICAL FACTORS (max 30 points) ===
+  
+  // RSI (0-5 points)
+  if (technicalFactors.rsiSignal === "OVERSOLD") technicalBullish += 5;
+  else if (technicalFactors.rsiSignal === "OVERBOUGHT") technicalBearish += 5;
+  else technicalBullish += 2; // Neutral is slightly bullish in uptrends
+  
+  // MACD (0-5 points)
+  if (technicalFactors.macdCrossover === "BULLISH") technicalBullish += 5;
+  else if (technicalFactors.macdCrossover === "BEARISH") technicalBearish += 5;
+  
+  // Price vs SMAs (0-9 points, 3 each)
+  if (technicalFactors.priceVsSma.sma20) technicalBullish += 3; else technicalBearish += 3;
+  if (technicalFactors.priceVsSma.sma50) technicalBullish += 3; else technicalBearish += 3;
+  if (technicalFactors.priceVsSma.sma200) technicalBullish += 3; else technicalBearish += 3;
+  
+  // Volume confirmation (0-3 points)
+  if (technicalFactors.volumeTrend === "INCREASING") {
+    if (technicalFactors.trend === "BULLISH") technicalBullish += 3;
+    else if (technicalFactors.trend === "BEARISH") technicalBearish += 3;
+  }
+  
+  // Bollinger position (0-3 points)
+  if (technicalFactors.bollingerPosition === "BELOW_LOWER") technicalBullish += 3;
+  else if (technicalFactors.bollingerPosition === "ABOVE_UPPER") technicalBearish += 3;
+  
+  // Mayer Multiple (0-5 points) - BTC specific
+  if (technicalFactors.mayerMultiple !== undefined) {
+    if (technicalFactors.mayerMultiple < 0.8) technicalBullish += 5; // Undervalued
+    else if (technicalFactors.mayerMultiple < 1.0) technicalBullish += 3; // Accumulation
+    else if (technicalFactors.mayerMultiple > 2.4) technicalBearish += 5; // Overheated
+    else if (technicalFactors.mayerMultiple > 1.8) technicalBearish += 2; // Elevated
+  }
+  
+  // === SENTIMENT FACTORS (max 20 points) ===
+  
+  // Fear & Greed (0-8 points, contrarian)
+  if (fearGreed) {
+    if (fearGreed.value <= 20) sentimentBullish += 8; // Extreme fear = buy signal
+    else if (fearGreed.value <= 35) sentimentBullish += 4;
+    else if (fearGreed.value >= 80) sentimentBearish += 8; // Extreme greed = sell signal
+    else if (fearGreed.value >= 65) sentimentBearish += 4;
+    
+    // Trend adds weight
+    if (fearGreed.trend_7d === "IMPROVING" && fearGreed.value < 50) sentimentBullish += 2;
+    if (fearGreed.trend_7d === "DETERIORATING" && fearGreed.value > 50) sentimentBearish += 2;
+  }
+  
+  // Funding rate (0-6 points, contrarian)
+  if (fundingRate) {
+    if (fundingRate.sentiment === "EXTREME_LONG") sentimentBearish += 6; // Overleveraged longs
+    else if (fundingRate.sentiment === "LONG_BIAS") sentimentBearish += 2;
+    else if (fundingRate.sentiment === "EXTREME_SHORT") sentimentBullish += 6; // Short squeeze potential
+    else if (fundingRate.sentiment === "SHORT_BIAS") sentimentBullish += 2;
+  }
+  
+  // On-chain (0-4 points)
+  if (onChain.hash_rate_trend === "INCREASING") sentimentBullish += 2;
+  else if (onChain.hash_rate_trend === "DECREASING") sentimentBearish += 2;
+  
+  if (onChain.active_addresses_24h) {
+    if (onChain.active_addresses_24h > 1000000) sentimentBullish += 2;
+    else if (onChain.active_addresses_24h < 600000) sentimentBearish += 2;
+  }
+  
+  // === CYCLE FACTORS (max 10 points) ===
+  let cycleScore = 0;
+  
+  // Halving cycle bias
+  const cycleBias = halvingContext.cycle_bullish_bias;
+  if (cycleBias >= 0.7) {
+    cycleScore = 8; // Strong bullish cycle phase
+    sentimentBullish += 8;
+  } else if (cycleBias >= 0.55) {
+    cycleScore = 4;
+    sentimentBullish += 4;
+  } else if (cycleBias <= 0.35) {
+    cycleScore = -6;
+    sentimentBearish += 6;
+  } else if (cycleBias <= 0.45) {
+    cycleScore = -3;
+    sentimentBearish += 3;
+  }
+  
+  // === CALCULATE FINAL SIGNAL ===
+  const totalBullish = technicalBullish + sentimentBullish;
+  const totalBearish = technicalBearish + sentimentBearish;
+  const netScore = totalBullish - totalBearish;
+  const maxPossible = 60; // Max points either direction
+  
+  // Action determination with clearer thresholds
+  let action: "BUY" | "SELL" | "HOLD";
+  if (netScore >= 12) action = "BUY";
+  else if (netScore <= -12) action = "SELL";
+  else action = "HOLD";
+  
+  // Confidence = strength of conviction (how one-sided the indicators are)
+  const dominantScore = Math.max(totalBullish, totalBearish);
+  const rawConfidence = (dominantScore / maxPossible) * 100;
+  
+  // Adjust confidence by agreement (if both sides have points, lower confidence)
+  const oppositionPenalty = Math.min(totalBullish, totalBearish) * 1.5;
+  const confidence = Math.max(20, Math.min(95, Math.round(rawConfidence - oppositionPenalty)));
+  
+  // Strength classification
+  let strength: "STRONG" | "MODERATE" | "WEAK";
+  if (confidence >= 70 && Math.abs(netScore) >= 15) strength = "STRONG";
+  else if (confidence >= 50 && Math.abs(netScore) >= 8) strength = "MODERATE";
+  else strength = "WEAK";
+  
+  return {
+    action,
+    confidence,
+    strength,
+    factor_breakdown: {
+      technical_score: technicalBullish - technicalBearish,
+      sentiment_score: sentimentBullish - sentimentBearish,
+      cycle_score: cycleScore,
+      funding_score: fundingRate ? (fundingRate.sentiment.includes("SHORT") ? 2 : fundingRate.sentiment.includes("LONG") ? -2 : 0) : 0,
+      total_bullish: totalBullish,
+      total_bearish: totalBearish,
+    },
+  };
 }
 
 // Fetch BTC dominance from CoinGecko
@@ -329,13 +774,39 @@ export async function POST(req: NextRequest) {
     const atr = calculateATR(ohlcData) ?? currentPrice * 0.03;
     const volume = analyzeVolume(volumes);
 
-    // Fetch market context
-    const [fearGreed, btcDominance] = await Promise.all([
+    // Fetch market context - BTC gets enhanced data
+    const isBTC = asset === "BTC";
+    
+    const [
+      fearGreed,
+      btcDominance,
+      fearGreedExtended,
+      fundingRate,
+      onChainMetrics,
+    ] = await Promise.all([
       fetchFearGreedIndex(),
       fetchBTCDominance(),
+      isBTC ? fetchFearGreedExtended() : Promise.resolve(null),
+      isBTC ? fetchBinanceFundingRate("BTCUSDT") : Promise.resolve(null),
+      isBTC ? fetchOnChainMetrics() : Promise.resolve({ exchange_balance_trend: null, hash_rate_trend: null, active_addresses_24h: null, interpretation: [] }),
     ]);
+    
+    // BTC-specific: Get halving context
+    const halvingContext = isBTC ? getHalvingContext() : null;
 
-    // Calculate signal
+    // Calculate Mayer Multiple for BTC (price / 200-day SMA) - must be before signal calculation
+    let mayerMultiple: number | null = null;
+    let mayerZone: string | null = null;
+    if (asset === "BTC" && smas && smas.sma_200 > 0) {
+      mayerMultiple = Math.round((currentPrice / smas.sma_200) * 100) / 100;
+      if (mayerMultiple < 0.8) mayerZone = "UNDERVALUED";
+      else if (mayerMultiple < 1.0) mayerZone = "ACCUMULATION";
+      else if (mayerMultiple < 1.4) mayerZone = "FAIR_VALUE";
+      else if (mayerMultiple < 2.4) mayerZone = "ELEVATED";
+      else mayerZone = "OVERHEATED";
+    }
+    
+    // Calculate signal - use enhanced scoring for BTC
     const signalFactors = {
       rsiSignal,
       macdCrossover: macd.crossover,
@@ -349,7 +820,31 @@ export async function POST(req: NextRequest) {
       fearGreedIndex: fearGreed?.value,
     };
 
-    const signal = calculateSignal(signalFactors);
+    // BTC gets enhanced multi-factor scoring
+    let signal;
+    let factorBreakdown = null;
+    
+    if (isBTC && halvingContext && fearGreedExtended) {
+      const enhancedSignal = calculateEnhancedBTCSignal(
+        {
+          ...signalFactors,
+          trend: smas ? determineTrend(rsi, macd, smas, currentPrice) : "NEUTRAL",
+          mayerMultiple: mayerMultiple ?? undefined,
+        },
+        fearGreedExtended,
+        halvingContext,
+        fundingRate,
+        onChainMetrics
+      );
+      signal = {
+        action: enhancedSignal.action,
+        confidence: enhancedSignal.confidence,
+        strength: enhancedSignal.strength,
+      };
+      factorBreakdown = enhancedSignal.factor_breakdown;
+    } else {
+      signal = calculateSignal(signalFactors);
+    }
 
     // Calculate targets
     const targets = calculatePriceTargets(
@@ -380,7 +875,7 @@ export async function POST(req: NextRequest) {
       : "NEUTRAL";
 
     // Generate reasoning
-    const reasoning = generateReasoning(
+    let reasoning = generateReasoning(
       rsi,
       rsiSignal,
       macd,
@@ -397,6 +892,37 @@ export async function POST(req: NextRequest) {
       volume ?? { current: 0, avg_20: 0, ratio: 1, trend: "STABLE" },
       trend
     );
+    
+    // Add BTC-specific reasoning
+    if (isBTC) {
+      const btcReasons: string[] = [];
+      
+      // Halving cycle context
+      if (halvingContext) {
+        btcReasons.push(
+          `Halving cycle: ${halvingContext.days_since_halving} days since halving, ${halvingContext.cycle_phase.replace(/_/g, " ").toLowerCase()}`
+        );
+      }
+      
+      // Funding rate insight
+      if (fundingRate) {
+        if (fundingRate.sentiment === "EXTREME_LONG" || fundingRate.sentiment === "EXTREME_SHORT") {
+          btcReasons.push(`Funding ${fundingRate.sentiment.replace("_", " ").toLowerCase()}: ${fundingRate.interpretation}`);
+        }
+      }
+      
+      // Fear & Greed contrarian
+      if (fearGreedExtended?.contrarian_signal) {
+        btcReasons.push(fearGreedExtended.contrarian_signal);
+      }
+      
+      // On-chain insights
+      if (onChainMetrics.interpretation.length > 0) {
+        btcReasons.push(onChainMetrics.interpretation[0]);
+      }
+      
+      reasoning = [...reasoning, ...btcReasons];
+    }
 
     // Calculate 24h and 7d changes
     let change24h = currentQuote?.regularMarketChangePercent ?? 0;
@@ -411,18 +937,6 @@ export async function POST(req: NextRequest) {
     if (fearGreed) {
       if (fearGreed.value > 60) marketTrend = "RISK_ON";
       else if (fearGreed.value < 40) marketTrend = "RISK_OFF";
-    }
-
-    // Calculate Mayer Multiple for BTC (price / 200-day SMA)
-    let mayerMultiple: number | null = null;
-    let mayerZone: string | null = null;
-    if (asset === "BTC" && smas && smas.sma_200 > 0) {
-      mayerMultiple = Math.round((currentPrice / smas.sma_200) * 100) / 100;
-      if (mayerMultiple < 0.8) mayerZone = "UNDERVALUED";
-      else if (mayerMultiple < 1.0) mayerZone = "ACCUMULATION";
-      else if (mayerMultiple < 1.4) mayerZone = "FAIR_VALUE";
-      else if (mayerMultiple < 2.4) mayerZone = "ELEVATED";
-      else mayerZone = "OVERHEATED";
     }
 
     // Build response
@@ -448,6 +962,7 @@ export async function POST(req: NextRequest) {
           confidence: signal.confidence,
           strength: signal.strength,
           reasoning,
+          ...(factorBreakdown && { factor_breakdown: factorBreakdown }),
         },
 
         targets,
@@ -503,7 +1018,44 @@ export async function POST(req: NextRequest) {
           fear_greed_label: fearGreed?.label ?? "Neutral",
           btc_dominance: Math.round((btcDominance ?? 50) * 10) / 10,
           market_trend: marketTrend,
+          // Enhanced Fear & Greed for BTC
+          ...(fearGreedExtended && {
+            fear_greed_trend_7d: fearGreedExtended.trend_7d,
+            fear_greed_contrarian: fearGreedExtended.contrarian_signal,
+          }),
         },
+
+        // === BTC-SPECIFIC DEEP ANALYSIS ===
+        ...(isBTC && {
+          btc_analysis: {
+            // Halving cycle context
+            halving_cycle: halvingContext ? {
+              days_since_halving: halvingContext.days_since_halving,
+              halving_date: halvingContext.halving_date,
+              current_block_reward: halvingContext.current_block_reward,
+              next_halving_estimate: halvingContext.next_halving_estimate,
+              cycle_phase: halvingContext.cycle_phase,
+              cycle_bullish_bias: halvingContext.cycle_bullish_bias,
+              historical_note: halvingContext.historical_note,
+            } : null,
+
+            // Perpetual futures funding rate
+            funding_rate: fundingRate ? {
+              rate: fundingRate.rate,
+              rate_annualized_pct: fundingRate.rate_annualized,
+              sentiment: fundingRate.sentiment,
+              interpretation: fundingRate.interpretation,
+            } : null,
+
+            // On-chain metrics
+            on_chain: {
+              hash_rate_trend: onChainMetrics.hash_rate_trend,
+              active_addresses_24h: onChainMetrics.active_addresses_24h,
+              exchange_balance_trend: onChainMetrics.exchange_balance_trend,
+              interpretation: onChainMetrics.interpretation,
+            },
+          },
+        }),
 
       },
 
