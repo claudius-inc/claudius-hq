@@ -1,3 +1,8 @@
+// Score breakdown component for hover cards
+export interface ScoreComponent {
+  [category: string]: { score: number; max: number };
+}
+
 export interface ScanResult {
   rank: number;
   ticker: string;
@@ -8,7 +13,18 @@ export interface ScanResult {
   tier: string;
   tierColor: string;
   riskTier: string;
-  market?: "US" | "SGX" | "HK" | "JP";
+  market?: "US" | "SGX" | "HK" | "JP" | "CN";
+
+  // Multi-mode scores (each 0-100)
+  quantScore?: number;
+  valueScore?: number;
+  growthScore?: number;
+  combinedScore?: number; // Average of the 3
+
+  // Breakdowns for hover cards
+  quantBreakdown?: ScoreComponent;
+  valueBreakdown?: ScoreComponent;
+  growthBreakdown?: ScoreComponent;
   growth: { score: number; max: number; details: string[] };
   financial: { score: number; max: number; details: string[] };
   insider: { score: number; max: number; details: string[] };
@@ -41,6 +57,7 @@ export interface ScanSummary {
   sgxCount?: number;
   hkCount?: number;
   jpCount?: number;
+  cnCount?: number;
 }
 
 export interface ParsedScan {

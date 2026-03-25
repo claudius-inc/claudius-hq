@@ -249,6 +249,23 @@ const JP_TICKERS = [
   "6460.T", "7936.T", "9766.T", "4751.T", "9602.T", "4680.T",
 ];
 
+// Comprehensive China A-shares tickers (~60 major stocks from SSE and SZSE)
+const CN_TICKERS = [
+  // ── Shanghai Stock Exchange (.SS) ──
+  "600519.SS", "601318.SS", "600036.SS", "600276.SS", "601012.SS", "600900.SS",
+  "600309.SS", "600887.SS", "601888.SS", "600030.SS", "601166.SS", "600000.SS",
+  "600050.SS", "601398.SS", "601288.SS", "601939.SS", "601988.SS", "600028.SS",
+  "601857.SS", "600585.SS", "600104.SS", "600690.SS", "601668.SS", "600703.SS",
+  "601601.SS", "600438.SS", "600089.SS", "601225.SS", "600196.SS", "601628.SS",
+  
+  // ── Shenzhen Stock Exchange (.SZ) ──
+  "000858.SZ", "000333.SZ", "000651.SZ", "002415.SZ", "300750.SZ", "002594.SZ",
+  "000001.SZ", "000002.SZ", "002304.SZ", "300059.SZ", "002352.SZ", "000725.SZ",
+  "002475.SZ", "300760.SZ", "002714.SZ", "000538.SZ", "002027.SZ", "300124.SZ",
+  "002241.SZ", "300015.SZ", "000568.SZ", "002230.SZ", "000063.SZ", "002142.SZ",
+  "300033.SZ", "002601.SZ", "300014.SZ", "002032.SZ", "300274.SZ", "002050.SZ",
+];
+
 // Fetch tickers from Yahoo Finance screeners
 async function fetchScreenerTickers(maxPerScreen = 100): Promise<Set<string>> {
   const tickers = new Set<string>();
@@ -351,7 +368,7 @@ interface ScanResult {
   tier: string;
   tierColor: string;
   riskTier: string;
-  market: "US" | "SGX" | "HK" | "JP";
+  market: "US" | "SGX" | "HK" | "JP" | "CN";
   growth: ScoreComponent;
   financial: ScoreComponent;
   technical: ScoreComponent;
@@ -359,6 +376,14 @@ interface ScanResult {
   revGrowth: number | null;
   grossMargin: number | null;
   source: "curated" | "discovered";
+  // Multi-mode scores (0-100 each)
+  quantScore?: number;
+  valueScore?: number;
+  growthScore?: number;
+  combinedScore?: number;
+  quantBreakdown?: ScoreComponent;
+  valueBreakdown?: ScoreComponent;
+  growthBreakdown?: ScoreComponent;
 }
 
 interface ScanSummary {
@@ -372,6 +397,7 @@ interface ScanSummary {
   sgxCount: number;
   hkCount: number;
   jpCount: number;
+  cnCount: number;
 }
 
 // ── Rate Limiting ────────────────────────────────────────────────────────────
@@ -395,6 +421,11 @@ interface ChartData {
   // Momentum fields
   momentum12m1m: number | null; // 12-1 month momentum (excluding last month)
   volatility90d: number | null; // 90-day volatility (std dev of daily returns)
+  // Growth mode fields
+  return6m: number | null; // 6-month return
+  return3m: number | null; // 3-month return
+  // Quant mode fields
+  sma200: number | null; // 200-day simple moving average
 }
 
 async function getChartData(ticker: string): Promise<ChartData | null> {
@@ -464,7 +495,34 @@ async function getChartData(ticker: string): Promise<ChartData | null> {
       }
     }
 
-    return { price, high52, low52, position52w, momentum12m1m, volatility90d };
+    // Calculate 6-month and 3-month returns for growth mode
+    let return6m: number | null = null;
+    let return3m: number | null = null;
+    
+    // 6-month return (~126 trading days)
+    if (closes.length >= 126) {
+      const price6mAgo = closes[closes.length - 126];
+      if (price6mAgo > 0) {
+        return6m = ((price - price6mAgo) / price6mAgo) * 100;
+      }
+    }
+    
+    // 3-month return (~63 trading days)
+    if (closes.length >= 63) {
+      const price3mAgo = closes[closes.length - 63];
+      if (price3mAgo > 0) {
+        return3m = ((price - price3mAgo) / price3mAgo) * 100;
+      }
+    }
+
+    // 200-day simple moving average
+    let sma200: number | null = null;
+    if (closes.length >= 200) {
+      const last200 = closes.slice(-200);
+      sma200 = last200.reduce((a, b) => a + b, 0) / 200;
+    }
+
+    return { price, high52, low52, position52w, momentum12m1m, volatility90d, return6m, return3m, sma200 };
   } catch (error) {
     console.error(`[Chart] ${ticker}: failed -`, error);
     return null;
@@ -492,6 +550,9 @@ interface FundamentalsData {
   freeCashflow: number | null;
   priceToFCF: number | null; // P/FCF ratio
   debtToEquity: number | null;
+  priceToSales: number | null; // P/S ratio for growth mode
+  enterpriseToEbitda: number | null; // EV/EBITDA for quant mode
+  dividendYield: number | null; // Dividend yield for quant mode
   targetPrice: number | null;
   analystCount: number;
   strongBuy: number;
@@ -501,6 +562,12 @@ interface FundamentalsData {
   strongSell: number;
   shortPctFloat: number | null;
   beta: number | null;
+  // Value mode fields
+  totalRevenue: number | null;
+  totalDebt: number | null;
+  interestExpense: number | null;
+  ebit: number | null;
+  payoutRatio: number | null;
 }
 
 async function getFundamentals(ticker: string): Promise<FundamentalsData | null> {
@@ -659,6 +726,9 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
       freeCashflow: fin.freeCashflow ?? null,
       priceToFCF,
       debtToEquity: fin.debtToEquity ?? null,
+      priceToSales: summary.priceToSalesTrailing12Months ?? null,
+      enterpriseToEbitda: stats.enterpriseToEbitda ?? null,
+      dividendYield: summary.dividendYield ?? null,
       targetPrice: fin.targetMeanPrice ?? null,
       analystCount: fin.numberOfAnalystOpinions || 0,
       strongBuy: reco.strongBuy || 0,
@@ -668,6 +738,16 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
       strongSell: reco.strongSell || 0,
       shortPctFloat: stats.shortPercentOfFloat ?? null,
       beta: stats.beta ?? null,
+      // Value mode fields
+      totalRevenue: incomeHistory[0]?.totalRevenue?.raw ?? null,
+      totalDebt: (() => {
+        const ltd = balanceHistory[0]?.longTermDebt?.raw || 0;
+        const std = balanceHistory[0]?.shortLongTermDebt?.raw || balanceHistory[0]?.shortTermDebt?.raw || 0;
+        return ltd + std > 0 ? ltd + std : null;
+      })(),
+      interestExpense: incomeHistory[0]?.interestExpense?.raw ?? null,
+      ebit: incomeHistory[0]?.ebit?.raw ?? incomeHistory[0]?.operatingIncome?.raw ?? null,
+      payoutRatio: summary.payoutRatio ?? null,
     };
   } catch (error) {
     console.error(`[Fundamentals] ${ticker}: failed -`, error);
@@ -998,7 +1078,804 @@ function scoreAnalyst(fund: FundamentalsData, chart: ChartData | null): ScoreCom
   return { score: Math.min(score, 10), max: 10, details };
 }
 
-function calculateRisk(chart: ChartData | null, fund: FundamentalsData, market: "US" | "SGX" | "HK" | "JP"): RiskAnalysis {
+/**
+ * Growth Mode Scoring (100 pts max + 5 bonus)
+ * Optimized for high-growth companies with revenue acceleration
+ */
+function scoreGrowthMode(fund: FundamentalsData, chart: ChartData | null): ScoreComponent {
+  let score = 0;
+  const details: string[] = [];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // REVENUE GROWTH: 40 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // 3Y CAGR: 15 pts
+  if (fund.revenueGrowth3Y != null) {
+    if (fund.revenueGrowth3Y > 100) {
+      score += 15;
+      details.push(`3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    } else if (fund.revenueGrowth3Y > 50) {
+      score += 11;
+      details.push(`3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    } else if (fund.revenueGrowth3Y > 35) {
+      score += 9;
+      details.push(`3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    } else if (fund.revenueGrowth3Y > 25) {
+      score += 7;
+      details.push(`3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    } else if (fund.revenueGrowth3Y > 15) {
+      score += 5;
+      details.push(`3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    } else if (fund.revenueGrowth3Y > 10) {
+      score += 3;
+      details.push(`3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    } else {
+      details.push(`3Y+${fund.revenueGrowth3Y.toFixed(0)}%`);
+    }
+  }
+
+  // YoY Growth: 15 pts
+  if (fund.revenueGrowth != null) {
+    if (fund.revenueGrowth > 150) {
+      score += 15;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 100) {
+      score += 13;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 75) {
+      score += 11;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 50) {
+      score += 9;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 35) {
+      score += 7;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 20) {
+      score += 5;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else if (fund.revenueGrowth > 10) {
+      score += 3;
+      details.push(`YoY+${fund.revenueGrowth.toFixed(0)}%`);
+    } else {
+      details.push(`YoY ${fund.revenueGrowth.toFixed(0)}%`);
+    }
+  }
+
+  // QoQ Growth: 10 pts
+  if (fund.revenueGrowthQoQ != null) {
+    if (fund.revenueGrowthQoQ > 30) {
+      score += 10;
+      details.push(`QoQ+${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    } else if (fund.revenueGrowthQoQ > 20) {
+      score += 8;
+      details.push(`QoQ+${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    } else if (fund.revenueGrowthQoQ > 15) {
+      score += 6;
+      details.push(`QoQ+${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    } else if (fund.revenueGrowthQoQ > 10) {
+      score += 4;
+      details.push(`QoQ+${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    } else if (fund.revenueGrowthQoQ > 5) {
+      score += 2;
+      details.push(`QoQ+${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    } else {
+      details.push(`QoQ ${fund.revenueGrowthQoQ.toFixed(0)}%`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GROWTH DURABILITY: 15 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Acceleration: 8 pts (compare current YoY vs prior YoY)
+  let isAccelerating = false;
+  if (fund.revenueGrowthYoYCurrent != null && fund.revenueGrowthYoYPrior != null) {
+    const diff = fund.revenueGrowthYoYCurrent - fund.revenueGrowthYoYPrior;
+    if (diff > 10) {
+      score += 8;
+      isAccelerating = true;
+      details.push(`Accel+${diff.toFixed(0)}pp`);
+    } else if (diff > 5) {
+      score += 6;
+      isAccelerating = true;
+      details.push(`Accel+${diff.toFixed(0)}pp`);
+    } else if (diff > 0) {
+      score += 4;
+      isAccelerating = true;
+      details.push(`Accel+${diff.toFixed(0)}pp`);
+    } else if (diff > -5) {
+      score += 2;
+      details.push(`Decel${diff.toFixed(0)}pp`);
+    } else {
+      details.push(`Decel${diff.toFixed(0)}pp`);
+    }
+  }
+
+  // Consistency: 7 pts (4/4 quarters positive)
+  if (fund.revenueGrowthQoQ != null && fund.revenueGrowthQoQ > 0) {
+    score += 7;
+    details.push("Consistent");
+  } else if (fund.revenueGrowth != null && fund.revenueGrowth > 20) {
+    // Fallback: estimate from strong YoY
+    score += 4;
+    details.push("~Consistent");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SCALABILITY: 15 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Gross Margin Level: 10 pts
+  const gm = fund.grossMargin ?? 0;
+  if (gm > 0.70) {
+    score += 10;
+    details.push(`GM ${(gm * 100).toFixed(0)}%`);
+  } else if (gm > 0.60) {
+    score += 8;
+    details.push(`GM ${(gm * 100).toFixed(0)}%`);
+  } else if (gm > 0.50) {
+    score += 6;
+    details.push(`GM ${(gm * 100).toFixed(0)}%`);
+  } else if (gm > 0.40) {
+    score += 4;
+    details.push(`GM ${(gm * 100).toFixed(0)}%`);
+  } else if (gm > 0.30) {
+    score += 2;
+    details.push(`GM ${(gm * 100).toFixed(0)}%`);
+  } else if (gm > 0) {
+    details.push(`GM ${(gm * 100).toFixed(0)}%`);
+  }
+
+  // GM Trend: 5 pts
+  if (fund.grossMargin != null && fund.grossMarginPrior != null) {
+    const gmDiff = (fund.grossMargin - fund.grossMarginPrior) * 100; // in percentage points
+    if (gmDiff > 3) {
+      score += 5;
+      details.push(`GM↑${gmDiff.toFixed(0)}pp`);
+    } else if (gmDiff > 1) {
+      score += 4;
+      details.push(`GM↑${gmDiff.toFixed(1)}pp`);
+    } else if (gmDiff >= -1) {
+      score += 3;
+      details.push("GM→");
+    } else {
+      details.push(`GM↓${gmDiff.toFixed(0)}pp`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MOMENTUM: 15 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // 6M Return: 8 pts
+  if (chart?.return6m != null) {
+    if (chart.return6m > 50) {
+      score += 8;
+      details.push(`6M+${chart.return6m.toFixed(0)}%`);
+    } else if (chart.return6m > 30) {
+      score += 7;
+      details.push(`6M+${chart.return6m.toFixed(0)}%`);
+    } else if (chart.return6m > 15) {
+      score += 5;
+      details.push(`6M+${chart.return6m.toFixed(0)}%`);
+    } else if (chart.return6m > 0) {
+      score += 3;
+      details.push(`6M+${chart.return6m.toFixed(0)}%`);
+    } else if (chart.return6m > -15) {
+      score += 1;
+      details.push(`6M ${chart.return6m.toFixed(0)}%`);
+    } else {
+      details.push(`6M ${chart.return6m.toFixed(0)}%`);
+    }
+  }
+
+  // 3M Return: 7 pts
+  if (chart?.return3m != null) {
+    if (chart.return3m > 25) {
+      score += 7;
+      details.push(`3M+${chart.return3m.toFixed(0)}%`);
+    } else if (chart.return3m > 15) {
+      score += 5;
+      details.push(`3M+${chart.return3m.toFixed(0)}%`);
+    } else if (chart.return3m > 5) {
+      score += 4;
+      details.push(`3M+${chart.return3m.toFixed(0)}%`);
+    } else if (chart.return3m > 0) {
+      score += 2;
+      details.push(`3M+${chart.return3m.toFixed(0)}%`);
+    } else if (chart.return3m > -10) {
+      score += 1;
+      details.push(`3M ${chart.return3m.toFixed(0)}%`);
+    } else {
+      details.push(`3M ${chart.return3m.toFixed(0)}%`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TAM PROXY: 15 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // P/S-to-Growth Ratio: 10 pts
+  // Ratio = P/S / (revenueGrowth/100)
+  // Lower is better (cheap relative to growth)
+  if (fund.priceToSales != null && fund.revenueGrowth != null && fund.revenueGrowth > 0) {
+    const psToGrowth = fund.priceToSales / (fund.revenueGrowth / 100);
+    if (psToGrowth < 0.1) {
+      score += 10;
+      details.push(`PEG/S ${psToGrowth.toFixed(2)}`);
+    } else if (psToGrowth < 0.2) {
+      score += 8;
+      details.push(`PEG/S ${psToGrowth.toFixed(2)}`);
+    } else if (psToGrowth < 0.3) {
+      score += 6;
+      details.push(`PEG/S ${psToGrowth.toFixed(2)}`);
+    } else if (psToGrowth < 0.5) {
+      score += 4;
+      details.push(`PEG/S ${psToGrowth.toFixed(2)}`);
+    } else if (psToGrowth < 1) {
+      score += 2;
+      details.push(`PEG/S ${psToGrowth.toFixed(2)}`);
+    } else {
+      details.push(`PEG/S ${psToGrowth.toFixed(2)}`);
+    }
+  }
+
+  // Market Cap Sweet Spot: 5 pts
+  const mcapM = fund.mcapM || 0;
+  if (mcapM >= 500 && mcapM <= 5000) {
+    score += 5;
+    details.push("MCap sweet");
+  } else if (mcapM > 5000 && mcapM <= 20000) {
+    score += 4;
+    details.push("MCap mid");
+  } else if (mcapM >= 100 && mcapM < 500) {
+    score += 3;
+    details.push("MCap small");
+  } else if (mcapM > 20000 && mcapM <= 50000) {
+    score += 2;
+    details.push("MCap large");
+  } else {
+    score += 1;
+    details.push("MCap mega/micro");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HYPERGROWTH BONUS: +5 pts (can exceed 100)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // If revenueGrowth >150% AND grossMargin >50% AND accelerating
+  if (
+    fund.revenueGrowth != null &&
+    fund.revenueGrowth > 150 &&
+    gm > 0.50 &&
+    isAccelerating
+  ) {
+    score += 5;
+    details.push("🚀 HYPERGROWTH");
+  }
+
+  return { score, max: 100, details };
+}
+
+/**
+ * Quant Mode Scoring (100 pts max)
+ * Multi-factor scoring: Quality, Value, Momentum, Size, Shareholder Yield
+ */
+function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreComponent {
+  let score = 0;
+  const details: string[] = [];
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // QUALITY - PROFITABILITY: 25 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ROE: 10 pts (>20%: 10, >15%: 7, >10%: 4, <10%: 0)
+  // Note: fund.roe is already in percentage (e.g., 15 means 15%)
+  if (fund.roe != null) {
+    if (fund.roe > 20) {
+      score += 10;
+      details.push(`ROE ${fund.roe.toFixed(0)}%`);
+    } else if (fund.roe > 15) {
+      score += 7;
+      details.push(`ROE ${fund.roe.toFixed(0)}%`);
+    } else if (fund.roe > 10) {
+      score += 4;
+      details.push(`ROE ${fund.roe.toFixed(0)}%`);
+    } else {
+      details.push(`ROE ${fund.roe.toFixed(0)}%`);
+    }
+  }
+
+  // Gross Margin: 8 pts (>50%: 8, >40%: 6, >30%: 4, <30%: 0)
+  // Note: fund.grossMargin is a decimal (e.g., 0.5 means 50%)
+  if (fund.grossMargin != null) {
+    const gmPct = fund.grossMargin * 100;
+    if (fund.grossMargin > 0.50) {
+      score += 8;
+      details.push(`GM ${gmPct.toFixed(0)}%`);
+    } else if (fund.grossMargin > 0.40) {
+      score += 6;
+      details.push(`GM ${gmPct.toFixed(0)}%`);
+    } else if (fund.grossMargin > 0.30) {
+      score += 4;
+      details.push(`GM ${gmPct.toFixed(0)}%`);
+    } else {
+      details.push(`GM ${gmPct.toFixed(0)}%`);
+    }
+  }
+
+  // FCF Positive: 7 pts (yes: 7, no: 0)
+  if (fund.freeCashflow != null && fund.freeCashflow > 0) {
+    score += 7;
+    details.push("FCF+");
+  } else if (fund.freeCashflow != null) {
+    details.push("FCF-");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // QUALITY - STABILITY: 15 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Debt/Equity: 8 pts (<30%: 8, <60%: 5, <100%: 2, >100%: 0)
+  // Note: fund.debtToEquity from Yahoo is already in % (e.g., 30 means 30%)
+  if (fund.debtToEquity != null) {
+    if (fund.debtToEquity < 30) {
+      score += 8;
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    } else if (fund.debtToEquity < 60) {
+      score += 5;
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    } else if (fund.debtToEquity < 100) {
+      score += 2;
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    } else {
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    }
+  }
+
+  // Earnings Positive (EPS > 0): 7 pts - use PE as proxy (if PE exists and is positive, company is profitable)
+  if (fund.pe != null && fund.pe > 0) {
+    score += 7;
+    details.push("EPS+");
+  } else if (fund.pe != null) {
+    details.push("EPS-");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VALUE: 25 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // EV/EBITDA: 10 pts (<8: 10, <12: 7, <16: 4, >16: 0)
+  if (fund.enterpriseToEbitda != null && fund.enterpriseToEbitda > 0) {
+    if (fund.enterpriseToEbitda < 8) {
+      score += 10;
+      details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
+    } else if (fund.enterpriseToEbitda < 12) {
+      score += 7;
+      details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
+    } else if (fund.enterpriseToEbitda < 16) {
+      score += 4;
+      details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
+    } else {
+      details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
+    }
+  }
+
+  // P/B: 8 pts (<1.5: 8, <2.5: 5, <4: 2, >4: 0)
+  if (fund.pb != null && fund.pb > 0) {
+    if (fund.pb < 1.5) {
+      score += 8;
+      details.push(`P/B ${fund.pb.toFixed(1)}`);
+    } else if (fund.pb < 2.5) {
+      score += 5;
+      details.push(`P/B ${fund.pb.toFixed(1)}`);
+    } else if (fund.pb < 4) {
+      score += 2;
+      details.push(`P/B ${fund.pb.toFixed(1)}`);
+    } else {
+      details.push(`P/B ${fund.pb.toFixed(1)}`);
+    }
+  }
+
+  // FCF Yield: 7 pts (>8%: 7, >5%: 5, >3%: 3, <3%: 0)
+  // Calculate as FCF/marketCap*100
+  if (fund.freeCashflow != null && fund.mcapRaw > 0) {
+    const fcfYield = (fund.freeCashflow / fund.mcapRaw) * 100;
+    if (fcfYield > 8) {
+      score += 7;
+      details.push(`FCFYld ${fcfYield.toFixed(1)}%`);
+    } else if (fcfYield > 5) {
+      score += 5;
+      details.push(`FCFYld ${fcfYield.toFixed(1)}%`);
+    } else if (fcfYield > 3) {
+      score += 3;
+      details.push(`FCFYld ${fcfYield.toFixed(1)}%`);
+    } else if (fcfYield > 0) {
+      details.push(`FCFYld ${fcfYield.toFixed(1)}%`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MOMENTUM: 15 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Price vs SMA200: 8 pts (>10% above: 8, >0%: 5, >-10%: 2, <-10%: 0)
+  if (chart && chart.sma200 != null && chart.sma200 > 0) {
+    const pctAboveSma = ((chart.price - chart.sma200) / chart.sma200) * 100;
+    if (pctAboveSma > 10) {
+      score += 8;
+      details.push(`+${pctAboveSma.toFixed(0)}% vs SMA200`);
+    } else if (pctAboveSma > 0) {
+      score += 5;
+      details.push(`+${pctAboveSma.toFixed(0)}% vs SMA200`);
+    } else if (pctAboveSma > -10) {
+      score += 2;
+      details.push(`${pctAboveSma.toFixed(0)}% vs SMA200`);
+    } else {
+      details.push(`${pctAboveSma.toFixed(0)}% vs SMA200`);
+    }
+
+    // Not Overextended: 7 pts (<25% above SMA200: 7, <40%: 4, >40%: 0)
+    if (pctAboveSma < 25) {
+      score += 7;
+      details.push("Not overextended");
+    } else if (pctAboveSma < 40) {
+      score += 4;
+      details.push("Slightly extended");
+    } else {
+      details.push("Overextended");
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SIZE: 10 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Market Cap: $500M-$5B: 10, $5B-$20B: 7, $20B-$100B: 4, >$100B: 2, <$500M: 0
+  const mcapB = fund.mcapRaw / 1e9; // Convert to billions
+  if (mcapB >= 0.5 && mcapB <= 5) {
+    score += 10;
+    details.push(`MCap $${mcapB.toFixed(1)}B`);
+  } else if (mcapB > 5 && mcapB <= 20) {
+    score += 7;
+    details.push(`MCap $${mcapB.toFixed(1)}B`);
+  } else if (mcapB > 20 && mcapB <= 100) {
+    score += 4;
+    details.push(`MCap $${mcapB.toFixed(0)}B`);
+  } else if (mcapB > 100) {
+    score += 2;
+    details.push(`MCap $${mcapB.toFixed(0)}B`);
+  } else if (mcapB > 0) {
+    details.push(`MCap $${(mcapB * 1000).toFixed(0)}M`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SHAREHOLDER YIELD: 10 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Dividend Yield: >4%: 10, >2%: 6, >1%: 3, <1%: 0
+  // Note: dividendYield from Yahoo is a decimal (e.g., 0.04 means 4%)
+  if (fund.dividendYield != null && fund.dividendYield > 0) {
+    const divYieldPct = fund.dividendYield * 100;
+    if (divYieldPct > 4) {
+      score += 10;
+      details.push(`Div ${divYieldPct.toFixed(1)}%`);
+    } else if (divYieldPct > 2) {
+      score += 6;
+      details.push(`Div ${divYieldPct.toFixed(1)}%`);
+    } else if (divYieldPct > 1) {
+      score += 3;
+      details.push(`Div ${divYieldPct.toFixed(1)}%`);
+    } else {
+      details.push(`Div ${divYieldPct.toFixed(1)}%`);
+    }
+  }
+
+  return { score: Math.min(score, 100), max: 100, details };
+}
+
+/**
+ * Value Mode Scoring (100 pts max)
+ * Optimized for undervalued, cash-generative companies with quality characteristics
+ */
+function scoreValue(fund: FundamentalsData, chart: ChartData | null): ScoreComponent {
+  let score = 0;
+  const details: string[] = [];
+  const TEN_YEAR_YIELD = 4.3; // Approximate 10-year Treasury yield
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VALUATION: 40 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // EV/EBITDA: 12 pts (<6: 12, <8: 10, <10: 7, <14: 4, >14: 0)
+  if (fund.enterpriseToEbitda != null && fund.enterpriseToEbitda > 0) {
+    if (fund.enterpriseToEbitda < 6) {
+      score += 12;
+      details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
+    } else if (fund.enterpriseToEbitda < 8) {
+      score += 10;
+      details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
+    } else if (fund.enterpriseToEbitda < 10) {
+      score += 7;
+      details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
+    } else if (fund.enterpriseToEbitda < 14) {
+      score += 4;
+      details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
+    } else {
+      details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
+    }
+  }
+
+  // Earnings Yield Spread vs 10Y: 10 pts
+  // EY = 1/PE * 100, Spread = EY - 4.3%
+  if (fund.pe != null && fund.pe > 0) {
+    const earningsYield = (1 / fund.pe) * 100;
+    const spread = earningsYield - TEN_YEAR_YIELD;
+    if (spread > 6) {
+      score += 10;
+      details.push(`EY Spread +${spread.toFixed(1)}%`);
+    } else if (spread > 4) {
+      score += 8;
+      details.push(`EY Spread +${spread.toFixed(1)}%`);
+    } else if (spread > 2) {
+      score += 5;
+      details.push(`EY Spread +${spread.toFixed(1)}%`);
+    } else if (spread > 0) {
+      score += 2;
+      details.push(`EY Spread +${spread.toFixed(1)}%`);
+    } else {
+      details.push(`EY Spread ${spread.toFixed(1)}%`);
+    }
+  }
+
+  // P/FCF: 10 pts (<10: 10, <15: 7, <20: 4, <25: 2, >25: 0)
+  if (fund.priceToFCF != null && fund.priceToFCF > 0) {
+    if (fund.priceToFCF < 10) {
+      score += 10;
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    } else if (fund.priceToFCF < 15) {
+      score += 7;
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    } else if (fund.priceToFCF < 20) {
+      score += 4;
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    } else if (fund.priceToFCF < 25) {
+      score += 2;
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    } else {
+      details.push(`P/FCF ${fund.priceToFCF.toFixed(1)}`);
+    }
+  }
+
+  // P/B: 8 pts (<1: 8, <1.5: 6, <2.5: 4, <4: 2, >4: 0)
+  if (fund.pb != null && fund.pb > 0) {
+    if (fund.pb < 1) {
+      score += 8;
+      details.push(`P/B ${fund.pb.toFixed(2)}`);
+    } else if (fund.pb < 1.5) {
+      score += 6;
+      details.push(`P/B ${fund.pb.toFixed(2)}`);
+    } else if (fund.pb < 2.5) {
+      score += 4;
+      details.push(`P/B ${fund.pb.toFixed(2)}`);
+    } else if (fund.pb < 4) {
+      score += 2;
+      details.push(`P/B ${fund.pb.toFixed(2)}`);
+    } else {
+      details.push(`P/B ${fund.pb.toFixed(2)}`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CASH GENERATION: 25 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // FCF Yield (FCF/MarketCap*100): 10 pts (>10%: 10, >7%: 8, >5%: 6, >3%: 3, <3%: 0)
+  if (fund.freeCashflow != null && fund.mcapRaw > 0) {
+    const fcfYield = (fund.freeCashflow / fund.mcapRaw) * 100;
+    if (fcfYield > 10) {
+      score += 10;
+      details.push(`FCF Yield ${fcfYield.toFixed(1)}%`);
+    } else if (fcfYield > 7) {
+      score += 8;
+      details.push(`FCF Yield ${fcfYield.toFixed(1)}%`);
+    } else if (fcfYield > 5) {
+      score += 6;
+      details.push(`FCF Yield ${fcfYield.toFixed(1)}%`);
+    } else if (fcfYield > 3) {
+      score += 3;
+      details.push(`FCF Yield ${fcfYield.toFixed(1)}%`);
+    } else if (fcfYield > 0) {
+      details.push(`FCF Yield ${fcfYield.toFixed(1)}%`);
+    } else {
+      details.push(`FCF Yield ${fcfYield.toFixed(1)}%`);
+    }
+  }
+
+  // FCF Margin (FCF/Revenue*100): 8 pts (>20%: 8, >12%: 6, >6%: 4, >0%: 2, <0%: 0)
+  if (fund.freeCashflow != null && fund.totalRevenue != null && fund.totalRevenue > 0) {
+    const fcfMargin = (fund.freeCashflow / fund.totalRevenue) * 100;
+    if (fcfMargin > 20) {
+      score += 8;
+      details.push(`FCF Margin ${fcfMargin.toFixed(1)}%`);
+    } else if (fcfMargin > 12) {
+      score += 6;
+      details.push(`FCF Margin ${fcfMargin.toFixed(1)}%`);
+    } else if (fcfMargin > 6) {
+      score += 4;
+      details.push(`FCF Margin ${fcfMargin.toFixed(1)}%`);
+    } else if (fcfMargin > 0) {
+      score += 2;
+      details.push(`FCF Margin ${fcfMargin.toFixed(1)}%`);
+    } else {
+      details.push(`FCF Margin ${fcfMargin.toFixed(1)}%`);
+    }
+  }
+
+  // FCF/Debt: 7 pts (>0.5: 7, >0.25: 5, >0.15: 3, >0.08: 1, <0.08: 0)
+  if (fund.freeCashflow != null && fund.totalDebt != null && fund.totalDebt > 0) {
+    const fcfToDebt = fund.freeCashflow / fund.totalDebt;
+    if (fcfToDebt > 0.5) {
+      score += 7;
+      details.push(`FCF/Debt ${fcfToDebt.toFixed(2)}`);
+    } else if (fcfToDebt > 0.25) {
+      score += 5;
+      details.push(`FCF/Debt ${fcfToDebt.toFixed(2)}`);
+    } else if (fcfToDebt > 0.15) {
+      score += 3;
+      details.push(`FCF/Debt ${fcfToDebt.toFixed(2)}`);
+    } else if (fcfToDebt > 0.08) {
+      score += 1;
+      details.push(`FCF/Debt ${fcfToDebt.toFixed(2)}`);
+    } else {
+      details.push(`FCF/Debt ${fcfToDebt.toFixed(2)}`);
+    }
+  } else if (fund.freeCashflow != null && fund.freeCashflow > 0 && (fund.totalDebt == null || fund.totalDebt === 0)) {
+    // No debt is a bonus
+    score += 7;
+    details.push("FCF+, No Debt");
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // QUALITY & DURABILITY: 25 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ROIC: 10 pts (>20%: 10, >15%: 8, >12%: 6, >8%: 3, <8%: 0)
+  if (fund.roic != null) {
+    if (fund.roic > 20) {
+      score += 10;
+      details.push(`ROIC ${fund.roic.toFixed(1)}%`);
+    } else if (fund.roic > 15) {
+      score += 8;
+      details.push(`ROIC ${fund.roic.toFixed(1)}%`);
+    } else if (fund.roic > 12) {
+      score += 6;
+      details.push(`ROIC ${fund.roic.toFixed(1)}%`);
+    } else if (fund.roic > 8) {
+      score += 3;
+      details.push(`ROIC ${fund.roic.toFixed(1)}%`);
+    } else {
+      details.push(`ROIC ${fund.roic.toFixed(1)}%`);
+    }
+  }
+
+  // Interest Coverage (EBIT/Interest): 6 pts (>10: 6, >6: 5, >4: 3, >2: 1, <2: 0)
+  if (fund.ebit != null && fund.interestExpense != null && fund.interestExpense > 0) {
+    const interestCoverage = Math.abs(fund.ebit / fund.interestExpense);
+    if (interestCoverage > 10) {
+      score += 6;
+      details.push(`Int Cov ${interestCoverage.toFixed(1)}x`);
+    } else if (interestCoverage > 6) {
+      score += 5;
+      details.push(`Int Cov ${interestCoverage.toFixed(1)}x`);
+    } else if (interestCoverage > 4) {
+      score += 3;
+      details.push(`Int Cov ${interestCoverage.toFixed(1)}x`);
+    } else if (interestCoverage > 2) {
+      score += 1;
+      details.push(`Int Cov ${interestCoverage.toFixed(1)}x`);
+    } else {
+      details.push(`Int Cov ${interestCoverage.toFixed(1)}x`);
+    }
+  } else if (fund.ebit != null && fund.ebit > 0 && (fund.interestExpense == null || fund.interestExpense === 0)) {
+    // No interest expense is good
+    score += 6;
+    details.push("No Int Exp");
+  }
+
+  // Debt/Equity: 5 pts (<30%: 5, <60%: 4, <100%: 3, <150%: 1, >150%: 0)
+  if (fund.debtToEquity != null) {
+    if (fund.debtToEquity < 30) {
+      score += 5;
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    } else if (fund.debtToEquity < 60) {
+      score += 4;
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    } else if (fund.debtToEquity < 100) {
+      score += 3;
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    } else if (fund.debtToEquity < 150) {
+      score += 1;
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    } else {
+      details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
+    }
+  }
+
+  // ROE: 4 pts (>18%: 4, >12%: 3, >8%: 2, <8%: 0)
+  if (fund.roe != null) {
+    if (fund.roe > 18) {
+      score += 4;
+      details.push(`ROE ${fund.roe.toFixed(1)}%`);
+    } else if (fund.roe > 12) {
+      score += 3;
+      details.push(`ROE ${fund.roe.toFixed(1)}%`);
+    } else if (fund.roe > 8) {
+      score += 2;
+      details.push(`ROE ${fund.roe.toFixed(1)}%`);
+    } else {
+      details.push(`ROE ${fund.roe.toFixed(1)}%`);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DIVIDEND: 10 pts
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Dividend Yield: 5 pts (>4%: 5, >2.5%: 4, >1.5%: 3, >0%: 2, 0%: 1)
+  if (fund.dividendYield != null) {
+    const divYield = fund.dividendYield * 100; // Convert to percentage
+    if (divYield > 4) {
+      score += 5;
+      details.push(`Div Yield ${divYield.toFixed(1)}%`);
+    } else if (divYield > 2.5) {
+      score += 4;
+      details.push(`Div Yield ${divYield.toFixed(1)}%`);
+    } else if (divYield > 1.5) {
+      score += 3;
+      details.push(`Div Yield ${divYield.toFixed(1)}%`);
+    } else if (divYield > 0) {
+      score += 2;
+      details.push(`Div Yield ${divYield.toFixed(1)}%`);
+    } else {
+      score += 1;
+      details.push("No Div");
+    }
+  } else {
+    score += 1; // No dividend data - give 1 pt
+    details.push("No Div");
+  }
+
+  // Payout Ratio: 5 pts (20-50%: 5, 50-70%: 4, 10-20%: 3, 70-90%: 2, else: 1, >100%: 0)
+  if (fund.payoutRatio != null) {
+    const payout = fund.payoutRatio * 100; // Convert to percentage
+    if (payout > 100) {
+      // Paying more than earnings - unsustainable
+      details.push(`Payout ${payout.toFixed(0)}%!`);
+    } else if (payout >= 20 && payout <= 50) {
+      score += 5;
+      details.push(`Payout ${payout.toFixed(0)}%`);
+    } else if (payout > 50 && payout <= 70) {
+      score += 4;
+      details.push(`Payout ${payout.toFixed(0)}%`);
+    } else if (payout >= 10 && payout < 20) {
+      score += 3;
+      details.push(`Payout ${payout.toFixed(0)}%`);
+    } else if (payout > 70 && payout <= 90) {
+      score += 2;
+      details.push(`Payout ${payout.toFixed(0)}%`);
+    } else if (payout > 0) {
+      score += 1;
+      details.push(`Payout ${payout.toFixed(0)}%`);
+    }
+  }
+
+  return { score: Math.min(score, 100), max: 100, details };
+}
+
+function calculateRisk(chart: ChartData | null, fund: FundamentalsData, market: "US" | "SGX" | "HK" | "JP" | "CN"): RiskAnalysis {
   let penalty = 0;
   const flags: string[] = [];
 
@@ -1041,8 +1918,8 @@ function classifyStock(totalScore: number): { tier: string; tierColor: string } 
   return { tier: "AVOID", tierColor: "red" };
 }
 
-function getRiskTier(fund: FundamentalsData, market: "US" | "SGX" | "HK" | "JP"): string {
-  if (market === "SGX" || market === "HK" || market === "JP") {
+function getRiskTier(fund: FundamentalsData, market: "US" | "SGX" | "HK" | "JP" | "CN"): string {
+  if (market === "SGX" || market === "HK" || market === "JP" || market === "CN") {
     const mcapM = fund.mcapM || 0;
     const de = fund.debtToEquity || 0;
     if (mcapM < 50 || de > 200) return "TIER 3";
@@ -1057,10 +1934,11 @@ function getRiskTier(fund: FundamentalsData, market: "US" | "SGX" | "HK" | "JP")
   }
 }
 
-function getMarket(ticker: string): "US" | "SGX" | "HK" | "JP" {
+function getMarket(ticker: string): "US" | "SGX" | "HK" | "JP" | "CN" {
   if (ticker.endsWith(".SI")) return "SGX";
   if (ticker.endsWith(".HK")) return "HK";
   if (ticker.endsWith(".T")) return "JP";
+  if (ticker.endsWith(".SS") || ticker.endsWith(".SZ")) return "CN";
   return "US";
 }
 
@@ -1149,6 +2027,12 @@ async function runScanner(): Promise<void> {
       jpSet.forEach(t => tickerSources!.set(t, { market: "JP", source: "curated" }));
       console.log(`JP: ${jpSet.size} tickers`);
     }
+    
+    if (marketsToScan.includes("CN")) {
+      const cnSet = new Set(CN_TICKERS);
+      cnSet.forEach(t => tickerSources!.set(t, { market: "CN", source: "curated" }));
+      console.log(`CN: ${cnSet.size} tickers`);
+    }
     console.log("");
   }
   
@@ -1184,18 +2068,21 @@ async function runScanner(): Promise<void> {
       const technical = scoreTechnical(chart);
       const risk = calculateRisk(chart, fund, market);
 
-      // Total: Growth (50) + Financial (30) + Technical (20) = 100 max + risk penalty
-      const rawScore =
-        growth.score +
-        financial.score +
-        technical.score +
-        risk.penalty;
-      const totalScore = Math.max(0, rawScore);
+      // Multi-mode scoring (each 0-100)
+      const quantResult = scoreQuant(fund, chart);
+      const valueResult = scoreValue(fund, chart);
+      const growthModeResult = scoreGrowthMode(fund, chart);
+      
+      // Combined score = average of the 3 modes
+      const combinedScore = Math.round((quantResult.score + valueResult.score + growthModeResult.score) / 3);
+      
+      // Use combined score as the main score now
+      const totalScore = Math.max(0, combinedScore + risk.penalty);
 
       const { tier, tierColor } = classifyStock(totalScore);
       const riskTier = getRiskTier(fund, market);
 
-      const tickerClean = ticker.replace(".SI", "").replace(".HK", "");
+      const tickerClean = ticker.replace(".SI", "").replace(".HK", "").replace(".SS", "").replace(".SZ", "");
 
       results.push({
         rank: 0,
@@ -1215,6 +2102,14 @@ async function runScanner(): Promise<void> {
         source,
         revGrowth: fund.revenueGrowthRaw,
         grossMargin: fund.grossMargin,
+        // Multi-mode scores
+        quantScore: quantResult.score,
+        valueScore: valueResult.score,
+        growthScore: growthModeResult.score,
+        combinedScore,
+        quantBreakdown: quantResult,
+        valueBreakdown: valueResult,
+        growthBreakdown: growthModeResult,
       });
 
       console.log(
@@ -1243,6 +2138,7 @@ async function runScanner(): Promise<void> {
     sgxCount: results.filter((r) => r.market === "SGX").length,
     hkCount: results.filter((r) => r.market === "HK").length,
     jpCount: results.filter((r) => r.market === "JP").length,
+    cnCount: results.filter((r) => r.market === "CN").length,
   };
 
   // Print summary
@@ -1250,7 +2146,7 @@ async function runScanner(): Promise<void> {
   console.log(" SUMMARY");
   console.log("=".repeat(80));
   console.log(`Scanned: ${summary.scannedCount}/${summary.universeSize}`);
-  console.log(`US: ${summary.usCount} | SGX: ${summary.sgxCount} | HK: ${summary.hkCount} | JP: ${summary.jpCount}`);
+  console.log(`US: ${summary.usCount} | SGX: ${summary.sgxCount} | HK: ${summary.hkCount} | JP: ${summary.jpCount} | CN: ${summary.cnCount}`);
   console.log(`HIGH CONVICTION: ${summary.highConviction}`);
   console.log(`SPECULATIVE: ${summary.speculative}`);
   console.log(`WATCHLIST: ${summary.watchlist}`);

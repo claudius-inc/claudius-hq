@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Search, Clock, TrendingUp, Zap } from "lucide-react";
+import { ChevronDown, ChevronUp, Search, Clock, TrendingUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Select } from "@/components/ui/Select";
-import type { ParsedScan, ScanResult } from "../types";
+import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/HoverCard";
+import type { ParsedScan, ScanResult, ScoreComponent } from "../types";
 
 interface Props {
   scan: ParsedScan | null;
@@ -38,6 +39,86 @@ function getScoreColor(score: number): string {
 function getMarketBadgeColor(market: string): string {
   if (market === "US") return "bg-indigo-50 text-indigo-700";
   return "bg-teal-50 text-teal-700";
+}
+
+// Color coding for Q/V/G scores: ≥70 green, 50-69 yellow, <50 red
+function getModeScoreColor(score: number | undefined): string {
+  if (score === undefined) return "text-gray-400";
+  if (score >= 70) return "text-emerald-600";
+  if (score >= 50) return "text-amber-600";
+  return "text-red-500";
+}
+
+function getModeScoreBgColor(score: number | undefined): string {
+  if (score === undefined) return "bg-gray-100";
+  if (score >= 70) return "bg-emerald-50";
+  if (score >= 50) return "bg-amber-50";
+  return "bg-red-50";
+}
+
+// Hover card component for score breakdown
+function ScoreBreakdownCard({
+  title,
+  score,
+  breakdown,
+}: {
+  title: string;
+  score: number | undefined;
+  breakdown: ScoreComponent | undefined;
+}) {
+  if (score === undefined) return null;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between border-b border-gray-200 pb-2">
+        <span className="font-semibold text-gray-900">{title}</span>
+        <span className={`font-bold ${getModeScoreColor(score)}`}>{score}/100</span>
+      </div>
+      {breakdown && Object.keys(breakdown).length > 0 ? (
+        <div className="space-y-1.5">
+          {Object.entries(breakdown).map(([category, { score: s, max }]) => (
+            <div key={category} className="flex items-center justify-between text-xs">
+              <span className="text-gray-600">{category}</span>
+              <span className="font-medium text-gray-800">{s}/{max}</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-400 italic">No breakdown available</p>
+      )}
+    </div>
+  );
+}
+
+// Score cell with hover card
+function ModeScoreCell({
+  label,
+  score,
+  breakdown,
+}: {
+  label: string;
+  score: number | undefined;
+  breakdown: ScoreComponent | undefined;
+}) {
+  if (score === undefined) {
+    return <span className="text-gray-300">-</span>;
+  }
+
+  return (
+    <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <button
+          className={`px-1.5 py-0.5 rounded text-xs font-medium cursor-help transition-colors ${getModeScoreBgColor(score)} ${getModeScoreColor(score)} hover:opacity-80`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {score}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent side="top" className="w-48 p-3">
+        <ScoreBreakdownCard title={label} score={score} breakdown={breakdown} />
+      </HoverCardContent>
+    </HoverCard>
+  );
 }
 
 function formatNumber(value: number | null | undefined, decimals: number = 2): string {
@@ -84,7 +165,9 @@ function StockRow({ stock, isExpanded, onToggle }: {
   onToggle: () => void;
 }) {
   const hasEnhancedData = stock.compositeScore !== undefined;
-  const displayScore = stock.compositeScore ?? stock.totalScore;
+  const hasMultiModeScores = stock.combinedScore !== undefined;
+  // Use combinedScore if available, else compositeScore, else totalScore
+  const displayScore = stock.combinedScore ?? stock.compositeScore ?? stock.totalScore;
 
   return (
     <div className="border-b border-gray-100 last:border-0">
@@ -107,31 +190,43 @@ function StockRow({ stock, isExpanded, onToggle }: {
           {stock.ticker}
         </Link>
 
-        {stock.market && (
-          <span className={`px-1 py-0.5 text-[9px] font-medium rounded ${getMarketBadgeColor(stock.market)}`}>
-            {stock.market}
-          </span>
-        )}
-
         <span className="flex-1 truncate text-sm text-gray-600 hidden sm:block">
           {stock.name}
         </span>
 
-        <span className={`w-12 text-right font-semibold ${getScoreColor(displayScore)}`}>
+        {/* Combined score (main score, bold) */}
+        <span className={`w-12 text-right font-bold ${getScoreColor(displayScore)}`}>
           {displayScore}
         </span>
+
+        {/* Q/V/G scores with hover cards - hidden on mobile */}
+        <div className="hidden md:flex items-center gap-1.5">
+          <ModeScoreCell
+            label="Quant"
+            score={stock.quantScore}
+            breakdown={stock.quantBreakdown}
+          />
+          <ModeScoreCell
+            label="Value"
+            score={stock.valueScore}
+            breakdown={stock.valueBreakdown}
+          />
+          <ModeScoreCell
+            label="Growth"
+            score={stock.growthScore}
+            breakdown={stock.growthBreakdown}
+          />
+        </div>
 
         <span className={`px-2 py-0.5 text-[10px] font-medium rounded border ${getTierBadgeColor(stock.tier)}`}>
           {stock.tier.replace(/🔥|⚡|👀|⚠️/g, "").trim().split(" ")[0]}
         </span>
 
-        <span className={`px-1.5 py-0.5 text-[10px] rounded hidden sm:inline ${getRiskBadgeColor(stock.riskTier)}`}>
-          {stock.riskTier}
-        </span>
-
-        <span className="w-20 text-right text-sm text-gray-500 hidden md:block">
-          ${stock.price?.toFixed(2) || "N/A"}
-        </span>
+        {stock.market && (
+          <span className={`px-1 py-0.5 text-[9px] font-medium rounded hidden sm:inline ${getMarketBadgeColor(stock.market)}`}>
+            {stock.market}
+          </span>
+        )}
       </div>
 
       {/* Expanded details */}
@@ -274,7 +369,8 @@ export function ScannerResults({ scan }: Props) {
 
   // Use composite score for filtering if available
   const hasEnhancedData = scan.results.some(r => r.compositeScore !== undefined);
-  const getDisplayScore = (stock: ScanResult) => stock.compositeScore ?? stock.totalScore;
+  const hasMultiModeData = scan.results.some(r => r.combinedScore !== undefined);
+  const getDisplayScore = (stock: ScanResult) => stock.combinedScore ?? stock.compositeScore ?? stock.totalScore;
 
   const filteredResults = scan.results.filter((stock) => {
     // Search filter
@@ -337,7 +433,12 @@ export function ScannerResults({ scan }: Props) {
               ].filter(Boolean).join(", ")})
             </span>
           </span>
-          {hasEnhancedData && (
+          {hasMultiModeData && (
+            <span className="px-1.5 py-0.5 text-[10px] bg-indigo-100 text-indigo-700 rounded font-medium">
+              Multi-Mode
+            </span>
+          )}
+          {hasEnhancedData && !hasMultiModeData && (
             <span className="px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-700 rounded font-medium">
               Enhanced
             </span>
@@ -418,19 +519,16 @@ export function ScannerResults({ scan }: Props) {
               <span className="w-6" /> {/* Expand button */}
               <span className="w-8 text-right">#</span>
               <span className="w-16">Ticker</span>
-              <span className="w-8">Mkt</span>
-              <span className="flex-1">Name</span>
+              <span className="flex-1 hidden sm:block">Name</span>
               <span className="w-12 text-right">Score</span>
-              <span className="w-20">Tier</span>
-              <span className="w-14">Risk</span>
-              <span className="w-20 text-right">Price</span>
-              {hasEnhancedData && (
-                <>
-                  <span className="w-16 text-right">ATH(W)</span>
-                  <span className="w-14 text-right">RVOL</span>
-                  <span className="w-14 text-right">R/R</span>
-                </>
-              )}
+              {/* Q/V/G headers - hidden on mobile */}
+              <div className="hidden md:flex items-center gap-1.5">
+                <span className="w-8 text-center" title="Quant Score">Q</span>
+                <span className="w-8 text-center" title="Value Score">V</span>
+                <span className="w-8 text-center" title="Growth Score">G</span>
+              </div>
+              <span className="w-16">Tier</span>
+              <span className="w-10 hidden sm:block">Mkt</span>
             </div>
 
             {/* Rows */}

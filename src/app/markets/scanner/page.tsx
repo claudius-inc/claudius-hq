@@ -6,6 +6,7 @@ import { PageHero } from "@/components/PageHero";
 import { ScannerResults } from "./_components/ScannerResults";
 import { UniverseManager } from "./_components/UniverseManager";
 import { RefreshButton } from "./_components/RefreshButton";
+import { MethodologyModal } from "./_components/MethodologyModal";
 import { Skeleton } from "@/components/Skeleton";
 import type { ScanResult, ParsedScan } from "./types";
 
@@ -109,8 +110,9 @@ export default async function ScannersPage() {
         subtitle="Pre-computed screening results updated every 6 hours"
       />
 
-      {/* Refresh Controls */}
-      <div className="flex justify-end mb-4">
+      {/* Controls */}
+      <div className="flex items-center justify-between mb-4">
+        <MethodologyModal />
         <RefreshButton />
       </div>
 
