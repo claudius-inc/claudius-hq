@@ -298,9 +298,30 @@ function StockRow({ stock, isExpanded, onToggle }: {
             </div>
           )}
 
+          {/* Multi-mode scores - always visible on expand */}
+          {(stock.quantScore !== undefined || stock.valueScore !== undefined || stock.growthScore !== undefined) && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-medium text-gray-700">Multi-Mode Scores</h4>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className={`p-2 rounded border ${(stock.quantScore ?? 0) >= 70 ? 'bg-emerald-50 border-emerald-200' : (stock.quantScore ?? 0) >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
+                  <div className="text-lg font-bold">{stock.quantScore ?? '-'}</div>
+                  <div className="text-[10px] text-gray-500">Quant</div>
+                </div>
+                <div className={`p-2 rounded border ${(stock.valueScore ?? 0) >= 70 ? 'bg-emerald-50 border-emerald-200' : (stock.valueScore ?? 0) >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
+                  <div className="text-lg font-bold">{stock.valueScore ?? '-'}</div>
+                  <div className="text-[10px] text-gray-500">Value</div>
+                </div>
+                <div className={`p-2 rounded border ${(stock.growthScore ?? 0) >= 70 ? 'bg-emerald-50 border-emerald-200' : (stock.growthScore ?? 0) >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
+                  <div className="text-lg font-bold">{stock.growthScore ?? '-'}</div>
+                  <div className="text-[10px] text-gray-500">Growth</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Score breakdown - 3 categories only */}
           <div className="space-y-2">
-            <h4 className="text-xs font-medium text-gray-700">Score Breakdown</h4>
+            <h4 className="text-xs font-medium text-gray-700">Legacy Score Breakdown</h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <ScoreBar score={stock.growth.score} max={50} label="Growth" color="bg-emerald-500" />
               <ScoreBar score={stock.financial.score} max={30} label="Financial" color="bg-blue-500" />
