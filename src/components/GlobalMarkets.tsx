@@ -22,7 +22,7 @@ function sectorsToMarketData(sectors: SectorData[]): MarketData[] {
 
 const REGIONS = ["all", "USA", "Americas", "Europe", "Asia Pacific", "Global"];
 
-export function GlobalMarkets() {
+export function GlobalMarkets({ hideHero = false }: { hideHero?: boolean } = {}) {
   const [markets, setMarkets] = useState<MarketData[]>([]);
   const [benchmark, setBenchmark] = useState<BenchmarkData | null>(null);
   const [sectors, setSectors] = useState<SectorData[]>([]);
@@ -98,43 +98,45 @@ export function GlobalMarkets() {
 
   return (
     <>
-      <PageHero
-        title="Sectors"
-        subtitle="US sectors and global country ETFs ranked by momentum"
-        actionSlot={
-          <div className="flex items-center gap-3 shrink-0">
-            {regionFilter === "USA" ? (
-              sectorBenchmark && (
-                <div className="text-sm text-gray-600">
-                  SPY:{" "}
-                  <span className={getPercentColor(sectorBenchmark.change_1m)}>
-                    {formatPercent(sectorBenchmark.change_1m)}
-                  </span>{" "}
-                  (1M)
-                </div>
-              )
-            ) : (
-              benchmark && (
-                <div className="text-sm text-gray-600">
-                  VT:{" "}
-                  <span className={getPercentColor(benchmark.change_1m)}>
-                    {formatPercent(benchmark.change_1m)}
-                  </span>{" "}
-                  (1M)
-                </div>
-              )
-            )}
-            <button
-              onClick={() => fetchData(true)}
-              disabled={refreshing}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-              title="Refresh"
-            >
-              <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
-            </button>
-          </div>
-        }
-      />
+      {!hideHero && (
+        <PageHero
+          title="Sectors"
+          subtitle="US sectors and global country ETFs ranked by momentum"
+          actionSlot={
+            <div className="flex items-center gap-3 shrink-0">
+              {regionFilter === "USA" ? (
+                sectorBenchmark && (
+                  <div className="text-sm text-gray-600">
+                    SPY:{" "}
+                    <span className={getPercentColor(sectorBenchmark.change_1m)}>
+                      {formatPercent(sectorBenchmark.change_1m)}
+                    </span>{" "}
+                    (1M)
+                  </div>
+                )
+              ) : (
+                benchmark && (
+                  <div className="text-sm text-gray-600">
+                    VT:{" "}
+                    <span className={getPercentColor(benchmark.change_1m)}>
+                      {formatPercent(benchmark.change_1m)}
+                    </span>{" "}
+                    (1M)
+                  </div>
+                )
+              )}
+              <button
+                onClick={() => fetchData(true)}
+                disabled={refreshing}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+          }
+        />
+      )}
     <div className="space-y-4">
       {/* Region Filter */}
       <div className="flex gap-2 flex-wrap">

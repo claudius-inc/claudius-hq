@@ -6,7 +6,7 @@ import { PageHero } from "@/components/PageHero";
 import { ThemesTab } from "@/components/ThemesTab";
 import { ThemesTableSkeleton } from "@/components/Skeleton";
 
-export function ThemesPageContent() {
+export function ThemesPageContent({ hideHero = false }: { hideHero?: boolean } = {}) {
   const [themes, setThemes] = useState<ThemeWithPerformance[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,11 +32,13 @@ export function ThemesPageContent() {
 
   return (
     <>
-      <PageHero
-        title="Investment Themes"
-        subtitle="Track themed baskets and sector performance"
-      />
-      <ThemesTab initialThemes={themes} />
+      {!hideHero && (
+        <PageHero
+          title="Investment Themes"
+          subtitle="Track themed baskets and sector performance"
+        />
+      )}
+      <ThemesTab initialThemes={themes} hideHero={hideHero} />
     </>
   );
 }

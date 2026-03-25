@@ -41,16 +41,6 @@ const primaryTabs: PrimaryTab[] = [
     href: "/markets/scanner",
     activePaths: ["/markets/scanner"],
   },
-{
-    label: "Sectors",
-    href: "/markets/sectors",
-    activePaths: ["/markets/sectors"],
-  },
-  {
-    label: "Themes",
-    href: "/markets/themes",
-    activePaths: ["/markets/themes"],
-  },
 ];
 
 /* ── Component ────────────────────────────────────────────── */

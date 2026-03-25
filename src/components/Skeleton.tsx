@@ -23,7 +23,7 @@ export function SkeletonTableRow({ cols = 5 }: { cols?: number }) {
   return (
     <tr>
       {Array.from({ length: cols }).map((_, i) => (
-        <td key={i} className="px-4 py-3">
+        <td key={i} className="px-3 py-2.5">
           <Skeleton className="h-4 w-full" />
         </td>
       ))}
@@ -33,18 +33,18 @@ export function SkeletonTableRow({ cols = 5 }: { cols?: number }) {
 
 export function SkeletonTable({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
   return (
-    <div className="card overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <table className="min-w-full divide-y divide-gray-100">
         <thead className="bg-gray-50">
           <tr>
             {Array.from({ length: cols }).map((_, i) => (
-              <th key={i} className="px-4 py-3">
+              <th key={i} className="px-3 py-2.5">
                 <Skeleton className="h-3 w-16" />
               </th>
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white divide-y divide-gray-100">
           {Array.from({ length: rows }).map((_, i) => (
             <SkeletonTableRow key={i} cols={cols} />
           ))}
@@ -69,30 +69,14 @@ export function SkeletonCard({ className = "" }: { className?: string }) {
 // Specific skeletons for stocks pages
 
 export function ThemesTableSkeleton() {
-  const thBase = "px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider";
+  const thBase = "px-3 py-2.5 text-xs font-medium text-gray-500";
 
   return (
     <div className="space-y-6">
-      {/* PageHero skeleton */}
-      <div className="pt-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <Skeleton className="h-7 w-44" />
-            <Skeleton className="h-4 w-72 mt-2" />
-          </div>
-          <div className="shrink-0">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100">
-              <Skeleton className="h-4 w-4 rounded" />
-              <span className="text-sm font-medium text-gray-300">Add Theme</span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
       {/* Table matching ThemeLeaderboard structure */}
-      <div className="card overflow-hidden">
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
                 <th className={`${thBase} text-left w-8`}></th>
@@ -104,32 +88,32 @@ export function ThemesTableSkeleton() {
                 <th className={`${thBase} w-12`}></th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-100">
               {Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i}>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <Skeleton className="h-4 w-4" />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <Skeleton className="h-4 w-32 mb-1" />
                     <Skeleton className="h-3 w-14" />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <Skeleton className="h-4 w-12 ml-auto" />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <Skeleton className="h-4 w-12 ml-auto" />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <Skeleton className="h-4 w-12 ml-auto" />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <Skeleton className="h-4 w-10" />
                       <Skeleton className="h-3 w-10" />
                     </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-2.5">
                     <Skeleton className="h-4 w-4 ml-auto" />
                   </td>
                 </tr>
@@ -169,24 +153,10 @@ export function SectorMomentumSkeleton() {
 
 export function GlobalMarketsSkeleton() {
   const regionLabels = ["All Regions", "USA", "Americas", "Europe", "Asia Pacific", "Global"];
-  const thBase = "px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider";
+  const thBase = "px-3 py-2.5 text-xs font-medium text-gray-500";
 
   return (
     <>
-      {/* PageHero skeleton */}
-      <div className="mb-8 pt-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <Skeleton className="h-8 w-32" />
-            <Skeleton className="h-4 w-80 mt-2" />
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <Skeleton className="h-5 w-24" />
-            <Skeleton className="h-8 w-8 rounded-lg" />
-          </div>
-        </div>
-      </div>
-
       <div className="space-y-4">
         {/* Region filters */}
         <div className="flex gap-2 flex-wrap">
@@ -203,9 +173,9 @@ export function GlobalMarketsSkeleton() {
         </div>
 
         {/* Table matching GlobalMarketsTable structure */}
-        <div className="card overflow-hidden">
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
                   <th className={`${thBase} text-left w-8`}>#</th>
@@ -219,21 +189,21 @@ export function GlobalMarketsSkeleton() {
                   <th className={`${thBase} w-10`}></th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {Array.from({ length: 12 }).map((_, i) => (
                   <tr key={i}>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-4" /></td>
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-2.5"><Skeleton className="h-4 w-4" /></td>
+                    <td className="px-3 py-2.5">
                       <Skeleton className="h-4 w-28 mb-1" />
                       <Skeleton className="h-3 w-10" />
                     </td>
-                    <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-12 ml-auto" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-14 ml-auto" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-12 ml-auto" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-12 ml-auto" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-6 w-12 ml-auto rounded-md" /></td>
-                    <td className="px-4 py-3"><Skeleton className="h-4 w-4" /></td>
+                    <td className="px-3 py-2.5"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="px-3 py-2.5"><Skeleton className="h-4 w-12 ml-auto" /></td>
+                    <td className="px-3 py-2.5"><Skeleton className="h-4 w-14 ml-auto" /></td>
+                    <td className="px-3 py-2.5"><Skeleton className="h-4 w-12 ml-auto" /></td>
+                    <td className="px-3 py-2.5"><Skeleton className="h-4 w-12 ml-auto" /></td>
+                    <td className="px-3 py-2.5"><Skeleton className="h-6 w-12 ml-auto rounded-md" /></td>
+                    <td className="px-3 py-2.5"><Skeleton className="h-4 w-4" /></td>
                   </tr>
                 ))}
               </tbody>

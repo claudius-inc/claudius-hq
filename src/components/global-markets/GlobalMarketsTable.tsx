@@ -63,13 +63,13 @@ export function GlobalMarketsTable({ markets }: GlobalMarketsTableProps) {
       })
     : markets;
 
-  const thBase = "px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider";
+  const thBase = "px-3 py-2.5 text-xs font-medium text-gray-500";
   const sortableTh = `${thBase} text-right cursor-pointer select-none hover:text-gray-700 transition-colors`;
 
   return (
-    <div className="card overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50">
             <tr>
               <th className={`${thBase} text-left w-8`}>#</th>
@@ -103,23 +103,23 @@ export function GlobalMarketsTable({ markets }: GlobalMarketsTableProps) {
               <th className={`${thBase} w-10`}></th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-100">
             {sorted.map((m, idx) => (
               <tr key={m.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">{idx + 1}</td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-500">{idx + 1}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div>
                     <div className="font-semibold text-gray-900">{m.name}</div>
                     <div className="text-xs text-gray-500">{m.ticker}</div>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap"><RegionBadge region={m.region} /></td>
-                <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(m.change_1d)}`}>
+                <td className="px-3 py-2.5 whitespace-nowrap"><RegionBadge region={m.region} /></td>
+                <td className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(m.change_1d)}`}>
                   {formatPercent(m.change_1d)}
                 </td>
                 {/* 1W: trend arrow + relative strength tint */}
                 <td
-                  className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(m.change_1w)} ${getRelStrengthBg(m.relative_strength_1w)}`}
+                  className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(m.change_1w)} ${getRelStrengthBg(m.relative_strength_1w)}`}
                   title={relStrengthTooltip(m.relative_strength_1w, "VT")}
                 >
                   <div className="flex items-center justify-end gap-1 cursor-default">
@@ -129,24 +129,24 @@ export function GlobalMarketsTable({ markets }: GlobalMarketsTableProps) {
                 </td>
                 {/* 1M: relative strength tint */}
                 <td
-                  className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(m.change_1m)} ${getRelStrengthBg(m.relative_strength_1m)}`}
+                  className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(m.change_1m)} ${getRelStrengthBg(m.relative_strength_1m)}`}
                   title={relStrengthTooltip(m.relative_strength_1m, "VT")}
                 >
                   <span className="cursor-default">{formatPercent(m.change_1m)}</span>
                 </td>
                 {/* 3M: relative strength tint */}
                 <td
-                  className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(m.change_3m)} ${getRelStrengthBg(m.relative_strength_3m)}`}
+                  className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(m.change_3m)} ${getRelStrengthBg(m.relative_strength_3m)}`}
                   title={relStrengthTooltip(m.relative_strength_3m, "VT")}
                 >
                   <span className="cursor-default">{formatPercent(m.change_3m)}</span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right">
+                <td className="px-3 py-2.5 whitespace-nowrap text-right">
                   <span className={`inline-flex items-center px-2 py-1 rounded-md text-sm font-bold ${getPercentBg(m.composite_score)} ${getPercentColor(m.composite_score)}`}>
                     {m.composite_score !== null ? m.composite_score.toFixed(1) : "-"}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1">
                     <Link href={`/markets/research/${m.ticker}`} className="p-1 text-gray-400 hover:text-emerald-600 inline-block" title="View research">
                       <FileText className="w-4 h-4" />

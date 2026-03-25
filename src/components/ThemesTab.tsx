@@ -14,9 +14,10 @@ import {
 
 interface ThemesTabProps {
   initialThemes?: ThemeWithPerformance[];
+  hideHero?: boolean;
 }
 
-export function ThemesTab({ initialThemes }: ThemesTabProps) {
+export function ThemesTab({ initialThemes, hideHero = false }: ThemesTabProps) {
   const [themes, setThemes] = useState<ThemeWithPerformance[]>(initialThemes || []);
   const [loading, setLoading] = useState(!initialThemes);
   const [expandedTheme, setExpandedTheme] = useState<number | null>(null);
@@ -337,13 +338,15 @@ export function ThemesTab({ initialThemes }: ThemesTabProps) {
 
   return (
     <div className="space-y-6">
-      <PageHero
-        title="Investment Themes"
-        subtitle="Track thematic baskets and their performance"
-        actions={[
-          { label: "Add Theme", onClick: () => setShowAddModal(true), icon: <Plus className="w-4 h-4" />, variant: "primary" },
-        ]}
-      />
+      {!hideHero && (
+        <PageHero
+          title="Investment Themes"
+          subtitle="Track thematic baskets and their performance"
+          actions={[
+            { label: "Add Theme", onClick: () => setShowAddModal(true), icon: <Plus className="w-4 h-4" />, variant: "primary" },
+          ]}
+        />
+      )}
 
       {/* Theme Leaderboard */}
       <ThemeLeaderboard

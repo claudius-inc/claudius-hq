@@ -104,8 +104,8 @@ export default async function ScannersPage() {
   return (
     <>
       <PageHero
-        title="Stock Scanner"
-        subtitle="Pre-computed screening results"
+        title="Scanner"
+        subtitle="Stocks, themes, and sectors"
         badge={<MethodologyModal />}
         actionSlot={
           <div className="flex flex-col items-end gap-2">

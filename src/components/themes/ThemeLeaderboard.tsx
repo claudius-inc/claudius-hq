@@ -47,22 +47,22 @@ export function ThemeLeaderboard({
   }
 
   return (
-    <div className="card overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+        <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Theme</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">1W</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">1M</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">3M</th>
-              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Crowd</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Leader</th>
-              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-12"></th>
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 w-8"></th>
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">Theme</th>
+              <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">1W</th>
+              <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">1M</th>
+              <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">3M</th>
+              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500">Crowd</th>
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">Leader</th>
+              <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 w-12"></th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-100">
             {themes.map((theme) => (
               <>
                 <tr
@@ -70,29 +70,29 @@ export function ThemeLeaderboard({
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => onToggleExpand(theme.id)}
                 >
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     {expandedTheme === theme.id ? (
                       <ChevronDown className="w-4 h-4 text-gray-400" />
                     ) : (
                       <ChevronRight className="w-4 h-4 text-gray-400" />
                     )}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     <div>
                       <div className="font-semibold text-gray-900">{theme.name}</div>
                       <div className="text-xs text-gray-500">{theme.stocks.length} stocks</div>
                     </div>
                   </td>
-                  <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_1w)}`}>
+                  <td className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_1w)}`}>
                     {formatPercent(theme.performance_1w)}
                   </td>
-                  <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_1m)}`}>
+                  <td className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_1m)}`}>
                     {formatPercent(theme.performance_1m)}
                   </td>
-                  <td className={`px-4 py-3 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_3m)}`}>
+                  <td className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_3m)}`}>
                     {formatPercent(theme.performance_3m)}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                  <td className="px-3 py-2.5 whitespace-nowrap text-center">
                     {theme.crowdingScore !== undefined ? (
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCrowdingBgColor(theme.crowdingScore)}`}
@@ -104,7 +104,7 @@ export function ThemeLeaderboard({
                       <span className="text-gray-400">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     {theme.leader ? (
                       <div className="flex items-center gap-2">
                         <Link
@@ -122,7 +122,7 @@ export function ThemeLeaderboard({
                       <span className="text-gray-400">-</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                  <td className="px-3 py-2.5 whitespace-nowrap text-right">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
