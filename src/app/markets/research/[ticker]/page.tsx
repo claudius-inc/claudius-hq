@@ -7,6 +7,7 @@ import { ReportTOC } from "@/components/ReportTOC";
 import { ReportActions } from "@/components/ReportActions";
 import { ReadingProgressBar } from "@/components/ReadingProgressBar";
 import { AlertTriangle } from "lucide-react";
+import { GenerateReportButton } from "@/components/GenerateReportButton";
 
 // On-demand revalidation via /api/stocks/reports - reports are static once generated
 export const revalidate = false;
@@ -279,19 +280,22 @@ export default async function ReportDetailPage({
       ) : (
         <main className="max-w-6xl mx-auto px-4 pb-6">
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center">
-            <div className="text-4xl mb-3"></div>
+            <div className="text-4xl mb-3">📊</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">
-              No reports found
+              No reports for {slug.toUpperCase()}
             </h3>
-            <p className="text-sm text-gray-500">
-              No research reports for {slug} yet
+            <p className="text-sm text-gray-500 mb-6">
+              Want a deep-dive investment analysis?
             </p>
-            <Link
-              href="/markets"
-              className="text-sm text-emerald-600 hover:underline mt-3 inline-block"
-            >
-              ← Back to Stocks
-            </Link>
+            <GenerateReportButton ticker={slug} />
+            <div className="mt-6 pt-4 border-t border-gray-100">
+              <Link
+                href="/markets/research"
+                className="text-sm text-gray-400 hover:text-gray-600"
+              >
+                ← Back to Research
+              </Link>
+            </div>
           </div>
         </main>
       )}
