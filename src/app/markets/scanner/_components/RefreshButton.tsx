@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { RefreshCw, ExternalLink, Clock, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { RefreshCw, Loader2 } from "lucide-react";
+import { useToast } from "@/components/ui/Toast";
 
 interface LastRun {
   id: number;
@@ -15,7 +16,7 @@ interface LastRun {
 export function RefreshButton() {
   const [loading, setLoading] = useState(false);
   const [lastRun, setLastRun] = useState<LastRun | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const fetchStatus = async () => {
     try {
@@ -42,7 +43,6 @@ export function RefreshButton() {
 
   const triggerRefresh = async () => {
     setLoading(true);
-    setMessage(null);
 
     try {
       const res = await fetch("/api/scanner/trigger", {
@@ -54,88 +54,45 @@ export function RefreshButton() {
       const data = await res.json();
 
       if (data.success) {
-        setMessage("Scanner triggered! Results in ~15 min.");
+        toast("Scanner started! Results in ~15 min.", "success");
         // Refresh status after a short delay
         setTimeout(fetchStatus, 3000);
       } else {
-        setMessage(data.error || "Failed to trigger");
+        toast(data.error || "Failed to trigger scanner", "error");
       }
     } catch (error) {
-      setMessage("Failed to trigger scanner");
+      toast("Failed to trigger scanner", "error");
       console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-
-    if (diffMins < 1) return "just now";
-    if (diffMins < 60) return `${diffMins}m ago`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return date.toLocaleDateString();
-  };
-
-  const getStatusIcon = () => {
-    if (!lastRun) return null;
-    
-    if (lastRun.status === "in_progress" || lastRun.status === "queued") {
-      return <Loader2 size={14} className="animate-spin text-yellow-500" />;
-    }
-    if (lastRun.conclusion === "success") {
-      return <CheckCircle size={14} className="text-green-500" />;
-    }
-    if (lastRun.conclusion === "failure") {
-      return <XCircle size={14} className="text-red-500" />;
-    }
-    return <Clock size={14} className="text-gray-400" />;
-  };
-
   const isRunning = lastRun?.status === "in_progress" || lastRun?.status === "queued";
-
-  const isError = message?.toLowerCase().includes("fail") || message?.toLowerCase().includes("error");
+  const isDisabled = loading || isRunning;
 
   return (
-    <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
-      <div className="flex items-center gap-2">
-        {/* Last run status - only show when running */}
-        {lastRun && isRunning && (
-          <a
-            href={lastRun.htmlUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700"
-          >
-            {getStatusIcon()}
-            <span>Running...</span>
-            <ExternalLink size={12} />
-          </a>
-        )}
-
-        {/* Refresh button */}
-        <button
-          onClick={triggerRefresh}
-          disabled={loading || isRunning}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          <span className="hidden sm:inline">
-            {loading ? "..." : isRunning ? "Running" : "Refresh"}
-          </span>
-        </button>
-      </div>
-
-      {/* Message */}
-      {message && (
-        <span className={`text-xs ${isError ? "text-red-600" : "text-green-600"}`}>
-          {message}
-        </span>
+    <button
+      onClick={triggerRefresh}
+      disabled={isDisabled}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+    >
+      {isRunning ? (
+        <>
+          <Loader2 size={14} className="animate-spin" />
+          <span>Running</span>
+        </>
+      ) : loading ? (
+        <>
+          <Loader2 size={14} className="animate-spin" />
+          <span>Starting...</span>
+        </>
+      ) : (
+        <>
+          <RefreshCw size={14} />
+          <span>Refresh</span>
+        </>
       )}
-    </div>
+    </button>
   );
 }
