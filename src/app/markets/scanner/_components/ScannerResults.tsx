@@ -12,9 +12,17 @@ interface Props {
   scan: ParsedScan | null;
 }
 
+type ScoringMode = "combined" | "quant" | "value" | "growth";
 type TierFilter = "all" | "high" | "speculative" | "watchlist";
 type RiskFilter = "all" | "TIER 1" | "TIER 2" | "TIER 3";
 type MarketFilter = "all" | "US" | "SGX" | "HK" | "JP";
+
+const SCORING_MODES: { value: ScoringMode; label: string }[] = [
+  { value: "combined", label: "Combined" },
+  { value: "quant", label: "Quant" },
+  { value: "value", label: "Value" },
+  { value: "growth", label: "Growth" },
+];
 
 function getTierBadgeColor(tier: string): string {
   if (tier.includes("HIGH CONVICTION")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
@@ -159,15 +167,14 @@ function CompositeScoreBar({ score, label }: { score: number; label: string }) {
   );
 }
 
-function StockRow({ stock, isExpanded, onToggle }: {
+function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
   stock: ScanResult;
   isExpanded: boolean;
   onToggle: () => void;
+  displayScore: number;
+  displayRank: number;
 }) {
   const hasEnhancedData = stock.compositeScore !== undefined;
-  const hasMultiModeScores = stock.combinedScore !== undefined;
-  // Use combinedScore if available, else compositeScore, else totalScore
-  const displayScore = stock.combinedScore ?? stock.compositeScore ?? stock.totalScore;
 
   return (
     <div className="border-b border-gray-100 last:border-0">
@@ -180,7 +187,7 @@ function StockRow({ stock, isExpanded, onToggle }: {
           {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
 
-        <span className="w-8 text-xs text-gray-400 text-right">#{stock.rank}</span>
+        <span className="w-8 text-xs text-gray-400 text-right">#{displayRank}</span>
 
         <Link
           href={`/markets/research/${stock.ticker}`}
@@ -372,6 +379,7 @@ function StockRow({ stock, isExpanded, onToggle }: {
 
 export function ScannerResults({ scan }: Props) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [scoringMode, setScoringMode] = useState<ScoringMode>("combined");
   const [tierFilter, setTierFilter] = useState<TierFilter>("all");
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
   const [marketFilter, setMarketFilter] = useState<MarketFilter>("all");
@@ -391,7 +399,24 @@ export function ScannerResults({ scan }: Props) {
   // Use composite score for filtering if available
   const hasEnhancedData = scan.results.some(r => r.compositeScore !== undefined);
   const hasMultiModeData = scan.results.some(r => r.combinedScore !== undefined);
-  const getDisplayScore = (stock: ScanResult) => stock.combinedScore ?? stock.compositeScore ?? stock.totalScore;
+  
+  // Get score based on selected mode
+  const getScoreForMode = (stock: ScanResult, mode: ScoringMode): number => {
+    switch (mode) {
+      case "combined":
+        return stock.combinedScore ?? stock.compositeScore ?? stock.totalScore;
+      case "quant":
+        return stock.quantScore ?? stock.combinedScore ?? stock.totalScore;
+      case "value":
+        return stock.valueScore ?? stock.combinedScore ?? stock.totalScore;
+      case "growth":
+        return stock.growthScore ?? stock.combinedScore ?? stock.totalScore;
+      default:
+        return stock.combinedScore ?? stock.compositeScore ?? stock.totalScore;
+    }
+  };
+  
+  const getDisplayScore = (stock: ScanResult) => getScoreForMode(stock, scoringMode);
 
   const filteredResults = scan.results.filter((stock) => {
     // Search filter
@@ -411,6 +436,11 @@ export function ScannerResults({ scan }: Props) {
     // Market filter
     if (marketFilter !== "all" && stock.market !== marketFilter) return false;
     return true;
+  });
+  
+  // Sort by selected mode's score (descending)
+  const sortedResults = [...filteredResults].sort((a, b) => {
+    return getScoreForMode(b, scoringMode) - getScoreForMode(a, scoringMode);
   });
 
   const toggleRow = (ticker: string) => {
@@ -481,6 +511,26 @@ export function ScannerResults({ scan }: Props) {
         )}
       </div>
 
+      {/* Mode selector tabs */}
+      {hasMultiModeData && (
+        <div className="flex items-center gap-1 overflow-x-auto pb-1 -mb-1">
+          <span className="text-xs text-gray-500 mr-1 shrink-0">Sort by:</span>
+          {SCORING_MODES.map((mode) => (
+            <button
+              key={mode.value}
+              onClick={() => setScoringMode(mode.value)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 ${
+                scoringMode === mode.value
+                  ? "bg-emerald-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              {mode.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -541,7 +591,9 @@ export function ScannerResults({ scan }: Props) {
               <span className="w-8 text-right">#</span>
               <span className="w-16">Ticker</span>
               <span className="flex-1 hidden sm:block">Name</span>
-              <span className="w-12 text-right">Score</span>
+              <span className="w-12 text-right" title={`Sorted by ${SCORING_MODES.find(m => m.value === scoringMode)?.label || 'Combined'}`}>
+                {scoringMode === "combined" ? "Score" : scoringMode.charAt(0).toUpperCase() + scoringMode.slice(1)}
+              </span>
               {/* Q/V/G headers - hidden on mobile */}
               <div className="hidden md:flex items-center gap-1.5">
                 <span className="w-8 text-center" title="Quant Score">Q</span>
@@ -554,12 +606,12 @@ export function ScannerResults({ scan }: Props) {
 
             {/* Rows */}
             <div className="divide-y divide-gray-100">
-              {filteredResults.length === 0 ? (
+              {sortedResults.length === 0 ? (
                 <div className="px-4 py-8 text-center text-gray-500 text-sm">
                   No stocks match your filters
                 </div>
               ) : (
-                filteredResults.map((stock) => {
+                sortedResults.map((stock, idx) => {
                   const stockKey = `${stock.ticker}-${stock.market}`;
                   return (
                     <StockRow
@@ -567,6 +619,8 @@ export function ScannerResults({ scan }: Props) {
                       stock={stock}
                       isExpanded={expandedRows.has(stockKey)}
                       onToggle={() => toggleRow(stockKey)}
+                      displayScore={getScoreForMode(stock, scoringMode)}
+                      displayRank={idx + 1}
                     />
                   );
                 })
