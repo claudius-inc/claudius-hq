@@ -9,7 +9,7 @@ type Tab = "results" | "universe";
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "results", label: "Results" },
-  { value: "universe", label: "Universe" },
+  { value: "universe", label: "Scan List" },
 ];
 
 export function ScannerTabs({ scan }: { scan: ParsedScan | null }) {

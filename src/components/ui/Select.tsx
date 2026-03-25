@@ -14,9 +14,10 @@ interface SelectProps {
   options: SelectOption[];
   placeholder?: string;
   className?: string;
+  triggerClassName?: string;
 }
 
-export function Select({ value, onChange, options, placeholder = "Select...", className = "" }: SelectProps) {
+export function Select({ value, onChange, options, placeholder = "Select...", className = "", triggerClassName = "" }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const selectRef = useRef<HTMLDivElement>(null);
 
@@ -54,6 +55,7 @@ export function Select({ value, onChange, options, placeholder = "Select...", cl
             : "border-gray-300 hover:border-gray-400"
           }
           focus:outline-none focus:border-gray-400 focus:ring-2 focus:ring-gray-200
+          ${triggerClassName}
         `}
       >
         <span className={selectedOption ? "text-gray-900" : "text-gray-500"}>

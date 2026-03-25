@@ -23,12 +23,9 @@ interface PageHeroProps {
 }
 
 const variantClasses: Record<string, string> = {
-  default:
-    "text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50",
-  primary:
-    "text-white bg-gray-900 hover:bg-gray-800 disabled:opacity-50",
-  danger:
-    "text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-50",
+  default: "text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50",
+  primary: "text-white bg-gray-900 hover:bg-gray-800 disabled:opacity-50",
+  danger: "text-red-700 bg-red-100 hover:bg-red-200 disabled:opacity-50",
 };
 
 export function PageHero({
@@ -55,16 +52,16 @@ export function PageHero({
 
   return (
     <div className="mb-8 pt-6">
-      <div className={`flex items-start justify-between gap-4${actionSlot ? " flex-wrap sm:flex-nowrap" : ""}`}>
+      <div
+        className={`flex items-start justify-between gap-4${actionSlot ? " flex-wrap sm:flex-nowrap" : ""}`}
+      >
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
             {title}
           </h1>
           {(subtitle || badge) && (
             <div className="flex items-center gap-2 mt-1">
-              {subtitle && (
-                <p className="text-sm text-gray-500">{subtitle}</p>
-              )}
+              {subtitle && <p className="text-sm text-gray-500">{subtitle}</p>}
               {badge}
             </div>
           )}
@@ -125,7 +122,7 @@ export function PageHero({
 
         {/* Custom action slot */}
         {actionSlot && !hasActions && (
-          <div className="w-full sm:w-auto shrink-0">{actionSlot}</div>
+          <div className="w-auto shrink-0">{actionSlot}</div>
         )}
       </div>
     </div>

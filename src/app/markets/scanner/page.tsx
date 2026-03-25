@@ -108,7 +108,7 @@ export default async function ScannersPage() {
         subtitle="Pre-computed screening results"
         badge={<MethodologyModal />}
         actionSlot={
-          <div className="flex flex-col items-end gap-1">
+          <div className="flex flex-col items-end gap-2">
             <RefreshButton />
             {scan?.scannedAt && <ScanAge date={scan.scannedAt} />}
           </div>

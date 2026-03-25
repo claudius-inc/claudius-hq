@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Search, TrendingUp } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Search,
+  SlidersHorizontal,
+  TrendingUp,
+  X,
+} from "lucide-react";
 
 import { Select } from "@/components/ui/Select";
 import {
@@ -224,9 +231,9 @@ function StockRow({
         className="flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 cursor-pointer"
         onClick={onToggle}
       >
-        <button className="p-0.5 text-gray-400 hover:text-gray-600">
+        <span className="w-6 flex items-center justify-center text-gray-400 hover:text-gray-600">
           {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
+        </span>
 
         <span className="w-8 text-xs text-gray-400 text-right">
           #{displayRank}
@@ -240,7 +247,7 @@ function StockRow({
           {stock.ticker}
         </Link>
 
-        <span className="flex-1 truncate text-sm text-gray-600 hidden sm:block">
+        <span className="w-32 sm:flex-1 min-w-0 truncate text-sm text-gray-600">
           {stock.name}
         </span>
 
@@ -253,41 +260,52 @@ function StockRow({
 
         {/* Q/V/G scores with hover cards - hidden on mobile */}
         <div className="hidden md:flex items-center gap-1.5">
-          <ModeScoreCell
-            label="Quant"
-            score={stock.quantScore}
-            breakdown={stock.quantBreakdown}
-          />
-          <ModeScoreCell
-            label="Value"
-            score={stock.valueScore}
-            breakdown={stock.valueBreakdown}
-          />
-          <ModeScoreCell
-            label="Growth"
-            score={stock.growthScore}
-            breakdown={stock.growthBreakdown}
-          />
+          <span className="w-8 flex justify-center">
+            <ModeScoreCell
+              label="Quant"
+              score={stock.quantScore}
+              breakdown={stock.quantBreakdown}
+            />
+          </span>
+          <span className="w-8 flex justify-center">
+            <ModeScoreCell
+              label="Value"
+              score={stock.valueScore}
+              breakdown={stock.valueBreakdown}
+            />
+          </span>
+          <span className="w-8 flex justify-center">
+            <ModeScoreCell
+              label="Growth"
+              score={stock.growthScore}
+              breakdown={stock.growthBreakdown}
+            />
+          </span>
         </div>
 
-        <span
-          className={`px-2 py-0.5 text-[10px] font-medium rounded border ${getTierBadgeColor(stock.tier)}`}
-        >
-          {
-            stock.tier
-              .replace(/🔥|⚡|👀|⚠️/g, "")
-              .trim()
-              .split(" ")[0]
-          }
+        <span className="w-16 flex items-center">
+          <span
+            className={`px-2 py-0.5 text-[10px] font-medium rounded border ${getTierBadgeColor(stock.tier)}`}
+          >
+            {stock.tier.includes("HIGH CONVICTION")
+              ? "HC"
+              : stock.tier.includes("SPECULATIVE")
+                ? "SPEC"
+                : stock.tier.includes("WATCHLIST")
+                  ? "WL"
+                  : "—"}
+          </span>
         </span>
 
-        {stock.market && (
-          <span
-            className={`px-1 py-0.5 text-[9px] font-medium rounded hidden sm:inline ${getMarketBadgeColor(stock.market)}`}
-          >
-            {stock.market}
-          </span>
-        )}
+        <span className="w-10 hidden sm:flex items-center">
+          {stock.market && (
+            <span
+              className={`px-1 py-0.5 text-[9px] font-medium rounded ${getMarketBadgeColor(stock.market)}`}
+            >
+              {stock.market}
+            </span>
+          )}
+        </span>
       </div>
 
       {/* Expanded details */}
@@ -496,6 +514,7 @@ export function ScannerResults({ scan }: Props) {
   const [riskFilter, setRiskFilter] = useState<RiskFilter>("all");
   const [marketFilter, setMarketFilter] = useState<MarketFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   if (!scan) {
     return (
@@ -564,6 +583,22 @@ export function ScannerResults({ scan }: Props) {
     return getScoreForMode(b, scoringMode) - getScoreForMode(a, scoringMode);
   });
 
+  const hasActiveFilters =
+    tierFilter !== "all" || riskFilter !== "all" || marketFilter !== "all";
+  const activeFilterCount = [
+    tierFilter !== "all",
+    riskFilter !== "all",
+    marketFilter !== "all",
+  ].filter(Boolean).length;
+  const isFiltered = searchQuery !== "" || hasActiveFilters;
+
+  const clearAllFilters = () => {
+    setSearchQuery("");
+    setTierFilter("all");
+    setRiskFilter("all");
+    setMarketFilter("all");
+  };
+
   const toggleRow = (ticker: string) => {
     const next = new Set(expandedRows);
     if (next.has(ticker)) {
@@ -588,32 +623,66 @@ export function ScannerResults({ scan }: Props) {
     scan.results.filter((r) => r.market === "JP").length;
 
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder={`Search ${scan.results.length} tickers or names...`}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-          />
-        </div>
+    <div className="space-y-3">
+      {/* Row 1: Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          placeholder={`Search ${scan.results.length} tickers or names...`}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+        />
+      </div>
 
-        <div className="flex gap-2">
-          {hasMultiModeData && (
-            <Select
-              value={scoringMode}
-              onChange={(val) => setScoringMode(val as ScoringMode)}
-              options={SCORING_MODES}
-            />
+      {/* Row 2: Scoring mode segmented control + filters */}
+      <div className="flex items-center gap-2">
+        {hasMultiModeData && (
+          <div className="flex items-center gap-0.5 bg-gray-100 p-1 rounded-lg">
+            {SCORING_MODES.map((mode) => (
+              <button
+                key={mode.value}
+                onClick={() => setScoringMode(mode.value)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                  scoringMode === mode.value
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {mode.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Mobile: collapsible filter button */}
+        <button
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className={`sm:hidden flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+            hasActiveFilters
+              ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+              : "border-gray-200 text-gray-600 hover:bg-gray-50"
+          }`}
+        >
+          <SlidersHorizontal size={14} />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="px-1.5 py-0.5 text-[10px] font-medium bg-emerald-600 text-white rounded-full">
+              {activeFilterCount}
+            </span>
           )}
+        </button>
 
+        {/* Desktop: inline filter dropdowns */}
+        <div className="hidden sm:flex items-center gap-2">
           <Select
             value={marketFilter}
             onChange={(val) => setMarketFilter(val as MarketFilter)}
+            className="min-w-[120px]"
+            triggerClassName={
+              marketFilter !== "all" ? "!border-emerald-500 !bg-emerald-50" : ""
+            }
             options={[
               { value: "all", label: "All Markets" },
               { value: "US", label: "US" },
@@ -623,10 +692,13 @@ export function ScannerResults({ scan }: Props) {
               { value: "CN", label: "China" },
             ]}
           />
-
           <Select
             value={tierFilter}
             onChange={(val) => setTierFilter(val as TierFilter)}
+            className="min-w-[120px]"
+            triggerClassName={
+              tierFilter !== "all" ? "!border-emerald-500 !bg-emerald-50" : ""
+            }
             options={[
               { value: "all", label: "All Tiers" },
               { value: "high", label: "High Conviction" },
@@ -634,10 +706,13 @@ export function ScannerResults({ scan }: Props) {
               { value: "watchlist", label: "Watchlist" },
             ]}
           />
-
           <Select
             value={riskFilter}
             onChange={(val) => setRiskFilter(val as RiskFilter)}
+            className="min-w-[120px]"
+            triggerClassName={
+              riskFilter !== "all" ? "!border-emerald-500 !bg-emerald-50" : ""
+            }
             options={[
               { value: "all", label: "All Risks" },
               { value: "TIER 1", label: "Tier 1 (Low)" },
@@ -646,18 +721,109 @@ export function ScannerResults({ scan }: Props) {
             ]}
           />
         </div>
+
+        {/* Desktop: result count + clear (only when filtered) */}
+        {isFiltered && (
+          <div className="hidden sm:flex items-center gap-2 ml-auto text-xs text-gray-500">
+            <span>
+              Showing{" "}
+              <span className="font-medium text-gray-700">
+                {sortedResults.length}
+              </span>{" "}
+              of{" "}
+              <span className="font-medium text-gray-700">
+                {scan.results.length}
+              </span>
+            </span>
+            <button
+              onClick={clearAllFilters}
+              className="flex items-center gap-0.5 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={12} />
+              Clear
+            </button>
+          </div>
+        )}
       </div>
+
+      {/* Mobile: expandable filter panel */}
+      {filtersOpen && (
+        <div className="sm:hidden flex flex-col gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <Select
+            value={marketFilter}
+            onChange={(val) => setMarketFilter(val as MarketFilter)}
+            triggerClassName={
+              marketFilter !== "all" ? "!border-emerald-500 !bg-emerald-50" : ""
+            }
+            options={[
+              { value: "all", label: "All Markets" },
+              { value: "US", label: "US" },
+              { value: "SGX", label: "SGX" },
+              { value: "HK", label: "HK" },
+              { value: "JP", label: "Japan" },
+              { value: "CN", label: "China" },
+            ]}
+          />
+          <Select
+            value={tierFilter}
+            onChange={(val) => setTierFilter(val as TierFilter)}
+            triggerClassName={
+              tierFilter !== "all" ? "!border-emerald-500 !bg-emerald-50" : ""
+            }
+            options={[
+              { value: "all", label: "All Tiers" },
+              { value: "high", label: "High Conviction" },
+              { value: "speculative", label: "Speculative" },
+              { value: "watchlist", label: "Watchlist" },
+            ]}
+          />
+          <Select
+            value={riskFilter}
+            onChange={(val) => setRiskFilter(val as RiskFilter)}
+            triggerClassName={
+              riskFilter !== "all" ? "!border-emerald-500 !bg-emerald-50" : ""
+            }
+            options={[
+              { value: "all", label: "All Risks" },
+              { value: "TIER 1", label: "Tier 1 (Low)" },
+              { value: "TIER 2", label: "Tier 2 (Med)" },
+              { value: "TIER 3", label: "Tier 3 (High)" },
+            ]}
+          />
+          {isFiltered && (
+            <div className="flex items-center justify-between pt-1 border-t border-gray-200">
+              <span className="text-xs text-gray-500">
+                Showing{" "}
+                <span className="font-medium text-gray-700">
+                  {sortedResults.length}
+                </span>{" "}
+                of{" "}
+                <span className="font-medium text-gray-700">
+                  {scan.results.length}
+                </span>
+              </span>
+              <button
+                onClick={clearAllFilters}
+                className="flex items-center gap-0.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={12} />
+                Clear all
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Results table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         {/* Header - with horizontal scroll wrapper */}
         <div className="overflow-x-auto">
-          <div className="min-w-[800px]">
+          <div className="sm:min-w-[800px]">
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-500">
               <span className="w-6" /> {/* Expand button */}
               <span className="w-8 text-right">#</span>
               <span className="w-16">Ticker</span>
-              <span className="flex-1 hidden sm:block">Name</span>
+              <span className="w-32 sm:flex-1 min-w-0">Name</span>
               <span
                 className="w-12 text-right"
                 title={`Sorted by ${SCORING_MODES.find((m) => m.value === scoringMode)?.label || "Combined"}`}
