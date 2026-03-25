@@ -1,5 +1,5 @@
 // Service Worker for Claudius HQ PWA
-const CACHE_NAME = 'claudius-hq-v1';
+const CACHE_NAME = 'claudius-hq-v2';
 
 // Assets to cache on install
 const STATIC_ASSETS = [

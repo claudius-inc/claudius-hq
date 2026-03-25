@@ -15,7 +15,10 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:www.multpl.com)",
       "WebFetch(domain:posix4e.github.io)",
-      "WebFetch(domain:data.nasdaq.com)"
+      "WebFetch(domain:data.nasdaq.com)",
+      "Bash(npx sharp-cli:*)",
+      "Bash(node -e \"require\\(''sharp''\\)\")",
+      "Bash(node:*)"
     ]
   }
 }
