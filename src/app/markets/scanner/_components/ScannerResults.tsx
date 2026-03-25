@@ -2,10 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Search, Clock, TrendingUp } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { ChevronDown, ChevronUp, Search, TrendingUp } from "lucide-react";
+
 import { Select } from "@/components/ui/Select";
-import { HoverCard, HoverCardTrigger, HoverCardContent } from "@/components/ui/HoverCard";
+import {
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent,
+} from "@/components/ui/HoverCard";
 import type { ParsedScan, ScanResult, ScoreComponent } from "../types";
 
 interface Props {
@@ -25,9 +29,12 @@ const SCORING_MODES: { value: ScoringMode; label: string }[] = [
 ];
 
 function getTierBadgeColor(tier: string): string {
-  if (tier.includes("HIGH CONVICTION")) return "bg-emerald-100 text-emerald-800 border-emerald-200";
-  if (tier.includes("SPECULATIVE")) return "bg-amber-100 text-amber-800 border-amber-200";
-  if (tier.includes("WATCHLIST")) return "bg-blue-100 text-blue-800 border-blue-200";
+  if (tier.includes("HIGH CONVICTION"))
+    return "bg-emerald-100 text-emerald-800 border-emerald-200";
+  if (tier.includes("SPECULATIVE"))
+    return "bg-amber-100 text-amber-800 border-amber-200";
+  if (tier.includes("WATCHLIST"))
+    return "bg-blue-100 text-blue-800 border-blue-200";
   return "bg-gray-100 text-gray-800 border-gray-200";
 }
 
@@ -80,14 +87,21 @@ function ScoreBreakdownCard({
     <div className="space-y-2">
       <div className="flex items-center justify-between border-b border-gray-200 pb-2">
         <span className="font-semibold text-gray-900">{title}</span>
-        <span className={`font-bold ${getModeScoreColor(score)}`}>{score}/100</span>
+        <span className={`font-bold ${getModeScoreColor(score)}`}>
+          {score}/100
+        </span>
       </div>
       {breakdown && Object.keys(breakdown).length > 0 ? (
         <div className="space-y-1.5">
           {Object.entries(breakdown).map(([category, { score: s, max }]) => (
-            <div key={category} className="flex items-center justify-between text-xs">
+            <div
+              key={category}
+              className="flex items-center justify-between text-xs"
+            >
               <span className="text-gray-600">{category}</span>
-              <span className="font-medium text-gray-800">{s}/{max}</span>
+              <span className="font-medium text-gray-800">
+                {s}/{max}
+              </span>
             </div>
           ))}
         </div>
@@ -129,12 +143,25 @@ function ModeScoreCell({
   );
 }
 
-function formatNumber(value: number | null | undefined, decimals: number = 2): string {
+function formatNumber(
+  value: number | null | undefined,
+  decimals: number = 2,
+): string {
   if (value === null || value === undefined) return "-";
   return value.toFixed(decimals);
 }
 
-function ScoreBar({ score, max, label, color }: { score: number; max: number; label: string; color: string }) {
+function ScoreBar({
+  score,
+  max,
+  label,
+  color,
+}: {
+  score: number;
+  max: number;
+  label: string;
+  color: string;
+}) {
   const pct = Math.round((score / max) * 100);
   return (
     <div className="flex items-center gap-1.5 text-xs min-w-0">
@@ -145,7 +172,9 @@ function ScoreBar({ score, max, label, color }: { score: number; max: number; la
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-gray-700 font-medium shrink-0">{score}/{max}</span>
+      <span className="text-gray-700 font-medium shrink-0">
+        {score}/{max}
+      </span>
     </div>
   );
 }
@@ -157,7 +186,13 @@ function CompositeScoreBar({ score, label }: { score: number; label: string }) {
       <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${
-            score >= 70 ? "bg-emerald-500" : score >= 50 ? "bg-amber-500" : score >= 35 ? "bg-blue-500" : "bg-gray-400"
+            score >= 70
+              ? "bg-emerald-500"
+              : score >= 50
+                ? "bg-amber-500"
+                : score >= 35
+                  ? "bg-blue-500"
+                  : "bg-gray-400"
           }`}
           style={{ width: `${score}%` }}
         />
@@ -167,7 +202,13 @@ function CompositeScoreBar({ score, label }: { score: number; label: string }) {
   );
 }
 
-function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
+function StockRow({
+  stock,
+  isExpanded,
+  onToggle,
+  displayScore,
+  displayRank,
+}: {
   stock: ScanResult;
   isExpanded: boolean;
   onToggle: () => void;
@@ -187,7 +228,9 @@ function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
           {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
         </button>
 
-        <span className="w-8 text-xs text-gray-400 text-right">#{displayRank}</span>
+        <span className="w-8 text-xs text-gray-400 text-right">
+          #{displayRank}
+        </span>
 
         <Link
           href={`/markets/research/${stock.ticker}`}
@@ -202,7 +245,9 @@ function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
         </span>
 
         {/* Combined score (main score, bold) */}
-        <span className={`w-12 text-right font-bold ${getScoreColor(displayScore)}`}>
+        <span
+          className={`w-12 text-right font-bold ${getScoreColor(displayScore)}`}
+        >
           {displayScore}
         </span>
 
@@ -225,12 +270,21 @@ function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
           />
         </div>
 
-        <span className={`px-2 py-0.5 text-[10px] font-medium rounded border ${getTierBadgeColor(stock.tier)}`}>
-          {stock.tier.replace(/🔥|⚡|👀|⚠️/g, "").trim().split(" ")[0]}
+        <span
+          className={`px-2 py-0.5 text-[10px] font-medium rounded border ${getTierBadgeColor(stock.tier)}`}
+        >
+          {
+            stock.tier
+              .replace(/🔥|⚡|👀|⚠️/g, "")
+              .trim()
+              .split(" ")[0]
+          }
         </span>
 
         {stock.market && (
-          <span className={`px-1 py-0.5 text-[9px] font-medium rounded hidden sm:inline ${getMarketBadgeColor(stock.market)}`}>
+          <span
+            className={`px-1 py-0.5 text-[9px] font-medium rounded hidden sm:inline ${getMarketBadgeColor(stock.market)}`}
+          >
             {stock.market}
           </span>
         )}
@@ -254,14 +308,20 @@ function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
             </div>
             <div>
               <span className="text-gray-500">Rev Growth</span>
-              <p className={`font-medium ${(stock.revGrowth || 0) > 0 ? "text-emerald-600" : "text-gray-600"}`}>
-                {stock.revGrowth ? `${(stock.revGrowth * 100).toFixed(0)}%` : "N/A"}
+              <p
+                className={`font-medium ${(stock.revGrowth || 0) > 0 ? "text-emerald-600" : "text-gray-600"}`}
+              >
+                {stock.revGrowth
+                  ? `${(stock.revGrowth * 100).toFixed(0)}%`
+                  : "N/A"}
               </p>
             </div>
             <div>
               <span className="text-gray-500">Gross Margin</span>
               <p className="font-medium">
-                {stock.grossMargin ? `${(stock.grossMargin * 100).toFixed(0)}%` : "N/A"}
+                {stock.grossMargin
+                  ? `${(stock.grossMargin * 100).toFixed(0)}%`
+                  : "N/A"}
               </p>
             </div>
           </div>
@@ -279,13 +339,17 @@ function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
               </div>
               <div>
                 <span className="text-gray-500">RVOL (W)</span>
-                <p className={`font-medium ${(stock.rvolWeekly || 0) >= 1.5 ? "text-emerald-600" : "text-gray-600"}`}>
+                <p
+                  className={`font-medium ${(stock.rvolWeekly || 0) >= 1.5 ? "text-emerald-600" : "text-gray-600"}`}
+                >
                   {formatNumber(stock.rvolWeekly, 2)}x
                 </p>
               </div>
               <div>
                 <span className="text-gray-500">R/R (W)</span>
-                <p className={`font-medium ${(stock.rrWeekly || 0) >= 2 ? "text-emerald-600" : "text-gray-600"}`}>
+                <p
+                  className={`font-medium ${(stock.rrWeekly || 0) >= 2 ? "text-emerald-600" : "text-gray-600"}`}
+                >
                   {formatNumber(stock.rrWeekly, 2)}
                 </p>
               </div>
@@ -299,27 +363,52 @@ function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
                 <TrendingUp size={12} />
                 Composite Score Breakdown
               </h4>
-              <CompositeScoreBar score={stock.fundamentalScore ?? 0} label="Fundamentals" />
-              <CompositeScoreBar score={stock.technicalScore ?? 0} label="Technical" />
-              <CompositeScoreBar score={stock.momentumScore ?? 0} label="Momentum" />
+              <CompositeScoreBar
+                score={stock.fundamentalScore ?? 0}
+                label="Fundamentals"
+              />
+              <CompositeScoreBar
+                score={stock.technicalScore ?? 0}
+                label="Technical"
+              />
+              <CompositeScoreBar
+                score={stock.momentumScore ?? 0}
+                label="Momentum"
+              />
             </div>
           )}
 
           {/* Multi-mode scores - always visible on expand */}
-          {(stock.quantScore !== undefined || stock.valueScore !== undefined || stock.growthScore !== undefined) && (
+          {(stock.quantScore !== undefined ||
+            stock.valueScore !== undefined ||
+            stock.growthScore !== undefined) && (
             <div className="space-y-2">
-              <h4 className="text-xs font-medium text-gray-700">Multi-Mode Scores</h4>
+              <h4 className="text-xs font-medium text-gray-700">
+                Multi-Mode Scores
+              </h4>
               <div className="grid grid-cols-3 gap-2 text-center">
-                <div className={`p-2 rounded border ${(stock.quantScore ?? 0) >= 70 ? 'bg-emerald-50 border-emerald-200' : (stock.quantScore ?? 0) >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
-                  <div className="text-lg font-bold">{stock.quantScore ?? '-'}</div>
+                <div
+                  className={`p-2 rounded border ${(stock.quantScore ?? 0) >= 70 ? "bg-emerald-50 border-emerald-200" : (stock.quantScore ?? 0) >= 50 ? "bg-yellow-50 border-yellow-200" : "bg-red-50 border-red-200"}`}
+                >
+                  <div className="text-lg font-bold">
+                    {stock.quantScore ?? "-"}
+                  </div>
                   <div className="text-[10px] text-gray-500">Quant</div>
                 </div>
-                <div className={`p-2 rounded border ${(stock.valueScore ?? 0) >= 70 ? 'bg-emerald-50 border-emerald-200' : (stock.valueScore ?? 0) >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
-                  <div className="text-lg font-bold">{stock.valueScore ?? '-'}</div>
+                <div
+                  className={`p-2 rounded border ${(stock.valueScore ?? 0) >= 70 ? "bg-emerald-50 border-emerald-200" : (stock.valueScore ?? 0) >= 50 ? "bg-yellow-50 border-yellow-200" : "bg-red-50 border-red-200"}`}
+                >
+                  <div className="text-lg font-bold">
+                    {stock.valueScore ?? "-"}
+                  </div>
                   <div className="text-[10px] text-gray-500">Value</div>
                 </div>
-                <div className={`p-2 rounded border ${(stock.growthScore ?? 0) >= 70 ? 'bg-emerald-50 border-emerald-200' : (stock.growthScore ?? 0) >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}`}>
-                  <div className="text-lg font-bold">{stock.growthScore ?? '-'}</div>
+                <div
+                  className={`p-2 rounded border ${(stock.growthScore ?? 0) >= 70 ? "bg-emerald-50 border-emerald-200" : (stock.growthScore ?? 0) >= 50 ? "bg-yellow-50 border-yellow-200" : "bg-red-50 border-red-200"}`}
+                >
+                  <div className="text-lg font-bold">
+                    {stock.growthScore ?? "-"}
+                  </div>
                   <div className="text-[10px] text-gray-500">Growth</div>
                 </div>
               </div>
@@ -328,11 +417,28 @@ function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
 
           {/* Score breakdown - 3 categories only */}
           <div className="space-y-2">
-            <h4 className="text-xs font-medium text-gray-700">Legacy Score Breakdown</h4>
+            <h4 className="text-xs font-medium text-gray-700">
+              Legacy Score Breakdown
+            </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <ScoreBar score={stock.growth.score} max={50} label="Growth" color="bg-emerald-500" />
-              <ScoreBar score={stock.financial.score} max={30} label="Financial" color="bg-blue-500" />
-              <ScoreBar score={stock.technical.score} max={20} label="Technical" color="bg-violet-500" />
+              <ScoreBar
+                score={stock.growth.score}
+                max={50}
+                label="Growth"
+                color="bg-emerald-500"
+              />
+              <ScoreBar
+                score={stock.financial.score}
+                max={30}
+                label="Financial"
+                color="bg-blue-500"
+              />
+              <ScoreBar
+                score={stock.technical.score}
+                max={20}
+                label="Technical"
+                color="bg-violet-500"
+              />
             </div>
           </div>
 
@@ -340,15 +446,21 @@ function StockRow({ stock, isExpanded, onToggle, displayScore, displayRank }: {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
             <div>
               <span className="text-gray-500">Growth:</span>
-              <p className="text-gray-700">{stock.growth.details.join(", ") || "N/A"}</p>
+              <p className="text-gray-700">
+                {stock.growth.details.join(", ") || "N/A"}
+              </p>
             </div>
             <div>
               <span className="text-gray-500">Financial:</span>
-              <p className="text-gray-700">{stock.financial.details.join(", ") || "N/A"}</p>
+              <p className="text-gray-700">
+                {stock.financial.details.join(", ") || "N/A"}
+              </p>
             </div>
             <div>
               <span className="text-gray-500">Technical:</span>
-              <p className="text-gray-700">{stock.technical.details.join(", ") || "N/A"}</p>
+              <p className="text-gray-700">
+                {stock.technical.details.join(", ") || "N/A"}
+              </p>
             </div>
           </div>
 
@@ -397,9 +509,13 @@ export function ScannerResults({ scan }: Props) {
   }
 
   // Use composite score for filtering if available
-  const hasEnhancedData = scan.results.some(r => r.compositeScore !== undefined);
-  const hasMultiModeData = scan.results.some(r => r.combinedScore !== undefined);
-  
+  const hasEnhancedData = scan.results.some(
+    (r) => r.compositeScore !== undefined,
+  );
+  const hasMultiModeData = scan.results.some(
+    (r) => r.combinedScore !== undefined,
+  );
+
   // Get score based on selected mode
   const getScoreForMode = (stock: ScanResult, mode: ScoringMode): number => {
     switch (mode) {
@@ -415,21 +531,26 @@ export function ScannerResults({ scan }: Props) {
         return stock.combinedScore ?? stock.compositeScore ?? stock.totalScore;
     }
   };
-  
-  const getDisplayScore = (stock: ScanResult) => getScoreForMode(stock, scoringMode);
+
+  const getDisplayScore = (stock: ScanResult) =>
+    getScoreForMode(stock, scoringMode);
 
   const filteredResults = scan.results.filter((stock) => {
     // Search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      if (!stock.ticker.toLowerCase().includes(q) && !stock.name.toLowerCase().includes(q)) {
+      if (
+        !stock.ticker.toLowerCase().includes(q) &&
+        !stock.name.toLowerCase().includes(q)
+      ) {
         return false;
       }
     }
     // Tier filter (use display score for enhanced data)
     const score = getDisplayScore(stock);
     if (tierFilter === "high" && score < 70) return false;
-    if (tierFilter === "speculative" && (score < 50 || score >= 70)) return false;
+    if (tierFilter === "speculative" && (score < 50 || score >= 70))
+      return false;
     if (tierFilter === "watchlist" && (score < 35 || score >= 50)) return false;
     // Risk filter
     if (riskFilter !== "all" && stock.riskTier !== riskFilter) return false;
@@ -437,7 +558,7 @@ export function ScannerResults({ scan }: Props) {
     if (marketFilter !== "all" && stock.market !== marketFilter) return false;
     return true;
   });
-  
+
   // Sort by selected mode's score (descending)
   const sortedResults = [...filteredResults].sort((a, b) => {
     return getScoreForMode(b, scoringMode) - getScoreForMode(a, scoringMode);
@@ -453,64 +574,21 @@ export function ScannerResults({ scan }: Props) {
     setExpandedRows(next);
   };
 
-  const scannedAt = scan.scannedAt ? new Date(scan.scannedAt) : null;
-
-  const usCount = scan.summary?.usCount ?? scan.results.filter((r) => r.market === "US").length;
-  const sgxCount = scan.summary?.sgxCount ?? scan.results.filter((r) => r.market === "SGX").length;
-  const hkCount = scan.summary?.hkCount ?? scan.results.filter((r) => r.market === "HK").length;
-  const jpCount = scan.summary?.jpCount ?? scan.results.filter((r) => r.market === "JP").length;
+  const usCount =
+    scan.summary?.usCount ??
+    scan.results.filter((r) => r.market === "US").length;
+  const sgxCount =
+    scan.summary?.sgxCount ??
+    scan.results.filter((r) => r.market === "SGX").length;
+  const hkCount =
+    scan.summary?.hkCount ??
+    scan.results.filter((r) => r.market === "HK").length;
+  const jpCount =
+    scan.summary?.jpCount ??
+    scan.results.filter((r) => r.market === "JP").length;
 
   return (
     <div className="space-y-4">
-      {/* Scan info & summary */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          {scannedAt && (
-            <span className="flex items-center gap-1 text-gray-500">
-              <Clock size={14} />
-              <span className="font-medium text-gray-700">
-                {formatDistanceToNow(scannedAt, { addSuffix: true })}
-              </span>
-            </span>
-          )}
-          <span className="text-gray-500">
-            {scan.results.length} stocks
-            <span className="hidden sm:inline text-gray-400">
-              {" "}({[
-                usCount > 0 && `US: ${usCount}`,
-                sgxCount > 0 && `SGX: ${sgxCount}`,
-                hkCount > 0 && `HK: ${hkCount}`,
-                jpCount > 0 && `JP: ${jpCount}`,
-              ].filter(Boolean).join(", ")})
-            </span>
-          </span>
-          {hasMultiModeData && (
-            <span className="px-1.5 py-0.5 text-[10px] bg-indigo-100 text-indigo-700 rounded font-medium">
-              Multi-Mode
-            </span>
-          )}
-          {hasEnhancedData && !hasMultiModeData && (
-            <span className="px-1.5 py-0.5 text-[10px] bg-violet-100 text-violet-700 rounded font-medium">
-              Enhanced
-            </span>
-          )}
-        </div>
-
-        {scan.summary && (
-          <div className="flex gap-1.5 text-xs">
-            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">
-              HC {scan.summary.highConviction}
-            </span>
-            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded">
-              SPEC {scan.summary.speculative}
-            </span>
-            <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
-              WL {scan.summary.watchlist}
-            </span>
-          </div>
-        )}
-      </div>
-
       {/* Mode selector tabs */}
       {hasMultiModeData && (
         <div className="flex items-center gap-1 overflow-x-auto pb-1 -mb-1">
@@ -537,7 +615,7 @@ export function ScannerResults({ scan }: Props) {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search ticker or name..."
+            placeholder={`Search ${scan.results.length} tickers or names...`}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
@@ -591,14 +669,25 @@ export function ScannerResults({ scan }: Props) {
               <span className="w-8 text-right">#</span>
               <span className="w-16">Ticker</span>
               <span className="flex-1 hidden sm:block">Name</span>
-              <span className="w-12 text-right" title={`Sorted by ${SCORING_MODES.find(m => m.value === scoringMode)?.label || 'Combined'}`}>
-                {scoringMode === "combined" ? "Score" : scoringMode.charAt(0).toUpperCase() + scoringMode.slice(1)}
+              <span
+                className="w-12 text-right"
+                title={`Sorted by ${SCORING_MODES.find((m) => m.value === scoringMode)?.label || "Combined"}`}
+              >
+                {scoringMode === "combined"
+                  ? "Score"
+                  : scoringMode.charAt(0).toUpperCase() + scoringMode.slice(1)}
               </span>
               {/* Q/V/G headers - hidden on mobile */}
               <div className="hidden md:flex items-center gap-1.5">
-                <span className="w-8 text-center" title="Quant Score">Q</span>
-                <span className="w-8 text-center" title="Value Score">V</span>
-                <span className="w-8 text-center" title="Growth Score">G</span>
+                <span className="w-8 text-center" title="Quant Score">
+                  Q
+                </span>
+                <span className="w-8 text-center" title="Value Score">
+                  V
+                </span>
+                <span className="w-8 text-center" title="Growth Score">
+                  G
+                </span>
               </div>
               <span className="w-16">Tier</span>
               <span className="w-10 hidden sm:block">Mkt</span>
