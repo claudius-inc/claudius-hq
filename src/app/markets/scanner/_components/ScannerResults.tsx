@@ -19,7 +19,7 @@ interface Props {
 type ScoringMode = "combined" | "quant" | "value" | "growth";
 type TierFilter = "all" | "high" | "speculative" | "watchlist";
 type RiskFilter = "all" | "TIER 1" | "TIER 2" | "TIER 3";
-type MarketFilter = "all" | "US" | "SGX" | "HK" | "JP";
+type MarketFilter = "all" | "US" | "SGX" | "HK" | "JP" | "CN";
 
 const SCORING_MODES: { value: ScoringMode; label: string }[] = [
   { value: "combined", label: "Combined" },
@@ -589,26 +589,6 @@ export function ScannerResults({ scan }: Props) {
 
   return (
     <div className="space-y-4">
-      {/* Mode selector tabs */}
-      {hasMultiModeData && (
-        <div className="flex items-center gap-1 overflow-x-auto pb-1 -mb-1">
-          <span className="text-xs text-gray-500 mr-1 shrink-0">Sort by:</span>
-          {SCORING_MODES.map((mode) => (
-            <button
-              key={mode.value}
-              onClick={() => setScoringMode(mode.value)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 ${
-                scoringMode === mode.value
-                  ? "bg-emerald-600 text-white"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {mode.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
@@ -623,6 +603,14 @@ export function ScannerResults({ scan }: Props) {
         </div>
 
         <div className="flex gap-2">
+          {hasMultiModeData && (
+            <Select
+              value={scoringMode}
+              onChange={(val) => setScoringMode(val as ScoringMode)}
+              options={SCORING_MODES}
+            />
+          )}
+
           <Select
             value={marketFilter}
             onChange={(val) => setMarketFilter(val as MarketFilter)}
@@ -632,6 +620,7 @@ export function ScannerResults({ scan }: Props) {
               { value: "SGX", label: "SGX" },
               { value: "HK", label: "HK" },
               { value: "JP", label: "Japan" },
+              { value: "CN", label: "China" },
             ]}
           />
 

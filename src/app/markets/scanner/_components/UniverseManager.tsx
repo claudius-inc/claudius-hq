@@ -192,6 +192,7 @@ export function UniverseManager() {
               <option value="SGX">SGX</option>
               <option value="HK">HK</option>
               <option value="JP">Japan</option>
+              <option value="CN">China</option>
             </select>
             <input
               type="text"
@@ -242,6 +243,7 @@ export function UniverseManager() {
             <option value="SGX">SGX</option>
             <option value="HK">HK</option>
             <option value="JP">Japan</option>
+            <option value="CN">China</option>
           </select>
         </div>
       </div>

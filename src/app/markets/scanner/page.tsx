@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { db, stockScans } from "@/db";
 import { desc, eq } from "drizzle-orm";
 import { PageHero } from "@/components/PageHero";
-import { ScannerResults } from "./_components/ScannerResults";
-import { UniverseManager } from "./_components/UniverseManager";
 import { RefreshButton } from "./_components/RefreshButton";
 import { MethodologyModal } from "./_components/MethodologyModal";
 import { ScanAge } from "./_components/ScanAge";
-import { Skeleton } from "@/components/Skeleton";
+import { ScannerTabs } from "./_components/ScannerTabs";
 import type { ScanResult, ParsedScan } from "./types";
 
 export const metadata: Metadata = {
@@ -118,15 +115,7 @@ export default async function ScannersPage() {
         }
       />
 
-      {/* Scanner Results */}
-      <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-        <ScannerResults scan={scan} />
-      </Suspense>
-
-      {/* Universe Manager */}
-      <div className="mt-8">
-        <UniverseManager />
-      </div>
+      <ScannerTabs scan={scan} />
     </>
   );
 }
