@@ -110,6 +110,19 @@ async function fetchMarketData(ticker: string): Promise<MarketData> {
   }
 }
 
+// Fetch PE from ETF (raw indices don't have PE in Yahoo Finance)
+async function fetchETFPE(ticker: string): Promise<number | null> {
+  try {
+    const quote = await yahooFinance.quoteSummary(ticker, {
+      modules: ["summaryDetail"],
+    });
+    return quote.summaryDetail?.trailingPE ?? null;
+  } catch (e) {
+    console.error(`Error fetching ETF PE for ${ticker}:`, e);
+    return null;
+  }
+}
+
 async function fetchUSCape(): Promise<number | null> {
   try {
     const quote = await yahooFinance.quoteSummary("SPY", {
@@ -131,13 +144,19 @@ async function fetchUSCape(): Promise<number | null> {
 export async function GET() {
   try {
     // Fetch data for all markets in parallel
-    const [usData, jpData, sgData, cnData, hsiData, usCape] = await Promise.all([
+    // Use ETFs for PE (raw indices don't have PE in Yahoo Finance)
+    // ETF mapping: Japan=EWJ, Singapore=EWS, China=ASHR (CSI 300 tracker)
+    const [usData, jpData, sgData, cnData, hsiData, usCape, jpPE, sgPE, cnPE, hsiPE] = await Promise.all([
       fetchMarketData("SPY"),
       fetchMarketData("^N225"),
       fetchMarketData("^STI"),
       fetchMarketData("000300.SS"), // CSI 300
       fetchMarketData("^HSI"), // Hang Seng
       fetchUSCape(),
+      fetchETFPE("EWJ"),   // iShares MSCI Japan
+      fetchETFPE("EWS"),   // iShares MSCI Singapore
+      fetchETFPE("ASHR"),  // Xtrackers CSI 300
+      fetchETFPE("EWH"),   // iShares MSCI Hong Kong
     ]);
 
     const valuations: MarketValuation[] = [
@@ -165,12 +184,12 @@ export async function GET() {
         index: "Nikkei 225",
         ticker: "^N225",
         metric: "TTM_PE",
-        value: jpData.pe,
+        value: jpPE, // From EWJ ETF (index doesn't have PE)
         historicalMean: ZONES.JAPAN.mean,
         historicalRange: ZONES.JAPAN.range,
-        zone: jpData.pe ? getZone(jpData.pe, ZONES.JAPAN) : "FAIR",
-        percentOfMean: jpData.pe
-          ? Math.round((jpData.pe / ZONES.JAPAN.mean) * 100)
+        zone: jpPE ? getZone(jpPE, ZONES.JAPAN) : "FAIR",
+        percentOfMean: jpPE
+          ? Math.round((jpPE / ZONES.JAPAN.mean) * 100)
           : 100,
         dividendYield: jpData.dividendYield,
         priceToBook: jpData.priceToBook,
@@ -184,12 +203,12 @@ export async function GET() {
         index: "Straits Times",
         ticker: "^STI",
         metric: "TTM_PE",
-        value: sgData.pe,
+        value: sgPE, // From EWS ETF (index doesn't have PE)
         historicalMean: ZONES.SINGAPORE.mean,
         historicalRange: ZONES.SINGAPORE.range,
-        zone: sgData.pe ? getZone(sgData.pe, ZONES.SINGAPORE) : "FAIR",
-        percentOfMean: sgData.pe
-          ? Math.round((sgData.pe / ZONES.SINGAPORE.mean) * 100)
+        zone: sgPE ? getZone(sgPE, ZONES.SINGAPORE) : "FAIR",
+        percentOfMean: sgPE
+          ? Math.round((sgPE / ZONES.SINGAPORE.mean) * 100)
           : 100,
         dividendYield: sgData.dividendYield,
         priceToBook: sgData.priceToBook,
@@ -203,12 +222,12 @@ export async function GET() {
         index: "CSI 300",
         ticker: "000300.SS",
         metric: "TTM_PE",
-        value: cnData.pe,
+        value: cnPE, // From ASHR ETF (index doesn't have PE)
         historicalMean: ZONES.CHINA.mean,
         historicalRange: ZONES.CHINA.range,
-        zone: cnData.pe ? getZone(cnData.pe, ZONES.CHINA) : "FAIR",
-        percentOfMean: cnData.pe
-          ? Math.round((cnData.pe / ZONES.CHINA.mean) * 100)
+        zone: cnPE ? getZone(cnPE, ZONES.CHINA) : "FAIR",
+        percentOfMean: cnPE
+          ? Math.round((cnPE / ZONES.CHINA.mean) * 100)
           : 100,
         dividendYield: cnData.dividendYield,
         priceToBook: cnData.priceToBook,
@@ -217,7 +236,7 @@ export async function GET() {
         secondaryIndex: {
           name: "Hang Seng",
           ticker: "^HSI",
-          pe: hsiData.pe,
+          pe: hsiPE, // From EWH ETF
           change24h: hsiData.change24h,
         },
       },
