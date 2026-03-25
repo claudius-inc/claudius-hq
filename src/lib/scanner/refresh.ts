@@ -5,9 +5,15 @@
 
 import { db, stockScans, marketCache } from "@/db";
 import { eq, desc } from "drizzle-orm";
-import { batchFetchMetrics } from "./yahoo-fetcher";
+import { batchFetchAllData } from "./yahoo-fetcher";
 import { calculateCompositeScore, type TechnicalMetrics } from "./scoring";
-import type { ScanResult, ScanSummary } from "@/app/markets/scanner/types";
+import {
+  calculateAllModeScores,
+  getTierFromCombinedScore,
+  type YahooStockData,
+  type Market,
+} from "./mode-scoring";
+import type { ScanResult, ScanSummary, ScoreComponent } from "@/app/markets/scanner/types";
 
 // Rate limit: 15 minutes between refreshes
 const REFRESH_COOLDOWN_MS = 15 * 60 * 1000;
@@ -128,7 +134,7 @@ export async function getLatestScan(): Promise<{
 }
 
 /**
- * Enhanced scan result with technical metrics.
+ * Enhanced scan result with technical metrics and mode scores.
  */
 export interface EnhancedScanResult extends ScanResult {
   athWeekly: number | null;
@@ -141,11 +147,19 @@ export interface EnhancedScanResult extends ScanResult {
   fundamentalScore: number;
   technicalScore: number;
   momentumScore: number;
+  // Multi-mode scores
+  quantScore: number;
+  valueScore: number;
+  growthScore: number;
+  combinedScore: number;
+  quantBreakdown: ScoreComponent;
+  valueBreakdown: ScoreComponent;
+  growthBreakdown: ScoreComponent;
 }
 
 /**
  * Run the scanner refresh.
- * Fetches technical data from Yahoo Finance and updates the DB.
+ * Fetches technical + fundamental data from Yahoo Finance and updates the DB.
  */
 export async function runScannerRefresh(): Promise<{
   success: boolean;
@@ -176,19 +190,19 @@ export async function runScannerRefresh(): Promise<{
 
     console.log(`[Scanner] Refreshing ${tickers.length} tickers...`);
 
-    // Fetch technical metrics
-    const metricsMap = await batchFetchMetrics(tickers, (ticker, idx, total) => {
+    // Fetch technical + fundamental metrics
+    const dataMap = await batchFetchAllData(tickers, (ticker, idx, total) => {
       if (idx % 10 === 0) {
         console.log(`[Scanner] Progress: ${idx}/${total} (${ticker})`);
       }
     });
 
-    // Enhance results with technical metrics
+    // Enhance results with technical metrics and mode scores
     const enhancedResults: EnhancedScanResult[] = existingScan.results.map((stock) => {
       const tickerKey = stock.market === "SGX" ? `${stock.ticker}.SI` : stock.ticker;
-      const metrics = metricsMap.get(tickerKey);
+      const data = dataMap.get(tickerKey);
 
-      const techMetrics: TechnicalMetrics = metrics ?? {
+      const techMetrics: TechnicalMetrics = data ?? {
         athWeekly: null,
         athMonthly: null,
         rvolWeekly: null,
@@ -198,14 +212,33 @@ export async function runScannerRefresh(): Promise<{
       };
 
       // Update price if we have fresh data
-      const price = metrics?.currentPrice ?? stock.price;
+      const price = data?.currentPrice ?? stock.price;
 
-      // Calculate composite score
+      // Calculate composite score (legacy)
       const scores = calculateCompositeScore(stock, techMetrics);
+
+      // Calculate mode scores using fundamental data
+      const market = (stock.market ?? "US") as Market;
+      const fundamentals: YahooStockData = data?.fundamentals ?? {};
+
+      // Add derived metrics from existing stock data if not in fundamentals
+      if (stock.revGrowth !== null && fundamentals.revenueGrowth === undefined) {
+        fundamentals.revenueGrowth = stock.revGrowth / 100;
+      }
+      if (stock.grossMargin !== null && fundamentals.grossMargins === undefined) {
+        fundamentals.grossMargins = stock.grossMargin / 100;
+      }
+
+      const modeScores = calculateAllModeScores(fundamentals, market);
+
+      // Update tier based on combined score
+      const tierInfo = getTierFromCombinedScore(modeScores.combinedScore);
 
       return {
         ...stock,
         price,
+        tier: tierInfo.tier,
+        tierColor: tierInfo.tierColor,
         athWeekly: techMetrics.athWeekly,
         athMonthly: techMetrics.athMonthly,
         rvolWeekly: techMetrics.rvolWeekly,
@@ -216,27 +249,38 @@ export async function runScannerRefresh(): Promise<{
         fundamentalScore: scores.fundamentalScore,
         technicalScore: scores.technicalScore,
         momentumScore: scores.momentumScore,
+        // Mode scores
+        quantScore: modeScores.quantScore,
+        valueScore: modeScores.valueScore,
+        growthScore: modeScores.growthScore,
+        combinedScore: modeScores.combinedScore,
+        quantBreakdown: modeScores.quantBreakdown,
+        valueBreakdown: modeScores.valueBreakdown,
+        growthBreakdown: modeScores.growthBreakdown,
       };
     });
 
-    // Sort by composite score
-    enhancedResults.sort((a, b) => b.compositeScore - a.compositeScore);
+    // Sort by combined score (mode scoring)
+    enhancedResults.sort((a, b) => b.combinedScore - a.combinedScore);
     enhancedResults.forEach((r, idx) => (r.rank = idx + 1));
 
-    // Build updated summary
+    // Build updated summary based on combined score thresholds
     const summary: ScanSummary = {
       universeSize: enhancedResults.length,
       scannedCount: enhancedResults.length,
-      highConviction: enhancedResults.filter((r) => r.compositeScore >= 70).length,
+      highConviction: enhancedResults.filter((r) => r.combinedScore >= 80).length,
       speculative: enhancedResults.filter(
-        (r) => r.compositeScore >= 50 && r.compositeScore < 70
+        (r) => r.combinedScore >= 50 && r.combinedScore < 65
       ).length,
       watchlist: enhancedResults.filter(
-        (r) => r.compositeScore >= 35 && r.compositeScore < 50
+        (r) => r.combinedScore >= 65 && r.combinedScore < 80
       ).length,
-      avoid: enhancedResults.filter((r) => r.compositeScore < 35).length,
+      avoid: enhancedResults.filter((r) => r.combinedScore < 50).length,
       usCount: enhancedResults.filter((r) => r.market === "US").length,
       sgxCount: enhancedResults.filter((r) => r.market === "SGX").length,
+      hkCount: enhancedResults.filter((r) => r.market === "HK").length,
+      jpCount: enhancedResults.filter((r) => r.market === "JP").length,
+      cnCount: enhancedResults.filter((r) => r.market === "CN").length,
     };
 
     // Save to database
@@ -255,9 +299,9 @@ export async function runScannerRefresh(): Promise<{
       lastError: null,
     });
 
-    console.log(`[Scanner] Refresh complete. Enhanced ${metricsMap.size} stocks.`);
+    console.log(`[Scanner] Refresh complete. Enhanced ${dataMap.size} stocks.`);
 
-    return { success: true, enhancedCount: metricsMap.size };
+    return { success: true, enhancedCount: dataMap.size };
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("[Scanner] Refresh failed:", errorMsg);

@@ -34,7 +34,7 @@ const QUANT_SECTIONS: Section[] = [
   },
   {
     name: "Quality - Stability",
-    points: 15,
+    points: 20,
     metrics: [
       {
         metric: "Debt/Equity",
@@ -42,6 +42,7 @@ const QUANT_SECTIONS: Section[] = [
         max: 8,
       },
       { metric: "Earnings Positive", thresholds: "Yes: 7, No: 0", max: 7 },
+      { metric: "Earnings Quality", thresholds: "OCF > FCF: 5, OCF > 0: 3", max: 5 },
     ],
   },
   {
@@ -58,24 +59,15 @@ const QUANT_SECTIONS: Section[] = [
     points: 15,
     metrics: [
       {
-        metric: "Price vs SMA200",
-        thresholds: ">10%: 8, >0%: 5, >-10%: 2",
-        max: 8,
+        metric: "12M Return (or SMA200)",
+        thresholds: ">30%: 10, >15%: 7, >0%: 4, >-10%: 2",
+        max: 10,
       },
       {
         metric: "Not Overextended",
-        thresholds: "<25% above: 7, <40%: 4",
-        max: 7,
+        thresholds: "<25% above SMA: 5, <40%: 3",
+        max: 5,
       },
-    ],
-  },
-  {
-    name: "Size",
-    points: 10,
-    metrics: [
-      { metric: "Market Cap $500M-$5B", thresholds: "10 pts", max: 10 },
-      { metric: "Market Cap $5B-$20B", thresholds: "7 pts", max: 7 },
-      { metric: "Market Cap $20B-$100B", thresholds: "4 pts", max: 4 },
     ],
   },
   {
@@ -89,12 +81,23 @@ const QUANT_SECTIONS: Section[] = [
       },
     ],
   },
+  {
+    name: "Low Volatility",
+    points: 5,
+    metrics: [
+      {
+        metric: "Beta",
+        thresholds: "<1.0: 5, <1.2: 3, <1.5: 1",
+        max: 5,
+      },
+    ],
+  },
 ];
 
 const VALUE_SECTIONS: Section[] = [
   {
     name: "Valuation",
-    points: 40,
+    points: 35,
     metrics: [
       {
         metric: "EV/EBITDA",
@@ -103,38 +106,38 @@ const VALUE_SECTIONS: Section[] = [
       },
       {
         metric: "Earnings Yield Spread",
-        thresholds: ">6%: 10, >4%: 8, >2%: 5",
+        thresholds: ">6%: 10, >4%: 8, >2%: 5, >0%: 2",
         max: 10,
       },
-      { metric: "P/FCF", thresholds: "<10: 10, <15: 7, <20: 4", max: 10 },
-      { metric: "P/B", thresholds: "<1: 8, <1.5: 6, <2.5: 4", max: 8 },
+      { metric: "P/FCF", thresholds: "<10: 8, <15: 6, <20: 4, <25: 2", max: 8 },
+      { metric: "P/B", thresholds: "<1: 5, <1.5: 4, <2.5: 3, <4: 2", max: 5 },
     ],
   },
   {
     name: "Cash Generation",
     points: 25,
     metrics: [
-      { metric: "FCF Yield", thresholds: ">10%: 10, >7%: 8, >5%: 6", max: 10 },
-      { metric: "FCF Margin", thresholds: ">20%: 8, >12%: 6, >6%: 4", max: 8 },
-      { metric: "FCF/Debt", thresholds: ">0.5: 7, >0.25: 5, >0.15: 3", max: 7 },
+      { metric: "FCF Yield", thresholds: ">10%: 10, >7%: 8, >5%: 6, >3%: 4", max: 10 },
+      { metric: "FCF Margin", thresholds: ">20%: 8, >12%: 6, >6%: 4, >0%: 2", max: 8 },
+      { metric: "FCF/Debt", thresholds: ">0.5: 7, >0.25: 5, >0.15: 3, >0: 1", max: 7 },
     ],
   },
   {
     name: "Quality & Durability",
-    points: 25,
+    points: 30,
     metrics: [
-      { metric: "ROIC", thresholds: ">20%: 10, >15%: 8, >12%: 6", max: 10 },
+      { metric: "ROIC*", thresholds: "Regional: US >15%, JP >8%, EM Asia >10%", max: 12 },
       {
         metric: "Interest Coverage",
-        thresholds: ">10x: 6, >6x: 5, >4x: 3",
+        thresholds: ">10x: 6, >6x: 5, >4x: 3, >2x: 1",
         max: 6,
       },
       {
         metric: "Debt/Equity",
-        thresholds: "<30%: 5, <60%: 4, <100%: 3",
-        max: 5,
+        thresholds: "<30%: 6, <60%: 5, <100%: 3, <150%: 1",
+        max: 6,
       },
-      { metric: "ROE", thresholds: ">18%: 4, >12%: 3, >8%: 2", max: 4 },
+      { metric: "ROE", thresholds: ">18%: 6, >12%: 5, >8%: 4, >5%: 2", max: 6 },
     ],
   },
   {
@@ -143,10 +146,10 @@ const VALUE_SECTIONS: Section[] = [
     metrics: [
       {
         metric: "Dividend Yield",
-        thresholds: ">4%: 5, >2.5%: 4, >1.5%: 3",
+        thresholds: ">4%: 5, >2.5%: 4, >1.5%: 3, >0.5%: 2",
         max: 5,
       },
-      { metric: "Payout Ratio", thresholds: "20-50%: 5, 50-70%: 4", max: 5 },
+      { metric: "Payout Ratio", thresholds: "20-50%: 5, 50-70%: 4, 0-20%: 3", max: 5 },
     ],
   },
 ];
@@ -158,74 +161,78 @@ const GROWTH_SECTIONS: Section[] = [
     metrics: [
       {
         metric: "3Y CAGR",
-        thresholds: ">100%: 15, >50%: 11, >25%: 7",
+        thresholds: ">60%: 15, >40%: 12, >25%: 8, >15%: 5, >0%: 2",
         max: 15,
       },
       {
         metric: "YoY Growth",
-        thresholds: ">150%: 15, >75%: 11, >35%: 7",
+        thresholds: ">80%: 15, >50%: 12, >30%: 8, >15%: 5, >0%: 2",
         max: 15,
       },
       {
         metric: "QoQ Growth",
-        thresholds: ">30%: 10, >15%: 6, >5%: 2",
+        thresholds: ">20%: 10, >10%: 7, >5%: 4, >0%: 2",
         max: 10,
       },
     ],
   },
   {
     name: "Growth Durability",
-    points: 15,
+    points: 20,
     metrics: [
       {
         metric: "Acceleration",
-        thresholds: ">10pp: 8, >5pp: 6, stable: 4",
-        max: 8,
+        thresholds: ">10pp: 10, >5pp: 7, stable (±2pp): 4, decel: 1",
+        max: 10,
       },
       {
         metric: "Consistency",
-        thresholds: "4/4 Q positive: 7, 3/4: 5",
-        max: 7,
+        thresholds: "4/4 Q positive: 10, 3/4: 7, 2/4: 4",
+        max: 10,
       },
     ],
   },
   {
     name: "Scalability",
-    points: 15,
+    points: 25,
     metrics: [
       {
         metric: "Gross Margin",
-        thresholds: ">70%: 10, >60%: 8, >50%: 6",
-        max: 10,
+        thresholds: ">70%: 12, >60%: 10, >50%: 7, >40%: 4, >30%: 2",
+        max: 12,
       },
       {
         metric: "GM Trend",
-        thresholds: "Improving >3pp: 5, stable: 3",
+        thresholds: "Improving >3pp: 5, >1pp: 3, stable: 2",
         max: 5,
+      },
+      {
+        metric: "Rule of 40*",
+        thresholds: "Tech only: ≥40: 8, ≥30: 5, else: based on op margin",
+        max: 8,
       },
     ],
   },
   {
     name: "Momentum",
-    points: 15,
+    points: 5,
     metrics: [
-      { metric: "6M Return", thresholds: ">50%: 8, >30%: 7, >15%: 5", max: 8 },
-      { metric: "3M Return", thresholds: ">25%: 7, >15%: 5, >5%: 4", max: 7 },
+      { metric: "3M Return", thresholds: ">15%: 5, >8%: 4, >0%: 2, <-20%: 1", max: 5 },
     ],
   },
   {
     name: "TAM Proxy",
-    points: 15,
+    points: 10,
     metrics: [
       {
         metric: "P/S-to-Growth Ratio",
-        thresholds: "<0.1: 10, <0.2: 8, <0.3: 6",
-        max: 10,
+        thresholds: "<0.1: 6, <0.2: 5, <0.3: 4, <0.5: 2",
+        max: 6,
       },
       {
         metric: "Market Cap Sweet Spot",
-        thresholds: "$500M-$5B: 5, $5B-$20B: 4",
-        max: 5,
+        thresholds: "$500M-$5B: 4, $5B-$20B: 3, $100M-$500M: 2, $20B-$100B: 1",
+        max: 4,
       },
     ],
   },
@@ -309,9 +316,19 @@ function QuantTab() {
     <div className="space-y-4">
       <p className="text-sm text-gray-600 italic">
         Factor-based scoring using academically validated metrics — 100 points
-        total
+        total. Size factor removed (dead factor post-2000).
       </p>
       <MetricTable sections={QUANT_SECTIONS} />
+      <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-xs font-semibold text-blue-800 mb-1">
+          Key Factor Changes
+        </p>
+        <ul className="text-xs text-blue-700 space-y-0.5">
+          <li>• <strong>Size removed:</strong> No longer predictive post-2000</li>
+          <li>• <strong>Earnings Quality added:</strong> OCF vs FCF check</li>
+          <li>• <strong>Low Volatility:</strong> Beta &lt;1 rewarded</li>
+        </ul>
+      </div>
     </div>
   );
 }
@@ -324,15 +341,24 @@ function ValueTab() {
         100 points total
       </p>
       <MetricTable sections={VALUE_SECTIONS} />
-      <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-        <p className="text-xs font-semibold text-amber-800 mb-1">
-          Value Trap Flags (Info Only)
+      <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <p className="text-xs font-semibold text-green-800 mb-1">
+          ROIC Regional Thresholds
         </p>
-        <ul className="text-xs text-amber-700 space-y-0.5">
-          <li>🔴 Falling Knife: 6M return &lt; -40%</li>
-          <li>🔴 Cash Burn: FCF negative 2+ years</li>
-          <li>🟡 Margin Deterioration: GM down &gt;5pp YoY</li>
+        <ul className="text-xs text-green-700 space-y-0.5">
+          <li>🇺🇸 <strong>US:</strong> &gt;15% for max points</li>
+          <li>🇯🇵 <strong>Japan:</strong> &gt;8% for max points (lower capital returns)</li>
+          <li>🇭🇰🇨🇳🇸🇬 <strong>EM Asia (HK, CN, SGX):</strong> &gt;10% for max points</li>
         </ul>
+      </div>
+      <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+        <p className="text-xs font-semibold text-gray-700 mb-1">
+          No Value Trap Penalties
+        </p>
+        <p className="text-xs text-gray-600">
+          Value trap indicators are shown but don&apos;t reduce scores — they can kill
+          contrarian plays. Use them as context, not disqualifiers.
+        </p>
       </div>
     </div>
   );
@@ -348,19 +374,20 @@ function GrowthTab() {
       <MetricTable sections={GROWTH_SECTIONS} />
       <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
         <p className="text-xs font-semibold text-purple-800 mb-1">
-          Hypergrowth Exception Rules
+          Methodology Notes
         </p>
         <ul className="text-xs text-purple-700 space-y-0.5">
           <li>
-            • <strong>Profitability Bypass:</strong> If YoY &gt;100%, FCF/net
-            income ignored
+            • <strong>3Y CAGR Cap:</strong> Max at &gt;60% (not 100% — too unrealistic)
           </li>
           <li>
-            • <strong>GM Gate:</strong> Must have GM ≥40% even for hypergrowth
+            • <strong>Rule of 40:</strong> Only applies to Technology/Internet sectors
           </li>
           <li>
-            • <strong>Bonus +5 pts:</strong> If YoY &gt;150% AND GM &gt;50% AND
-            accelerating
+            • <strong>Momentum Reduced:</strong> Only 5 pts (from 15) — use 3M return as mean reversion signal
+          </li>
+          <li>
+            • <strong>Non-tech sectors:</strong> Rule of 40 replaced with operating margin score
           </li>
         </ul>
       </div>

@@ -15,6 +15,7 @@ import {
   aggregateToMonthly,
 } from "./indicators";
 import type { TechnicalMetrics } from "./scoring";
+import type { YahooStockData } from "./mode-scoring";
 
 // Rate limiting: 350ms between requests
 const RATE_LIMIT_MS = 350;
@@ -180,6 +181,164 @@ export async function batchFetchMetrics(
       const metrics = await calculateTechnicalMetrics(ticker);
       if (metrics) {
         results.set(ticker, metrics);
+      }
+    } catch (error) {
+      console.error(`[Batch] ${ticker}: failed -`, error);
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Fetch fundamental data needed for mode scoring.
+ * Uses quoteSummary to get financialData, defaultKeyStatistics, summaryDetail, price.
+ */
+export async function fetchFundamentalData(
+  ticker: string
+): Promise<YahooStockData | null> {
+  await rateLimit();
+
+  try {
+    const result = await yahooFinance.quoteSummary(ticker, {
+      modules: [
+        "financialData",
+        "defaultKeyStatistics",
+        "summaryDetail",
+        "price",
+        "summaryProfile",
+      ],
+    });
+
+    if (!result) return null;
+
+    // Type the result properly - yahoo-finance2's types can be tricky
+    const summary = result as {
+      financialData?: Record<string, unknown>;
+      defaultKeyStatistics?: Record<string, unknown>;
+      summaryDetail?: Record<string, unknown>;
+      price?: Record<string, unknown>;
+      summaryProfile?: Record<string, unknown>;
+    };
+
+    const fd = summary.financialData;
+    const ks = summary.defaultKeyStatistics;
+    const sd = summary.summaryDetail;
+    const pr = summary.price;
+    const sp = summary.summaryProfile;
+
+    // Build YahooStockData from quoteSummary modules
+    // Cast to number since yahoo-finance2 returns unknown types
+    const num = (v: unknown): number | undefined =>
+      typeof v === "number" ? v : undefined;
+    const str = (v: unknown): string | undefined =>
+      typeof v === "string" ? v : undefined;
+
+    const data: YahooStockData = {
+      // financialData
+      currentPrice: num(fd?.currentPrice) ?? num(pr?.regularMarketPrice),
+      grossMargins: num(fd?.grossMargins),
+      operatingMargins: num(fd?.operatingMargins),
+      freeCashflow: num(fd?.freeCashflow),
+      operatingCashflow: num(fd?.operatingCashflow),
+      totalRevenue: num(fd?.totalRevenue),
+      revenueGrowth: num(fd?.revenueGrowth),
+      returnOnEquity: num(fd?.returnOnEquity),
+      debtToEquity: num(fd?.debtToEquity)
+        ? num(fd?.debtToEquity)! / 100
+        : undefined, // Yahoo returns as percentage
+      totalDebt: num(fd?.totalDebt),
+      ebitda: num(fd?.ebitda),
+
+      // defaultKeyStatistics
+      trailingEps: num(ks?.trailingEps),
+      priceToBook: num(ks?.priceToBook),
+      enterpriseToEbitda: num(ks?.enterpriseToEbitda),
+      beta: num(ks?.beta),
+      sharesOutstanding: num(ks?.sharesOutstanding),
+      heldPercentInsiders: num(ks?.heldPercentInsiders),
+      enterpriseValue: num(ks?.enterpriseValue),
+      forwardPE: num(ks?.forwardPE),
+      pegRatio: num(ks?.pegRatio),
+      priceToSalesTrailing12Months: num(ks?.priceToSalesTrailing12Months),
+
+      // summaryDetail
+      trailingPE: num(sd?.trailingPE),
+      dividendYield: num(sd?.dividendYield),
+      payoutRatio: num(sd?.payoutRatio),
+      marketCap: num(sd?.marketCap),
+
+      // price
+      regularMarketPrice: num(pr?.regularMarketPrice),
+      regularMarketChangePercent: num(pr?.regularMarketChangePercent),
+      fiftyDayAverage: num(pr?.fiftyDayAverage),
+      twoHundredDayAverage: num(pr?.twoHundredDayAverage),
+
+      // summaryProfile
+      sector: str(sp?.sector),
+      industry: str(sp?.industry),
+    };
+
+    // Calculate derived metrics
+    if (data.freeCashflow && data.marketCap && data.marketCap > 0) {
+      data.fcfYield = data.freeCashflow / data.marketCap;
+    }
+    if (data.freeCashflow && data.totalRevenue && data.totalRevenue > 0) {
+      data.fcfMargin = data.freeCashflow / data.totalRevenue;
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`[Yahoo] ${ticker}: fundamental fetch failed -`, error);
+    return null;
+  }
+}
+
+/**
+ * Combined fetch: technical metrics + fundamental data for mode scoring.
+ */
+export async function fetchAllStockData(
+  ticker: string
+): Promise<
+  | (TechnicalMetrics & { currentPrice: number } & { fundamentals: YahooStockData })
+  | null
+> {
+  // Fetch technical metrics first
+  const techMetrics = await calculateTechnicalMetrics(ticker);
+  if (!techMetrics) return null;
+
+  // Fetch fundamental data
+  const fundamentals = await fetchFundamentalData(ticker);
+  if (!fundamentals) return null;
+
+  return {
+    ...techMetrics,
+    fundamentals,
+  };
+}
+
+/**
+ * Batch fetch all stock data (technical + fundamental) for multiple tickers.
+ */
+export async function batchFetchAllData(
+  tickers: string[],
+  onProgress?: (ticker: string, index: number, total: number) => void
+): Promise<
+  Map<string, TechnicalMetrics & { currentPrice: number } & { fundamentals: YahooStockData }>
+> {
+  const results = new Map<
+    string,
+    TechnicalMetrics & { currentPrice: number } & { fundamentals: YahooStockData }
+  >();
+
+  for (let i = 0; i < tickers.length; i++) {
+    const ticker = tickers[i];
+    if (onProgress) onProgress(ticker, i, tickers.length);
+
+    try {
+      const data = await fetchAllStockData(ticker);
+      if (data) {
+        results.set(ticker, data);
       }
     } catch (error) {
       console.error(`[Batch] ${ticker}: failed -`, error);
