@@ -12,7 +12,6 @@ import { SmartMoney } from "./_components/SmartMoney";
 import { Indicators } from "./_components/Indicators";
 import { HardAssets } from "./_components/HardAssets";
 import { RegimeDetail } from "./_components/RegimeDetail";
-import { PlaybookSection } from "./_components/playbook/PlaybookSection";
 import { ValuationCards } from "./_components/ValuationCards";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
@@ -179,18 +178,6 @@ export default function StocksDashboard() {
         </div>
 
         <ValuationCards />
-
-        <PlaybookSection
-          macroIndicators={macroIndicators}
-          yieldSpreads={yieldSpreads}
-          marketEtfs={marketEtfs}
-          sentimentData={sentimentData}
-          breadthData={breadthData}
-          congressData={congressData}
-          insiderData={insiderData}
-          regimeData={regimeData}
-          loading={loading.macro || loading.sentiment || loading.breadth || loading.regime}
-        />
 
         <div className="space-y-4">
           <Barometers
