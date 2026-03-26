@@ -3,7 +3,9 @@
  * Tracks upcoming earnings dates via Yahoo Finance data.
  */
 
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export interface EarningsEvent {
   nextEarningsDate: string | null; // ISO date string
@@ -46,10 +48,13 @@ export async function getEarningsCalendar(ticker: string): Promise<EarningsEvent
   try {
     await rateLimit();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = await yahooFinance.quoteSummary(ticker, {
+    const result = await yahooFinance.quoteSummary(ticker, {
       modules: ["calendarEvents", "earningsTrend", "earningsHistory"],
-    });
+    }).catch(() => null);
+
+    if (!result) {
+      return defaultResult;
+    }
 
     // Extract next earnings date from calendarEvents
     const calendar = result.calendarEvents;
@@ -73,9 +78,8 @@ export async function getEarningsCalendar(ticker: string): Promise<EarningsEvent
 
     // Extract EPS estimates from earningsTrend
     if (trend?.trend) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const currentQuarter = trend.trend.find(
-        (t: { period?: string }) => t.period === "0q" || t.period === "+1q"
+        (t) => t.period === "0q" || t.period === "+1q"
       );
       if (currentQuarter?.earningsEstimate) {
         defaultResult.estimatedEPS = currentQuarter.earningsEstimate.avg ?? null;
@@ -168,5 +172,7 @@ export function inferEarningsCallTime(
   // This would need historical data to determine typical timing
   // For now, return null (Time Not Specified)
   // Future enhancement: track company-specific patterns
+  // Keep earningsDate param for future use
+  void earningsDate;
   return null;
 }

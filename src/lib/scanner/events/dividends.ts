@@ -3,7 +3,9 @@
  * Tracks ex-dividend dates and dividend yields via Yahoo Finance.
  */
 
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 export interface DividendEvent {
   exDividendDate: string | null; // ISO date string
@@ -68,10 +70,13 @@ export async function getDividendCalendar(ticker: string): Promise<DividendEvent
   try {
     await rateLimit();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = await yahooFinance.quoteSummary(ticker, {
+    const result = await yahooFinance.quoteSummary(ticker, {
       modules: ["summaryDetail", "calendarEvents", "defaultKeyStatistics"],
-    });
+    }).catch(() => null);
+
+    if (!result) {
+      return defaultResult;
+    }
 
     const summary = result.summaryDetail;
     const calendar = result.calendarEvents;

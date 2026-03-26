@@ -282,6 +282,10 @@ export async function runScannerRefresh(): Promise<{
         sectorScore: modeScores.sectorScore?.breakdown,
         sector: fundamentals.sector,
         industry: fundamentals.industry,
+        // Academic factors (Phase 2)
+        fScore: modeScores.fScore,
+        fScoreCategory: modeScores.fScoreCategory,
+        academicScore: modeScores.academicScore,
       };
     });
 
