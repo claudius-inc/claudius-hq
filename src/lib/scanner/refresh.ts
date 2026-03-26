@@ -8,10 +8,13 @@ import { eq, desc } from "drizzle-orm";
 import { batchFetchAllData } from "./yahoo-fetcher";
 import { calculateCompositeScore, type TechnicalMetrics } from "./scoring";
 import {
-  calculateAllModeScores,
+  calculateAllModeScoresWithFlags,
   getTierFromCombinedScore,
+  buildMarketPercentiles,
   type YahooStockData,
   type Market,
+  type SectorFlags,
+  type MarketPercentiles,
 } from "./mode-scoring";
 import type { ScanResult, ScanSummary, ScoreComponent } from "@/app/markets/scanner/types";
 
@@ -155,6 +158,12 @@ export interface EnhancedScanResult extends ScanResult {
   quantBreakdown: ScoreComponent;
   valueBreakdown: ScoreComponent;
   growthBreakdown: ScoreComponent;
+  // Sector-specific flags (v2)
+  sectorFlags?: SectorFlags;
+  sectorScore?: ScoreComponent;
+  // Fundamental data from Yahoo (for display)
+  sector?: string;
+  industry?: string;
 }
 
 /**
@@ -229,7 +238,8 @@ export async function runScannerRefresh(): Promise<{
         fundamentals.grossMargins = stock.grossMargin / 100;
       }
 
-      const modeScores = calculateAllModeScores(fundamentals, market);
+      // Use the enhanced mode scoring with sector-specific handling
+      const modeScores = calculateAllModeScoresWithFlags(fundamentals, market);
 
       // Update tier based on combined score
       const tierInfo = getTierFromCombinedScore(modeScores.combinedScore);
@@ -257,6 +267,11 @@ export async function runScannerRefresh(): Promise<{
         quantBreakdown: modeScores.quantBreakdown,
         valueBreakdown: modeScores.valueBreakdown,
         growthBreakdown: modeScores.growthBreakdown,
+        // Sector-specific data (v2)
+        sectorFlags: modeScores.sectorFlags,
+        sectorScore: modeScores.sectorScore?.breakdown,
+        sector: fundamentals.sector,
+        industry: fundamentals.industry,
       };
     });
 

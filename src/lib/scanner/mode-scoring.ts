@@ -41,9 +41,11 @@ export interface YahooStockData {
   totalRevenue?: number;
   revenueGrowth?: number; // YoY revenue growth as decimal
   returnOnEquity?: number; // as decimal
+  returnOnAssets?: number; // as decimal (important for banks)
   debtToEquity?: number; // as ratio (e.g., 0.5 for 50%)
   totalDebt?: number;
   ebitda?: number;
+  currentRatio?: number; // current assets / current liabilities
 
   // defaultKeyStatistics module
   trailingEps?: number;
@@ -101,10 +103,38 @@ function safeNum(val: number | undefined | null): number {
 }
 
 /**
+ * Score a metric with null handling - returns neutral score (50% of max) for missing data.
+ * @param value - the metric value (can be null/undefined)
+ * @param thresholds - array of [threshold, points] pairs, sorted high to low (or low to high if inverted)
+ * @param maxPoints - maximum points for this metric
+ * @param invert - if true, lower values are better (e.g., P/E, D/E)
+ * @returns score between 0 and maxPoints, or 50% of maxPoints if value is null/undefined
+ */
+export function scoreMetric(
+  value: number | undefined | null,
+  thresholds: [number, number][],
+  maxPoints: number,
+  invert = false
+): number {
+  // Missing data = neutral score (50% of max points)
+  if (value === undefined || value === null || isNaN(value)) {
+    return Math.round(maxPoints * 0.5);
+  }
+
+  for (const [threshold, points] of thresholds) {
+    if (invert ? value <= threshold : value >= threshold) {
+      return points;
+    }
+  }
+  return 0;
+}
+
+/**
  * Score a metric using tiered thresholds.
  * @param value - the metric value
  * @param tiers - array of [threshold, points] pairs, sorted high to low
  * @param invert - if true, lower values are better (e.g., P/E, D/E)
+ * @deprecated Use scoreMetric instead for proper null handling
  */
 function tieredScore(
   value: number | undefined | null,
@@ -157,6 +187,314 @@ function isTechSector(sector?: string, industry?: string): boolean {
   if (sector && techSectors.some((s) => sector.includes(s))) return true;
   if (industry && techIndustries.some((i) => industry.includes(i))) return true;
   return false;
+}
+
+/**
+ * Check if stock is in Financial Services sector (banks, insurance, etc.)
+ * These require alternate scoring metrics.
+ */
+export function isFinancialSector(sector?: string): boolean {
+  return sector === "Financial Services";
+}
+
+/**
+ * Check if stock is a REIT.
+ */
+export function isREIT(industry?: string): boolean {
+  if (!industry) return false;
+  return industry.toLowerCase().includes("reit");
+}
+
+/**
+ * For Singapore REITs, check if gearing exceeds 45% threshold.
+ * MAS limit is 50%, but 45% is a warning threshold.
+ */
+export function isHighGearingREIT(
+  debtToEquity: number | undefined | null,
+  market: Market,
+  industry?: string
+): boolean {
+  if (!isREIT(industry)) return false;
+  if (market !== "SGX") return false;
+  if (debtToEquity === undefined || debtToEquity === null) return false;
+  return debtToEquity > 0.45;
+}
+
+/**
+ * Calculate Financial Services specific score (banks, insurance).
+ * Uses alternate metrics: ROE (40%), ROA (20%), P/E (20%), P/B (20%)
+ */
+export function calculateFinancialServicesScore(
+  stock: YahooStockData,
+  market: Market = "US"
+): ModeScore {
+  const breakdown: ScoreComponent = {};
+
+  // -------------------------------------------------------------------------
+  // ROE (40 pts max) - Primary quality metric for banks
+  // -------------------------------------------------------------------------
+  const roe = stock.returnOnEquity;
+  const roeScore = scoreMetric(
+    roe,
+    [
+      [0.15, 40], // >15%: excellent
+      [0.12, 32], // >12%: good
+      [0.10, 24], // >10%: acceptable
+      [0.08, 16], // >8%: below average
+      [0.05, 8],  // >5%: weak
+    ],
+    40
+  );
+  breakdown["ROE"] = { score: roeScore, max: 40 };
+
+  // -------------------------------------------------------------------------
+  // ROA (20 pts max) - Asset efficiency
+  // -------------------------------------------------------------------------
+  const roa = stock.returnOnAssets;
+  const roaScore = scoreMetric(
+    roa,
+    [
+      [0.015, 20], // >1.5%: excellent for banks
+      [0.012, 16], // >1.2%: good
+      [0.01, 12],  // >1.0%: acceptable
+      [0.008, 8],  // >0.8%: below average
+      [0.005, 4],  // >0.5%: weak
+    ],
+    20
+  );
+  breakdown["ROA"] = { score: roaScore, max: 20 };
+
+  // -------------------------------------------------------------------------
+  // P/E (20 pts max) - Value metric
+  // -------------------------------------------------------------------------
+  const pe = stock.trailingPE;
+  const peScore = scoreMetric(
+    pe,
+    [
+      [8, 20],  // <8: deep value
+      [10, 16], // <10: attractive
+      [12, 12], // <12: fair
+      [15, 8],  // <15: reasonable
+      [20, 4],  // <20: expensive
+    ],
+    20,
+    true // inverted - lower is better
+  );
+  breakdown["P/E"] = { score: peScore, max: 20 };
+
+  // -------------------------------------------------------------------------
+  // P/B (20 pts max) - Book value metric (key for banks)
+  // -------------------------------------------------------------------------
+  const pb = stock.priceToBook;
+  const pbScore = scoreMetric(
+    pb,
+    [
+      [0.8, 20], // <0.8: deep value
+      [1.0, 16], // <1.0: below book
+      [1.2, 12], // <1.2: slight premium
+      [1.5, 8],  // <1.5: fair
+      [2.0, 4],  // <2.0: premium
+    ],
+    20,
+    true // inverted - lower is better
+  );
+  breakdown["P/B"] = { score: pbScore, max: 20 };
+
+  const totalScore = roeScore + roaScore + peScore + pbScore;
+
+  return {
+    score: Math.min(100, Math.round(totalScore)),
+    breakdown,
+  };
+}
+
+/**
+ * Calculate REIT-specific score.
+ * Focus on: Dividend Yield, P/B (as P/NAV proxy), Gearing
+ */
+export function calculateREITScore(
+  stock: YahooStockData,
+  market: Market = "US"
+): ModeScore {
+  const breakdown: ScoreComponent = {};
+
+  // -------------------------------------------------------------------------
+  // Dividend Yield (40 pts max) - Primary metric for REITs
+  // -------------------------------------------------------------------------
+  const divYield = stock.dividendYield;
+  const divScore = scoreMetric(
+    divYield,
+    [
+      [0.07, 40], // >7%: excellent
+      [0.06, 32], // >6%: very good
+      [0.05, 24], // >5%: good
+      [0.04, 16], // >4%: acceptable
+      [0.03, 8],  // >3%: below average
+    ],
+    40
+  );
+  breakdown["Dividend Yield"] = { score: divScore, max: 40 };
+
+  // -------------------------------------------------------------------------
+  // P/NAV (P/B as proxy) (30 pts max) - Value metric
+  // -------------------------------------------------------------------------
+  const pb = stock.priceToBook;
+  const pnavScore = scoreMetric(
+    pb,
+    [
+      [0.7, 30], // <0.7: deep discount to NAV
+      [0.85, 24], // <0.85: good discount
+      [1.0, 18], // <1.0: at NAV
+      [1.1, 12], // <1.1: slight premium
+      [1.2, 6],  // <1.2: premium
+    ],
+    30,
+    true
+  );
+  breakdown["P/NAV (P/B)"] = { score: pnavScore, max: 30 };
+
+  // -------------------------------------------------------------------------
+  // Gearing (30 pts max) - Risk metric (lower is better)
+  // For SG REITs: >45% is warning, >50% is MAS limit
+  // -------------------------------------------------------------------------
+  const de = stock.debtToEquity;
+  let gearingScore: number;
+  if (market === "SGX") {
+    // Stricter thresholds for SG REITs
+    gearingScore = scoreMetric(
+      de,
+      [
+        [0.35, 30], // <35%: very safe
+        [0.40, 24], // <40%: safe
+        [0.45, 16], // <45%: acceptable (warning threshold)
+        [0.48, 8],  // <48%: concerning
+        [0.50, 2],  // <50%: near MAS limit
+      ],
+      30,
+      true
+    );
+  } else {
+    gearingScore = scoreMetric(
+      de,
+      [
+        [0.40, 30], // <40%: very safe
+        [0.50, 24], // <50%: safe
+        [0.60, 16], // <60%: acceptable
+        [0.70, 8],  // <70%: elevated
+        [0.80, 2],  // <80%: high
+      ],
+      30,
+      true
+    );
+  }
+  breakdown["Gearing (D/E)"] = { score: gearingScore, max: 30 };
+
+  const totalScore = divScore + pnavScore + gearingScore;
+
+  return {
+    score: Math.min(100, Math.round(totalScore)),
+    breakdown,
+  };
+}
+
+// ============================================================================
+// Percentile Ranking
+// ============================================================================
+
+/**
+ * Calculate percentile rank of a value within a dataset.
+ * Returns 0-100 where 100 = top of the dataset.
+ * 
+ * @param value - the value to rank
+ * @param allValues - array of all values in the market
+ * @param higherIsBetter - if true, higher values get higher percentiles
+ * @returns percentile rank 0-100, or 50 if value/dataset is invalid
+ */
+export function calculatePercentileRank(
+  value: number | undefined | null,
+  allValues: number[],
+  higherIsBetter = true
+): number {
+  if (value === undefined || value === null || isNaN(value)) {
+    return 50; // Neutral for missing data
+  }
+
+  // Filter out invalid values
+  const validValues = allValues.filter(v => v !== null && v !== undefined && !isNaN(v));
+  if (validValues.length === 0) {
+    return 50;
+  }
+
+  // Count how many values are below the given value
+  const belowCount = validValues.filter(v => v < value).length;
+  const percentile = (belowCount / validValues.length) * 100;
+
+  return higherIsBetter ? percentile : 100 - percentile;
+}
+
+/**
+ * Market percentile cache for in-memory storage during refresh.
+ */
+export interface MarketPercentiles {
+  market: Market;
+  metrics: {
+    returnOnEquity: number[];
+    returnOnAssets: number[];
+    trailingPE: number[];
+    priceToBook: number[];
+    dividendYield: number[];
+    debtToEquity: number[];
+    grossMargins: number[];
+    enterpriseToEbitda: number[];
+    freeCashflow: number[];
+    revenueGrowth: number[];
+  };
+  calculatedAt: Date;
+}
+
+/**
+ * Build percentile data from an array of stock data.
+ */
+export function buildMarketPercentiles(
+  stocks: YahooStockData[],
+  market: Market
+): MarketPercentiles {
+  const extractMetric = (key: keyof YahooStockData): number[] => {
+    return stocks
+      .map(s => s[key])
+      .filter((v): v is number => typeof v === "number" && !isNaN(v));
+  };
+
+  return {
+    market,
+    metrics: {
+      returnOnEquity: extractMetric("returnOnEquity"),
+      returnOnAssets: extractMetric("returnOnAssets"),
+      trailingPE: extractMetric("trailingPE"),
+      priceToBook: extractMetric("priceToBook"),
+      dividendYield: extractMetric("dividendYield"),
+      debtToEquity: extractMetric("debtToEquity"),
+      grossMargins: extractMetric("grossMargins"),
+      enterpriseToEbitda: extractMetric("enterpriseToEbitda"),
+      freeCashflow: extractMetric("freeCashflow"),
+      revenueGrowth: extractMetric("revenueGrowth"),
+    },
+    calculatedAt: new Date(),
+  };
+}
+
+/**
+ * Score a metric using percentile rank within market.
+ * Maps percentile to points: 90th+ = max, 75th = 75%, 50th = 50%, etc.
+ */
+export function scoreByPercentile(
+  value: number | undefined | null,
+  allValues: number[],
+  maxPoints: number,
+  higherIsBetter = true
+): number {
+  const percentile = calculatePercentileRank(value, allValues, higherIsBetter);
+  return Math.round((percentile / 100) * maxPoints);
 }
 
 // ============================================================================
@@ -813,14 +1151,111 @@ export function calculateGrowthScore(
 // Combined Score
 // ============================================================================
 
+export interface SectorFlags {
+  isFinancial: boolean;
+  isREIT: boolean;
+  highGearingWarning: boolean; // For SG REITs with gearing > 45%
+}
+
+export interface AllModeScoresWithFlags extends AllModeScores {
+  sectorFlags: SectorFlags;
+  /** If sector-specific scoring was used, this contains the alternate score */
+  sectorScore?: ModeScore;
+}
+
 /**
  * Calculate all three mode scores plus combined.
+ * For Financial Services (banks) and REITs, uses sector-specific scoring.
  * Combined = simple average of Quant + Value + Growth
  */
 export function calculateAllModeScores(
   stock: YahooStockData,
   market: Market = "US"
 ): AllModeScores {
+  const result = calculateAllModeScoresWithFlags(stock, market);
+  // Return base type for backwards compatibility
+  return {
+    quantScore: result.quantScore,
+    valueScore: result.valueScore,
+    growthScore: result.growthScore,
+    combinedScore: result.combinedScore,
+    quantBreakdown: result.quantBreakdown,
+    valueBreakdown: result.valueBreakdown,
+    growthBreakdown: result.growthBreakdown,
+  };
+}
+
+/**
+ * Calculate all mode scores with sector-specific handling and flags.
+ * - Financial Services (banks, insurance): Uses ROE, ROA, P/E, P/B scoring
+ * - REITs: Uses Dividend Yield, P/NAV, Gearing scoring
+ */
+export function calculateAllModeScoresWithFlags(
+  stock: YahooStockData,
+  market: Market = "US"
+): AllModeScoresWithFlags {
+  const isFinancial = isFinancialSector(stock.sector);
+  const reit = isREIT(stock.industry);
+  const highGearingWarning = isHighGearingREIT(stock.debtToEquity, market, stock.industry);
+
+  const sectorFlags: SectorFlags = {
+    isFinancial,
+    isREIT: reit,
+    highGearingWarning,
+  };
+
+  // For Financial Services, use specialized scoring
+  if (isFinancial) {
+    const financialScore = calculateFinancialServicesScore(stock, market);
+    // Still calculate regular scores for comparison, but combined uses financial score
+    const quant = calculateQuantScore(stock, market);
+    const value = calculateValueScore(stock, market);
+    const growth = calculateGrowthScore(stock, market);
+
+    // For banks, weight the financial score heavily
+    // Combined = 60% Financial Services score + 40% average of other modes
+    const otherAvg = (quant.score + value.score + growth.score) / 3;
+    const combinedScore = Math.round(financialScore.score * 0.6 + otherAvg * 0.4);
+
+    return {
+      quantScore: quant.score,
+      valueScore: value.score,
+      growthScore: growth.score,
+      combinedScore,
+      quantBreakdown: quant.breakdown,
+      valueBreakdown: value.breakdown,
+      growthBreakdown: growth.breakdown,
+      sectorFlags,
+      sectorScore: financialScore,
+    };
+  }
+
+  // For REITs, use specialized scoring
+  if (reit) {
+    const reitScore = calculateREITScore(stock, market);
+    const quant = calculateQuantScore(stock, market);
+    const value = calculateValueScore(stock, market);
+    const growth = calculateGrowthScore(stock, market);
+
+    // For REITs, weight the REIT-specific score heavily
+    // Combined = 60% REIT score + 40% average of other modes
+    const otherAvg = (quant.score + value.score + growth.score) / 3;
+    const combinedScore = Math.round(reitScore.score * 0.6 + otherAvg * 0.4);
+
+    return {
+      quantScore: quant.score,
+      valueScore: value.score,
+      growthScore: growth.score,
+      combinedScore,
+      quantBreakdown: quant.breakdown,
+      valueBreakdown: value.breakdown,
+      growthBreakdown: growth.breakdown,
+      sectorFlags,
+      sectorScore: reitScore,
+    };
+  }
+
+  // Standard scoring for all other sectors
   const quant = calculateQuantScore(stock, market);
   const value = calculateValueScore(stock, market);
   const growth = calculateGrowthScore(stock, market);
@@ -835,6 +1270,7 @@ export function calculateAllModeScores(
     quantBreakdown: quant.breakdown,
     valueBreakdown: value.breakdown,
     growthBreakdown: growth.breakdown,
+    sectorFlags,
   };
 }
 

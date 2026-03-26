@@ -244,11 +244,13 @@ export async function fetchFundamentalData(
       totalRevenue: num(fd?.totalRevenue),
       revenueGrowth: num(fd?.revenueGrowth),
       returnOnEquity: num(fd?.returnOnEquity),
+      returnOnAssets: num(fd?.returnOnAssets),
       debtToEquity: num(fd?.debtToEquity)
         ? num(fd?.debtToEquity)! / 100
         : undefined, // Yahoo returns as percentage
       totalDebt: num(fd?.totalDebt),
       ebitda: num(fd?.ebitda),
+      currentRatio: num(fd?.currentRatio),
 
       // defaultKeyStatistics
       trailingEps: num(ks?.trailingEps),
