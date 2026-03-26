@@ -75,22 +75,23 @@ export function RefreshButton() {
     <button
       onClick={triggerRefresh}
       disabled={isDisabled}
-      className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      className="flex items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[36px]"
+      title={isRunning ? "Scanner running..." : loading ? "Starting..." : "Refresh scanner data"}
     >
       {isRunning ? (
         <>
-          <Loader2 size={14} className="animate-spin" />
-          <span>Running</span>
+          <RefreshCw size={14} className="animate-spin" />
+          <span className="hidden sm:inline">Running</span>
         </>
       ) : loading ? (
         <>
           <Loader2 size={14} className="animate-spin" />
-          <span>Starting...</span>
+          <span className="hidden sm:inline">Starting...</span>
         </>
       ) : (
         <>
           <RefreshCw size={14} />
-          <span>Refresh</span>
+          <span className="hidden sm:inline">Refresh</span>
         </>
       )}
     </button>
