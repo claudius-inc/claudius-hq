@@ -30,6 +30,7 @@ interface MarketValuation {
 }
 
 // Zone thresholds (as discussed)
+// Note: Hong Kong is separate from China (different market classification per MSCI/FTSE)
 const ZONES = {
   US: {
     undervalued: 14,
@@ -57,6 +58,14 @@ const ZONES = {
     fair: 14,
     overvalued: 18,
     mean: 12,
+    range: { min: 6, max: 30 },
+  },
+  HONG_KONG: {
+    // Developed market per MSCI/FTSE, different investor base and regulation
+    undervalued: 11,
+    fair: 17,
+    overvalued: 22,
+    mean: 15,
     range: { min: 6, max: 30 },
   },
 };
@@ -233,12 +242,26 @@ export async function GET() {
         priceToBook: cnData.priceToBook,
         price: cnData.price,
         change24h: cnData.change24h,
-        secondaryIndex: {
-          name: "Hang Seng",
-          ticker: "^HSI",
-          pe: hsiPE, // From EWH ETF
-          change24h: hsiData.change24h,
-        },
+      },
+      {
+        // Hong Kong: Separate from mainland China (developed market per MSCI/FTSE)
+        market: "HONG_KONG",
+        country: "Hong Kong",
+        flag: "🇭🇰",
+        index: "Hang Seng",
+        ticker: "^HSI",
+        metric: "TTM_PE",
+        value: hsiPE, // From EWH ETF
+        historicalMean: ZONES.HONG_KONG.mean,
+        historicalRange: ZONES.HONG_KONG.range,
+        zone: hsiPE ? getZone(hsiPE, ZONES.HONG_KONG) : "FAIR",
+        percentOfMean: hsiPE
+          ? Math.round((hsiPE / ZONES.HONG_KONG.mean) * 100)
+          : 100,
+        dividendYield: hsiData.dividendYield,
+        priceToBook: hsiData.priceToBook,
+        price: hsiData.price,
+        change24h: hsiData.change24h,
       },
     ];
 
