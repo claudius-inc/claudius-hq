@@ -25,6 +25,7 @@ interface Summary {
     SGX: number;
     HK: number;
     JP: number;
+    CN: number;
   };
 }
 
@@ -78,7 +79,7 @@ export function UniverseManager() {
   };
 
   const deleteTicker = async (ticker: string) => {
-    if (!confirm(`Remove ${ticker} from scanner universe?`)) return;
+    if (!confirm(`Remove ${ticker} from scan list?`)) return;
     
     setSaving(ticker);
     try {
@@ -146,20 +147,43 @@ export function UniverseManager() {
 
   const marketColors: Record<string, string> = {
     US: "bg-blue-100 text-blue-700",
-    SGX: "bg-green-100 text-green-700",
-    HK: "bg-red-100 text-red-700",
+    SGX: "bg-emerald-100 text-emerald-700",
+    HK: "bg-rose-100 text-rose-700",
+    JP: "bg-slate-100 text-slate-700",
+    CN: "bg-amber-100 text-amber-700",
   };
 
   return (
     <div className="bg-white rounded-lg border p-4">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold">Scanner Universe</h2>
+          <h2 className="text-lg font-semibold">Scan List</h2>
           {summary && (
-            <p className="text-sm text-gray-500">
-              {summary.enabled} enabled of {summary.total} total • 
-              US: {summary.byMarket.US} | SGX: {summary.byMarket.SGX} | HK: {summary.byMarket.HK} | JP: {summary.byMarket.JP}
-            </p>
+            <div className="text-sm text-gray-500">
+              <span>{summary.enabled} enabled of {summary.total} total</span>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  US: {summary.byMarket.US}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                  CN: {summary.byMarket.CN || 0}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-rose-500"></span>
+                  HK: {summary.byMarket.HK}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                  JP: {summary.byMarket.JP}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  SGX: {summary.byMarket.SGX}
+                </span>
+              </div>
+            </div>
           )}
         </div>
         <button
@@ -253,7 +277,7 @@ export function UniverseManager() {
         <div className="text-center py-8 text-gray-500">Loading...</div>
       ) : filteredTickers.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
-          {filter ? "No tickers match your search" : "No tickers in universe"}
+          {filter ? "No tickers match your search" : "No tickers in scan list"}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -261,9 +285,8 @@ export function UniverseManager() {
             <thead>
               <tr className="border-b text-left">
                 <th className="pb-2 font-medium">Ticker</th>
+                <th className="pb-2 font-medium hidden sm:table-cell">Name</th>
                 <th className="pb-2 font-medium">Market</th>
-                <th className="pb-2 font-medium hidden sm:table-cell">Source</th>
-                <th className="pb-2 font-medium hidden md:table-cell">Notes</th>
                 <th className="pb-2 font-medium text-center">Enabled</th>
                 <th className="pb-2 font-medium text-right">Actions</th>
               </tr>
@@ -272,20 +295,20 @@ export function UniverseManager() {
               {paginatedTickers.map((t) => (
                 <tr key={t.id} className={`border-b hover:bg-gray-50 ${!t.enabled ? "opacity-50" : ""}`}>
                   <td className="py-2 font-mono font-medium">{t.ticker}</td>
+                  <td className="py-2 text-gray-600 truncate max-w-[200px] hidden sm:table-cell">
+                    {t.name || <span className="text-gray-400 italic">—</span>}
+                  </td>
                   <td className="py-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${marketColors[t.market] || "bg-gray-100"}`}>
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${marketColors[t.market] || "bg-gray-100 text-gray-700"}`}>
                       {t.market}
                     </span>
-                  </td>
-                  <td className="py-2 text-gray-500 hidden sm:table-cell">{t.source}</td>
-                  <td className="py-2 text-gray-500 truncate max-w-[200px] hidden md:table-cell">
-                    {t.notes || "—"}
                   </td>
                   <td className="py-2 text-center">
                     <button
                       onClick={() => toggleEnabled(t.ticker, !t.enabled)}
                       disabled={saving === t.ticker}
-                      className="p-1 hover:bg-gray-100 rounded"
+                      className="p-1 hover:bg-gray-100 rounded transition-colors"
+                      title={t.enabled ? "Disable" : "Enable"}
                     >
                       {t.enabled ? (
                         <ToggleRight size={20} className="text-green-600" />
@@ -298,7 +321,8 @@ export function UniverseManager() {
                     <button
                       onClick={() => deleteTicker(t.ticker)}
                       disabled={saving === t.ticker}
-                      className="p-1 text-red-500 hover:bg-red-50 rounded"
+                      className="p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                      title="Remove from list"
                     >
                       <Trash2 size={16} />
                     </button>
