@@ -2,9 +2,14 @@
  * Multi-mode scoring for the HQ stock scanner.
  * Three distinct scoring philosophies: Quant, Value, Growth
  * Each mode scores 0-100 based on different factor exposures.
+ * 
+ * Phase 2 addition: Academic factors (Piotroski F-Score, Gross Profitability,
+ * Investment Factor, Accruals Quality) integrated as optional Quant boost.
  */
 
 import type { ScoreComponent } from "@/app/markets/scanner/types";
+import type { PiotroskiResult } from "./piotroski";
+import type { AcademicFactorsResult } from "./academic-factors";
 
 // ============================================================================
 // Types
@@ -23,6 +28,10 @@ export interface AllModeScores {
   quantBreakdown: ScoreComponent;
   valueBreakdown: ScoreComponent;
   growthBreakdown: ScoreComponent;
+  // Phase 2: Academic factors
+  fScore?: number; // Piotroski F-Score (0-9)
+  fScoreCategory?: "Strong" | "Moderate" | "Weak";
+  academicScore?: number; // Combined academic factor score (0-30)
 }
 
 export type Market = "US" | "SGX" | "HK" | "JP" | "CN";
@@ -88,6 +97,15 @@ export interface YahooStockData {
   industry?: string;
   consecutivePositiveQuarters?: number; // for consistency check
   revenueAcceleration?: number; // change in YoY growth rate
+
+  // Academic factors (Phase 2)
+  piotroskiFScore?: PiotroskiResult; // 0-9 F-Score with breakdown
+  academicFactors?: AcademicFactorsResult; // Gross Profitability, Investment, Accruals
+
+  // Individual academic metrics (for direct access)
+  grossProfitability?: number; // (Revenue - COGS) / Total Assets
+  assetGrowth?: number; // YoY asset growth rate
+  accruals?: number; // (Net Income - OCF) / Total Assets
 }
 
 // ============================================================================
@@ -706,6 +724,49 @@ export function calculateQuantScore(
   breakdown["Low Volatility"] = { score: lowVolScore, max: 5 };
 
   // -------------------------------------------------------------------------
+  // Academic Factors Boost (Optional, 0-15 bonus points)
+  // When academic factors are available, they can boost the score
+  // but total is still capped at 100.
+  // -------------------------------------------------------------------------
+  let academicBoost = 0;
+
+  // Piotroski F-Score bonus (0-5 pts)
+  if (stock.piotroskiFScore) {
+    const fScore = stock.piotroskiFScore.fScore;
+    // F-Score 8-9: +5, 6-7: +3, 4-5: +1, <4: 0
+    if (fScore >= 8) academicBoost += 5;
+    else if (fScore >= 6) academicBoost += 3;
+    else if (fScore >= 4) academicBoost += 1;
+  }
+
+  // Academic factors bonus (0-10 pts)
+  if (stock.academicFactors) {
+    // Academic score is 0-30, map to 0-10 bonus
+    const academicScore = stock.academicFactors.academicScore;
+    academicBoost += Math.round((academicScore / 30) * 10);
+  }
+
+  // If academic factors weren't fetched, provide scaled bonus based on direct values
+  if (!stock.piotroskiFScore && !stock.academicFactors) {
+    // Use available direct metrics for partial academic scoring
+    // Gross Profitability (0-3 pts)
+    if (stock.grossProfitability !== undefined) {
+      if (stock.grossProfitability > 0.25) academicBoost += 3;
+      else if (stock.grossProfitability > 0.15) academicBoost += 2;
+      else if (stock.grossProfitability > 0.05) academicBoost += 1;
+    }
+    // Accruals Quality (0-2 pts) - lower is better
+    if (stock.accruals !== undefined) {
+      if (stock.accruals < 0) academicBoost += 2; // Cash flow > Net Income
+      else if (stock.accruals < 0.05) academicBoost += 1;
+    }
+  }
+
+  if (academicBoost > 0) {
+    breakdown["Academic Factors"] = { score: academicBoost, max: 15 };
+  }
+
+  // -------------------------------------------------------------------------
   // Total Score
   // -------------------------------------------------------------------------
   const totalScore =
@@ -714,7 +775,8 @@ export function calculateQuantScore(
     valueScore +
     momentumScore +
     shareholderYieldScore +
-    lowVolScore;
+    lowVolScore +
+    academicBoost;
 
   return {
     score: Math.min(100, Math.round(totalScore)),
@@ -1182,6 +1244,9 @@ export function calculateAllModeScores(
     quantBreakdown: result.quantBreakdown,
     valueBreakdown: result.valueBreakdown,
     growthBreakdown: result.growthBreakdown,
+    fScore: result.fScore,
+    fScoreCategory: result.fScoreCategory,
+    academicScore: result.academicScore,
   };
 }
 
@@ -1203,6 +1268,11 @@ export function calculateAllModeScoresWithFlags(
     isREIT: reit,
     highGearingWarning,
   };
+
+  // Extract F-Score and academic factors if available
+  const fScore = stock.piotroskiFScore?.fScore;
+  const fScoreCategory = stock.piotroskiFScore?.category;
+  const academicScore = stock.academicFactors?.academicScore;
 
   // For Financial Services, use specialized scoring
   if (isFinancial) {
@@ -1227,6 +1297,9 @@ export function calculateAllModeScoresWithFlags(
       growthBreakdown: growth.breakdown,
       sectorFlags,
       sectorScore: financialScore,
+      fScore,
+      fScoreCategory,
+      academicScore,
     };
   }
 
@@ -1252,6 +1325,9 @@ export function calculateAllModeScoresWithFlags(
       growthBreakdown: growth.breakdown,
       sectorFlags,
       sectorScore: reitScore,
+      fScore,
+      fScoreCategory,
+      academicScore,
     };
   }
 
@@ -1271,6 +1347,9 @@ export function calculateAllModeScoresWithFlags(
     valueBreakdown: value.breakdown,
     growthBreakdown: growth.breakdown,
     sectorFlags,
+    fScore,
+    fScoreCategory,
+    academicScore,
   };
 }
 

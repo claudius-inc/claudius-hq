@@ -17,6 +17,10 @@ import {
   type MarketPercentiles,
 } from "./mode-scoring";
 import type { ScanResult, ScanSummary, ScoreComponent } from "@/app/markets/scanner/types";
+import {
+  fetchMarketSignals,
+  type MarketSignals,
+} from "./signals";
 
 // Rate limit: 15 minutes between refreshes
 const REFRESH_COOLDOWN_MS = 15 * 60 * 1000;
@@ -164,6 +168,12 @@ export interface EnhancedScanResult extends ScanResult {
   // Fundamental data from Yahoo (for display)
   sector?: string;
   industry?: string;
+  // Market-specific signals (v2)
+  marketSignals?: MarketSignals;
+  // Academic factors (Phase 2)
+  fScore?: number; // Piotroski F-Score (0-9)
+  fScoreCategory?: "Strong" | "Moderate" | "Weak";
+  academicScore?: number; // Combined academic factor score (0-30)
 }
 
 /**
@@ -274,6 +284,33 @@ export async function runScannerRefresh(): Promise<{
         industry: fundamentals.industry,
       };
     });
+
+    // Fetch market-specific signals (best-effort, non-blocking)
+    console.log("[Scanner] Fetching market-specific signals...");
+    let signalsFetched = 0;
+    for (const result of enhancedResults) {
+      try {
+        const tickerKey = result.market === "SGX" ? `${result.ticker}.SI` : result.ticker;
+        const market = (result.market ?? "US") as Market;
+        
+        // Fetch signals with priceToBook for JP governance scoring
+        const data = dataMap.get(tickerKey);
+        const signals = await fetchMarketSignals(tickerKey, market, {
+          priceToBook: data?.fundamentals?.priceToBook,
+          domicile: undefined, // Could be populated from Yahoo data if available
+        });
+        
+        result.marketSignals = signals;
+        signalsFetched++;
+        
+        // Small delay to avoid overwhelming external sources
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      } catch (err) {
+        // Signal fetch failures are non-fatal
+        console.warn(`[Scanner] Signal fetch failed for ${result.ticker}:`, err);
+      }
+    }
+    console.log(`[Scanner] Fetched signals for ${signalsFetched}/${enhancedResults.length} stocks`);
 
     // Sort by combined score (mode scoring)
     enhancedResults.sort((a, b) => b.combinedScore - a.combinedScore);
