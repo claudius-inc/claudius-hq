@@ -24,6 +24,39 @@ const yahooFinance = new YahooFinance();
 const RATE_LIMIT_MS = 400; // 400ms between Yahoo Finance calls
 let lastRequestTime = 0;
 
+// ── Scoring Helper ───────────────────────────────────────────────────────────
+
+/**
+ * Score a metric with neutral handling for missing data.
+ * When value is null/undefined, returns 50% of maxPoints (neutral).
+ */
+function scoreMetric(
+  value: number | null | undefined,
+  thresholds: { min: number; score: number }[],
+  maxPoints: number
+): number {
+  if (value == null || isNaN(value)) {
+    return Math.round(maxPoints * 0.5); // Neutral score for missing data
+  }
+  
+  // Sort thresholds descending by min value
+  const sorted = [...thresholds].sort((a, b) => b.min - a.min);
+  
+  for (const t of sorted) {
+    if (value >= t.min) return t.score;
+  }
+  return 0;
+}
+
+/**
+ * Check if a stock is in the Financial Services sector
+ */
+function isFinancialSector(sector: string | null | undefined): boolean {
+  if (!sector) return false;
+  const lower = sector.toLowerCase();
+  return lower.includes('financial') || lower.includes('bank') || lower.includes('insurance');
+}
+
 // ── Dynamic Stock Universe ───────────────────────────────────────────────────
 
 // Screeners to fetch US stocks from (dynamically discovers opportunities)
@@ -531,6 +564,8 @@ async function getChartData(ticker: string): Promise<ChartData | null> {
 
 interface FundamentalsData {
   name: string;
+  sector: string | null;
+  industry: string | null;
   mcapRaw: number;
   mcapM: number;
   pe: number | null;
@@ -580,6 +615,7 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
         "financialData",
         "price",
         "summaryDetail",
+        "summaryProfile",
         "earnings",
         "majorHoldersBreakdown",
         "recommendationTrend",
@@ -596,6 +632,7 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
     const fin = q.financialData || {};
     const price = q.price || {};
     const summary = q.summaryDetail || {};
+    const profile = q.summaryProfile || {};
     const stats = q.defaultKeyStatistics || {};
     const earnings = q.earnings || {};
     const holders = q.majorHoldersBreakdown || {};
@@ -707,6 +744,8 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
 
     return {
       name: (price.longName || price.shortName || ticker).substring(0, 40),
+      sector: profile.sector || null,
+      industry: profile.industry || null,
       mcapRaw: price.marketCap || 0,
       mcapM: price.marketCap ? Math.round(price.marketCap / 1e6) : 0,
       pe: summary.trailingPE ?? null,
@@ -1366,6 +1405,7 @@ function scoreGrowthMode(fund: FundamentalsData, chart: ChartData | null): Score
 function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreComponent {
   let score = 0;
   const details: string[] = [];
+  const isFinancial = isFinancialSector(fund.sector);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // QUALITY - PROFITABILITY: 25 pts
@@ -1386,11 +1426,19 @@ function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreCompo
     } else {
       details.push(`ROE ${fund.roe.toFixed(0)}%`);
     }
+  } else {
+    // Neutral score for missing ROE
+    score += 5;
+    details.push("ROE N/A");
   }
 
   // Gross Margin: 8 pts (>50%: 8, >40%: 6, >30%: 4, <30%: 0)
   // Note: fund.grossMargin is a decimal (e.g., 0.5 means 50%)
-  if (fund.grossMargin != null) {
+  // Skip for financials (not meaningful for banks)
+  if (isFinancial) {
+    score += 4; // Neutral for financials
+    details.push("GM (fin)");
+  } else if (fund.grossMargin != null) {
     const gmPct = fund.grossMargin * 100;
     if (fund.grossMargin > 0.50) {
       score += 8;
@@ -1404,14 +1452,26 @@ function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreCompo
     } else {
       details.push(`GM ${gmPct.toFixed(0)}%`);
     }
+  } else {
+    // Neutral score for missing GM
+    score += 4;
+    details.push("GM N/A");
   }
 
   // FCF Positive: 7 pts (yes: 7, no: 0)
-  if (fund.freeCashflow != null && fund.freeCashflow > 0) {
+  // Skip for financials (FCF not meaningful for banks)
+  if (isFinancial) {
+    score += 3; // Neutral for financials
+    details.push("FCF (fin)");
+  } else if (fund.freeCashflow != null && fund.freeCashflow > 0) {
     score += 7;
     details.push("FCF+");
   } else if (fund.freeCashflow != null) {
     details.push("FCF-");
+  } else {
+    // Neutral for missing FCF
+    score += 3;
+    details.push("FCF N/A");
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1420,7 +1480,11 @@ function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreCompo
 
   // Debt/Equity: 8 pts (<30%: 8, <60%: 5, <100%: 2, >100%: 0)
   // Note: fund.debtToEquity from Yahoo is already in % (e.g., 30 means 30%)
-  if (fund.debtToEquity != null) {
+  // Skip for financials (D/E not meaningful for banks)
+  if (isFinancial) {
+    score += 4; // Neutral for financials
+    details.push("D/E (fin)");
+  } else if (fund.debtToEquity != null) {
     if (fund.debtToEquity < 30) {
       score += 8;
       details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
@@ -1433,6 +1497,10 @@ function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreCompo
     } else {
       details.push(`D/E ${fund.debtToEquity.toFixed(0)}%`);
     }
+  } else {
+    // Neutral for missing D/E
+    score += 4;
+    details.push("D/E N/A");
   }
 
   // Earnings Positive (EPS > 0): 7 pts - use PE as proxy (if PE exists and is positive, company is profitable)
@@ -1441,6 +1509,10 @@ function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreCompo
     details.push("EPS+");
   } else if (fund.pe != null) {
     details.push("EPS-");
+  } else {
+    // Neutral for missing EPS
+    score += 3;
+    details.push("EPS N/A");
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1448,7 +1520,11 @@ function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreCompo
   // ═══════════════════════════════════════════════════════════════════════════
 
   // EV/EBITDA: 10 pts (<8: 10, <12: 7, <16: 4, >16: 0)
-  if (fund.enterpriseToEbitda != null && fund.enterpriseToEbitda > 0) {
+  // Skip for financials
+  if (isFinancial) {
+    score += 5; // Neutral for financials
+    details.push("EV/EBITDA (fin)");
+  } else if (fund.enterpriseToEbitda != null && fund.enterpriseToEbitda > 0) {
     if (fund.enterpriseToEbitda < 8) {
       score += 10;
       details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
@@ -1461,6 +1537,10 @@ function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreCompo
     } else {
       details.push(`EV/EBITDA ${fund.enterpriseToEbitda.toFixed(1)}`);
     }
+  } else {
+    // Neutral for missing EV/EBITDA
+    score += 5;
+    details.push("EV/EBITDA N/A");
   }
 
   // P/B: 8 pts (<1.5: 8, <2.5: 5, <4: 2, >4: 0)
@@ -1477,11 +1557,19 @@ function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreCompo
     } else {
       details.push(`P/B ${fund.pb.toFixed(1)}`);
     }
+  } else {
+    // Neutral for missing P/B
+    score += 4;
+    details.push("P/B N/A");
   }
 
   // FCF Yield: 7 pts (>8%: 7, >5%: 5, >3%: 3, <3%: 0)
   // Calculate as FCF/marketCap*100
-  if (fund.freeCashflow != null && fund.mcapRaw > 0) {
+  // Skip for financials
+  if (isFinancial) {
+    score += 3; // Neutral for financials
+    details.push("FCFYld (fin)");
+  } else if (fund.freeCashflow != null && fund.mcapRaw > 0) {
     const fcfYield = (fund.freeCashflow / fund.mcapRaw) * 100;
     if (fcfYield > 8) {
       score += 7;
@@ -1495,6 +1583,10 @@ function scoreQuant(fund: FundamentalsData, chart: ChartData | null): ScoreCompo
     } else if (fcfYield > 0) {
       details.push(`FCFYld ${fcfYield.toFixed(1)}%`);
     }
+  } else {
+    // Neutral for missing FCF Yield
+    score += 3;
+    details.push("FCFYld N/A");
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
