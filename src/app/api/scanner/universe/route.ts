@@ -3,6 +3,109 @@ import { scannerUniverse } from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 
+/**
+ * Normalize ticker to Yahoo Finance format based on market
+ * - China: auto-detect Shanghai (.SS) vs Shenzhen (.SZ) based on code prefix
+ * - HK: add .HK suffix
+ * - JP: add .T suffix
+ * - SGX: add .SI suffix
+ * - US: no suffix needed
+ */
+/**
+ * Normalize market code to standard format
+ */
+function normalizeMarketCode(market: string): string {
+  const upper = market.toUpperCase().trim();
+  switch (upper) {
+    case 'CHINA':
+    case 'CN':
+    case 'SSE':
+    case 'SZSE':
+      return 'CN';
+    case 'HONG KONG':
+    case 'HONGKONG':
+    case 'HKEX':
+    case 'HK':
+      return 'HK';
+    case 'JAPAN':
+    case 'TSE':
+    case 'JP':
+      return 'JP';
+    case 'SINGAPORE':
+    case 'SGX':
+    case 'SG':
+      return 'SGX';
+    case 'US':
+    case 'NYSE':
+    case 'NASDAQ':
+    case 'AMEX':
+      return 'US';
+    default:
+      return upper;
+  }
+}
+
+/**
+ * Normalize ticker to Yahoo Finance format based on market
+ * - China: auto-detect Shanghai (.SS) vs Shenzhen (.SZ) based on code prefix
+ * - HK: add .HK suffix
+ * - JP: add .T suffix
+ * - SGX: add .SI suffix
+ * - US: no suffix needed
+ */
+function normalizeTickerForMarket(ticker: string, market: string): string {
+  const cleaned = ticker.toUpperCase().trim();
+  const upperMarket = market.toUpperCase();
+  
+  // If already has a suffix, return as-is
+  if (cleaned.includes('.')) {
+    return cleaned;
+  }
+  
+  switch (upperMarket) {
+    case 'CN':
+    case 'CHINA': {
+      // China A-shares: detect exchange from code prefix
+      // Shanghai (SSE): 600xxx, 601xxx, 603xxx, 605xxx, 688xxx (STAR)
+      // Shenzhen (SZSE): 000xxx, 001xxx, 002xxx, 003xxx, 300xxx (ChiNext), 301xxx
+      const code = cleaned.replace(/\D/g, ''); // Extract numeric part
+      if (code.startsWith('6')) {
+        return `${code}.SS`; // Shanghai
+      } else if (code.startsWith('0') || code.startsWith('3')) {
+        return `${code}.SZ`; // Shenzhen
+      }
+      // Default to Shenzhen for unknown patterns
+      return `${code}.SZ`;
+    }
+    
+    case 'HK':
+    case 'HKEX':
+      // HK stocks: pad to 4 digits and add .HK
+      const hkCode = cleaned.replace(/\D/g, '').padStart(4, '0');
+      return `${hkCode}.HK`;
+    
+    case 'JP':
+    case 'JAPAN':
+    case 'TSE':
+      // Japanese stocks: add .T suffix
+      const jpCode = cleaned.replace(/\D/g, '');
+      return `${jpCode}.T`;
+    
+    case 'SG':
+    case 'SGX':
+    case 'SINGAPORE':
+      // Singapore stocks: add .SI suffix
+      return `${cleaned}.SI`;
+    
+    case 'US':
+    case 'NYSE':
+    case 'NASDAQ':
+    default:
+      // US stocks: no suffix needed
+      return cleaned;
+  }
+}
+
 // GET /api/scanner/universe - List all tickers
 export async function GET(request: NextRequest) {
   try {
@@ -35,6 +138,7 @@ export async function GET(request: NextRequest) {
         SGX: tickers.filter((t) => t.market === "SGX").length,
         HK: tickers.filter((t) => t.market === "HK").length,
         JP: tickers.filter((t) => t.market === "JP").length,
+        CN: tickers.filter((t) => t.market === "CN").length,
       },
     };
 
@@ -66,11 +170,16 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        // Normalize ticker for Yahoo Finance format
+        const normalizedTicker = normalizeTickerForMarket(ticker, market);
+        // Normalize market code (CN -> CN, CHINA -> CN, etc.)
+        const normalizedMarket = normalizeMarketCode(market);
+        
         await db
           .insert(scannerUniverse)
           .values({
-            ticker: ticker.toUpperCase(),
-            market: market.toUpperCase(),
+            ticker: normalizedTicker,
+            market: normalizedMarket,
             name,
             sector,
             source: source || "user",
@@ -85,7 +194,12 @@ export async function POST(request: NextRequest) {
               updatedAt: sql`datetime('now')`,
             },
           });
-        results.push({ ticker, success: true });
+        results.push({ 
+          ticker: normalizedTicker, 
+          market: normalizedMarket,
+          original: ticker,
+          success: true 
+        });
       } catch (e: unknown) {
         results.push({ ticker, error: String(e) });
       }
