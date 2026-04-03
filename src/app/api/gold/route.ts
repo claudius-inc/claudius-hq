@@ -90,9 +90,15 @@ async function fetchGoldData() {
     ema200: number | null;
   } = { ema50: null, ema200: null };
 
+  // Track GC=F change data separately
+  let gcfChange: number | null = null;
+  let gcfChangePercent: number | null = null;
+
   try {
     const gcQuote = await yahooFinance.quote("GC=F") as QuoteResult;
     livePrice = gcQuote.regularMarketPrice || null;
+    gcfChange = gcQuote.regularMarketChange ?? null;
+    gcfChangePercent = gcQuote.regularMarketChangePercent ?? null;
 
     const gldQuote = await yahooFinance.quote("GLD") as QuoteResult & {
       sharesOutstanding?: number;
@@ -203,6 +209,8 @@ async function fetchGoldData() {
       catalysts,
     } : null,
     livePrice,
+    change: gcfChange,
+    changePercent: gcfChangePercent,
     gld: gldData,
     dxy: dxyData,
     realYields: realYieldsData,

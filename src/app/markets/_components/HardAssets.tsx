@@ -19,6 +19,8 @@ interface BtcSnapshot {
 
 interface GoldSnapshot {
   livePrice: number | null;
+  change: number | null;
+  changePercent: number | null;
   dxy: { price: number; changePercent: number } | null;
   realYields: { value: number } | null;
   gld: { price: number; changePercent: number } | null;
@@ -189,9 +191,9 @@ export function HardAssets({ expectedReturns }: { expectedReturns?: ExpectedRetu
                 </span>
               )}
               <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">{formatUsd(goldPrice)}</span>
-              {gold?.gld && (
-                <span className={`text-[10px] tabular-nums shrink-0 ${gold.gld.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                  {gold.gld.changePercent >= 0 ? "+" : ""}{gold.gld.changePercent.toFixed(2)}%
+              {gold?.changePercent != null && (
+                <span className={`text-[10px] tabular-nums shrink-0 ${gold.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  {gold.changePercent >= 0 ? "+" : ""}{gold.changePercent.toFixed(2)}%
                 </span>
               )}
               {goldValuation && <ValuationZone zone={goldValuation.valuation.zone} />}
