@@ -38,8 +38,13 @@ const primaryTabs: PrimaryTab[] = [
   },
   {
     label: "Scanner",
-    href: "/markets/scanner",
+    href: "/markets/scanner/stocks",
     activePaths: ["/markets/scanner"],
+    subTabs: [
+      { href: "/markets/scanner/stocks", label: "Stocks" },
+      { href: "/markets/scanner/themes", label: "Themes" },
+      { href: "/markets/scanner/sectors", label: "Sectors" },
+    ],
   },
 ];
 
