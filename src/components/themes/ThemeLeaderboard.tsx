@@ -3,12 +3,21 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
-import { BarChart3, ChevronDown, ChevronRight, ChevronUp, Trash2 } from "lucide-react";
+import {
+  BarChart3,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Trash2,
+} from "lucide-react";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { ThemeExpandedRow } from "./ThemeExpandedRow";
 import { SuggestedStock } from "./types";
 import { formatPercent, getPercentColor } from "./utils";
-import { getCrowdingBgColor, getCrowdingDescription } from "@/lib/crowding-utils";
+import {
+  getCrowdingBgColor,
+  getCrowdingDescription,
+} from "@/lib/crowding-utils";
 
 type SortField = "1w" | "1m" | "3m";
 type SortDir = "asc" | "desc";
@@ -87,7 +96,9 @@ export function ThemeLeaderboard({
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 w-8"></th>
-              <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">Theme</th>
+              <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">
+                Theme
+              </th>
               {(["1w", "1m", "3m"] as SortField[]).map((field) => (
                 <th
                   key={field}
@@ -96,16 +107,18 @@ export function ThemeLeaderboard({
                 >
                   <span className="inline-flex items-center justify-end gap-0.5">
                     {field.toUpperCase()}
-                    {sortField === field && (
-                      sortDir === "desc"
-                        ? <ChevronDown className="w-3 h-3" />
-                        : <ChevronUp className="w-3 h-3" />
-                    )}
+                    {sortField === field &&
+                      (sortDir === "desc" ? (
+                        <ChevronDown className="w-3 h-3" />
+                      ) : (
+                        <ChevronUp className="w-3 h-3" />
+                      ))}
                   </span>
                 </th>
               ))}
-              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500">Crowd</th>
-              <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">Leader</th>
+              <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500">
+                Crowd
+              </th>
               <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 w-12"></th>
             </tr>
           </thead>
@@ -126,47 +139,63 @@ export function ThemeLeaderboard({
                   </td>
                   <td className="px-3 py-2.5 whitespace-nowrap">
                     <div>
-                      <div className="font-semibold text-gray-900">{theme.name}</div>
-                      <div className="text-xs text-gray-500">{theme.stocks.length} stocks</div>
+                      <div className="font-semibold text-gray-900">
+                        {theme.name}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {theme.stocks.length} stocks
+                      </div>
                     </div>
                   </td>
-                  <td className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_1w)}`}>
-                    {formatPercent(theme.performance_1w)}
-                  </td>
-                  <td className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_1m)}`}>
-                    {formatPercent(theme.performance_1m)}
-                  </td>
-                  <td className={`px-3 py-2.5 whitespace-nowrap text-right text-sm font-medium ${getPercentColor(theme.performance_3m)}`}>
-                    {formatPercent(theme.performance_3m)}
-                  </td>
+                  {(["1w", "1m", "3m"] as const).map((period) => {
+                    const perf = theme[`performance_${period}`];
+                    const leader = theme.leaders?.[period];
+                    return (
+                      <td
+                        key={period}
+                        className="px-3 py-2.5 whitespace-nowrap text-right"
+                      >
+                        <div
+                          className={`text-sm font-medium ${getPercentColor(perf)}`}
+                        >
+                          {formatPercent(perf)}
+                        </div>
+                        {leader && (
+                          <div className="flex items-center justify-end gap-1 mt-0.5">
+                            <Link
+                              href={`/markets/research/${leader.ticker}`}
+                              className="text-[11px] text-gray-400 hover:text-gray-500 font-medium"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {leader.ticker}
+                            </Link>
+                            <span
+                              className={`text-[11px] ${getPercentColor(leader.value)}`}
+                            >
+                              {formatPercent(leader.value)}
+                            </span>
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
                   <td className="px-3 py-2.5 whitespace-nowrap text-center">
                     {theme.crowdingScore !== undefined ? (
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCrowdingBgColor(theme.crowdingScore)}`}
-                        title={getCrowdingDescription(theme.crowdingLevel as "contrarian" | "early" | "forming" | "crowded" | "extreme")}
+                        title={getCrowdingDescription(
+                          theme.crowdingLevel as
+                            | "contrarian"
+                            | "early"
+                            | "forming"
+                            | "crowded"
+                            | "extreme",
+                        )}
                       >
                         {theme.crowdingScore}
                       </span>
                     ) : (
                       <span className="text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    {theme.leader ? (
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/markets/research/${theme.leader.ticker}`}
-                          className="text-emerald-600 hover:text-emerald-700 font-semibold"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {theme.leader.ticker}
-                        </Link>
-                        <span className={`text-xs ${getPercentColor(theme.leader.performance_1m)}`}>
-                          {formatPercent(theme.leader.performance_1m)}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-gray-400">-</span>
                     )}
                   </td>
                   <td className="px-3 py-2.5 whitespace-nowrap text-right">
@@ -182,7 +211,7 @@ export function ThemeLeaderboard({
                     </button>
                   </td>
                 </tr>
-                
+
                 {expandedTheme === theme.id && (
                   <ThemeExpandedRow
                     key={`${theme.id}-expanded`}

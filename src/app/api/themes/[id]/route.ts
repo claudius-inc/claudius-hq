@@ -143,16 +143,16 @@ function calcBasketPerformance(
   return validPerfs.reduce((sum, p) => sum + p, 0) / validPerfs.length;
 }
 
-// Find the best performing stock (leader) by 1M performance
-function findLeader(stockPerfs: ThemePerformance[]): { ticker: string; performance_1m: number | null } | null {
+// Find the best performing stock for a given period
+function findLeader(stockPerfs: ThemePerformance[], field: "performance_1w" | "performance_1m" | "performance_3m"): { ticker: string; value: number } | null {
   const sorted = stockPerfs
-    .filter((s) => s.performance_1m !== null)
-    .sort((a, b) => (b.performance_1m ?? 0) - (a.performance_1m ?? 0));
-  
+    .filter((s) => s[field] !== null)
+    .sort((a, b) => (b[field] ?? 0) - (a[field] ?? 0));
+
   if (sorted.length === 0) return null;
   return {
     ticker: sorted[0].ticker,
-    performance_1m: sorted[0].performance_1m,
+    value: sorted[0][field]!,
   };
 }
 
@@ -205,7 +205,11 @@ export async function GET(
       performance_1w: calcBasketPerformance(stockPerfs, "performance_1w"),
       performance_1m: calcBasketPerformance(stockPerfs, "performance_1m"),
       performance_3m: calcBasketPerformance(stockPerfs, "performance_3m"),
-      leader: findLeader(stockPerfs),
+      leaders: {
+        "1w": findLeader(stockPerfs, "performance_1w"),
+        "1m": findLeader(stockPerfs, "performance_1m"),
+        "3m": findLeader(stockPerfs, "performance_3m"),
+      },
       stock_performances: stockPerfs,
     };
 

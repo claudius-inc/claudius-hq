@@ -127,10 +127,11 @@ export interface ThemeWithPerformance extends Theme {
   performance_1w: number | null;
   performance_1m: number | null;
   performance_3m: number | null;
-  leader: {
-    ticker: string;
-    performance_1m: number | null;
-  } | null;
+  leaders: {
+    "1w": { ticker: string; value: number } | null;
+    "1m": { ticker: string; value: number } | null;
+    "3m": { ticker: string; value: number } | null;
+  };
   stock_performances?: ThemePerformance[];
   // Theme-level crowding (average of stocks)
   crowdingScore?: number;
