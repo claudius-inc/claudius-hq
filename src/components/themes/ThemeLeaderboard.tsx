@@ -1,13 +1,17 @@
 "use client";
 
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
-import { BarChart3, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, ChevronUp, Trash2 } from "lucide-react";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { ThemeExpandedRow } from "./ThemeExpandedRow";
 import { SuggestedStock } from "./types";
 import { formatPercent, getPercentColor } from "./utils";
 import { getCrowdingBgColor, getCrowdingDescription } from "@/lib/crowding-utils";
+
+type SortField = "1w" | "1m" | "3m";
+type SortDir = "asc" | "desc";
 
 interface ThemeLeaderboardProps {
   themes: ThemeWithPerformance[];
@@ -36,6 +40,36 @@ export function ThemeLeaderboard({
   onRemoveStock,
   onAddSuggestedStock,
 }: ThemeLeaderboardProps) {
+  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      if (sortDir === "desc") {
+        setSortDir("asc");
+      } else {
+        setSortField(null);
+      }
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+  };
+
+  const sortedThemes = useMemo(() => {
+    if (!sortField) return themes;
+
+    const key = `performance_${sortField}` as const;
+    return [...themes].sort((a, b) => {
+      const aVal = a[key];
+      const bVal = b[key];
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+    });
+  }, [themes, sortField, sortDir]);
+
   if (themes.length === 0) {
     return (
       <EmptyState
@@ -54,16 +88,29 @@ export function ThemeLeaderboard({
             <tr>
               <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 w-8"></th>
               <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">Theme</th>
-              <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">1W</th>
-              <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">1M</th>
-              <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500">3M</th>
+              {(["1w", "1m", "3m"] as SortField[]).map((field) => (
+                <th
+                  key={field}
+                  className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700"
+                  onClick={() => handleSort(field)}
+                >
+                  <span className="inline-flex items-center justify-end gap-0.5">
+                    {field.toUpperCase()}
+                    {sortField === field && (
+                      sortDir === "desc"
+                        ? <ChevronDown className="w-3 h-3" />
+                        : <ChevronUp className="w-3 h-3" />
+                    )}
+                  </span>
+                </th>
+              ))}
               <th className="px-3 py-2.5 text-center text-xs font-medium text-gray-500">Crowd</th>
               <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">Leader</th>
               <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 w-12"></th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {themes.map((theme) => (
+            {sortedThemes.map((theme) => (
               <>
                 <tr
                   key={theme.id}
