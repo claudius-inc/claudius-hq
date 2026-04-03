@@ -69,7 +69,10 @@ function ValuationRangeBar({
   zone: MarketValuation["zone"];
 }) {
   const rangeSpan = range.max - range.min;
-  const position = Math.min(100, Math.max(0, ((value - range.min) / rangeSpan) * 100));
+  const position = Math.min(
+    100,
+    Math.max(0, ((value - range.min) / rangeSpan) * 100),
+  );
   const meanPosition = ((mean - range.min) / rangeSpan) * 100;
 
   return (
@@ -104,11 +107,15 @@ function ValuationCard({ data }: { data: MarketValuation }) {
         <div className="flex items-center gap-2">
           <span className="text-xl">{data.flag}</span>
           <div>
-            <h4 className="text-sm font-medium text-gray-900">{data.country}</h4>
+            <h4 className="text-sm font-medium text-gray-900">
+              {data.country}
+            </h4>
             <p className="text-[10px] text-gray-500">{data.index}</p>
           </div>
         </div>
-        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${zoneStyle.bg} ${zoneStyle.text}`}>
+        <span
+          className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${zoneStyle.bg} ${zoneStyle.text}`}
+        >
           {zoneStyle.label}
         </span>
       </div>
@@ -152,8 +159,17 @@ function ValuationCard({ data }: { data: MarketValuation }) {
             ) : (
               <Minus className="w-3 h-3 text-gray-400" />
             )}
-            <span className={data.change24h > 0 ? "text-emerald-600" : data.change24h < 0 ? "text-red-600" : ""}>
-              {data.change24h > 0 ? "+" : ""}{data.change24h.toFixed(2)}%
+            <span
+              className={
+                data.change24h > 0
+                  ? "text-emerald-600"
+                  : data.change24h < 0
+                    ? "text-red-600"
+                    : ""
+              }
+            >
+              {data.change24h > 0 ? "+" : ""}
+              {data.change24h.toFixed(2)}%
             </span>
           </div>
         )}
@@ -168,8 +184,17 @@ function ValuationCard({ data }: { data: MarketValuation }) {
               <span>P/E: {data.secondaryIndex.pe.toFixed(1)}x</span>
             )}
             {data.secondaryIndex.change24h !== null && (
-              <span className={data.secondaryIndex.change24h > 0 ? "text-emerald-600" : data.secondaryIndex.change24h < 0 ? "text-red-600" : ""}>
-                {data.secondaryIndex.change24h > 0 ? "+" : ""}{data.secondaryIndex.change24h.toFixed(2)}%
+              <span
+                className={
+                  data.secondaryIndex.change24h > 0
+                    ? "text-emerald-600"
+                    : data.secondaryIndex.change24h < 0
+                      ? "text-red-600"
+                      : ""
+                }
+              >
+                {data.secondaryIndex.change24h > 0 ? "+" : ""}
+                {data.secondaryIndex.change24h.toFixed(2)}%
               </span>
             )}
           </div>
@@ -204,10 +229,12 @@ export function ValuationCards() {
     return (
       <div className="col-span-full">
         <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
-          <span className="text-gray-400"><Globe className="w-3.5 h-3.5" /></span>
+          <span className="text-gray-400">
+            <Globe className="w-3.5 h-3.5" />
+          </span>
           Market Valuations
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="card p-4 space-y-3">
               <div className="flex items-center gap-2">
@@ -235,10 +262,12 @@ export function ValuationCards() {
   return (
     <div className="col-span-full">
       <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
-        <span className="text-gray-400"><Globe className="w-3.5 h-3.5" /></span>
+        <span className="text-gray-400">
+          <Globe className="w-3.5 h-3.5" />
+        </span>
         Market Valuations
       </h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {valuations.map((v) => (
           <ValuationCard key={v.market} data={v} />
         ))}
