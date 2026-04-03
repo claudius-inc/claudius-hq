@@ -93,16 +93,60 @@ async function fetchGoldData() {
   // Track GC=F change data separately
   let gcfChange: number | null = null;
   let gcfChangePercent: number | null = null;
+  let priceSource: "GC=F" | "GLD" = "GC=F";
 
   try {
-    const gcQuote = await yahooFinance.quote("GC=F") as QuoteResult;
-    livePrice = gcQuote.regularMarketPrice || null;
-    gcfChange = gcQuote.regularMarketChange ?? null;
-    gcfChangePercent = gcQuote.regularMarketChangePercent ?? null;
-
+    const gcQuote = await yahooFinance.quote("GC=F") as QuoteResult & { regularMarketTime?: number };
     const gldQuote = await yahooFinance.quote("GLD") as QuoteResult & {
       sharesOutstanding?: number;
+      regularMarketTime?: number;
     };
+
+    // Check if GC=F data is stale (more than 2 hours old)
+    // Note: regularMarketTime can be Date object or unix timestamp depending on yahoo-finance2 version
+    const parseTime = (t: unknown): number => {
+      if (!t) return 0;
+      if (t instanceof Date) return t.getTime();
+      if (typeof t === 'string') return new Date(t).getTime();
+      if (typeof t === 'number') return t > 1e12 ? t : t * 1000; // handle both ms and seconds
+      return 0;
+    };
+    const gcfTimestamp = parseTime(gcQuote.regularMarketTime);
+    const gldTimestamp = parseTime(gldQuote.regularMarketTime);
+    const now = Date.now();
+    const twoHoursMs = 2 * 60 * 60 * 1000;
+    const gcfIsStale = gcfTimestamp > 0 && (now - gcfTimestamp) > twoHoursMs;
+    const gldIsFresh = gldTimestamp > 0 && (now - gldTimestamp) < twoHoursMs;
+
+    // Use GLD × 10 if GC=F is stale and GLD is fresher
+    // Note: If both are stale, prefer whichever is more recent
+    const gcfAgeMin = gcfTimestamp > 0 ? Math.round((now - gcfTimestamp) / 1000 / 60) : 9999;
+    const gldAgeMin = gldTimestamp > 0 ? Math.round((now - gldTimestamp) / 1000 / 60) : 9999;
+    
+    // Use GLD×10 if: GC=F is stale AND (GLD is fresh OR GLD is more recent than GC=F)
+    const preferGld = gcfIsStale && (gldIsFresh || gldAgeMin < gcfAgeMin);
+    
+    if (preferGld && gldQuote.regularMarketPrice) {
+      livePrice = Math.round(gldQuote.regularMarketPrice * 10 * 100) / 100;
+      gcfChange = gldQuote.regularMarketChange ? gldQuote.regularMarketChange * 10 : null;
+      gcfChangePercent = gldQuote.regularMarketChangePercent ?? null;
+      priceSource = "GLD";
+      logger.warn("api/gold", "GC=F data stale, using GLD×10", { 
+        gcfAge: gcfAgeMin + " min",
+        gldAge: gldAgeMin + " min"
+      });
+    } else {
+      livePrice = gcQuote.regularMarketPrice || null;
+      gcfChange = gcQuote.regularMarketChange ?? null;
+      gcfChangePercent = gcQuote.regularMarketChangePercent ?? null;
+      if (gcfIsStale) {
+        logger.warn("api/gold", "Both GC=F and GLD data are stale", { 
+          gcfAge: gcfAgeMin + " min",
+          gldAge: gldAgeMin + " min"
+        });
+      }
+    }
+
     gldData = {
       price: gldQuote.regularMarketPrice,
       sharesOutstanding: gldQuote.sharesOutstanding,
@@ -211,6 +255,7 @@ async function fetchGoldData() {
     livePrice,
     change: gcfChange,
     changePercent: gcfChangePercent,
+    priceSource,
     gld: gldData,
     dxy: dxyData,
     realYields: realYieldsData,
