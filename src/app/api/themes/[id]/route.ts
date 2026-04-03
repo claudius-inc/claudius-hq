@@ -77,57 +77,55 @@ interface QuoteResult {
 
 // Get all stock performances for a theme with watchlist data
 async function getStockPerformances(stockRows: StockDbRow[]): Promise<ThemePerformance[]> {
-  const performances: ThemePerformance[] = [];
+  return Promise.all(
+    stockRows.map(async (row) => {
+      const { ticker, targetPrice, status, notes } = row;
+      try {
+        const [prices1w, prices1m, prices3m, quote] = await Promise.all([
+          getHistoricalPrices(ticker, "1w"),
+          getHistoricalPrices(ticker, "1m"),
+          getHistoricalPrices(ticker, "3m"),
+          (yahooFinance.quote(ticker) as Promise<QuoteResult>).catch(() => null),
+        ]);
 
-  for (const row of stockRows) {
-    const { ticker, targetPrice, status, notes } = row;
-    try {
-      const [prices1w, prices1m, prices3m, quote] = await Promise.all([
-        getHistoricalPrices(ticker, "1w"),
-        getHistoricalPrices(ticker, "1m"),
-        getHistoricalPrices(ticker, "3m"),
-        (yahooFinance.quote(ticker) as Promise<QuoteResult>).catch(() => null),
-      ]);
+        const quoteData = quote as QuoteResult | null;
+        const currentPrice = quoteData?.regularMarketPrice ?? null;
+        const companyName = quoteData?.shortName || quoteData?.longName || null;
 
-      const quoteData = quote as QuoteResult | null;
-      const currentPrice = quoteData?.regularMarketPrice ?? null;
-      const companyName = quoteData?.shortName || quoteData?.longName || null;
-      
-      // Calculate price gap to target
-      let priceGapPercent: number | null = null;
-      if (currentPrice !== null && targetPrice !== null && targetPrice > 0) {
-        priceGapPercent = ((currentPrice - targetPrice) / targetPrice) * 100;
+        // Calculate price gap to target
+        let priceGapPercent: number | null = null;
+        if (currentPrice !== null && targetPrice !== null && targetPrice > 0) {
+          priceGapPercent = ((currentPrice - targetPrice) / targetPrice) * 100;
+        }
+
+        return {
+          ticker,
+          name: companyName,
+          performance_1w: calcPerformance(prices1w.start, prices1w.end),
+          performance_1m: calcPerformance(prices1m.start, prices1m.end),
+          performance_3m: calcPerformance(prices3m.start, prices3m.end),
+          current_price: currentPrice,
+          target_price: targetPrice,
+          status: ((status as ThemeStockStatus) || "watching") as ThemeStockStatus,
+          notes,
+          price_gap_percent: priceGapPercent,
+        };
+      } catch {
+        return {
+          ticker,
+          name: null,
+          performance_1w: null,
+          performance_1m: null,
+          performance_3m: null,
+          current_price: null,
+          target_price: targetPrice,
+          status: ((status as ThemeStockStatus) || "watching") as ThemeStockStatus,
+          notes,
+          price_gap_percent: null,
+        };
       }
-
-      performances.push({
-        ticker,
-        name: companyName,
-        performance_1w: calcPerformance(prices1w.start, prices1w.end),
-        performance_1m: calcPerformance(prices1m.start, prices1m.end),
-        performance_3m: calcPerformance(prices3m.start, prices3m.end),
-        current_price: currentPrice,
-        target_price: targetPrice,
-        status: (status as ThemeStockStatus) || "watching",
-        notes,
-        price_gap_percent: priceGapPercent,
-      });
-    } catch {
-      performances.push({
-        ticker,
-        name: null,
-        performance_1w: null,
-        performance_1m: null,
-        performance_3m: null,
-        current_price: null,
-        target_price: targetPrice,
-        status: (status as ThemeStockStatus) || "watching",
-        notes,
-        price_gap_percent: null,
-      });
-    }
-  }
-
-  return performances;
+    })
+  );
 }
 
 // Calculate theme basket performance (equal-weighted average)

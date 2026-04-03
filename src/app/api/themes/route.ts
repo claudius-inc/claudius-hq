@@ -67,51 +67,49 @@ async function getStockPerformances(
   tickers: string[],
   crowdingMap?: Map<string, CrowdingScore>
 ): Promise<ThemePerformance[]> {
-  const performances: ThemePerformance[] = [];
+  return Promise.all(
+    tickers.map(async (ticker) => {
+      try {
+        const [prices1w, prices1m, prices3m, quote] = await Promise.all([
+          getHistoricalPrices(ticker, "1w"),
+          getHistoricalPrices(ticker, "1m"),
+          getHistoricalPrices(ticker, "3m"),
+          (yahooFinance.quote(ticker) as Promise<{ regularMarketPrice?: number; shortName?: string }>).catch(() => null),
+        ]);
 
-  for (const ticker of tickers) {
-    try {
-      const [prices1w, prices1m, prices3m, quote] = await Promise.all([
-        getHistoricalPrices(ticker, "1w"),
-        getHistoricalPrices(ticker, "1m"),
-        getHistoricalPrices(ticker, "3m"),
-        (yahooFinance.quote(ticker) as Promise<{ regularMarketPrice?: number; shortName?: string }>).catch(() => null),
-      ]);
+        const quoteData = quote as { regularMarketPrice?: number; shortName?: string } | null;
+        const crowding = crowdingMap?.get(ticker);
 
-      const quoteData = quote as { regularMarketPrice?: number; shortName?: string } | null;
-      const crowding = crowdingMap?.get(ticker);
-
-      performances.push({
-        ticker,
-        name: quoteData?.shortName ?? null,
-        performance_1w: calcPerformance(prices1w.start, prices1w.end),
-        performance_1m: calcPerformance(prices1m.start, prices1m.end),
-        performance_3m: calcPerformance(prices3m.start, prices3m.end),
-        current_price: quoteData?.regularMarketPrice ?? null,
-        target_price: null,
-        status: "watching",
-        notes: null,
-        price_gap_percent: null,
-        crowdingScore: crowding?.score,
-        crowdingLevel: crowding?.level,
-      });
-    } catch {
-      performances.push({
-        ticker,
-        name: null,
-        performance_1w: null,
-        performance_1m: null,
-        performance_3m: null,
-        current_price: null,
-        target_price: null,
-        status: "watching",
-        notes: null,
-        price_gap_percent: null,
-      });
-    }
-  }
-
-  return performances;
+        return {
+          ticker,
+          name: quoteData?.shortName ?? null,
+          performance_1w: calcPerformance(prices1w.start, prices1w.end),
+          performance_1m: calcPerformance(prices1m.start, prices1m.end),
+          performance_3m: calcPerformance(prices3m.start, prices3m.end),
+          current_price: quoteData?.regularMarketPrice ?? null,
+          target_price: null,
+          status: "watching" as const,
+          notes: null,
+          price_gap_percent: null,
+          crowdingScore: crowding?.score,
+          crowdingLevel: crowding?.level,
+        };
+      } catch {
+        return {
+          ticker,
+          name: null,
+          performance_1w: null,
+          performance_1m: null,
+          performance_3m: null,
+          current_price: null,
+          target_price: null,
+          status: "watching" as const,
+          notes: null,
+          price_gap_percent: null,
+        };
+      }
+    })
+  );
 }
 
 // Calculate theme basket performance (equal-weighted average)
