@@ -6,15 +6,24 @@ import { PageHero } from "@/components/PageHero";
 import { ThemesTab } from "@/components/ThemesTab";
 import { ThemesTableSkeleton } from "@/components/Skeleton";
 
+interface ThemeLite {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+  stocks: string[];
+}
+
 export function ThemesPageContent({ hideHero = false }: { hideHero?: boolean } = {}) {
-  const [themes, setThemes] = useState<ThemeWithPerformance[]>([]);
+  const [themesLite, setThemesLite] = useState<ThemeLite[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch("/api/themes");
+      // Fast: just get theme metadata from DB
+      const res = await fetch("/api/themes/lite");
       const data = await res.json();
-      setThemes(data.themes || []);
+      setThemesLite(data.themes || []);
     } catch (e) {
       console.error("Failed to fetch themes:", e);
     } finally {
@@ -35,10 +44,10 @@ export function ThemesPageContent({ hideHero = false }: { hideHero?: boolean } =
       {!hideHero && (
         <PageHero
           title="Investment Themes"
-          subtitle="Track themed baskets and sector performance"
+          subtitle="Track themed baskets and their performance"
         />
       )}
-      <ThemesTab initialThemes={themes} hideHero={hideHero} />
+      <ThemesTab initialThemesLite={themesLite} hideHero={hideHero} />
     </>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import useSWR from "swr";
 import { Plus } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
@@ -12,14 +13,58 @@ import {
   EditingStock,
 } from "./themes";
 
+// Lite theme from DB (no prices)
+interface ThemeLite {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+  stocks: string[];
+}
+
+// Price data from /api/themes/prices
+interface ThemePriceData {
+  prices: Record<string, {
+    ticker: string;
+    name: string | null;
+    performance_1w: number | null;
+    performance_1m: number | null;
+    performance_3m: number | null;
+    current_price: number | null;
+    crowdingScore?: number;
+    crowdingLevel?: string;
+  }>;
+  basket: {
+    performance_1w: number | null;
+    performance_1m: number | null;
+    performance_3m: number | null;
+    leaders: {
+      "1w": { ticker: string; value: number } | null;
+      "1m": { ticker: string; value: number } | null;
+      "3m": { ticker: string; value: number } | null;
+    };
+    crowdingScore?: number;
+    crowdingLevel?: string;
+  };
+}
+
+const fetcher = (url: string) => fetch(url).then((r) => r.ok ? r.json() : null);
+
 interface ThemesTabProps {
   initialThemes?: ThemeWithPerformance[];
+  initialThemesLite?: ThemeLite[];
   hideHero?: boolean;
 }
 
-export function ThemesTab({ initialThemes, hideHero = false }: ThemesTabProps) {
-  const [themes, setThemes] = useState<ThemeWithPerformance[]>(initialThemes || []);
-  const [loading, setLoading] = useState(!initialThemes);
+export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }: ThemesTabProps) {
+  // If we have full themes, use them; otherwise start with lite
+  const [themesLite, setThemesLite] = useState<ThemeLite[]>(
+    initialThemesLite || 
+    initialThemes?.map(t => ({ id: t.id, name: t.name, description: t.description, created_at: t.created_at, stocks: t.stocks })) || 
+    []
+  );
+  const [themePrices, setThemePrices] = useState<Map<number, ThemePriceData>>(new Map());
+  const [loading, setLoading] = useState(!initialThemes && !initialThemesLite);
   const [expandedTheme, setExpandedTheme] = useState<number | null>(null);
   const [expandedData, setExpandedData] = useState<ThemeWithPerformance | null>(null);
   const [loadingExpanded, setLoadingExpanded] = useState(false);
@@ -44,13 +89,13 @@ export function ThemesTab({ initialThemes, hideHero = false }: ThemesTabProps) {
   const [editingStock, setEditingStock] = useState<EditingStock | null>(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
 
-  // Fetch themes
-  const fetchThemes = useCallback(async () => {
+  // Fetch themes lite if not provided
+  const fetchThemesLite = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/themes");
+      const res = await fetch("/api/themes/lite");
       const data = await res.json();
-      setThemes(data.themes || []);
+      setThemesLite(data.themes || []);
     } catch (e) {
       console.error("Failed to fetch themes:", e);
     } finally {
@@ -59,10 +104,61 @@ export function ThemesTab({ initialThemes, hideHero = false }: ThemesTabProps) {
   }, []);
 
   useEffect(() => {
-    if (!initialThemes) {
-      fetchThemes();
+    if (!initialThemes && !initialThemesLite) {
+      fetchThemesLite();
     }
-  }, [fetchThemes, initialThemes]);
+  }, [fetchThemesLite, initialThemes, initialThemesLite]);
+
+  // Progressively fetch prices for each theme
+  useEffect(() => {
+    if (themesLite.length === 0) return;
+    
+    // Fetch prices for themes that don't have them yet
+    themesLite.forEach(async (theme) => {
+      if (themePrices.has(theme.id) || theme.stocks.length === 0) return;
+      
+      try {
+        const res = await fetch(`/api/themes/prices?tickers=${theme.stocks.join(",")}`);
+        if (res.ok) {
+          const data: ThemePriceData = await res.json();
+          setThemePrices(prev => new Map(prev).set(theme.id, data));
+        }
+      } catch (e) {
+        console.error(`Failed to fetch prices for theme ${theme.id}:`, e);
+      }
+    });
+  }, [themesLite, themePrices]);
+
+  // Build themes with performance from lite + prices
+  const themes: ThemeWithPerformance[] = themesLite.map((theme) => {
+    const priceData = themePrices.get(theme.id);
+    return {
+      id: theme.id,
+      name: theme.name,
+      description: theme.description,
+      created_at: theme.created_at,
+      stocks: theme.stocks,
+      performance_1w: priceData?.basket.performance_1w ?? null,
+      performance_1m: priceData?.basket.performance_1m ?? null,
+      performance_3m: priceData?.basket.performance_3m ?? null,
+      leaders: priceData?.basket.leaders ?? { "1w": null, "1m": null, "3m": null },
+      crowdingScore: priceData?.basket.crowdingScore,
+      crowdingLevel: priceData?.basket.crowdingLevel,
+      // Mark if prices are still loading
+      _pricesLoading: !priceData && theme.stocks.length > 0,
+    } as ThemeWithPerformance & { _pricesLoading?: boolean };
+  });
+
+  // Sort by 1M performance (themes with prices first)
+  themes.sort((a, b) => {
+    // Put themes with prices first
+    const aHasPrice = a.performance_1m !== null;
+    const bHasPrice = b.performance_1m !== null;
+    if (aHasPrice && !bHasPrice) return -1;
+    if (!aHasPrice && bHasPrice) return 1;
+    // Then sort by performance
+    return (b.performance_1m ?? -999) - (a.performance_1m ?? -999);
+  });
 
   // Theme name suggestions
   useEffect(() => {
@@ -167,7 +263,16 @@ export function ThemesTab({ initialThemes, hideHero = false }: ThemesTabProps) {
       if (res.ok) {
         setSuggestions(prev => prev.filter(s => s.ticker !== ticker));
         await refreshExpandedTheme(themeId);
-        fetchThemes();
+        // Also update lite list
+        setThemesLite(prev => prev.map(t => 
+          t.id === themeId ? { ...t, stocks: [...t.stocks, ticker] } : t
+        ));
+        // Clear cached prices so they re-fetch
+        setThemePrices(prev => {
+          const next = new Map(prev);
+          next.delete(themeId);
+          return next;
+        });
       }
     } catch {
       setSuggestions(prev => prev.map(s => 
@@ -225,7 +330,8 @@ export function ThemesTab({ initialThemes, hideHero = false }: ThemesTabProps) {
         });
       }
 
-      await fetchThemes();
+      // Refresh lite themes
+      await fetchThemesLite();
       handleCloseAddModal();
     } catch {
       setError("Network error");
@@ -251,7 +357,12 @@ export function ThemesTab({ initialThemes, hideHero = false }: ThemesTabProps) {
     try {
       const res = await fetch(`/api/themes/${themeId}`, { method: "DELETE" });
       if (res.ok) {
-        setThemes(themes.filter((t) => t.id !== themeId));
+        setThemesLite(prev => prev.filter((t) => t.id !== themeId));
+        setThemePrices(prev => {
+          const next = new Map(prev);
+          next.delete(themeId);
+          return next;
+        });
         if (expandedTheme === themeId) {
           setExpandedTheme(null);
           setExpandedData(null);
@@ -281,7 +392,16 @@ export function ThemesTab({ initialThemes, hideHero = false }: ThemesTabProps) {
           stocks: newStocksList,
           stock_performances: newStockPerfs,
         });
-        fetchThemes();
+        // Update lite list
+        setThemesLite(prev => prev.map(t => 
+          t.id === themeId ? { ...t, stocks: newStocksList } : t
+        ));
+        // Clear cached prices
+        setThemePrices(prev => {
+          const next = new Map(prev);
+          next.delete(themeId);
+          return next;
+        });
       }
     } catch {
       // Ignore

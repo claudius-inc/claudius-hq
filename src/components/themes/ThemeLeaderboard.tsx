@@ -18,12 +18,15 @@ import {
   getCrowdingBgColor,
   getCrowdingDescription,
 } from "@/lib/crowding-utils";
+import { Skeleton } from "@/components/Skeleton";
 
 type SortField = "1w" | "1m" | "3m";
 type SortDir = "asc" | "desc";
 
+type ThemeWithLoadingState = ThemeWithPerformance & { _pricesLoading?: boolean };
+
 interface ThemeLeaderboardProps {
-  themes: ThemeWithPerformance[];
+  themes: ThemeWithLoadingState[];
   expandedTheme: number | null;
   expandedData: ThemeWithPerformance | null;
   loadingExpanded: boolean;
@@ -150,37 +153,50 @@ export function ThemeLeaderboard({
                   {(["1w", "1m", "3m"] as const).map((period) => {
                     const perf = theme[`performance_${period}`];
                     const leader = theme.leaders?.[period];
+                    const isLoading = (theme as ThemeWithLoadingState)._pricesLoading;
+                    
                     return (
                       <td
                         key={period}
                         className="px-3 py-2.5 whitespace-nowrap text-right"
                       >
-                        <div
-                          className={`text-sm font-medium ${getPercentColor(perf)}`}
-                        >
-                          {formatPercent(perf)}
-                        </div>
-                        {leader && (
-                          <div className="flex items-center justify-end gap-1 mt-0.5">
-                            <Link
-                              href={`/markets/research/${leader.ticker}`}
-                              className="text-[11px] text-gray-400 hover:text-gray-500 font-medium"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {leader.ticker}
-                            </Link>
-                            <span
-                              className={`text-[11px] ${getPercentColor(leader.value)}`}
-                            >
-                              {formatPercent(leader.value)}
-                            </span>
+                        {isLoading ? (
+                          <div className="flex flex-col items-end gap-1">
+                            <Skeleton className="h-4 w-12" />
+                            <Skeleton className="h-3 w-16" />
                           </div>
+                        ) : (
+                          <>
+                            <div
+                              className={`text-sm font-medium ${getPercentColor(perf)}`}
+                            >
+                              {formatPercent(perf)}
+                            </div>
+                            {leader && (
+                              <div className="flex items-center justify-end gap-1 mt-0.5">
+                                <Link
+                                  href={`/markets/research/${leader.ticker}`}
+                                  className="text-[11px] text-gray-400 hover:text-gray-500 font-medium"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {leader.ticker}
+                                </Link>
+                                <span
+                                  className={`text-[11px] ${getPercentColor(leader.value)}`}
+                                >
+                                  {formatPercent(leader.value)}
+                                </span>
+                              </div>
+                            )}
+                          </>
                         )}
                       </td>
                     );
                   })}
                   <td className="px-3 py-2.5 whitespace-nowrap text-center">
-                    {theme.crowdingScore !== undefined ? (
+                    {(theme as ThemeWithLoadingState)._pricesLoading ? (
+                      <Skeleton className="h-5 w-8 mx-auto rounded-full" />
+                    ) : theme.crowdingScore !== undefined ? (
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getCrowdingBgColor(theme.crowdingScore)}`}
                         title={getCrowdingDescription(
