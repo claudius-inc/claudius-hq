@@ -34,6 +34,8 @@ git push origin main   # REQUIRED — never skip this step
 
 **Never report work as "done" or "pushed" without confirming `git push` output shows success.**
 
+**Auto-push hook:** A `post-commit` git hook is installed that automatically pushes to origin after every commit. This is the safety net — agents should still verify the push output succeeds and report failures as blockers.
+
 ---
 
 ## Logging
