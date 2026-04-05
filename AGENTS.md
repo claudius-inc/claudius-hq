@@ -23,16 +23,14 @@ git config user.email "15624933+manapixels@users.noreply.github.com"
 
 **Do NOT commit as any other user** (e.g. `Claudius`, `Paperclip-Paperclip`, or your agent name).
 
+**Do NOT add `Co-Authored-By` trailers to commits.** No Paperclip, no agent names — only `manapixels` should appear as author.
+
 ```bash
 # Correct pattern — always push after commit
 git add <files>
-git commit -m "feat: description
-
-Co-Authored-By: Paperclip <noreply@paperclip.ing>"
+git commit -m "feat: description"
 git push origin main   # REQUIRED — never skip this step
 ```
-
-Note: The `Co-Authored-By: Paperclip` trailer is required by Paperclip and will show as a second contributor on GitHub — this is expected.
 
 **Never report work as "done" or "pushed" without confirming `git push` output shows success.**
 
