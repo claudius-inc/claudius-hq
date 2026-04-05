@@ -1,5 +1,28 @@
 # Claudius HQ — Agent Instructions
 
+## Git Commit & Push Policy
+
+**Every commit MUST be followed by a push.** Never leave unpushed commits.
+
+After completing work on a task:
+1. Stage and commit your changes
+2. **Immediately run `git push origin <branch>`** after the commit succeeds
+3. **Verify the push succeeded** by checking the command output for errors
+4. If the push fails (auth, network, conflict), report it as a blocker — do NOT silently move on
+
+```bash
+# Correct pattern — always push after commit
+git add <files>
+git commit -m "feat: description
+
+Co-Authored-By: Paperclip <noreply@paperclip.ing>"
+git push origin main   # REQUIRED — never skip this step
+```
+
+**Never report work as "done" or "pushed" without confirming `git push` output shows success.**
+
+---
+
 ## Logging
 
 **Never use raw `console.error`, `console.warn`, or `console.log` in server-side code** (API routes, lib files, middleware).
