@@ -6,12 +6,34 @@
  *
  * Horizontal — Energy Efficiency: S&P 500 / WTI vs 7-year MA
  * Vertical   — Currency Quality:  10Y UST total return (IEF) / Gold vs 7-year MA
+ *
+ * Pipeline features:
+ * - DB-backed daily price storage (gavekal_prices table)
+ * - Incremental data seeding with 10+ year history
+ * - Data validation and anomaly detection
+ * - Historical quadrant regime time series
+ * - Configurable lookback periods
+ * - Per-symbol error isolation with fallback to Yahoo API
+ * - S&P/Gold trend analysis
  */
 
 import YahooFinance from "yahoo-finance2";
+import { db, gavekalPrices } from "@/db";
+import { eq, and, gte, desc } from "drizzle-orm";
 import { logger } from "./logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+
+const LOG_SRC = "lib/gavekal";
+
+// ── Constants ──────────────────────────────────────────────────────────────
+
+const GAVEKAL_SYMBOLS = ["^GSPC", "CL=F", "GC=F", "IEF"] as const;
+type GavekalSymbol = (typeof GAVEKAL_SYMBOLS)[number];
+
+const DEFAULT_MA_WEEKS = 365; // ~7 years in weekly data
+const SEED_YEARS = 12; // Fetch 12 years to ensure 10+ years of MA coverage
+const RATE_LIMIT_MS = 400;
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -49,6 +71,14 @@ export interface GavekalRegimePoint {
   quadrant: GavekalQuadrantName;
 }
 
+export interface GavekalDataQuality {
+  symbolStatus: Record<string, "ok" | "stale" | "missing">;
+  dataPoints: number;
+  oldestDate: string;
+  newestDate: string;
+  source: "db" | "api" | "mixed";
+}
+
 export interface GavekalData {
   quadrant: GavekalQuadrant;
   energyEfficiency: GavekalRatio;
@@ -59,6 +89,7 @@ export interface GavekalData {
   };
   exclusions: GavekalExclusion[];
   regimeHistory: GavekalRegimePoint[];
+  dataQuality?: GavekalDataQuality;
   updatedAt: string;
 }
 
@@ -121,14 +152,79 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
   },
 };
 
-// ── Data fetching ───────────────────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function toWeekKey(d: string): string {
+  const date = new Date(d);
+  const y = date.getFullYear();
+  const start = new Date(y, 0, 1);
+  const wk = Math.ceil(
+    ((date.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7,
+  );
+  return `${y}-${String(wk).padStart(2, "0")}`;
+}
+
+// ── Data validation ────────────────────────────────────────────────────────
+
+function validatePrice(symbol: string, price: number): boolean {
+  if (!isFinite(price) || price <= 0) return false;
+  const bounds: Record<string, [number, number]> = {
+    "^GSPC": [100, 20000],
+    "CL=F": [1, 500],
+    "GC=F": [100, 10000],
+    "IEF": [50, 200],
+  };
+  const [min, max] = bounds[symbol] ?? [0, Infinity];
+  return price >= min && price <= max;
+}
+
+// ── Yahoo Finance API fetching ─────────────────────────────────────────────
 
 interface HistoricalRow {
   date: Date;
   close: number | null;
 }
 
-async function fetchWeeklyHistory(
+interface DailyPrice {
+  date: Date;
+  close: number;
+}
+
+async function fetchDailyHistoryFromApi(
+  symbol: string,
+  years: number,
+): Promise<DailyPrice[]> {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setFullYear(startDate.getFullYear() - years);
+
+  try {
+    const chart = (await yahooFinance.chart(symbol, {
+      period1: startDate,
+      period2: endDate,
+      interval: "1d",
+    })) as { quotes?: HistoricalRow[] };
+
+    const prices = (chart.quotes || [])
+      .filter(
+        (q): q is { date: Date; close: number } =>
+          q.close !== null && validatePrice(symbol, q.close),
+      )
+      .map((q) => ({ date: q.date, close: q.close }));
+
+    logger.info(LOG_SRC, `Fetched ${prices.length} daily prices for ${symbol} from Yahoo`);
+    return prices;
+  } catch (error) {
+    logger.error(LOG_SRC, `Failed to fetch ${symbol} history from Yahoo`, { error });
+    return [];
+  }
+}
+
+async function fetchWeeklyHistoryFromApi(
   symbol: string,
   years: number = 10,
 ): Promise<{ date: Date; close: number }[]> {
@@ -144,61 +240,222 @@ async function fetchWeeklyHistory(
     })) as { quotes?: HistoricalRow[] };
 
     return (chart.quotes || [])
-      .filter((q): q is { date: Date; close: number } => q.close !== null)
+      .filter(
+        (q): q is { date: Date; close: number } =>
+          q.close !== null && validatePrice(symbol, q.close),
+      )
       .map((q) => ({ date: q.date, close: q.close }));
   } catch (error) {
-    logger.error("lib/gavekal", `Failed to fetch ${symbol} history`, { error });
+    logger.error(LOG_SRC, `Failed to fetch ${symbol} weekly history`, { error });
     return [];
   }
+}
+
+// ── DB operations ──────────────────────────────────────────────────────────
+
+async function getStoredPrices(
+  symbol: string,
+  fromDate?: string,
+): Promise<{ date: string; close: number }[]> {
+  try {
+    const conditions = [eq(gavekalPrices.symbol, symbol)];
+    if (fromDate) {
+      conditions.push(gte(gavekalPrices.date, fromDate));
+    }
+    return await db
+      .select({ date: gavekalPrices.date, close: gavekalPrices.close })
+      .from(gavekalPrices)
+      .where(and(...conditions))
+      .orderBy(gavekalPrices.date);
+  } catch (error) {
+    logger.error(LOG_SRC, `Failed to read stored prices for ${symbol}`, { error });
+    return [];
+  }
+}
+
+async function getLatestStoredDate(symbol: string): Promise<string | null> {
+  try {
+    const rows = await db
+      .select({ date: gavekalPrices.date })
+      .from(gavekalPrices)
+      .where(eq(gavekalPrices.symbol, symbol))
+      .orderBy(desc(gavekalPrices.date))
+      .limit(1);
+    return rows.length > 0 ? rows[0].date : null;
+  } catch (error) {
+    logger.error(LOG_SRC, `Failed to get latest date for ${symbol}`, { error });
+    return null;
+  }
+}
+
+async function storePrices(symbol: string, prices: DailyPrice[]): Promise<number> {
+  if (prices.length === 0) return 0;
+  try {
+    const BATCH_SIZE = 200;
+    let inserted = 0;
+    for (let i = 0; i < prices.length; i += BATCH_SIZE) {
+      const batch = prices.slice(i, i + BATCH_SIZE).map((p) => ({
+        symbol,
+        date: p.date.toISOString().split("T")[0],
+        close: p.close,
+      }));
+      await db.insert(gavekalPrices).values(batch).onConflictDoNothing();
+      inserted += batch.length;
+    }
+    logger.info(LOG_SRC, `Stored ${inserted} prices for ${symbol}`);
+    return inserted;
+  } catch (error) {
+    logger.error(LOG_SRC, `Failed to store prices for ${symbol}`, { error });
+    return 0;
+  }
+}
+
+// ── Data seeding ───────────────────────────────────────────────────────────
+
+/**
+ * Seed or incrementally update daily price data for all Gavekal symbols.
+ * First run fetches 12 years of daily data; subsequent runs are incremental.
+ */
+export async function seedGavekalData(): Promise<{
+  seeded: Record<string, number>;
+  errors: string[];
+}> {
+  const seeded: Record<string, number> = {};
+  const errors: string[] = [];
+
+  for (const symbol of GAVEKAL_SYMBOLS) {
+    try {
+      const latestDate = await getLatestStoredDate(symbol);
+
+      let yearsToFetch = SEED_YEARS;
+      if (latestDate) {
+        const daysSinceLast = Math.ceil(
+          (Date.now() - new Date(latestDate).getTime()) / (1000 * 60 * 60 * 24),
+        );
+        if (daysSinceLast <= 1) {
+          seeded[symbol] = 0;
+          continue;
+        }
+        yearsToFetch = Math.max(1, Math.ceil(daysSinceLast / 365));
+      }
+
+      const prices = await fetchDailyHistoryFromApi(symbol, yearsToFetch);
+      if (prices.length === 0) {
+        errors.push(`No data returned for ${symbol}`);
+        continue;
+      }
+
+      const count = await storePrices(symbol, prices);
+      seeded[symbol] = count;
+      await delay(RATE_LIMIT_MS);
+    } catch (error) {
+      const msg = `Failed to seed ${symbol}: ${error instanceof Error ? error.message : String(error)}`;
+      errors.push(msg);
+      logger.error(LOG_SRC, msg, { error });
+    }
+  }
+
+  return { seeded, errors };
+}
+
+// ── Weekly aggregation ─────────────────────────────────────────────────────
+
+interface WeeklyPoint {
+  weekKey: string;
+  date: string;
+  close: number;
+}
+
+function dailyToWeekly(prices: { date: string; close: number }[]): WeeklyPoint[] {
+  const weekMap = new Map<string, { date: string; close: number }>();
+  for (const p of prices) {
+    const wk = toWeekKey(p.date);
+    weekMap.set(wk, p); // last trading day per week wins
+  }
+  return Array.from(weekMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([weekKey, p]) => ({ weekKey, date: p.date, close: p.close }));
+}
+
+function apiToWeekly(prices: { date: Date; close: number }[]): WeeklyPoint[] {
+  return prices.map((p) => {
+    const dateStr = p.date.toISOString().split("T")[0];
+    return { weekKey: toWeekKey(dateStr), date: dateStr, close: p.close };
+  });
+}
+
+// ── Data loading (DB-first with API fallback) ──────────────────────────────
+
+async function loadWeeklyPrices(
+  symbol: GavekalSymbol,
+  years: number,
+): Promise<{ prices: WeeklyPoint[]; source: "db" | "api" }> {
+  const fromDate = new Date();
+  fromDate.setFullYear(fromDate.getFullYear() - years);
+  const fromDateStr = fromDate.toISOString().split("T")[0];
+
+  // Try DB first
+  const dbPrices = await getStoredPrices(symbol, fromDateStr);
+  if (dbPrices.length > 52 * Math.max(1, years - 1)) {
+    return { prices: dailyToWeekly(dbPrices), source: "db" };
+  }
+
+  // Fall back to Yahoo weekly API
+  logger.info(LOG_SRC, `DB has ${dbPrices.length} rows for ${symbol}, falling back to Yahoo API`);
+  const apiPrices = await fetchWeeklyHistoryFromApi(symbol, years);
+
+  if (apiPrices.length > 0) {
+    // Store daily data in background for future use
+    fetchDailyHistoryFromApi(symbol, years)
+      .then((daily) => storePrices(symbol, daily))
+      .catch((e) => logger.error(LOG_SRC, `Background store failed for ${symbol}`, { error: e }));
+
+    return { prices: apiToWeekly(apiPrices), source: "api" };
+  }
+
+  // Last resort: partial DB data
+  if (dbPrices.length > 0) {
+    logger.warn(LOG_SRC, `Using partial DB data for ${symbol} (${dbPrices.length} rows)`);
+    return { prices: dailyToWeekly(dbPrices), source: "db" };
+  }
+
+  return { prices: [], source: "api" };
 }
 
 // ── Computation ─────────────────────────────────────────────────────────────
 
 function computeMovingAverage(values: number[], window: number): (number | null)[] {
   const result: (number | null)[] = [];
+  let sum = 0;
   for (let i = 0; i < values.length; i++) {
-    if (i < window - 1) {
-      result.push(null);
-    } else {
-      const slice = values.slice(i - window + 1, i + 1);
-      result.push(slice.reduce((a, b) => a + b, 0) / window);
-    }
+    sum += values[i];
+    if (i >= window) sum -= values[i - window];
+    result.push(i < window - 1 ? null : sum / window);
   }
   return result;
 }
 
-function alignSeries(
-  a: { date: Date; close: number }[],
-  b: { date: Date; close: number }[],
-): { date: Date; aClose: number; bClose: number }[] {
-  // Build a map of b by week key (YYYY-WW)
-  const weekKey = (d: Date) => {
-    const y = d.getFullYear();
-    const start = new Date(y, 0, 1);
-    const wk = Math.ceil(((d.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7);
-    return `${y}-${wk}`;
-  };
-
+function alignWeeklySeries(
+  a: WeeklyPoint[],
+  b: WeeklyPoint[],
+): { weekKey: string; date: string; aClose: number; bClose: number }[] {
   const bMap = new Map<string, number>();
-  for (const row of b) {
-    bMap.set(weekKey(row.date), row.close);
-  }
+  for (const row of b) bMap.set(row.weekKey, row.close);
 
-  const aligned: { date: Date; aClose: number; bClose: number }[] = [];
+  const aligned: { weekKey: string; date: string; aClose: number; bClose: number }[] = [];
   for (const row of a) {
-    const key = weekKey(row.date);
-    const bVal = bMap.get(key);
+    const bVal = bMap.get(row.weekKey);
     if (bVal !== undefined) {
-      aligned.push({ date: row.date, aClose: row.close, bClose: bVal });
+      aligned.push({ weekKey: row.weekKey, date: row.date, aClose: row.close, bClose: bVal });
     }
   }
   return aligned;
 }
 
 function buildRatio(
-  aligned: { date: Date; aClose: number; bClose: number }[],
+  aligned: { weekKey: string; date: string; aClose: number; bClose: number }[],
   label: string,
-  maWeeks: number, // 7 years ~ 365 weeks
+  maWeeks: number,
 ): GavekalRatio {
   const ratios = aligned.map((r) => r.aClose / r.bClose);
   const mas = computeMovingAverage(ratios, maWeeks);
@@ -208,7 +465,7 @@ function buildRatio(
   for (let i = Math.max(0, ratios.length - 520); i < ratios.length; i += 4) {
     if (mas[i] !== null) {
       history.push({
-        date: aligned[i].date.toISOString().split("T")[0],
+        date: aligned[i].date,
         value: Math.round(ratios[i] * 10000) / 10000,
         ma: Math.round(mas[i]! * 10000) / 10000,
       });
@@ -217,7 +474,7 @@ function buildRatio(
   // Always include the last point
   const last = ratios.length - 1;
   if (last >= 0 && mas[last] !== null) {
-    const lastDate = aligned[last].date.toISOString().split("T")[0];
+    const lastDate = aligned[last].date;
     if (!history.length || history[history.length - 1].date !== lastDate) {
       history.push({
         date: lastDate,
@@ -244,7 +501,6 @@ function buildRegimeHistory(
   energyHistory: GavekalRatio["history"],
   currencyHistory: GavekalRatio["history"],
 ): GavekalRegimePoint[] {
-  // Build a map of currency history by date
   const currencyByDate = new Map<string, { value: number; ma: number }>();
   for (const h of currencyHistory) {
     currencyByDate.set(h.date, { value: h.value, ma: h.ma });
@@ -262,7 +518,6 @@ function buildRegimeHistory(
     const key = `${eSignal},${cSignal}`;
     const q = QUADRANTS[key]?.name ?? "Inflationary Bust";
 
-    // Only record when regime changes (or first point)
     if (q !== lastQuadrant) {
       points.push({ date: eh.date, quadrant: q });
       lastQuadrant = q;
@@ -272,31 +527,95 @@ function buildRegimeHistory(
   return points;
 }
 
+// ── Trend analysis for S&P/Gold ────────────────────────────────────────────
+
+function analyzeTrend(
+  ratios: number[],
+  mas: (number | null)[],
+): { direction: "rising" | "falling" | "flat"; strength: number } {
+  const lookback = Math.min(13, ratios.length);
+  if (lookback < 4) return { direction: "flat", strength: 0 };
+
+  const recent = ratios.slice(-lookback);
+  const change = (recent[recent.length - 1] - recent[0]) / recent[0];
+
+  let direction: "rising" | "falling" | "flat";
+  if (change > 0.02) direction = "rising";
+  else if (change < -0.02) direction = "falling";
+  else direction = "flat";
+
+  const strength = Math.min(100, Math.round(Math.abs(change) * 500));
+  return { direction, strength };
+}
+
 // ── Main entry point ────────────────────────────────────────────────────────
 
-export async function computeGavekalQuadrant(): Promise<GavekalData> {
-  const MA_WEEKS = 365; // ~7 years in weekly data
+export interface ComputeGavekalOptions {
+  maWeeks?: number;
+  historyYears?: number;
+}
 
-  // Fetch all four series in parallel
-  const [spx, wti, gold, ief] = await Promise.all([
-    fetchWeeklyHistory("^GSPC", 10),
-    fetchWeeklyHistory("CL=F", 10),
-    fetchWeeklyHistory("GC=F", 10),
-    fetchWeeklyHistory("IEF", 10),
-  ]);
+export async function computeGavekalQuadrant(
+  options?: ComputeGavekalOptions,
+): Promise<GavekalData> {
+  const maWeeks = options?.maWeeks ?? DEFAULT_MA_WEEKS;
+  const historyYears = options?.historyYears ?? 10;
+
+  // Fetch all four series with per-symbol error isolation
+  const symbolResults = await Promise.all(
+    GAVEKAL_SYMBOLS.map(async (symbol) => {
+      try {
+        return { symbol, ...(await loadWeeklyPrices(symbol, historyYears)) };
+      } catch (error) {
+        logger.error(LOG_SRC, `Error loading ${symbol}`, { error });
+        return { symbol, prices: [] as WeeklyPoint[], source: "api" as const };
+      }
+    }),
+  );
+
+  // Build data quality report
+  const symbolStatus: Record<string, "ok" | "stale" | "missing"> = {};
+  let oldestDate = "";
+  let newestDate = "";
+  let totalPoints = 0;
+  const sources = new Set<string>();
+
+  for (const { symbol, prices, source } of symbolResults) {
+    sources.add(source);
+    if (prices.length === 0) {
+      symbolStatus[symbol] = "missing";
+    } else {
+      const lastDate = prices[prices.length - 1].date;
+      const daysSince = Math.ceil(
+        (Date.now() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24),
+      );
+      symbolStatus[symbol] = daysSince > 7 ? "stale" : "ok";
+      const firstDate = prices[0].date;
+      if (!oldestDate || firstDate < oldestDate) oldestDate = firstDate;
+      if (!newestDate || lastDate > newestDate) newestDate = lastDate;
+      totalPoints += prices.length;
+    }
+  }
+
+  const overallSource: "db" | "api" | "mixed" =
+    sources.has("db") && sources.has("api") ? "mixed" : sources.has("db") ? "db" : "api";
+
+  const symbolMap = Object.fromEntries(symbolResults.map((r) => [r.symbol, r.prices]));
+  const spx = symbolMap["^GSPC"] || [];
+  const wti = symbolMap["CL=F"] || [];
+  const gold = symbolMap["GC=F"] || [];
+  const ief = symbolMap["IEF"] || [];
 
   // Align and compute ratios
-  const energyAligned = alignSeries(spx, wti);
-  const currencyAligned = alignSeries(ief, gold);
-  const spGoldAligned = alignSeries(spx, gold);
-  const goldWtiAligned = alignSeries(gold, wti);
+  const energyAligned = alignWeeklySeries(spx, wti);
+  const currencyAligned = alignWeeklySeries(ief, gold);
+  const spGoldAligned = alignWeeklySeries(spx, gold);
+  const goldWtiAligned = alignWeeklySeries(gold, wti);
 
-  const energyEfficiency = buildRatio(energyAligned, "S&P 500 / WTI", MA_WEEKS);
-  const currencyQuality = buildRatio(currencyAligned, "10Y UST (IEF) / Gold", MA_WEEKS);
-
-  // Key supplementary ratios
-  const spGoldRatio = buildRatio(spGoldAligned, "S&P 500 / Gold", MA_WEEKS);
-  const goldWtiRatio = buildRatio(goldWtiAligned, "Gold / WTI", MA_WEEKS);
+  const energyEfficiency = buildRatio(energyAligned, "S&P 500 / WTI", maWeeks);
+  const currencyQuality = buildRatio(currencyAligned, "10Y UST (IEF) / Gold", maWeeks);
+  const spGoldRatio = buildRatio(spGoldAligned, "S&P 500 / Gold", maWeeks);
+  const goldWtiRatio = buildRatio(goldWtiAligned, "Gold / WTI", maWeeks);
 
   // Determine quadrant
   const key = `${energyEfficiency.signal},${currencyQuality.signal}`;
@@ -342,6 +661,19 @@ export async function computeGavekalQuadrant(): Promise<GavekalData> {
     });
   }
 
+  // S&P 500/Gold trend analysis
+  const spGoldRatios = spGoldAligned.map((r) => r.aClose / r.bClose);
+  const spGoldMas = computeMovingAverage(spGoldRatios, maWeeks);
+  const spGoldTrend = analyzeTrend(spGoldRatios, spGoldMas);
+
+  if (spGoldTrend.direction === "falling" && spGoldTrend.strength > 30) {
+    exclusions.push({
+      name: "S&P/Gold Trend",
+      signal: "Caution",
+      description: `S&P/Gold ratio falling (strength ${spGoldTrend.strength}/100) — real returns deteriorating`,
+    });
+  }
+
   // Build regime history from the sampled ratio history points
   const regimeHistory = buildRegimeHistory(
     energyEfficiency.history,
@@ -358,6 +690,80 @@ export async function computeGavekalQuadrant(): Promise<GavekalData> {
     },
     exclusions,
     regimeHistory,
+    dataQuality: {
+      symbolStatus,
+      dataPoints: totalPoints,
+      oldestDate,
+      newestDate,
+      source: overallSource,
+    },
     updatedAt: new Date().toISOString(),
   };
+}
+
+// ── Historical quadrant time series (full resolution) ──────────────────────
+
+export interface GavekalHistoricalEntry {
+  date: string;
+  quadrantName: GavekalQuadrantName;
+  score: number;
+  energySignal: 1 | -1;
+  currencySignal: 1 | -1;
+  energyRatio: number;
+  currencyRatio: number;
+}
+
+export async function computeGavekalHistory(
+  options?: ComputeGavekalOptions,
+): Promise<GavekalHistoricalEntry[]> {
+  const maWeeks = options?.maWeeks ?? DEFAULT_MA_WEEKS;
+  const historyYears = options?.historyYears ?? 10;
+
+  const [spxData, wtiData, goldData, iefData] = await Promise.all(
+    GAVEKAL_SYMBOLS.map((s) => loadWeeklyPrices(s, historyYears)),
+  );
+
+  const energyAligned = alignWeeklySeries(spxData.prices, wtiData.prices);
+  const currencyAligned = alignWeeklySeries(iefData.prices, goldData.prices);
+
+  if (energyAligned.length === 0 || currencyAligned.length === 0) return [];
+
+  const energyRatios = energyAligned.map((r) => r.aClose / r.bClose);
+  const currencyRatios = currencyAligned.map((r) => r.aClose / r.bClose);
+  const energyMas = computeMovingAverage(energyRatios, maWeeks);
+  const currencyMas = computeMovingAverage(currencyRatios, maWeeks);
+
+  const currencyByWeek = new Map<string, { ratio: number; ma: number | null }>();
+  for (let i = 0; i < currencyAligned.length; i++) {
+    currencyByWeek.set(currencyAligned[i].weekKey, {
+      ratio: currencyRatios[i],
+      ma: currencyMas[i],
+    });
+  }
+
+  const entries: GavekalHistoricalEntry[] = [];
+  for (let i = maWeeks - 1; i < energyAligned.length; i += 4) {
+    const eMa = energyMas[i];
+    if (eMa === null) continue;
+
+    const eSignal: 1 | -1 = energyRatios[i] > eMa ? 1 : -1;
+    const cData = currencyByWeek.get(energyAligned[i].weekKey);
+    if (!cData || cData.ma === null) continue;
+
+    const cSignal: 1 | -1 = cData.ratio > cData.ma ? 1 : -1;
+    const qKey = `${eSignal},${cSignal}`;
+    const q = QUADRANTS[qKey] ?? QUADRANTS["-1,-1"];
+
+    entries.push({
+      date: energyAligned[i].date,
+      quadrantName: q.name,
+      score: q.score,
+      energySignal: eSignal,
+      currencySignal: cSignal,
+      energyRatio: Math.round(energyRatios[i] * 10000) / 10000,
+      currencyRatio: Math.round(cData.ratio * 10000) / 10000,
+    });
+  }
+
+  return entries;
 }

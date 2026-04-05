@@ -413,6 +413,21 @@ export type AcpOffering = typeof acpOfferings.$inferSelect;
 export type NewAcpOffering = typeof acpOfferings.$inferInsert;
 
 // ============================================================================
+// Gavekal Historical Price Data
+// ============================================================================
+
+export const gavekalPrices = sqliteTable("gavekal_prices", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  symbol: text("symbol").notNull(), // ^GSPC, CL=F, GC=F, IEF
+  date: text("date").notNull(), // YYYY-MM-DD
+  close: real("close").notNull(),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type GavekalPrice = typeof gavekalPrices.$inferSelect;
+export type NewGavekalPrice = typeof gavekalPrices.$inferInsert;
+
+// ============================================================================
 // Market Data Cache (Stale-While-Revalidate Pattern)
 // ============================================================================
 
