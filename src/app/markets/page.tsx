@@ -4,14 +4,12 @@ import { useState, useEffect } from "react";
 import { mutate } from "swr";
 import { PageHero } from "@/components/PageHero";
 import { detectRegime } from "./_components/helpers";
-import { RegimeStrip } from "./_components/RegimeStrip";
 
 import { Barometers } from "./_components/Barometers";
 import { Sentiment } from "./_components/Sentiment";
 import { SmartMoney } from "./_components/SmartMoney";
 import { Indicators } from "./_components/Indicators";
 import { HardAssets } from "./_components/HardAssets";
-import { RegimeDetail } from "./_components/RegimeDetail";
 import { ValuationCards } from "./_components/ValuationCards";
 import { GavekalQuadrant } from "./_components/GavekalQuadrant";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
@@ -43,7 +41,6 @@ export default function StocksDashboard() {
   const [expectedReturns, setExpectedReturns] = useState<ExpectedReturnsResponse | null>(null);
   const [gavekalData, setGavekalData] = useState<GavekalData | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
-  const [regimeDetailOpen, setRegimeDetailOpen] = useState(false);
   const [loading, setLoading] = useState({
     macro: true,
     sentiment: true,
@@ -179,15 +176,6 @@ export default function StocksDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
         <div className="col-span-full">
-          <RegimeStrip
-            regimeData={regimeData}
-            loading={{ regime: loading.regime, sentiment: loading.sentiment }}
-            onOpenDetail={() => setRegimeDetailOpen(true)}
-            expectedReturns={expectedReturns}
-          />
-        </div>
-
-        <div className="col-span-full">
           <GavekalQuadrant data={gavekalData} loading={loading.gavekal} />
         </div>
 
@@ -228,13 +216,6 @@ export default function StocksDashboard() {
         />
       </div>
 
-      <RegimeDetail
-        open={regimeDetailOpen}
-        onClose={() => setRegimeDetailOpen(false)}
-        regimeData={regimeData}
-        macroIndicators={macroIndicators}
-        expectedReturns={expectedReturns}
-      />
     </>
   );
 }

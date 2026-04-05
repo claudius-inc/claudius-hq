@@ -93,7 +93,8 @@ function RatioChart({
 
   const values = ratio.history.map((h) => h.value);
   const mas = ratio.history.map((h) => h.ma);
-  const all = [...values, ...mas];
+  const validMas = mas.filter((v): v is number => v !== null);
+  const all = [...values, ...validMas];
   const min = Math.min(...all);
   const max = Math.max(...all);
   const range = max - min || 1;
@@ -107,9 +108,19 @@ function RatioChart({
   const valuePath = values
     .map((v, i) => `${i === 0 ? "M" : "L"}${toX(i)},${toY(v)}`)
     .join(" ");
-  const maPath = mas
-    .map((v, i) => `${i === 0 ? "M" : "L"}${toX(i)},${toY(v)}`)
-    .join(" ");
+  // Build MA path segments, breaking on nulls
+  const maSegments: string[] = [];
+  let seg = "";
+  for (let i = 0; i < mas.length; i++) {
+    if (mas[i] !== null) {
+      seg += `${seg === "" ? "M" : "L"}${toX(i)},${toY(mas[i]!)} `;
+    } else if (seg) {
+      maSegments.push(seg.trim());
+      seg = "";
+    }
+  }
+  if (seg) maSegments.push(seg.trim());
+  const maPath = maSegments.join(" ");
 
   // Fill area between value and bottom
   const fillPath = `${valuePath} L${toX(values.length - 1)},${h} L${toX(0)},${h} Z`;
@@ -158,12 +169,14 @@ function RatioChart({
                 {hoverPoint.value.toFixed(4)}
               </span>
             </span>
-            <span>
-              7yMA:{" "}
-              <span className="font-bold text-gray-400">
-                {hoverPoint.ma.toFixed(4)}
+            {hoverPoint.ma !== null && (
+              <span>
+                7yMA:{" "}
+                <span className="font-bold text-gray-400">
+                  {hoverPoint.ma.toFixed(4)}
+                </span>
               </span>
-            </span>
+            )}
           </div>
         )}
       </div>
@@ -222,14 +235,16 @@ function RatioChart({
               stroke="white"
               strokeWidth="1.5"
             />
-            <circle
-              cx={toX(hoverIdx)}
-              cy={toY(mas[hoverIdx])}
-              r="2.5"
-              fill="#9ca3af"
-              stroke="white"
-              strokeWidth="1"
-            />
+            {mas[hoverIdx] !== null && (
+              <circle
+                cx={toX(hoverIdx)}
+                cy={toY(mas[hoverIdx]!)}
+                r="2.5"
+                fill="#9ca3af"
+                stroke="white"
+                strokeWidth="1"
+              />
+            )}
           </>
         )}
       </svg>

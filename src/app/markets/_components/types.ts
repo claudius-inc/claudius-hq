@@ -167,7 +167,7 @@ export interface GavekalRatioData {
   current: number;
   ma7y: number;
   signal: 1 | -1;
-  history: { date: string; value: number; ma: number }[];
+  history: { date: string; value: number; ma: number | null }[];
 }
 
 export interface GavekalExclusionData {
