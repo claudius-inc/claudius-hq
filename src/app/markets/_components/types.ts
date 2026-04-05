@@ -153,6 +153,41 @@ export interface YieldSpread {
   color: "green" | "amber" | "gray";
 }
 
+export interface GavekalQuadrantData {
+  name: string;
+  score: number;
+  color: string;
+  description: string;
+  buySignals: string[];
+  sellSignals: string[];
+}
+
+export interface GavekalRatioData {
+  label: string;
+  current: number;
+  ma7y: number;
+  signal: 1 | -1;
+  history: { date: string; value: number; ma: number }[];
+}
+
+export interface GavekalExclusionData {
+  name: string;
+  signal: string;
+  description: string;
+}
+
+export interface GavekalData {
+  quadrant: GavekalQuadrantData;
+  energyEfficiency: GavekalRatioData;
+  currencyQuality: GavekalRatioData;
+  keyRatios: {
+    spGold: { current: number; ma7y: number };
+    goldWti: { current: number; ma7y: number };
+  };
+  exclusions: GavekalExclusionData[];
+  updatedAt: string;
+}
+
 export interface CrowdingData {
   overall: {
     score: number;

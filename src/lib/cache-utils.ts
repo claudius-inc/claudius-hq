@@ -23,6 +23,7 @@ export const CACHE_KEYS = {
   MARKETS: "markets:momentum",
   MACRO_ETFS: "macro:etfs",
   STOCK_PRICES: "stocks:prices",
+  GAVEKAL: "gavekal:quadrant",
 } as const;
 
 /**

@@ -13,6 +13,7 @@ import { Indicators } from "./_components/Indicators";
 import { HardAssets } from "./_components/HardAssets";
 import { RegimeDetail } from "./_components/RegimeDetail";
 import { ValuationCards } from "./_components/ValuationCards";
+import { GavekalQuadrant } from "./_components/GavekalQuadrant";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
   MacroIndicator,
@@ -24,6 +25,7 @@ import type {
   InsiderData,
   YieldSpread,
   CrowdingData,
+  GavekalData,
 } from "./_components/types";
 
 export default function StocksDashboard() {
@@ -39,6 +41,7 @@ export default function StocksDashboard() {
   const [yieldSpreads, setYieldSpreads] = useState<YieldSpread[]>([]);
   const [crowdingData, setCrowdingData] = useState<CrowdingData | null>(null);
   const [expectedReturns, setExpectedReturns] = useState<ExpectedReturnsResponse | null>(null);
+  const [gavekalData, setGavekalData] = useState<GavekalData | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [regimeDetailOpen, setRegimeDetailOpen] = useState(false);
   const [loading, setLoading] = useState({
@@ -49,6 +52,7 @@ export default function StocksDashboard() {
     breadth: true,
     congress: true,
     insider: true,
+    gavekal: true,
   });
 
   const toggleExpanded = (id: string) => {
@@ -123,6 +127,12 @@ export default function StocksDashboard() {
       .then((data) => setCrowdingData(data))
       .catch(console.error);
 
+    fetch("/api/markets/gavekal")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setGavekalData(data))
+      .catch(console.error)
+      .finally(() => setLoading((prev) => ({ ...prev, gavekal: false })));
+
     // Single macro fetch for both indicators state AND regime detection
     // Gold data for regime comes from /api/gold (also used by HardAssets SWR, deduped by cache)
     Promise.all([
@@ -175,6 +185,10 @@ export default function StocksDashboard() {
             onOpenDetail={() => setRegimeDetailOpen(true)}
             expectedReturns={expectedReturns}
           />
+        </div>
+
+        <div className="col-span-full">
+          <GavekalQuadrant data={gavekalData} loading={loading.gavekal} />
         </div>
 
         <ValuationCards />
