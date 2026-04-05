@@ -57,7 +57,7 @@ export interface GavekalRatio {
   current: number;
   ma7y: number;
   signal: 1 | -1;
-  history: { date: string; value: number; ma: number }[];
+  history: { date: string; value: number; ma: number | null }[];
 }
 
 export interface GavekalExclusion {
@@ -461,25 +461,24 @@ function buildRatio(
   const mas = computeMovingAverage(ratios, maWeeks);
 
   // Build history (last 520 weeks ~ 10 years, sampled monthly for size)
-  const history: { date: string; value: number; ma: number }[] = [];
+  // Show ratio for all points; MA is null until the 7-year warmup completes
+  const history: { date: string; value: number; ma: number | null }[] = [];
   for (let i = Math.max(0, ratios.length - 520); i < ratios.length; i += 4) {
-    if (mas[i] !== null) {
-      history.push({
-        date: aligned[i].date,
-        value: Math.round(ratios[i] * 10000) / 10000,
-        ma: Math.round(mas[i]! * 10000) / 10000,
-      });
-    }
+    history.push({
+      date: aligned[i].date,
+      value: Math.round(ratios[i] * 10000) / 10000,
+      ma: mas[i] !== null ? Math.round(mas[i]! * 10000) / 10000 : null,
+    });
   }
   // Always include the last point
   const last = ratios.length - 1;
-  if (last >= 0 && mas[last] !== null) {
+  if (last >= 0) {
     const lastDate = aligned[last].date;
     if (!history.length || history[history.length - 1].date !== lastDate) {
       history.push({
         date: lastDate,
         value: Math.round(ratios[last] * 10000) / 10000,
-        ma: Math.round(mas[last]! * 10000) / 10000,
+        ma: mas[last] !== null ? Math.round(mas[last]! * 10000) / 10000 : null,
       });
     }
   }
@@ -501,7 +500,7 @@ function buildRegimeHistory(
   energyHistory: GavekalRatio["history"],
   currencyHistory: GavekalRatio["history"],
 ): GavekalRegimePoint[] {
-  const currencyByDate = new Map<string, { value: number; ma: number }>();
+  const currencyByDate = new Map<string, { value: number; ma: number | null }>();
   for (const h of currencyHistory) {
     currencyByDate.set(h.date, { value: h.value, ma: h.ma });
   }
@@ -510,8 +509,9 @@ function buildRegimeHistory(
   let lastQuadrant: GavekalQuadrantName | null = null;
 
   for (const eh of energyHistory) {
+    if (eh.ma === null) continue;
     const ch = currencyByDate.get(eh.date);
-    if (!ch) continue;
+    if (!ch || ch.ma === null) continue;
 
     const eSignal = eh.value > eh.ma ? 1 : -1;
     const cSignal = ch.value > ch.ma ? 1 : -1;
