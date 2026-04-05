@@ -10,6 +10,19 @@ After completing work on a task:
 3. **Verify the push succeeded** by checking the command output for errors
 4. If the push fails (auth, network, conflict), report it as a blocker — do NOT silently move on
 
+**Git identity:** All commits MUST use the `manapixels` identity. Before your first commit, verify:
+```bash
+git config user.name   # must be: manapixels
+git config user.email  # must be: 15624933+manapixels@users.noreply.github.com
+```
+If either is wrong, set them at the repo level:
+```bash
+git config user.name "manapixels"
+git config user.email "15624933+manapixels@users.noreply.github.com"
+```
+
+**Do NOT commit as any other user** (e.g. `Claudius`, `Paperclip-Paperclip`, or your agent name).
+
 ```bash
 # Correct pattern — always push after commit
 git add <files>
@@ -18,6 +31,8 @@ git commit -m "feat: description
 Co-Authored-By: Paperclip <noreply@paperclip.ing>"
 git push origin main   # REQUIRED — never skip this step
 ```
+
+Note: The `Co-Authored-By: Paperclip` trailer is required by Paperclip and will show as a second contributor on GitHub — this is expected.
 
 **Never report work as "done" or "pushed" without confirming `git push` output shows success.**
 
