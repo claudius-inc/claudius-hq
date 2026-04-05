@@ -67,10 +67,10 @@ const QUADRANT_RING: Record<string, string> = {
 };
 
 const QUADRANT_BG: Record<string, string> = {
-  "Inflationary Bust": "bg-red-100 border-red-300 text-red-800",
-  "Inflationary Boom": "bg-orange-100 border-orange-300 text-orange-800",
-  "Deflationary Bust": "bg-blue-100 border-blue-300 text-blue-800",
-  "Deflationary Boom": "bg-emerald-100 border-emerald-300 text-emerald-800",
+  "Inflationary Bust": "bg-red-100 text-red-800",
+  "Inflationary Boom": "bg-orange-100 text-orange-800",
+  "Deflationary Bust": "bg-blue-100 text-blue-800",
+  "Deflationary Boom": "bg-emerald-100 text-emerald-800",
 };
 
 const REGIME_COLORS: Record<string, string> = {
@@ -481,10 +481,10 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
           return (
             <div
               key={cell.key}
-              className={`relative rounded-lg px-2.5 py-2 text-center transition-all duration-300 ease-out ${
+              className={`relative rounded-lg px-2.5 py-2 text-center transition-all duration-300 ease-out border-2 ${
                 active
-                  ? `${QUADRANT_BG[cell.key]} ring-2 ring-offset-1 ${QUADRANT_RING[cell.key]} scale-[1.02]`
-                  : "bg-gray-50 text-gray-400 hover:bg-gray-100"
+                  ? `${QUADRANT_BG[cell.key]} ${QUADRANT_RING[cell.key].replace("ring-", "border-")}`
+                  : "bg-gray-50 text-gray-400 border-transparent hover:bg-gray-100"
               }`}
               onMouseEnter={() => setHoveredCell(cell.key)}
               onMouseLeave={() => setHoveredCell(null)}
