@@ -176,6 +176,11 @@ export interface GavekalExclusionData {
   description: string;
 }
 
+export interface GavekalRegimePoint {
+  date: string;
+  quadrant: string;
+}
+
 export interface GavekalData {
   quadrant: GavekalQuadrantData;
   energyEfficiency: GavekalRatioData;
@@ -185,6 +190,7 @@ export interface GavekalData {
     goldWti: { current: number; ma7y: number };
   };
   exclusions: GavekalExclusionData[];
+  regimeHistory: GavekalRegimePoint[];
   updatedAt: string;
 }
 

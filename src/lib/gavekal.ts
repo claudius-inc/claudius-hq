@@ -44,6 +44,11 @@ export interface GavekalExclusion {
   description: string;
 }
 
+export interface GavekalRegimePoint {
+  date: string;
+  quadrant: GavekalQuadrantName;
+}
+
 export interface GavekalData {
   quadrant: GavekalQuadrant;
   energyEfficiency: GavekalRatio;
@@ -53,6 +58,7 @@ export interface GavekalData {
     goldWti: { current: number; ma7y: number };
   };
   exclusions: GavekalExclusion[];
+  regimeHistory: GavekalRegimePoint[];
   updatedAt: string;
 }
 
@@ -234,6 +240,38 @@ function buildRatio(
   };
 }
 
+function buildRegimeHistory(
+  energyHistory: GavekalRatio["history"],
+  currencyHistory: GavekalRatio["history"],
+): GavekalRegimePoint[] {
+  // Build a map of currency history by date
+  const currencyByDate = new Map<string, { value: number; ma: number }>();
+  for (const h of currencyHistory) {
+    currencyByDate.set(h.date, { value: h.value, ma: h.ma });
+  }
+
+  const points: GavekalRegimePoint[] = [];
+  let lastQuadrant: GavekalQuadrantName | null = null;
+
+  for (const eh of energyHistory) {
+    const ch = currencyByDate.get(eh.date);
+    if (!ch) continue;
+
+    const eSignal = eh.value > eh.ma ? 1 : -1;
+    const cSignal = ch.value > ch.ma ? 1 : -1;
+    const key = `${eSignal},${cSignal}`;
+    const q = QUADRANTS[key]?.name ?? "Inflationary Bust";
+
+    // Only record when regime changes (or first point)
+    if (q !== lastQuadrant) {
+      points.push({ date: eh.date, quadrant: q });
+      lastQuadrant = q;
+    }
+  }
+
+  return points;
+}
+
 // ── Main entry point ────────────────────────────────────────────────────────
 
 export async function computeGavekalQuadrant(): Promise<GavekalData> {
@@ -304,6 +342,12 @@ export async function computeGavekalQuadrant(): Promise<GavekalData> {
     });
   }
 
+  // Build regime history from the sampled ratio history points
+  const regimeHistory = buildRegimeHistory(
+    energyEfficiency.history,
+    currencyQuality.history,
+  );
+
   return {
     quadrant,
     energyEfficiency,
@@ -313,6 +357,7 @@ export async function computeGavekalQuadrant(): Promise<GavekalData> {
       goldWti: { current: goldWtiRatio.current, ma7y: goldWtiRatio.ma7y },
     },
     exclusions,
+    regimeHistory,
     updatedAt: new Date().toISOString(),
   };
 }
