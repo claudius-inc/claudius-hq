@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# Auto-push to remote after each commit
+# Ensures commits are always synced to GitHub without manual intervention
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+
+# Only auto-push for branches that track a remote
+if [ -n "$BRANCH" ]; then
+  UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null)
+  if [ -n "$UPSTREAM" ]; then
+    git push origin "$BRANCH" --quiet 2>/dev/null &
+  fi
+fi
