@@ -155,7 +155,7 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
     name: "Deflationary Boom",
     score: 2,
     color: "bg-emerald-100 border-emerald-300 text-emerald-800",
-    description: "Energy efficient + good currency — best for capitalism",
+    description: "Goldilocks — equities & bonds both win, hard assets lag",
     // Gave Ch. 2: "long-duration equities, i.e. growth stocks. Value managers
     // underperform. Government and corporate bonds do well, as does real
     // estate. Basically, any 'long-duration' asset thrives."
@@ -169,7 +169,7 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
     name: "Inflationary Boom",
     score: 0,
     color: "bg-orange-100 border-orange-300 text-orange-800",
-    description: "Energy efficient + bad currency — nominal growth, real erosion",
+    description: "Equities advance but inflation eats real returns",
     // Gave Ch. 2: "scarcity assets, with the most obvious being gold, although
     // commodities more broadly usually outperform. Value managers also do
     // well, as do emerging market managers. In an inflationary boom, bonds
@@ -184,7 +184,7 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
     name: "Deflationary Bust",
     score: 0,
     color: "bg-blue-100 border-blue-300 text-blue-800",
-    description: "Energy inefficient + good currency — recession risk",
+    description: "Recession risk — bonds and cash beat real assets",
     // Gave Ch. 2: "the only assets that rise are long-dated government bonds."
     buySignals: ["Safe government bonds"],
     sellSignals: ["Everything else"],
@@ -193,7 +193,7 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
     name: "Inflationary Bust",
     score: -2,
     color: "bg-red-100 border-red-300 text-red-800",
-    description: "Energy inefficient + bad currency — stagflation, worst scenario",
+    description: "Stocks struggle while oil & gold both run — the worst macro mix",
     // Gave Ch. 2: "very few assets do well. Long-duration assets do especially
     // poorly. Even bonds collapse. At such times, one should own cash, and
     // usually energy since the way the broader economy is often pushed into

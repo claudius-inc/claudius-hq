@@ -42,25 +42,29 @@ const QUADRANT_CELLS = [
     key: "Inflationary Bust",
     label: "Inflationary Bust",
     score: -2,
-    brief: "Stagflation — worst for capitalism",
+    mood: "Stagflation",
+    brief: "Stocks struggle while oil & gold both run — worst macro mix",
   },
   {
     key: "Inflationary Boom",
     label: "Inflationary Boom",
     score: 0,
-    brief: "Nominal growth, real erosion",
+    mood: "Reflation",
+    brief: "Equities advance but inflation eats real returns",
   },
   {
     key: "Deflationary Bust",
     label: "Deflationary Bust",
     score: 0,
-    brief: "Recession risk, seek safety",
+    mood: "Recession",
+    brief: "Recession risk — bonds and cash beat real assets",
   },
   {
     key: "Deflationary Boom",
     label: "Deflationary Boom",
     score: +2,
-    brief: "Best for capitalism",
+    mood: "Goldilocks",
+    brief: "Goldilocks — equities & bonds both win, hard assets lag",
   },
 ] as const;
 
@@ -968,19 +972,20 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
           <div>
             <div className="flex items-center gap-2">
               <span
-                className={`text-base sm:text-lg font-extrabold tracking-tight ${SCORE_COLORS[quadrant.score] ?? "text-gray-600"}`}
+                title="Charles Gave's 4-quadrant macro model. Two axes: equity/oil ratio (energy efficiency) and bond/gold ratio (currency quality), each above or below their 7y moving average."
+                className={`text-base sm:text-lg font-extrabold tracking-tight cursor-help ${SCORE_COLORS[quadrant.score] ?? "text-gray-600"}`}
               >
                 {quadrant.name}
               </span>
               <span
-                className={`text-xs font-bold px-2 py-0.5 rounded-md ${
+                className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md ${
                   quadrant.score === -2
                     ? "bg-red-100 text-red-700"
                     : "bg-gray-100 text-gray-600"
                 }`}
               >
-                {quadrant.score > 0 ? "+" : ""}
-                {quadrant.score}
+                {QUADRANT_CELLS.find((c) => c.key === quadrant.name)?.mood ??
+                  ""}
               </span>
             </div>
             <p className="text-[11px] text-gray-400 leading-tight mt-0.5">
@@ -990,20 +995,26 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div className="hidden sm:flex items-center gap-3 text-[10px] text-gray-400">
-            <span>
+            <span
+              title="S&P 500 ÷ WTI vs its 7y moving average. Below MA = each $ of equities buys less oil than usual, energy is expensive relative to stocks."
+              className="cursor-help"
+            >
               <span className="opacity-60">Energy </span>
               <span
                 className={`font-bold ${energyEfficiency.signal === 1 ? "text-gray-600" : "text-red-600"}`}
               >
-                {energyEfficiency.signal === 1 ? "Boom" : "Bust"}
+                {energyEfficiency.signal === 1 ? "Cheap ↓" : "Expensive ↑"}
               </span>
             </span>
-            <span>
+            <span
+              title="10y UST total return ÷ Gold vs its 7y moving average. Below MA = bonds losing to gold, fiat currency is being debased."
+              className="cursor-help"
+            >
               <span className="opacity-60">Currency </span>
               <span
                 className={`font-bold ${currencyQuality.signal === 1 ? "text-gray-600" : "text-red-600"}`}
               >
-                {currencyQuality.signal === 1 ? "Good" : "Bad"}
+                {currencyQuality.signal === 1 ? "Strong ↑" : "Weak ↓"}
               </span>
             </span>
           </div>
@@ -1045,10 +1056,9 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
                     {cell.label}
                   </div>
                   <div
-                    className={`text-[10px] ${active ? "font-bold" : "opacity-40"}`}
+                    className={`text-[9px] uppercase tracking-wide ${active ? "font-bold" : "opacity-40"}`}
                   >
-                    ({cell.score > 0 ? "+" : ""}
-                    {cell.score})
+                    {cell.mood}
                   </div>
 
                   {/* Tooltip on hover (non-active cells) */}
@@ -1109,11 +1119,17 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
           // QUADRANTS in src/lib/gavekal.ts (Charles Gave, Ch. 2).
           const qDef = {
             "Deflationary Boom": {
-              buy: ["Innovative companies with pricing power", "Long-duration assets"],
+              buy: [
+                "Innovative companies with pricing power",
+                "Long-duration assets",
+              ],
               sell: ["Companies with little pricing power"],
             },
             "Inflationary Boom": {
-              buy: ["Stores of value (real estate, gold, commodities)", "Cyclical producers"],
+              buy: [
+                "Stores of value (real estate, gold, commodities)",
+                "Cyclical producers",
+              ],
               sell: ["Long-term bonds"],
             },
             "Deflationary Bust": {
