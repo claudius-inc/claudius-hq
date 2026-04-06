@@ -5,9 +5,8 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-// v6: portfolioAllocation refactored to single Browne Dynamic (per ebook),
-// no more per-quadrant baskets — invalidate v5 cached payloads
-const CACHE_KEY = "gavekal:quadrant:v6";
+// v7: regime descriptions rewritten in plain English (de-jargonized header)
+const CACHE_KEY = "gavekal:quadrant:v7";
 const CACHE_MAX_AGE = 6 * 60 * 60; // 6 hours — ratios move slowly
 
 export async function GET(request: Request) {
