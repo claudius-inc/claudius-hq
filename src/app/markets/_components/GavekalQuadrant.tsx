@@ -973,17 +973,59 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
 
   if (loading) {
     return (
-      <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-4 w-4" />
-          <Skeleton className="h-4 w-40" />
+      <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4 space-y-3">
+        {/* Header skeleton: icon + (regime name + mood badge + description) + side badges + maximize */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-7 w-7 rounded-lg" />
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-5 w-44" />
+                <Skeleton className="h-4 w-20 rounded-md" />
+              </div>
+              <Skeleton className="h-3 w-64" />
+            </div>
+          </div>
+          <div className="hidden sm:flex items-center gap-3">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-3.5 w-3.5" />
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
+
+        {/* Main row: 2x2 quadrant grid + allocation table */}
+        <div className="flex flex-col lg:flex-row gap-3">
+          {/* Quadrant grid skeleton */}
+          <div className="flex-1 min-w-0">
+            <div className="grid grid-cols-2 gap-1.5">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full rounded-lg" />
+              ))}
+            </div>
+            <div className="flex justify-between mt-1.5">
+              <Skeleton className="h-2 w-24" />
+              <Skeleton className="h-2 w-24" />
+            </div>
+          </div>
+
+          {/* Allocation table skeleton */}
+          <div className="lg:w-[280px] shrink-0">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-2.5 space-y-2">
+              <Skeleton className="h-3 w-32" />
+              <div className="space-y-2 pt-1">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2">
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-3 w-24" />
+                      <Skeleton className="h-2 w-32" />
+                    </div>
+                    <Skeleton className="h-3 w-8" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
-        <Skeleton className="h-10 w-full" />
       </div>
     );
   }
