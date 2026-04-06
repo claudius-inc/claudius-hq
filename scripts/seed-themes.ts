@@ -54,6 +54,26 @@ const THEMES = [
     description: "Utility companies with significant nuclear power generation",
     stocks: ["VST", "CEG", "NRG", "PEG"],
   },
+  {
+    name: "Bitcoin Proxies",
+    description: "Companies with significant Bitcoin exposure: miners, holders, and crypto infrastructure",
+    stocks: ["MSTR", "COIN", "MARA", "CLSK", "RIOT", "HUT"],
+  },
+  {
+    name: "China EV",
+    description: "Chinese electric vehicle manufacturers and key supply chain companies",
+    stocks: ["NIO", "XPEV", "LI", "BYD", "KNDI", "ZK"],
+  },
+  {
+    name: "China Healthcare Innovation",
+    description: "Chinese biotech and healthcare companies pioneering drug development and medical devices",
+    stocks: ["BGNE", "ZLAB", "LEGN", "BNTX", "HRMY", "VNET"],
+  },
+  {
+    name: "Agricultural Commodities",
+    description: "Companies in agricultural production, fertilizers, and farming equipment",
+    stocks: ["ADM", "BG", "CTVA", "MOS", "NTR", "CF"],
+  },
 ];
 
 async function seed() {
