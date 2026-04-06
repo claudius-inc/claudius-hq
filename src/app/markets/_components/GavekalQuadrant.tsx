@@ -9,6 +9,7 @@ import {
   Shield,
   Fuel,
   Coins,
+  Landmark,
   ChevronDown,
   ChevronUp,
   AlertTriangle,
@@ -160,6 +161,12 @@ function RatioChart({
   const pct = ((ratio.current - ratio.ma7y) / ratio.ma7y) * 100;
   const intensity = deviationIntensity(ratio.current, ratio.ma7y);
 
+  // The currency-quality ratio (10y UST total return / gold) maps directly
+  // to a Browne Dynamic asset choice (Gave, Ch. 8): above MA → hold bonds,
+  // below MA → hold gold. Detect it and render the chart with regime
+  // background shading + an actionable top-right label.
+  const isCurrencyChart = ratio.label.includes("Gold");
+
   if (!ratio.history.length) return null;
 
   const values = ratio.history.map((h) => h.value);
@@ -209,6 +216,30 @@ function RatioChart({
     }
   }
 
+  // Regime segments — contiguous runs on the same side of the MA. Used by
+  // the currency chart for background shading. Skip the bootstrap window
+  // where MA is still null.
+  const regimeSegments: { startIdx: number; endIdx: number; above: boolean }[] = [];
+  if (isCurrencyChart) {
+    let segStart: number | null = null;
+    let segAbove: boolean | null = null;
+    for (let i = 0; i < values.length; i++) {
+      if (mas[i] === null) continue;
+      const isAbove = values[i] > mas[i]!;
+      if (segStart === null) {
+        segStart = i;
+        segAbove = isAbove;
+      } else if (isAbove !== segAbove) {
+        regimeSegments.push({ startIdx: segStart, endIdx: i, above: segAbove! });
+        segStart = i;
+        segAbove = isAbove;
+      }
+    }
+    if (segStart !== null && segAbove !== null) {
+      regimeSegments.push({ startIdx: segStart, endIdx: values.length - 1, above: segAbove });
+    }
+  }
+
   // Date axis labels — pick a year-step that yields ~5 readable labels
   // regardless of how many years the chart spans.
   const dateLabels: { idx: number; label: string }[] = [];
@@ -233,11 +264,20 @@ function RatioChart({
 
   const hoverPoint = hoverIdx !== null ? ratio.history[hoverIdx] : null;
 
-  // Neutral by default; only highlight negative deviation (below MA) with red.
-  // Intensity scales the alpha so larger downside moves read more strongly.
-  const pctColor = above
-    ? `rgba(75, 85, 99, ${0.5 + intensity * 0.5})` // gray-600
-    : `rgba(239, 68, 68, ${0.4 + intensity * 0.6})`; // red-500
+  // Neutral by default; only highlight negative deviation (below MA) with
+  // red. Intensity scales the alpha so larger downside moves read more
+  // strongly. The currency chart is exempt: "below MA" there just means
+  // hold gold instead of bonds, not a bearish signal.
+  const pctColor = isCurrencyChart
+    ? "rgba(75, 85, 99, 0.7)" // gray-600
+    : above
+      ? `rgba(75, 85, 99, ${0.5 + intensity * 0.5})` // gray-600
+      : `rgba(239, 68, 68, ${0.4 + intensity * 0.6})`; // red-500
+  const pctBgColor = isCurrencyChart
+    ? "rgba(75, 85, 99, 0.08)"
+    : above
+      ? `rgba(75, 85, 99, ${0.05 + intensity * 0.1})`
+      : `rgba(239, 68, 68, ${0.05 + intensity * 0.1})`;
 
   // Methodology tooltip for the currency ratio (only chart that uses a
   // synthetic series for historical data).
@@ -254,16 +294,29 @@ function RatioChart({
             {ratio.label}
           </span>
         </div>
-        <div
-          className={`flex items-center gap-0.5 text-xs font-bold ${above ? "text-gray-600" : "text-red-600"}`}
-        >
-          {above ? (
-            <TrendingUp className="w-3 h-3" />
-          ) : (
-            <TrendingDown className="w-3 h-3" />
-          )}
-          {above ? "Above" : "Below"} 7yMA
-        </div>
+        {isCurrencyChart ? (
+          <div
+            className={`flex items-center gap-1 text-xs font-bold ${above ? "text-blue-600" : "text-amber-600"}`}
+          >
+            {above ? (
+              <Landmark className="w-3 h-3" />
+            ) : (
+              <Coins className="w-3 h-3" />
+            )}
+            {above ? "Hold 10y Treasuries" : "Hold gold"}
+          </div>
+        ) : (
+          <div
+            className={`flex items-center gap-0.5 text-xs font-bold ${above ? "text-gray-600" : "text-red-600"}`}
+          >
+            {above ? (
+              <TrendingUp className="w-3 h-3" />
+            ) : (
+              <TrendingDown className="w-3 h-3" />
+            )}
+            {above ? "Above" : "Below"} 7yMA
+          </div>
+        )}
       </div>
 
       <div className="flex items-baseline gap-2 mb-2">
@@ -277,9 +330,7 @@ function RatioChart({
           className="text-xs font-bold px-1.5 py-0.5 rounded"
           style={{
             color: pctColor,
-            backgroundColor: above
-              ? `rgba(75, 85, 99, ${0.05 + intensity * 0.1})`
-              : `rgba(239, 68, 68, ${0.05 + intensity * 0.1})`,
+            backgroundColor: pctBgColor,
           }}
         >
           {pct >= 0 ? "+" : ""}
@@ -324,6 +375,29 @@ function RatioChart({
           if (idx >= 0 && idx < values.length) setHoverIdx(idx);
         }}
       >
+        {/* Regime background bands — currency chart only. Each rect spans
+            a contiguous run on one side of the MA: blue = hold bonds,
+            amber = hold gold (Charles Gave, Ch. 8). */}
+        {isCurrencyChart &&
+          regimeSegments.map((seg, i) => {
+            const x1 = toX(seg.startIdx);
+            const x2 = toX(seg.endIdx);
+            return (
+              <rect
+                key={`regime-${i}`}
+                x={x1}
+                y={0}
+                width={x2 - x1}
+                height={chartH}
+                fill={
+                  seg.above
+                    ? "rgba(59, 130, 246, 0.08)"
+                    : "rgba(245, 158, 11, 0.10)"
+                }
+              />
+            );
+          })}
+
         {/* Fill area — neutral gray */}
         <path d={fillPath} fill="#6b728015" />
 
