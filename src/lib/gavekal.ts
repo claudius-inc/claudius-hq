@@ -21,7 +21,10 @@ import YahooFinance from "yahoo-finance2";
 import { db, gavekalPrices } from "@/db";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { logger } from "./logger";
-import { loadHistoricalRegimeHistory } from "./gavekal-historical";
+import {
+  loadHistoricalRegimeHistory,
+  loadHistoricalRatioHistories,
+} from "./gavekal-historical";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -822,7 +825,7 @@ export async function computeGavekalQuadrant(
   const goldWtiAligned = alignWeeklySeries(gold, wti);
 
   const energyEfficiency = buildRatio(energyAligned, "S&P 500 / WTI", maWeeks);
-  const currencyQuality = buildRatio(currencyAligned, "10Y UST (IEF) / Gold", maWeeks);
+  const currencyQuality = buildRatio(currencyAligned, "10Y UST Total Return / Gold", maWeeks);
   const spGoldRatio = buildRatio(spGoldAligned, "S&P 500 / Gold", maWeeks);
   const goldWtiRatio = buildRatio(goldWtiAligned, "Gold / WTI", maWeeks);
 
@@ -883,10 +886,17 @@ export async function computeGavekalQuadrant(
     });
   }
 
-  // Prefer the long-history monthly regime computation (1928–present) seeded
-  // by scripts/seed-gavekal-historical.ts. Fall back to the short weekly
-  // regime if the historical tables haven't been seeded yet.
+  // Prefer the long-history monthly regime computation (1971–present) seeded
+  // by scripts/seed-gavekal-historical.ts. Also overwrite the per-ratio
+  // history arrays so the RatioChart shows 50+ years instead of just the
+  // weekly Yahoo window. The live current/ma7y/signal stay as-is so the
+  // displayed quadrant + values remain fresh from today's IEF/Yahoo data.
   let regimeHistory: GavekalRegimePoint[] = await loadHistoricalRegimeHistory();
+  const histRatios = await loadHistoricalRatioHistories();
+  if (histRatios) {
+    energyEfficiency.history = histRatios.energy;
+    currencyQuality.history = histRatios.currency;
+  }
   if (regimeHistory.length === 0) {
     regimeHistory = buildRegimeHistory(
       energyEfficiency.history,

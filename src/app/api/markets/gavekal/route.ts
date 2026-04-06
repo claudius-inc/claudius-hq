@@ -5,8 +5,8 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-// v3: regime history now sourced from monthly historical pipeline (1928+)
-const CACHE_KEY = "gavekal:quadrant:v3";
+// v5: ratio chart histories now sourced from monthly historical pipeline (1971+)
+const CACHE_KEY = "gavekal:quadrant:v5";
 const CACHE_MAX_AGE = 6 * 60 * 60; // 6 hours — ratios move slowly
 
 export async function GET(request: Request) {
