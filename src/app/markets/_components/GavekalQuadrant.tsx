@@ -205,14 +205,25 @@ function RatioChart({
     }
   }
 
-  // Date axis labels — show years
+  // Date axis labels — pick a year-step that yields ~5 readable labels
+  // regardless of how many years the chart spans.
   const dateLabels: { idx: number; label: string }[] = [];
-  let lastYear = "";
-  for (let i = 0; i < ratio.history.length; i++) {
-    const year = ratio.history[i].date.substring(0, 4);
-    if (year !== lastYear) {
-      dateLabels.push({ idx: i, label: year });
-      lastYear = year;
+  if (ratio.history.length > 0) {
+    const firstYear = parseInt(ratio.history[0].date.substring(0, 4), 10);
+    const lastYear = parseInt(
+      ratio.history[ratio.history.length - 1].date.substring(0, 4),
+      10,
+    );
+    const yearSpan = lastYear - firstYear;
+    const yearStep =
+      yearSpan <= 6 ? 1 : yearSpan <= 12 ? 2 : yearSpan <= 30 ? 5 : 10;
+    let lastEmittedYear = -Infinity;
+    for (let i = 0; i < ratio.history.length; i++) {
+      const year = parseInt(ratio.history[i].date.substring(0, 4), 10);
+      if (year - lastEmittedYear >= yearStep) {
+        dateLabels.push({ idx: i, label: String(year) });
+        lastEmittedYear = year;
+      }
     }
   }
 
@@ -224,8 +235,14 @@ function RatioChart({
     ? `rgba(75, 85, 99, ${0.5 + intensity * 0.5})` // gray-600
     : `rgba(239, 68, 68, ${0.4 + intensity * 0.6})`; // red-500
 
+  // Methodology tooltip for the currency ratio (only chart that uses a
+  // synthetic series for historical data).
+  const wrapperTitle = ratio.label.includes("Gold")
+    ? "Bond total return / gold price vs 7y MA. 2002+ uses IEF ETF data; pre-2002 historical regimes use a synthetic 10y constant-maturity Treasury total return computed from Shiller monthly yields. Historical regime classification starts 1971 (post-Bretton-Woods)."
+    : undefined;
+
   return (
-    <div className="bg-gray-50 rounded-lg p-3">
+    <div className="bg-gray-50 rounded-lg p-3" title={wrapperTitle}>
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-1.5">
           {icon}
@@ -461,12 +478,13 @@ function RegimeTimeline({ history }: { history: GavekalRegimePoint[] }) {
   const currentColor =
     REGIME_TIMELINE_COLORS[currentSegment.quadrant] ?? "#9ca3af";
 
-  // Year tick marks across the full span. Cadence adapts to span length so
-  // we never crowd the axis: ≤8y → yearly, ≤20y → every 2y, otherwise every 5y.
+  // Year tick marks across the full span. Cadence adapts so we land on
+  // ~5–6 readable labels regardless of total span.
   const startYear = new Date(startMs).getFullYear();
   const endYear = new Date(endMs).getFullYear();
   const yearSpan = endYear - startYear;
-  const yearStep = yearSpan <= 8 ? 1 : yearSpan <= 20 ? 2 : 5;
+  const yearStep =
+    yearSpan <= 6 ? 1 : yearSpan <= 12 ? 2 : yearSpan <= 30 ? 5 : 10;
   const yearTicks: { year: number; pct: number }[] = [];
   const firstTick = Math.ceil(startYear / yearStep) * yearStep;
   for (let y = firstTick; y <= endYear; y += yearStep) {
@@ -1053,7 +1071,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
                         {energyEfficiency.ma7y.toFixed(2)} MA
                       </div>
                       <div className="opacity-70">
-                        IEF/Gold: {currencyQuality.current.toFixed(2)} vs{" "}
+                        UST/Gold: {currencyQuality.current.toFixed(2)} vs{" "}
                         {currencyQuality.ma7y.toFixed(2)} MA
                       </div>
                     </div>

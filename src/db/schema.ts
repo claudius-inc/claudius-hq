@@ -418,7 +418,7 @@ export type NewAcpOffering = typeof acpOfferings.$inferInsert;
 
 export const gavekalPrices = sqliteTable("gavekal_prices", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  symbol: text("symbol").notNull(), // ^GSPC, CL=F, GC=F, IEF
+  symbol: text("symbol").notNull(), // ^GSPC, CL=F, GC=F, IEF + _M historical monthly variants
   date: text("date").notNull(), // YYYY-MM-DD
   close: real("close").notNull(),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
