@@ -94,6 +94,41 @@ export interface GavekalRegimeReturns {
   cash: number;
 }
 
+export interface PortfolioAllocation {
+  asset: string;
+  vehicle: string;
+  weight: string;
+}
+
+const REGIME_ALLOCATIONS: Record<string, PortfolioAllocation[]> = {
+  "Inflationary Bust": [
+    { asset: "Cash / T-bills", vehicle: "SHV / BIL / MAS T-bills", weight: "25%" },
+    { asset: "Gold", vehicle: "GLD / IAU", weight: "25%" },
+    { asset: "Broad equities", vehicle: "VOO / SPY", weight: "25%" },
+    { asset: "Energy equities", vehicle: "XLE", weight: "20-25%" },
+  ],
+  "Inflationary Boom": [
+    { asset: "Gold & commodities", vehicle: "GLD / DJP / GSG", weight: "30%" },
+    { asset: "Value equities", vehicle: "VTV / RPV", weight: "25%" },
+    { asset: "Real estate", vehicle: "VNQ / XLRE", weight: "20%" },
+    { asset: "EM equities", vehicle: "VWO / EEM", weight: "15%" },
+    { asset: "Cash", vehicle: "SHV / BIL", weight: "10%" },
+  ],
+  "Deflationary Boom": [
+    { asset: "Growth equities", vehicle: "QQQ / VUG / SPY", weight: "40%" },
+    { asset: "Long-duration bonds", vehicle: "TLT / ZROZ", weight: "25%" },
+    { asset: "Corporate bonds", vehicle: "LQD / VCIT", weight: "20%" },
+    { asset: "Real estate", vehicle: "VNQ", weight: "10%" },
+    { asset: "Cash", vehicle: "SHV", weight: "5%" },
+  ],
+  "Deflationary Bust": [
+    { asset: "Government bonds", vehicle: "TLT / IEF / GOVT", weight: "35%" },
+    { asset: "Cash / T-bills", vehicle: "SHV / BIL / SGOV", weight: "30%" },
+    { asset: "Defensive equities", vehicle: "XLU / XLP / SPLV", weight: "20%" },
+    { asset: "Gold", vehicle: "GLD", weight: "15%" },
+  ],
+};
+
 export interface GavekalDataQuality {
   symbolStatus: Record<string, "ok" | "stale" | "missing">;
   dataPoints: number;
@@ -116,6 +151,7 @@ export interface GavekalData {
   xle?: GavekalXleData;
   changelog?: GavekalChangeEvent[];
   regimeReturns?: Record<string, GavekalRegimeReturns>;
+  portfolioAllocation?: PortfolioAllocation[];
   updatedAt: string;
 }
 
@@ -871,8 +907,34 @@ export async function computeGavekalQuadrant(
     xle: xleData,
     changelog,
     regimeReturns: REGIME_RETURNS,
+    portfolioAllocation: buildPortfolioAllocation(quadrant.name, currencyQuality.signal),
     updatedAt: new Date().toISOString(),
   };
+}
+
+// ── Portfolio allocation (dynamic Gold/TLT based on currency signal) ────────
+
+function buildPortfolioAllocation(
+  quadrantName: string,
+  currencySignal: 1 | -1,
+): PortfolioAllocation[] {
+  const base = REGIME_ALLOCATIONS[quadrantName];
+  if (!base) return [];
+
+  return base.map((row) => {
+    // Dynamic Gold vs Bonds: if currency quality is good (signal=1), recommend TLT; else GLD
+    if (row.asset === "Gold" && quadrantName === "Inflationary Bust") {
+      return currencySignal === 1
+        ? { ...row, asset: "Bonds", vehicle: "TLT / IEF" }
+        : row;
+    }
+    if (row.asset === "Gold" && quadrantName === "Deflationary Bust") {
+      return currencySignal === 1
+        ? { ...row, asset: "Bonds", vehicle: "TLT / IEF" }
+        : row;
+    }
+    return row;
+  });
 }
 
 // ── Historical quadrant time series (full resolution) ──────────────────────

@@ -29,6 +29,7 @@ import type {
   GavekalXleData,
   GavekalChangeEvent,
   GavekalRegimeReturns,
+  PortfolioAllocation,
 } from "./types";
 
 interface GavekalQuadrantProps {
@@ -737,6 +738,49 @@ function RegimeReturnsPanel({
   );
 }
 
+// ── Portfolio Allocation Table ──────────────────────────────────────────────
+
+function AllocationTable({
+  allocations,
+  regimeName,
+}: {
+  allocations: PortfolioAllocation[];
+  regimeName: string;
+}) {
+  const bgColor = REGIME_BG_COLORS[regimeName] ?? "bg-gray-50";
+  const textColor = REGIME_TEXT_COLORS[regimeName] ?? "text-gray-700";
+  const borderColor = REGIME_BORDER_COLORS[regimeName] ?? "border-gray-200";
+
+  return (
+    <div className={`rounded-lg border ${borderColor} ${bgColor} p-2.5`}>
+      <div className="flex items-center gap-1.5 mb-2">
+        <Shield className="w-3.5 h-3.5 text-gray-400" />
+        <span className={`text-[11px] font-semibold ${textColor}`}>
+          Recommended Allocation
+        </span>
+      </div>
+      <table className="w-full text-[10px]">
+        <thead>
+          <tr className={`${textColor} border-b ${borderColor}`}>
+            <th className="text-left font-semibold pb-1 pr-2">Asset</th>
+            <th className="text-left font-semibold pb-1 pr-2">Vehicle</th>
+            <th className="text-right font-semibold pb-1">Weight</th>
+          </tr>
+        </thead>
+        <tbody>
+          {allocations.map((row, i) => (
+            <tr key={i} className="border-b border-black/5 last:border-0">
+              <td className="py-1 pr-2 text-gray-700 font-medium">{row.asset}</td>
+              <td className="py-1 pr-2 text-gray-500 font-mono text-[9px]">{row.vehicle}</td>
+              <td className="py-1 text-right font-bold text-gray-800">{row.weight}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
@@ -858,73 +902,88 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
         </div>
       </button>
 
-      {/* Quadrant Grid — interactive with hover tooltips and regime-consistent colors */}
-      <div className="grid grid-cols-2 gap-1.5">
-        {QUADRANT_CELLS.map((cell) => {
-          const active = cell.key === quadrant.name;
-          const hovered = hoveredCell === cell.key;
-          const selected = selectedCell === cell.key;
+      {/* Quadrant Grid + Allocation Table — side by side on lg+ */}
+      <div className="flex flex-col lg:flex-row gap-3">
+        {/* Quadrant Grid */}
+        <div className="flex-1 min-w-0">
+          <div className="grid grid-cols-2 gap-1.5">
+            {QUADRANT_CELLS.map((cell) => {
+              const active = cell.key === quadrant.name;
+              const hovered = hoveredCell === cell.key;
+              const selected = selectedCell === cell.key;
 
-          return (
-            <div
-              key={cell.key}
-              className={`relative rounded-lg px-2.5 py-2 text-center transition-all duration-300 ease-out border-2 cursor-pointer ${
-                active
-                  ? QUADRANT_ACTIVE[cell.key]
-                  : selected
-                    ? `${REGIME_BG_COLORS[cell.key] ?? "bg-gray-50"} ${REGIME_TEXT_COLORS[cell.key] ?? "text-gray-600"} ${REGIME_BORDER_COLORS[cell.key] ?? "border-gray-200"} opacity-80`
-                    : "bg-gray-50 text-gray-400 border-transparent hover:bg-gray-100"
-              }`}
-              onClick={() => setSelectedCell(selected ? null : cell.key)}
-              onMouseEnter={() => setHoveredCell(cell.key)}
-              onMouseLeave={() => setHoveredCell(null)}
-            >
-              <div
-                className={`text-[10px] font-semibold ${active ? "" : "opacity-60"}`}
-              >
-                {cell.label}
-              </div>
-              <div
-                className={`text-[10px] ${active ? "font-bold" : "opacity-40"}`}
-              >
-                ({cell.score > 0 ? "+" : ""}
-                {cell.score})
-              </div>
+              return (
+                <div
+                  key={cell.key}
+                  className={`relative rounded-lg px-2.5 py-2 text-center transition-all duration-300 ease-out border-2 cursor-pointer ${
+                    active
+                      ? QUADRANT_ACTIVE[cell.key]
+                      : selected
+                        ? `${REGIME_BG_COLORS[cell.key] ?? "bg-gray-50"} ${REGIME_TEXT_COLORS[cell.key] ?? "text-gray-600"} ${REGIME_BORDER_COLORS[cell.key] ?? "border-gray-200"} opacity-80`
+                        : "bg-gray-50 text-gray-400 border-transparent hover:bg-gray-100"
+                  }`}
+                  onClick={() => setSelectedCell(selected ? null : cell.key)}
+                  onMouseEnter={() => setHoveredCell(cell.key)}
+                  onMouseLeave={() => setHoveredCell(null)}
+                >
+                  <div
+                    className={`text-[10px] font-semibold ${active ? "" : "opacity-60"}`}
+                  >
+                    {cell.label}
+                  </div>
+                  <div
+                    className={`text-[10px] ${active ? "font-bold" : "opacity-40"}`}
+                  >
+                    ({cell.score > 0 ? "+" : ""}
+                    {cell.score})
+                  </div>
 
-              {/* Tooltip on hover (non-active cells) */}
-              {hovered && !active && (
-                <div className="absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 w-40 bg-gray-800 text-white text-[9px] rounded-md px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in">
-                  <div className="font-semibold mb-0.5">{cell.label}</div>
-                  <div className="opacity-80">{cell.brief}</div>
+                  {/* Tooltip on hover (non-active cells) */}
+                  {hovered && !active && (
+                    <div className="absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 w-40 bg-gray-800 text-white text-[9px] rounded-md px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in">
+                      <div className="font-semibold mb-0.5">{cell.label}</div>
+                      <div className="opacity-80">{cell.brief}</div>
+                    </div>
+                  )}
+
+                  {/* Tooltip on hover (active cell — show current data) */}
+                  {hovered && active && (
+                    <div className="absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 w-48 bg-gray-800 text-white text-[9px] rounded-md px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in">
+                      <div className="font-semibold mb-0.5">
+                        Current: {cell.label}
+                      </div>
+                      <div className="opacity-80">{quadrant.description}</div>
+                      <div className="mt-1 pt-1 border-t border-gray-600 opacity-70">
+                        S&P/WTI: {energyEfficiency.current.toFixed(2)} vs{" "}
+                        {energyEfficiency.ma7y.toFixed(2)} MA
+                      </div>
+                      <div className="opacity-70">
+                        IEF/Gold: {currencyQuality.current.toFixed(2)} vs{" "}
+                        {currencyQuality.ma7y.toFixed(2)} MA
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              );
+            })}
+          </div>
 
-              {/* Tooltip on hover (active cell — show current data) */}
-              {hovered && active && (
-                <div className="absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 w-48 bg-gray-800 text-white text-[9px] rounded-md px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in">
-                  <div className="font-semibold mb-0.5">
-                    Current: {cell.label}
-                  </div>
-                  <div className="opacity-80">{quadrant.description}</div>
-                  <div className="mt-1 pt-1 border-t border-gray-600 opacity-70">
-                    S&P/WTI: {energyEfficiency.current.toFixed(2)} vs{" "}
-                    {energyEfficiency.ma7y.toFixed(2)} MA
-                  </div>
-                  <div className="opacity-70">
-                    IEF/Gold: {currencyQuality.current.toFixed(2)} vs{" "}
-                    {currencyQuality.ma7y.toFixed(2)} MA
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+          {/* Axis labels */}
+          <div className="flex justify-between text-[9px] text-gray-300 px-1 mt-1.5">
+            <span>Bad currency (inflation)</span>
+            <span>Good currency (deflation)</span>
+          </div>
+        </div>
 
-      {/* Axis labels */}
-      <div className="flex justify-between text-[9px] text-gray-300 px-1">
-        <span>Bad currency (inflation)</span>
-        <span>Good currency (deflation)</span>
+        {/* Portfolio Allocation Table */}
+        {data.portfolioAllocation && data.portfolioAllocation.length > 0 && (
+          <div className="lg:w-[280px] shrink-0">
+            <AllocationTable
+              allocations={data.portfolioAllocation}
+              regimeName={quadrant.name}
+            />
+          </div>
+        )}
       </div>
 
       {/* Selected quadrant detail panel */}
