@@ -5,7 +5,7 @@ import { computeGavekalQuadrant } from "@/lib/gavekal";
 import { fetchValuationData } from "@/lib/valuation";
 import { fetchSentimentData } from "@/lib/sentiment";
 import { fetchBreadthData } from "@/lib/breadth";
-import { fetchThemesLite, fetchThemePrices } from "@/lib/themes";
+import { fetchThemePerformanceAll } from "@/lib/themes";
 
 export const dynamic = "force-dynamic";
 
@@ -154,12 +154,15 @@ function quadrantToColor(name: string): string {
 
 async function fetchAllocationSignal(): Promise<AllocationSignalResponse> {
   // All data fetched via direct imports — no HTTP self-fetches
-  const [gavekalData, valuationRes, sentimentRes, breadthRes, themesRes] = await Promise.all([
+  const [gavekalData, valuationRes, sentimentRes, breadthRes, themesPerfRes] = await Promise.all([
     computeGavekalQuadrant().catch(() => null),
     fetchValuationData().catch(() => null),
     fetchSentimentData().catch(() => null),
     fetchBreadthData().catch(() => null),
-    fetchThemesLite().catch(() => null),
+    fetchThemePerformanceAll().catch((e) => {
+      logger.error("allocation-signal", "Failed to fetch theme performance", { error: e });
+      return null;
+    }),
   ]);
 
   // Regime from Gavekal
@@ -181,55 +184,18 @@ async function fetchAllocationSignal(): Promise<AllocationSignalResponse> {
     breadthRes ?? null,
   );
 
-  // Theme top 3 by 1M performance
+  // Theme top 3 by 1M performance — uses pre-aggregated rows from fetchThemePerformanceAll
   let top3Themes: Array<{ name: string; perf1m: number; crowding: number | null }> = [];
-  if (themesRes?.themes && Array.isArray(themesRes.themes)) {
-    const allTickers = new Set<string>();
-    for (const theme of themesRes.themes) {
-      if (theme.stocks) {
-        for (const t of theme.stocks) allTickers.add(t);
-      }
-    }
-
-    if (allTickers.size > 0) {
-      try {
-        const tickers = Array.from(allTickers);
-        const pricesData = await fetchThemePrices(tickers);
-        const prices = pricesData.prices || {};
-
-        const themesWithPerf = themesRes.themes.map((theme) => {
-          const stockPerfs: number[] = [];
-          for (const ticker of theme.stocks || []) {
-            const p = prices[ticker];
-            if (p?.performance_1m != null) stockPerfs.push(p.performance_1m);
-          }
-          const avgPerf = stockPerfs.length > 0
-            ? stockPerfs.reduce((a: number, b: number) => a + b, 0) / stockPerfs.length
-            : null;
-
-          const basket = pricesData.basket;
-          const crowding = basket?.crowdingScore ?? null;
-
-          return {
-            name: theme.name,
-            perf1m: avgPerf,
-            crowding,
-          };
-        });
-
-        top3Themes = themesWithPerf
-          .filter((t: { perf1m: number | null }) => t.perf1m != null)
-          .sort((a: { perf1m: number | null }, b: { perf1m: number | null }) => (b.perf1m ?? 0) - (a.perf1m ?? 0))
-          .slice(0, 3)
-          .map((t: { name: string; perf1m: number | null; crowding: number | null }) => ({
-            name: t.name,
-            perf1m: Math.round((t.perf1m ?? 0) * 100) / 100,
-            crowding: t.crowding,
-          }));
-      } catch (e) {
-        logger.error("allocation-signal", "Failed to fetch theme prices", { error: e });
-      }
-    }
+  if (themesPerfRes?.themes) {
+    top3Themes = themesPerfRes.themes
+      .filter((t) => t.performance_1m != null)
+      .sort((a, b) => (b.performance_1m ?? 0) - (a.performance_1m ?? 0))
+      .slice(0, 3)
+      .map((t) => ({
+        name: t.name,
+        perf1m: Math.round((t.performance_1m ?? 0) * 100) / 100,
+        crowding: t.crowdingScore,
+      }));
   }
 
   const bias = buildBiasLine(regime, valuation, top3Themes);

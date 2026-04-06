@@ -14,6 +14,7 @@ export const CACHE_KEYS = {
   OIL: "oil:data",
   MACRO: "macro:data:v2",
   THEMES: "themes:data",
+  THEMES_PERFORMANCE: "themes:performance",
   TRENDING: "trending:data",
   REGIME: "regime:data",
   SENTIMENT: "sentiment:data",
