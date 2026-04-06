@@ -204,6 +204,12 @@ export interface GavekalRegimeReturns {
   cash: number;
 }
 
+export interface PortfolioAllocation {
+  asset: string;
+  vehicle: string;
+  weight: string;
+}
+
 export interface GavekalData {
   quadrant: GavekalQuadrantData;
   energyEfficiency: GavekalRatioData;
@@ -217,6 +223,7 @@ export interface GavekalData {
   xle?: GavekalXleData;
   changelog?: GavekalChangeEvent[];
   regimeReturns?: Record<string, GavekalRegimeReturns>;
+  portfolioAllocation?: PortfolioAllocation[];
   updatedAt: string;
 }
 
