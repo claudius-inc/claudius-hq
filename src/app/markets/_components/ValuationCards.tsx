@@ -235,15 +235,37 @@ export function ValuationCards() {
           Market Valuations
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-6 w-6 rounded" />
-                <Skeleton className="h-4 w-24" />
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="card p-4 space-y-3 min-h-[180px]">
+              {/* Header: flag + country + zone badge */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-6 w-6 rounded" />
+                  <div>
+                    <Skeleton className="h-4 w-20 mb-0.5" />
+                    <Skeleton className="h-2.5 w-16" />
+                  </div>
+                </div>
+                <Skeleton className="h-4 w-[72px] rounded-full" />
               </div>
-              <Skeleton className="h-6 w-16" />
+              {/* Primary metric */}
+              <div className="flex items-baseline justify-between">
+                <Skeleton className="h-6 w-14" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              {/* Range bar */}
               <Skeleton className="h-2.5 w-full rounded-full" />
-              <Skeleton className="h-3 w-32" />
+              {/* Secondary metrics & change */}
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-2.5 w-14" />
+                  <Skeleton className="h-2.5 w-14" />
+                </div>
+                <div className="flex items-center gap-0.5">
+                  <Skeleton className="h-3 w-3" />
+                  <Skeleton className="h-2.5 w-10" />
+                </div>
+              </div>
             </div>
           ))}
         </div>
