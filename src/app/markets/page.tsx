@@ -9,7 +9,8 @@ import { MarketMood } from "./_components/MarketMood";
 import { Barometers } from "./_components/Barometers";
 import { HardAssets } from "./_components/HardAssets";
 import { Indicators } from "./_components/Indicators";
-import { RegimeAndValuations } from "./_components/RegimeAndValuations";
+import { GavekalQuadrant } from "./_components/GavekalQuadrant";
+import { CompactValuationStrip } from "./_components/CompactValuationStrip";
 import { AllocationSignal } from "./_components/AllocationSignal";
 import { ThemeLeaderboardLite } from "./_components/ThemeLeaderboardLite";
 import { MacroToggle } from "./_components/MacroToggle";
@@ -180,7 +181,16 @@ export default function StocksDashboard() {
           <AllocationSignal />
         </div>
 
-        <RegimeAndValuations gavekalData={gavekalData} loadingGavekal={loading.gavekal} />
+        <div className="col-span-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            <div className="lg:col-span-2">
+              <GavekalQuadrant data={gavekalData} loading={loading.gavekal} />
+            </div>
+            <div className="lg:col-span-1">
+              <CompactValuationStrip />
+            </div>
+          </div>
+        </div>
 
         <div className="col-span-full">
           <ThemeLeaderboardLite />
