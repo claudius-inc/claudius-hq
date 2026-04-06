@@ -21,6 +21,7 @@ import YahooFinance from "yahoo-finance2";
 import { db, gavekalPrices } from "@/db";
 import { eq, and, gte, desc } from "drizzle-orm";
 import { logger } from "./logger";
+import { loadHistoricalRegimeHistory } from "./gavekal-historical";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -522,10 +523,12 @@ function buildRatio(
   const ratios = aligned.map((r) => r.aClose / r.bClose);
   const mas = computeMovingAverage(ratios, maWeeks);
 
-  // Build history (last 520 weeks ~ 10 years, sampled monthly for size)
-  // Show ratio for all points; MA is null until the 7-year warmup completes
+  // Sample full available history at monthly resolution for payload efficiency.
+  // Show ratio for all points; MA is null until the 7-year warmup completes,
+  // so the leading 7 years of points carry no regime signal — but they still
+  // appear on the ratio chart.
   const history: { date: string; value: number; ma: number | null }[] = [];
-  for (let i = Math.max(0, ratios.length - 520); i < ratios.length; i += 4) {
+  for (let i = 0; i < ratios.length; i += 4) {
     history.push({
       date: aligned[i].date,
       value: Math.round(ratios[i] * 10000) / 10000,
@@ -755,7 +758,9 @@ export async function computeGavekalQuadrant(
   options?: ComputeGavekalOptions,
 ): Promise<GavekalData> {
   const maWeeks = options?.maWeeks ?? DEFAULT_MA_WEEKS;
-  const historyYears = options?.historyYears ?? 10;
+  // 23y is the practical max — IEF (the youngest series) only exists from 2002.
+  // After the 7y MA warmup this yields ~16y of regime classification.
+  const historyYears = options?.historyYears ?? 23;
 
   // Fetch all four series with per-symbol error isolation, plus XLE in parallel
   const [symbolResults, xleData] = await Promise.all([
@@ -873,11 +878,16 @@ export async function computeGavekalQuadrant(
     });
   }
 
-  // Build regime history from the sampled ratio history points
-  const regimeHistory = buildRegimeHistory(
-    energyEfficiency.history,
-    currencyQuality.history,
-  );
+  // Prefer the long-history monthly regime computation (1928–present) seeded
+  // by scripts/seed-gavekal-historical.ts. Fall back to the short weekly
+  // regime if the historical tables haven't been seeded yet.
+  let regimeHistory: GavekalRegimePoint[] = await loadHistoricalRegimeHistory();
+  if (regimeHistory.length === 0) {
+    regimeHistory = buildRegimeHistory(
+      energyEfficiency.history,
+      currencyQuality.history,
+    );
+  }
 
   // Extract changelog events from ratio histories
   const changelog = extractChangelog(

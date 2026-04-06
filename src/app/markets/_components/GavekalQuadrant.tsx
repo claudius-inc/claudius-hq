@@ -64,46 +64,50 @@ const QUADRANT_CELLS = [
   },
 ] as const;
 
+// Score text color: only the negative-score regime gets a warning hue.
+// Neutral and positive regimes use neutral grays.
 const SCORE_COLORS: Record<number, string> = {
-  2: "text-emerald-600",
+  2: "text-gray-700",
   0: "text-gray-600",
   [-2]: "text-red-600",
 };
 
+// Active quadrant cell styling. All regimes neutral by default; only the
+// negative (-2) Inflationary Bust regime keeps a red tint to flag downside.
 const QUADRANT_ACTIVE: Record<string, string> = {
-  "Inflationary Bust": "bg-red-100 text-red-800 border-red-400",
-  "Inflationary Boom": "bg-orange-100 text-orange-800 border-orange-400",
-  "Deflationary Bust": "bg-blue-100 text-blue-800 border-blue-400",
-  "Deflationary Boom": "bg-emerald-100 text-emerald-800 border-emerald-400",
+  "Inflationary Bust": "bg-red-50 text-red-700 border-red-300",
+  "Inflationary Boom": "bg-gray-100 text-gray-800 border-gray-400",
+  "Deflationary Bust": "bg-gray-100 text-gray-800 border-gray-400",
+  "Deflationary Boom": "bg-gray-100 text-gray-800 border-gray-400",
 };
 
-// Consistent color language: warm = inflationary, cool = deflationary, green = boom, gray = bust
+// Chart/timeline fill colors — neutral grays for all regimes.
 const REGIME_COLORS: Record<string, string> = {
-  "Deflationary Boom": "#10b981",
-  "Inflationary Boom": "#f97316",
-  "Deflationary Bust": "#3b82f6",
-  "Inflationary Bust": "#ef4444",
+  "Deflationary Boom": "#9ca3af",
+  "Inflationary Boom": "#9ca3af",
+  "Deflationary Bust": "#9ca3af",
+  "Inflationary Bust": "#9ca3af",
 };
 
 const REGIME_BG_COLORS: Record<string, string> = {
-  "Deflationary Boom": "bg-emerald-50",
-  "Inflationary Boom": "bg-orange-50",
-  "Deflationary Bust": "bg-blue-50",
-  "Inflationary Bust": "bg-red-50",
+  "Deflationary Boom": "bg-gray-50",
+  "Inflationary Boom": "bg-gray-50",
+  "Deflationary Bust": "bg-gray-50",
+  "Inflationary Bust": "bg-gray-50",
 };
 
 const REGIME_TEXT_COLORS: Record<string, string> = {
-  "Deflationary Boom": "text-emerald-700",
-  "Inflationary Boom": "text-orange-700",
-  "Deflationary Bust": "text-blue-700",
-  "Inflationary Bust": "text-red-700",
+  "Deflationary Boom": "text-gray-700",
+  "Inflationary Boom": "text-gray-700",
+  "Deflationary Bust": "text-gray-700",
+  "Inflationary Bust": "text-gray-700",
 };
 
 const REGIME_BORDER_COLORS: Record<string, string> = {
-  "Deflationary Boom": "border-emerald-200",
-  "Inflationary Boom": "border-orange-200",
-  "Deflationary Bust": "border-blue-200",
-  "Inflationary Bust": "border-red-200",
+  "Deflationary Boom": "border-gray-200",
+  "Inflationary Boom": "border-gray-200",
+  "Deflationary Bust": "border-gray-200",
+  "Inflationary Bust": "border-gray-200",
 };
 
 // Historical mean for Gold/WTI ratio (~16 barrels per oz)
@@ -116,7 +120,7 @@ const REGIME_ALLOCATIONS: Record<string, PortfolioAllocation[]> = {
   "Inflationary Bust": [
     { asset: "Cash / T-bills", vehicle: "SHV / BIL", weight: "25%" },
     { asset: "Gold", vehicle: "GLD / IAU", weight: "25%" },
-    { asset: "Broad equities", vehicle: "VOO / SPY", weight: "25%" },
+    { asset: "Broad equities", vehicle: "VWRA", weight: "25%" },
     { asset: "Energy equities", vehicle: "XLE", weight: "20-25%" },
   ],
   "Inflationary Boom": [
@@ -127,7 +131,7 @@ const REGIME_ALLOCATIONS: Record<string, PortfolioAllocation[]> = {
     { asset: "Cash", vehicle: "SHV / BIL", weight: "10%" },
   ],
   "Deflationary Boom": [
-    { asset: "Growth equities", vehicle: "QQQ / VUG / SPY", weight: "40%" },
+    { asset: "Growth equities", vehicle: "QQQ / VUG", weight: "40%" },
     { asset: "Long-duration bonds", vehicle: "TLT / ZROZ", weight: "25%" },
     { asset: "Corporate bonds", vehicle: "LQD / VCIT", weight: "20%" },
     { asset: "Real estate", vehicle: "VNQ", weight: "10%" },
@@ -266,10 +270,11 @@ function RatioChart({
 
   const hoverPoint = hoverIdx !== null ? ratio.history[hoverIdx] : null;
 
-  // Intensity-based color for the deviation percentage
+  // Neutral by default; only highlight negative deviation (below MA) with red.
+  // Intensity scales the alpha so larger downside moves read more strongly.
   const pctColor = above
-    ? `rgba(16, 185, 129, ${0.4 + intensity * 0.6})`
-    : `rgba(239, 68, 68, ${0.4 + intensity * 0.6})`;
+    ? `rgba(75, 85, 99, ${0.5 + intensity * 0.5})` // gray-600
+    : `rgba(239, 68, 68, ${0.4 + intensity * 0.6})`; // red-500
 
   return (
     <div className="bg-gray-50 rounded-lg p-3">
@@ -281,7 +286,7 @@ function RatioChart({
           </span>
         </div>
         <div
-          className={`flex items-center gap-0.5 text-xs font-bold ${above ? "text-emerald-600" : "text-red-600"}`}
+          className={`flex items-center gap-0.5 text-xs font-bold ${above ? "text-gray-600" : "text-red-600"}`}
         >
           {above ? (
             <TrendingUp className="w-3 h-3" />
@@ -304,7 +309,7 @@ function RatioChart({
           style={{
             color: pctColor,
             backgroundColor: above
-              ? `rgba(16, 185, 129, ${0.05 + intensity * 0.1})`
+              ? `rgba(75, 85, 99, ${0.05 + intensity * 0.1})`
               : `rgba(239, 68, 68, ${0.05 + intensity * 0.1})`,
           }}
         >
@@ -350,8 +355,8 @@ function RatioChart({
           if (idx >= 0 && idx < values.length) setHoverIdx(idx);
         }}
       >
-        {/* Fill area */}
-        <path d={fillPath} fill={above ? "#10b98115" : "#ef444415"} />
+        {/* Fill area — neutral gray */}
+        <path d={fillPath} fill="#6b728015" />
 
         {/* MA line */}
         <path
@@ -362,22 +367,17 @@ function RatioChart({
           strokeDasharray="4 2"
         />
 
-        {/* Value line */}
-        <path
-          d={valuePath}
-          fill="none"
-          stroke={above ? "#10b981" : "#ef4444"}
-          strokeWidth="2"
-        />
+        {/* Value line — neutral gray */}
+        <path d={valuePath} fill="none" stroke="#6b7280" strokeWidth="2" />
 
-        {/* Crossover annotations */}
+        {/* Crossover annotations — neutral gray */}
         {crossovers.map((co, i) => (
           <g key={i}>
             <circle
               cx={toX(co.idx)}
               cy={toY(values[co.idx])}
               r="4"
-              fill={co.direction === "up" ? "#10b981" : "#ef4444"}
+              fill="#6b7280"
               stroke="white"
               strokeWidth="1.5"
             />
@@ -386,7 +386,7 @@ function RatioChart({
               y1={toY(values[co.idx]) - 6}
               x2={toX(co.idx)}
               y2={toY(values[co.idx]) + 6}
-              stroke={co.direction === "up" ? "#10b981" : "#ef4444"}
+              stroke="#6b7280"
               strokeWidth="0.5"
               opacity="0.5"
             />
@@ -433,7 +433,7 @@ function RatioChart({
               cx={toX(hoverIdx)}
               cy={toY(values[hoverIdx])}
               r="3"
-              fill={above ? "#10b981" : "#ef4444"}
+              fill="#6b7280"
               stroke="white"
               strokeWidth="1.5"
             />
@@ -454,9 +454,7 @@ function RatioChart({
       {/* Legend */}
       <div className="flex items-center gap-3 mt-1.5 text-[9px] text-gray-400">
         <span className="flex items-center gap-1">
-          <span
-            className={`inline-block w-3 h-[2px] ${above ? "bg-emerald-500" : "bg-red-500"}`}
-          />
+          <span className="inline-block w-3 h-[2px] bg-gray-500" />
           Ratio
         </span>
         <span className="flex items-center gap-1">
@@ -467,7 +465,7 @@ function RatioChart({
           7yr MA
         </span>
         <span className="flex items-center gap-1">
-          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 opacity-60" />
+          <span className="inline-block w-2 h-2 rounded-full bg-gray-500 opacity-60" />
           Crossover
         </span>
       </div>
@@ -476,6 +474,16 @@ function RatioChart({
 }
 
 // ── Regime Timeline (expanded with duration labels) ───────────────────────
+
+// Distinct shades for the regime timeline so the four regimes stay
+// distinguishable on a single bar while honoring the neutral palette.
+// Inflationary Bust uses a soft red since it's the −2 (negative) regime.
+const REGIME_TIMELINE_COLORS: Record<string, string> = {
+  "Deflationary Boom": "#e5e7eb", // gray-200
+  "Inflationary Boom": "#9ca3af", // gray-400
+  "Deflationary Bust": "#6b7280", // gray-500
+  "Inflationary Bust": "#fca5a5", // red-300
+};
 
 function RegimeTimeline({ history }: { history: GavekalRegimePoint[] }) {
   const [hoverSeg, setHoverSeg] = useState<number | null>(null);
@@ -495,112 +503,170 @@ function RegimeTimeline({ history }: { history: GavekalRegimePoint[] }) {
     };
   });
 
-  const totalMs = segments[segments.length - 1].endMs - segments[0].startMs;
+  const startMs = segments[0].startMs;
+  const endMs = segments[segments.length - 1].endMs;
+  const totalMs = endMs - startMs;
   if (totalMs <= 0) return null;
 
-  // Current regime info
   const currentSegment = segments[segments.length - 1];
   const currentDuration = formatDuration(currentSegment.startDate, now);
+  const currentColor =
+    REGIME_TIMELINE_COLORS[currentSegment.quadrant] ?? "#9ca3af";
+
+  // Year tick marks across the full span. Cadence adapts to span length so
+  // we never crowd the axis: ≤8y → yearly, ≤20y → every 2y, otherwise every 5y.
+  const startYear = new Date(startMs).getFullYear();
+  const endYear = new Date(endMs).getFullYear();
+  const yearSpan = endYear - startYear;
+  const yearStep = yearSpan <= 8 ? 1 : yearSpan <= 20 ? 2 : 5;
+  const yearTicks: { year: number; pct: number }[] = [];
+  const firstTick = Math.ceil(startYear / yearStep) * yearStep;
+  for (let y = firstTick; y <= endYear; y += yearStep) {
+    const ms = new Date(`${y}-01-01`).getTime();
+    if (ms < startMs || ms > endMs) continue;
+    yearTicks.push({ year: y, pct: ((ms - startMs) / totalMs) * 100 });
+  }
+
+  const hovered = hoverSeg !== null ? segments[hoverSeg] : null;
 
   return (
     <div className="space-y-2">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5 text-gray-400" />
-          <span className="text-[11px] font-medium text-gray-500">
+          <span className="text-[11px] font-semibold text-gray-700">
             Regime History
           </span>
+          <span className="text-[10px] text-gray-400">
+            {formatShortDate(segments[0].startDate)} – Now ({yearSpan}y)
+          </span>
         </div>
-        <div
-          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${REGIME_BG_COLORS[currentSegment.quadrant] ?? "bg-gray-50"} ${REGIME_TEXT_COLORS[currentSegment.quadrant] ?? "text-gray-600"}`}
-        >
-          Current: {currentDuration}
+        <div className="flex items-center gap-1.5 text-[10px]">
+          <span className="text-gray-400">Current:</span>
+          <span
+            className="w-2 h-2 rounded-full shrink-0"
+            style={{ backgroundColor: currentColor }}
+          />
+          <span className="font-bold text-gray-700">
+            {currentSegment.quadrant}
+          </span>
+          <span className="text-gray-400 tabular-nums">{currentDuration}</span>
         </div>
       </div>
 
-      {/* Timeline bar - taller with inline labels */}
-      <div className="flex h-8 rounded-md overflow-hidden border border-gray-200">
-        {segments.map((seg, i) => {
-          const pct = ((seg.endMs - seg.startMs) / totalMs) * 100;
-          if (pct < 0.5) return null;
-          const duration = formatDuration(seg.startDate, seg.endDate);
-          const showLabel = pct > 8;
+      {/* Timeline bar — segments are absolutely positioned by start% + width%
+          so sub-month flicker segments stay rendered (as 1px slivers) and
+          no whitespace accumulates at the right edge from flex collapse. */}
+      <div className="relative">
+        <div className="relative h-7 rounded-md overflow-hidden border border-gray-200 bg-gray-100">
+          {segments.map((seg, i) => {
+            const startPct = ((seg.startMs - startMs) / totalMs) * 100;
+            const widthPct = ((seg.endMs - seg.startMs) / totalMs) * 100;
+            const showLabel = widthPct > 6;
+            const duration = formatDuration(seg.startDate, seg.endDate);
+            const isHovered = hoverSeg === i;
+            const dim = hoverSeg !== null && !isHovered;
 
-          return (
-            <div
-              key={i}
-              className="relative flex items-center justify-center transition-opacity duration-150 overflow-hidden"
-              style={{
-                width: `${pct}%`,
-                backgroundColor: REGIME_COLORS[seg.quadrant] ?? "#9ca3af",
-                opacity: hoverSeg !== null && hoverSeg !== i ? 0.35 : 1,
-              }}
-              onMouseEnter={() => setHoverSeg(i)}
-              onMouseLeave={() => setHoverSeg(null)}
-            >
-              {showLabel && (
-                <span className="text-[8px] font-bold text-white/90 truncate px-1">
-                  {duration}
+            return (
+              <div
+                key={i}
+                className="absolute top-0 bottom-0 flex items-center justify-center transition-opacity duration-150 overflow-hidden cursor-pointer"
+                style={{
+                  left: `${startPct}%`,
+                  width: `${widthPct}%`,
+                  minWidth: "1px",
+                  backgroundColor:
+                    REGIME_TIMELINE_COLORS[seg.quadrant] ?? "#9ca3af",
+                  opacity: dim ? 0.4 : 1,
+                }}
+                onMouseEnter={() => setHoverSeg(i)}
+                onMouseLeave={() => setHoverSeg(null)}
+              >
+                {showLabel && (
+                  <span
+                    className={`text-[8px] font-bold truncate px-1 ${
+                      seg.quadrant === "Deflationary Boom"
+                        ? "text-gray-600"
+                        : "text-white/90"
+                    }`}
+                  >
+                    {duration}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Year tick axis — labels at the edges anchor to that edge
+            instead of overflowing the bar */}
+        <div className="relative h-3 mt-0.5">
+          {yearTicks.map((t) => {
+            const labelTransform =
+              t.pct < 4
+                ? "translateX(0)"
+                : t.pct > 96
+                  ? "translateX(-100%)"
+                  : "translateX(-50%)";
+            return (
+              <div
+                key={t.year}
+                className="absolute top-0"
+                style={{ left: `${t.pct}%` }}
+              >
+                <div className="w-px h-1 bg-gray-300 -translate-x-1/2 absolute" />
+                <span
+                  className="text-[8px] text-gray-400 leading-none tabular-nums absolute top-1.5 whitespace-nowrap"
+                  style={{ transform: labelTransform }}
+                >
+                  {t.year}
                 </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Date range labels below timeline */}
-      <div className="flex justify-between text-[9px] text-gray-300 px-0.5">
-        <span>{formatShortDate(segments[0].startDate)}</span>
-        <span>Now</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Hover detail */}
       <div className="h-5">
-        {hoverSeg !== null && segments[hoverSeg] && (
-          <div className="flex items-center gap-2 text-[10px] text-gray-500">
+        {hovered ? (
+          <div className="flex items-center gap-2 text-[10px]">
             <span
               className="w-2.5 h-2.5 rounded-full shrink-0"
               style={{
                 backgroundColor:
-                  REGIME_COLORS[segments[hoverSeg].quadrant] ?? "#9ca3af",
+                  REGIME_TIMELINE_COLORS[hovered.quadrant] ?? "#9ca3af",
               }}
             />
-            <span className="font-bold text-gray-700">
-              {segments[hoverSeg].quadrant}
-            </span>
-            <span className="text-gray-400">
-              {formatShortDate(segments[hoverSeg].startDate)}
+            <span className="font-bold text-gray-700">{hovered.quadrant}</span>
+            <span className="text-gray-400 tabular-nums">
+              {formatShortDate(hovered.startDate)}
               <ArrowRight className="w-2.5 h-2.5 inline mx-0.5" />
               {hoverSeg === segments.length - 1
                 ? "Present"
-                : formatShortDate(segments[hoverSeg].endDate)}
+                : formatShortDate(hovered.endDate)}
             </span>
-            <span className="font-medium text-gray-600">
-              (
-              {formatDuration(
-                segments[hoverSeg].startDate,
-                segments[hoverSeg].endDate,
-              )}
-              )
+            <span className="font-medium text-gray-600 tabular-nums">
+              ({formatDuration(hovered.startDate, hovered.endDate)})
             </span>
           </div>
-        )}
-        {hoverSeg === null && (
+        ) : (
           <span className="text-[9px] text-gray-300">
-            Hover to see regime periods
+            Hover a segment for details
           </span>
         )}
       </div>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-x-3 gap-y-1">
-        {Object.entries(REGIME_COLORS).map(([name, color]) => (
+        {Object.entries(REGIME_TIMELINE_COLORS).map(([name, color]) => (
           <span
             key={name}
-            className="flex items-center gap-1 text-[9px] text-gray-400"
+            className="flex items-center gap-1 text-[9px] text-gray-500"
           >
             <span
-              className="w-2 h-2 rounded-full"
+              className="w-2.5 h-2.5 rounded-sm border border-black/5"
               style={{ backgroundColor: color }}
             />
             {name}
@@ -634,9 +700,9 @@ function ExclusionCard({ ex }: { ex: GavekalExclusionData }) {
     borderColor = "border-amber-200";
     IconComponent = AlertCircle;
   } else if (isPositive) {
-    badgeColor = "text-emerald-700";
-    badgeBg = "bg-emerald-100";
-    borderColor = "border-emerald-200";
+    badgeColor = "text-gray-700";
+    badgeBg = "bg-gray-100";
+    borderColor = "border-gray-200";
     IconComponent = CheckCircle;
   } else {
     badgeColor = "text-gray-700";
@@ -677,7 +743,7 @@ function XlePanel({ xle }: { xle: GavekalXleData }) {
   return (
     <div className="bg-gray-50 rounded-lg p-3">
       <div className="flex items-center gap-1.5 mb-2">
-        <Zap className="w-3.5 h-3.5 text-amber-500" />
+        <Zap className="w-3.5 h-3.5 text-gray-500" />
         <span className="text-[11px] font-semibold text-gray-700">
           Energy Sector (XLE)
         </span>
@@ -690,7 +756,7 @@ function XlePanel({ xle }: { xle: GavekalXleData }) {
           </div>
           {xle.changePercent != null && (
             <div
-              className={`text-[10px] tabular-nums ${xle.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}
+              className={`text-[10px] tabular-nums ${xle.changePercent >= 0 ? "text-gray-600" : "text-red-600"}`}
             >
               {xle.changePercent >= 0 ? "+" : ""}
               {xle.changePercent.toFixed(2)}%
@@ -728,7 +794,7 @@ function ChangelogPanel({ events }: { events: GavekalChangeEvent[] }) {
 
   const typeIcon = (type: string) => {
     if (type === "regime_change")
-      return <Activity className="w-3 h-3 text-blue-500" />;
+      return <Activity className="w-3 h-3 text-gray-500" />;
     if (type === "threshold")
       return <AlertTriangle className="w-3 h-3 text-amber-500" />;
     return <ArrowRight className="w-3 h-3 text-gray-400" />;
@@ -794,7 +860,7 @@ function RegimeReturnsPanel({
           <div key={a.label} className="bg-gray-50 rounded-lg p-2 text-center">
             <div className="text-[9px] text-gray-400 mb-0.5">{a.label}</div>
             <div
-              className={`text-sm font-bold ${a.value > 0 ? "text-emerald-600" : a.value < 0 ? "text-red-600" : "text-gray-500"}`}
+              className={`text-sm font-bold ${a.value < 0 ? "text-red-600" : "text-gray-700"}`}
             >
               {a.value > 0 ? "+" : ""}
               {a.value}%
@@ -942,11 +1008,9 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
               </span>
               <span
                 className={`text-xs font-bold px-2 py-0.5 rounded-md ${
-                  quadrant.score === 2
-                    ? "bg-emerald-100 text-emerald-700"
-                    : quadrant.score === -2
-                      ? "bg-red-100 text-red-700"
-                      : "bg-gray-100 text-gray-600"
+                  quadrant.score === -2
+                    ? "bg-red-100 text-red-700"
+                    : "bg-gray-100 text-gray-600"
                 }`}
               >
                 {quadrant.score > 0 ? "+" : ""}
@@ -963,7 +1027,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
             <span>
               <span className="opacity-60">Energy </span>
               <span
-                className={`font-bold ${energyEfficiency.signal === 1 ? "text-emerald-600" : "text-red-600"}`}
+                className={`font-bold ${energyEfficiency.signal === 1 ? "text-gray-600" : "text-red-600"}`}
               >
                 {energyEfficiency.signal === 1 ? "Boom" : "Bust"}
               </span>
@@ -971,7 +1035,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
             <span>
               <span className="opacity-60">Currency </span>
               <span
-                className={`font-bold ${currencyQuality.signal === 1 ? "text-emerald-600" : "text-red-600"}`}
+                className={`font-bold ${currencyQuality.signal === 1 ? "text-gray-600" : "text-red-600"}`}
               >
                 {currencyQuality.signal === 1 ? "Good" : "Bad"}
               </span>
@@ -1130,7 +1194,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
                   <div key={a.label} className="text-center">
                     <div className="text-[8px] text-gray-400">{a.label}</div>
                     <div
-                      className={`text-[10px] font-bold ${a.value > 0 ? "text-emerald-600" : a.value < 0 ? "text-red-600" : "text-gray-500"}`}
+                      className={`text-[10px] font-bold ${a.value < 0 ? "text-red-600" : "text-gray-700"}`}
                     >
                       {a.value > 0 ? "+" : ""}
                       {a.value}%
@@ -1141,7 +1205,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
               {qDef && (
                 <div className="flex gap-3 text-[9px]">
                   <div>
-                    <span className="font-bold text-emerald-600">Own:</span>{" "}
+                    <span className="font-bold text-gray-700">Own:</span>{" "}
                     {qDef.buy.join(", ")}
                   </div>
                   <div>
@@ -1175,11 +1239,9 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
                   Momentum:{" "}
                   <span
                     className={`font-medium ${
-                      energyMomentum.direction === "up"
-                        ? "text-emerald-600"
-                        : energyMomentum.direction === "down"
-                          ? "text-red-600"
-                          : "text-gray-500"
+                      energyMomentum.direction === "down"
+                        ? "text-red-600"
+                        : "text-gray-600"
                     }`}
                   >
                     {energyMomentum.label}
@@ -1198,11 +1260,9 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
                   Momentum:{" "}
                   <span
                     className={`font-medium ${
-                      currencyMomentum.direction === "up"
-                        ? "text-emerald-600"
-                        : currencyMomentum.direction === "down"
-                          ? "text-red-600"
-                          : "text-gray-500"
+                      currencyMomentum.direction === "down"
+                        ? "text-red-600"
+                        : "text-gray-600"
                     }`}
                   >
                     {currencyMomentum.label}
@@ -1227,7 +1287,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
               <div
                 className={`text-[10px] font-medium mt-0.5 ${
                   keyRatios.spGold.current > keyRatios.spGold.ma7y
-                    ? "text-emerald-600"
+                    ? "text-gray-600"
                     : "text-red-600"
                 }`}
               >
@@ -1256,7 +1316,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
                     ? "bg-red-100 text-red-700"
                     : goldWtiDeviation > 1.5
                       ? "bg-amber-100 text-amber-700"
-                      : "bg-emerald-100 text-emerald-700"
+                      : "bg-gray-100 text-gray-700"
                 }`}
               >
                 {goldWtiDeviation.toFixed(1)}x above mean
@@ -1272,17 +1332,17 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
               Investment Implications
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2.5">
-                <div className="text-[10px] font-bold text-emerald-700 mb-1.5 flex items-center gap-1">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5">
+                <div className="text-[10px] font-bold text-gray-700 mb-1.5 flex items-center gap-1">
                   <TrendingUp className="w-3 h-3" />
                   What to own
                 </div>
                 {quadrant.buySignals.map((s) => (
                   <div
                     key={s}
-                    className="text-[10px] text-emerald-800 flex items-center gap-1.5 py-0.5"
+                    className="text-[10px] text-gray-700 flex items-center gap-1.5 py-0.5"
                   >
-                    <span className="w-1 h-1 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="w-1 h-1 rounded-full bg-gray-500 shrink-0" />
                     {s}
                   </div>
                 ))}
