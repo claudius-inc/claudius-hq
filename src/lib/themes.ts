@@ -81,6 +81,112 @@ export async function fetchThemesLite(): Promise<{ themes: ThemeLite[] }> {
   return { themes: themesLite };
 }
 
+export interface ThemePerformanceRow {
+  id: number;
+  name: string;
+  stockCount: number;
+  performance_1w: number | null;
+  performance_1m: number | null;
+  performance_3m: number | null;
+  crowdingScore: number | null;
+}
+
+export interface ThemePerformanceResponse {
+  themes: ThemePerformanceRow[];
+  updated_at: string;
+}
+
+interface TickerPerf {
+  performance_1w: number | null;
+  performance_1m: number | null;
+  performance_3m: number | null;
+}
+
+/**
+ * Aggregated performance for ALL themes. Dedupes tickers across themes
+ * (a stock in N themes is fetched once), batches Yahoo calls with bounded
+ * concurrency, and returns one row per theme.
+ */
+export async function fetchThemePerformanceAll(): Promise<ThemePerformanceResponse> {
+  const { themes: liteThemes } = await fetchThemesLite();
+
+  // Dedupe tickers across all themes
+  const tickerSet = new Set<string>();
+  for (const t of liteThemes) {
+    for (const ticker of t.stocks) tickerSet.add(ticker);
+  }
+  const allTickers = Array.from(tickerSet);
+
+  // Crowding scores in one batch call
+  const crowdingMap = await getCrowdingScores(allTickers);
+
+  // Bounded-concurrency per-ticker price fetch (Yahoo throttles aggressive fan-outs)
+  const CONCURRENCY = 10;
+  const perfMap = new Map<string, TickerPerf>();
+
+  let cursor = 0;
+  async function worker() {
+    while (cursor < allTickers.length) {
+      const idx = cursor++;
+      const ticker = allTickers[idx];
+      try {
+        const [p1w, p1m, p3m] = await Promise.all([
+          getHistoricalPrices(ticker, "1w"),
+          getHistoricalPrices(ticker, "1m"),
+          getHistoricalPrices(ticker, "3m"),
+        ]);
+        perfMap.set(ticker, {
+          performance_1w: calcPerformance(p1w.start, p1w.end),
+          performance_1m: calcPerformance(p1m.start, p1m.end),
+          performance_3m: calcPerformance(p3m.start, p3m.end),
+        });
+      } catch (e) {
+        logger.warn("themes", `Failed to fetch prices for ${ticker}`, { error: e });
+        perfMap.set(ticker, { performance_1w: null, performance_1m: null, performance_3m: null });
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, allTickers.length) }, worker));
+
+  // Aggregate per theme
+  const rows: ThemePerformanceRow[] = liteThemes.map((theme) => {
+    const perfs_1w: number[] = [];
+    const perfs_1m: number[] = [];
+    const perfs_3m: number[] = [];
+    const themeCrowding: CrowdingScore[] = [];
+
+    for (const ticker of theme.stocks) {
+      const p = perfMap.get(ticker);
+      if (p?.performance_1w != null) perfs_1w.push(p.performance_1w);
+      if (p?.performance_1m != null) perfs_1m.push(p.performance_1m);
+      if (p?.performance_3m != null) perfs_3m.push(p.performance_3m);
+
+      const c = crowdingMap.get(ticker);
+      if (c) themeCrowding.push(c);
+    }
+
+    const avg = (arr: number[]) =>
+      arr.length > 0 ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100 : null;
+
+    const aggregated = aggregateCrowdingScores(themeCrowding);
+
+    return {
+      id: theme.id,
+      name: theme.name,
+      stockCount: theme.stocks.length,
+      performance_1w: avg(perfs_1w),
+      performance_1m: avg(perfs_1m),
+      performance_3m: avg(perfs_3m),
+      crowdingScore: aggregated.score,
+    };
+  });
+
+  return {
+    themes: rows,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export async function fetchThemePrices(tickers: string[]) {
   const limitedTickers = tickers.slice(0, 20);
 

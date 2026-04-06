@@ -7,13 +7,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { formatPercent, getPercentColor } from "@/components/themes/utils";
 import { getCrowdingBgColor } from "@/lib/crowding-utils";
 
-interface ThemeLite {
-  id: number;
-  name: string;
-  stocks: string[];
-}
-
-interface ThemeWithPerf {
+interface ThemeRow {
   id: number;
   name: string;
   stockCount: number;
@@ -21,7 +15,6 @@ interface ThemeWithPerf {
   performance_1m: number | null;
   performance_3m: number | null;
   crowdingScore: number | null;
-  _pricesLoading: boolean;
 }
 
 type SortField = "1w" | "1m" | "3m";
@@ -30,94 +23,19 @@ type SortDir = "asc" | "desc";
 const MAX_VISIBLE = 8;
 
 export function ThemeLeaderboardLite() {
-  const [themes, setThemes] = useState<ThemeWithPerf[]>([]);
+  const [themes, setThemes] = useState<ThemeRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<SortField>("1m");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   useEffect(() => {
-    // Step 1: Fetch lite themes
-    fetch("/api/themes/lite")
+    fetch("/api/themes/performance")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (!data?.themes) {
-          setLoading(false);
-          return;
+        if (data?.themes) {
+          setThemes(data.themes);
         }
-
-        const liteThemes: ThemeLite[] = data.themes.filter(
-          (t: ThemeLite) => t.stocks.length > 0,
-        );
-        // Initialize with loading state
-        setThemes(
-          liteThemes.map((t) => ({
-            id: t.id,
-            name: t.name,
-            stockCount: t.stocks.length,
-            performance_1w: null,
-            performance_1m: null,
-            performance_3m: null,
-            crowdingScore: null,
-            _pricesLoading: true,
-          })),
-        );
         setLoading(false);
-
-        // Step 2: Progressive price loading
-        const allTickers = new Set<string>();
-        for (const t of liteThemes) {
-          for (const s of t.stocks) allTickers.add(s);
-        }
-
-        if (allTickers.size === 0) {
-          setThemes((prev) => prev.map((t) => ({ ...t, _pricesLoading: false })));
-          return;
-        }
-
-        fetch(`/api/themes/prices?tickers=${Array.from(allTickers).join(",")}`)
-          .then((r) => (r.ok ? r.json() : null))
-          .then((pricesData) => {
-            if (!pricesData?.prices) {
-              setThemes((prev) => prev.map((t) => ({ ...t, _pricesLoading: false })));
-              return;
-            }
-
-            const prices = pricesData.prices;
-            setThemes((prev) =>
-              prev.map((theme) => {
-                const lt = liteThemes.find((t) => t.id === theme.id);
-                if (!lt) return { ...theme, _pricesLoading: false };
-
-                const perfs_1w: number[] = [];
-                const perfs_1m: number[] = [];
-                const perfs_3m: number[] = [];
-
-                for (const ticker of lt.stocks) {
-                  const p = prices[ticker];
-                  if (p?.performance_1w != null) perfs_1w.push(p.performance_1w);
-                  if (p?.performance_1m != null) perfs_1m.push(p.performance_1m);
-                  if (p?.performance_3m != null) perfs_3m.push(p.performance_3m);
-                }
-
-                const avg = (arr: number[]) =>
-                  arr.length > 0
-                    ? Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100
-                    : null;
-
-                return {
-                  ...theme,
-                  performance_1w: avg(perfs_1w),
-                  performance_1m: avg(perfs_1m),
-                  performance_3m: avg(perfs_3m),
-                  crowdingScore: pricesData.baskets?.[lt.name]?.crowdingScore ?? null,
-                  _pricesLoading: false,
-                };
-              }),
-            );
-          })
-          .catch(() => {
-            setThemes((prev) => prev.map((t) => ({ ...t, _pricesLoading: false })));
-          });
       })
       .catch(() => setLoading(false));
   }, []);
@@ -132,7 +50,7 @@ export function ThemeLeaderboardLite() {
   };
 
   const sorted = useMemo(() => {
-    const key = `performance_${sortField}` as keyof ThemeWithPerf;
+    const key = `performance_${sortField}` as keyof ThemeRow;
     return [...themes].sort((a, b) => {
       const aVal = a[key] as number | null;
       const bVal = b[key] as number | null;
@@ -215,20 +133,14 @@ export function ThemeLeaderboardLite() {
                   const perf = theme[`performance_${period}`];
                   return (
                     <td key={period} className="px-3 py-2 whitespace-nowrap text-right">
-                      {theme._pricesLoading ? (
-                        <Skeleton className="h-4 w-10 ml-auto" />
-                      ) : (
-                        <span className={`text-xs font-medium ${getPercentColor(perf)}`}>
-                          {formatPercent(perf)}
-                        </span>
-                      )}
+                      <span className={`text-xs font-medium ${getPercentColor(perf)}`}>
+                        {formatPercent(perf)}
+                      </span>
                     </td>
                   );
                 })}
                 <td className="px-3 py-2 whitespace-nowrap text-center">
-                  {theme._pricesLoading ? (
-                    <Skeleton className="h-4 w-6 mx-auto rounded-full" />
-                  ) : theme.crowdingScore != null ? (
+                  {theme.crowdingScore != null ? (
                     <span
                       className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getCrowdingBgColor(theme.crowdingScore)}`}
                     >
