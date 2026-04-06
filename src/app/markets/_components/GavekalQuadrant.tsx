@@ -109,6 +109,58 @@ const REGIME_BORDER_COLORS: Record<string, string> = {
 // Historical mean for Gold/WTI ratio (~16 barrels per oz)
 const GOLD_WTI_HISTORICAL_MEAN = 16;
 
+// Static allocation recommendations per Gavekal quadrant.
+// Mirrors REGIME_ALLOCATIONS in src/lib/gavekal.ts so the table renders
+// deterministically client-side without depending on cached API payloads.
+const REGIME_ALLOCATIONS: Record<string, PortfolioAllocation[]> = {
+  "Inflationary Bust": [
+    { asset: "Cash / T-bills", vehicle: "SHV / BIL", weight: "25%" },
+    { asset: "Gold", vehicle: "GLD / IAU", weight: "25%" },
+    { asset: "Broad equities", vehicle: "VOO / SPY", weight: "25%" },
+    { asset: "Energy equities", vehicle: "XLE", weight: "20-25%" },
+  ],
+  "Inflationary Boom": [
+    { asset: "Gold & commodities", vehicle: "GLD / DJP / GSG", weight: "30%" },
+    { asset: "Value equities", vehicle: "VTV / RPV", weight: "25%" },
+    { asset: "Real estate", vehicle: "VNQ / XLRE", weight: "20%" },
+    { asset: "EM equities", vehicle: "VWO / EEM", weight: "15%" },
+    { asset: "Cash", vehicle: "SHV / BIL", weight: "10%" },
+  ],
+  "Deflationary Boom": [
+    { asset: "Growth equities", vehicle: "QQQ / VUG / SPY", weight: "40%" },
+    { asset: "Long-duration bonds", vehicle: "TLT / ZROZ", weight: "25%" },
+    { asset: "Corporate bonds", vehicle: "LQD / VCIT", weight: "20%" },
+    { asset: "Real estate", vehicle: "VNQ", weight: "10%" },
+    { asset: "Cash", vehicle: "SHV", weight: "5%" },
+  ],
+  "Deflationary Bust": [
+    { asset: "Government bonds", vehicle: "TLT / IEF / GOVT", weight: "35%" },
+    { asset: "Cash / T-bills", vehicle: "SHV / BIL / SGOV", weight: "30%" },
+    { asset: "Defensive equities", vehicle: "XLU / XLP / SPLV", weight: "20%" },
+    { asset: "Gold", vehicle: "GLD", weight: "15%" },
+  ],
+};
+
+function buildAllocationsForRegime(
+  quadrantName: string,
+  currencySignal: 1 | -1,
+): PortfolioAllocation[] {
+  const base = REGIME_ALLOCATIONS[quadrantName];
+  if (!base) return [];
+  return base.map((row) => {
+    // Bust regimes: if currency quality is good, swap Gold → long bonds
+    if (
+      row.asset === "Gold" &&
+      (quadrantName === "Inflationary Bust" ||
+        quadrantName === "Deflationary Bust") &&
+      currencySignal === 1
+    ) {
+      return { ...row, asset: "Bonds", vehicle: "TLT / IEF" };
+    }
+    return row;
+  });
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDuration(startDate: string, endDate: string): string {
@@ -524,7 +576,12 @@ function RegimeTimeline({ history }: { history: GavekalRegimePoint[] }) {
                 : formatShortDate(segments[hoverSeg].endDate)}
             </span>
             <span className="font-medium text-gray-600">
-              ({formatDuration(segments[hoverSeg].startDate, segments[hoverSeg].endDate)})
+              (
+              {formatDuration(
+                segments[hoverSeg].startDate,
+                segments[hoverSeg].endDate,
+              )}
+              )
             </span>
           </div>
         )}
@@ -559,9 +616,7 @@ function RegimeTimeline({ history }: { history: GavekalRegimePoint[] }) {
 function ExclusionCard({ ex }: { ex: GavekalExclusionData }) {
   const isWarning = ex.signal === "Warning";
   const isCaution = ex.signal === "Caution";
-  const isPositive =
-    ex.signal === "Own equities" ||
-    ex.signal === "Own bonds";
+  const isPositive = ex.signal === "Own equities" || ex.signal === "Own bonds";
 
   let badgeColor: string;
   let badgeBg: string;
@@ -623,7 +678,9 @@ function XlePanel({ xle }: { xle: GavekalXleData }) {
     <div className="bg-gray-50 rounded-lg p-3">
       <div className="flex items-center gap-1.5 mb-2">
         <Zap className="w-3.5 h-3.5 text-amber-500" />
-        <span className="text-[11px] font-semibold text-gray-700">Energy Sector (XLE)</span>
+        <span className="text-[11px] font-semibold text-gray-700">
+          Energy Sector (XLE)
+        </span>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
@@ -632,8 +689,11 @@ function XlePanel({ xle }: { xle: GavekalXleData }) {
             {xle.price ? `$${xle.price.toFixed(2)}` : "\u2014"}
           </div>
           {xle.changePercent != null && (
-            <div className={`text-[10px] tabular-nums ${xle.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-              {xle.changePercent >= 0 ? "+" : ""}{xle.changePercent.toFixed(2)}%
+            <div
+              className={`text-[10px] tabular-nums ${xle.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}
+            >
+              {xle.changePercent >= 0 ? "+" : ""}
+              {xle.changePercent.toFixed(2)}%
             </div>
           )}
         </div>
@@ -667,8 +727,10 @@ function ChangelogPanel({ events }: { events: GavekalChangeEvent[] }) {
   if (!events.length) return null;
 
   const typeIcon = (type: string) => {
-    if (type === "regime_change") return <Activity className="w-3 h-3 text-blue-500" />;
-    if (type === "threshold") return <AlertTriangle className="w-3 h-3 text-amber-500" />;
+    if (type === "regime_change")
+      return <Activity className="w-3 h-3 text-blue-500" />;
+    if (type === "threshold")
+      return <AlertTriangle className="w-3 h-3 text-amber-500" />;
     return <ArrowRight className="w-3 h-3 text-gray-400" />;
   };
 
@@ -680,12 +742,17 @@ function ChangelogPanel({ events }: { events: GavekalChangeEvent[] }) {
       </div>
       <div className="space-y-1.5">
         {events.map((ev, i) => (
-          <div key={i} className="flex items-start gap-2 text-[10px] bg-gray-50 rounded-lg px-2.5 py-1.5">
+          <div
+            key={i}
+            className="flex items-start gap-2 text-[10px] bg-gray-50 rounded-lg px-2.5 py-1.5"
+          >
             <div className="mt-0.5 shrink-0">{typeIcon(ev.type)}</div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="font-bold text-gray-700">{ev.signal}</span>
-                <span className="text-gray-400">{formatShortDate(ev.date)}</span>
+                <span className="text-gray-400">
+                  {formatShortDate(ev.date)}
+                </span>
               </div>
               <p className="text-gray-500 leading-snug">{ev.description}</p>
             </div>
@@ -726,14 +793,20 @@ function RegimeReturnsPanel({
         {assets.map((a) => (
           <div key={a.label} className="bg-gray-50 rounded-lg p-2 text-center">
             <div className="text-[9px] text-gray-400 mb-0.5">{a.label}</div>
-            <div className={`text-sm font-bold ${a.value > 0 ? "text-emerald-600" : a.value < 0 ? "text-red-600" : "text-gray-500"}`}>
-              {a.value > 0 ? "+" : ""}{a.value}%
+            <div
+              className={`text-sm font-bold ${a.value > 0 ? "text-emerald-600" : a.value < 0 ? "text-red-600" : "text-gray-500"}`}
+            >
+              {a.value > 0 ? "+" : ""}
+              {a.value}%
             </div>
             <div className="text-[8px] text-gray-300">ann.</div>
           </div>
         ))}
       </div>
-      <p className="text-[8px] text-gray-400 mt-1.5">Approximate annualized real returns based on historical regime periods. Past performance does not predict future results.</p>
+      <p className="text-[8px] text-gray-400 mt-1.5">
+        Approximate annualized real returns based on historical regime periods.
+        Past performance does not predict future results.
+      </p>
     </div>
   );
 }
@@ -754,25 +827,25 @@ function AllocationTable({
   return (
     <div className={`rounded-lg border ${borderColor} ${bgColor} p-2.5`}>
       <div className="flex items-center gap-1.5 mb-2">
-        <Shield className="w-3.5 h-3.5 text-gray-400" />
         <span className={`text-[11px] font-semibold ${textColor}`}>
           Recommended Allocation
         </span>
       </div>
       <table className="w-full text-[10px]">
-        <thead>
-          <tr className={`${textColor} border-b ${borderColor}`}>
-            <th className="text-left font-semibold pb-1 pr-2">Asset</th>
-            <th className="text-left font-semibold pb-1 pr-2">Vehicle</th>
-            <th className="text-right font-semibold pb-1">Weight</th>
-          </tr>
-        </thead>
         <tbody>
           {allocations.map((row, i) => (
             <tr key={i} className="border-b border-black/5 last:border-0">
-              <td className="py-1 pr-2 text-gray-700 font-medium">{row.asset}</td>
-              <td className="py-1 pr-2 text-gray-500 font-mono text-[9px]">{row.vehicle}</td>
-              <td className="py-1 text-right font-bold text-gray-800">{row.weight}</td>
+              <td className="py-1 pr-2">
+                <div className="text-gray-700 font-medium">
+                  {row.asset}{" "}
+                  <span className="text-gray-500 font-mono text-[9px] ml-1">
+                    {row.vehicle}
+                  </span>
+                </div>
+              </td>
+              <td className="py-1 text-right font-bold text-gray-800 align-top">
+                {row.weight}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -820,14 +893,24 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
   const goldWtiDeviation = keyRatios.goldWti.current / GOLD_WTI_HISTORICAL_MEAN;
 
   // Compute momentum (rate of change) for key ratios from history
-  const computeMomentum = (ratio: GavekalRatioData): { direction: string; label: string } => {
+  const computeMomentum = (
+    ratio: GavekalRatioData,
+  ): { direction: string; label: string } => {
     const hist = ratio.history;
     if (hist.length < 5) return { direction: "flat", label: "Stable" };
     const recent = hist[hist.length - 1].value;
     const prior = hist[Math.max(0, hist.length - 5)].value;
     const change = ((recent - prior) / prior) * 100;
-    if (change > 2) return { direction: "up", label: `Accelerating (+${change.toFixed(1)}%)` };
-    if (change < -2) return { direction: "down", label: `Decelerating (${change.toFixed(1)}%)` };
+    if (change > 2)
+      return {
+        direction: "up",
+        label: `Accelerating (+${change.toFixed(1)}%)`,
+      };
+    if (change < -2)
+      return {
+        direction: "down",
+        label: `Decelerating (${change.toFixed(1)}%)`,
+      };
     return { direction: "flat", label: "Stable" };
   };
 
@@ -975,48 +1058,101 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
           </div>
         </div>
 
-        {/* Portfolio Allocation Table */}
-        {data.portfolioAllocation && data.portfolioAllocation.length > 0 && (
-          <div className="lg:w-[280px] shrink-0">
-            <AllocationTable
-              allocations={data.portfolioAllocation}
-              regimeName={quadrant.name}
-            />
-          </div>
-        )}
+        {/* Portfolio Allocation Table — always rendered, computed client-side
+            from quadrant + currency signal so it never silently disappears */}
+        <div className="lg:w-[280px] shrink-0">
+          <AllocationTable
+            allocations={buildAllocationsForRegime(
+              quadrant.name,
+              currencyQuality.signal,
+            )}
+            regimeName={quadrant.name}
+          />
+        </div>
       </div>
 
       {/* Selected quadrant detail panel */}
-      {selectedCell && selectedCell !== quadrant.name && data.regimeReturns && data.regimeReturns[selectedCell] && (() => {
-        const cellData = QUADRANT_CELLS.find(c => c.key === selectedCell);
-        const qDef = { "Deflationary Boom": { buy: ["Growth equities", "Long-duration assets", "Corporate bonds"], sell: ["Gold", "Commodities"] }, "Inflationary Boom": { buy: ["Gold & commodities", "Real estate", "Value stocks"], sell: ["Long-term bonds", "Growth equities"] }, "Deflationary Bust": { buy: ["Government bonds", "Cash", "Defensive equities"], sell: ["Cyclicals", "Commodities"] }, "Inflationary Bust": { buy: ["Cash", "Energy stocks", "Short-duration TIPS"], sell: ["Financial assets", "Long bonds"] } }[selectedCell];
-        const returns = data.regimeReturns![selectedCell];
-        return (
-          <div className={`rounded-lg border p-3 space-y-2 animate-fade-in ${REGIME_BORDER_COLORS[selectedCell] ?? "border-gray-200"} ${REGIME_BG_COLORS[selectedCell] ?? "bg-gray-50"}`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-xs font-bold ${REGIME_TEXT_COLORS[selectedCell] ?? "text-gray-700"}`}>{selectedCell}</span>
-              <button onClick={() => setSelectedCell(null)} className="text-[9px] text-gray-400 hover:text-gray-600">Close</button>
-            </div>
-            <p className="text-[10px] text-gray-500">{cellData?.brief}</p>
-            <div className="grid grid-cols-5 gap-1">
-              {[{ label: "Eq", value: returns.equities }, { label: "Bond", value: returns.bonds }, { label: "Gold", value: returns.gold }, { label: "Cmdty", value: returns.commodities }, { label: "Cash", value: returns.cash }].map(a => (
-                <div key={a.label} className="text-center">
-                  <div className="text-[8px] text-gray-400">{a.label}</div>
-                  <div className={`text-[10px] font-bold ${a.value > 0 ? "text-emerald-600" : a.value < 0 ? "text-red-600" : "text-gray-500"}`}>
-                    {a.value > 0 ? "+" : ""}{a.value}%
+      {selectedCell &&
+        selectedCell !== quadrant.name &&
+        data.regimeReturns &&
+        data.regimeReturns[selectedCell] &&
+        (() => {
+          const cellData = QUADRANT_CELLS.find((c) => c.key === selectedCell);
+          const qDef = {
+            "Deflationary Boom": {
+              buy: [
+                "Growth equities",
+                "Long-duration assets",
+                "Corporate bonds",
+              ],
+              sell: ["Gold", "Commodities"],
+            },
+            "Inflationary Boom": {
+              buy: ["Gold & commodities", "Real estate", "Value stocks"],
+              sell: ["Long-term bonds", "Growth equities"],
+            },
+            "Deflationary Bust": {
+              buy: ["Government bonds", "Cash", "Defensive equities"],
+              sell: ["Cyclicals", "Commodities"],
+            },
+            "Inflationary Bust": {
+              buy: ["Cash", "Energy stocks", "Short-duration TIPS"],
+              sell: ["Financial assets", "Long bonds"],
+            },
+          }[selectedCell];
+          const returns = data.regimeReturns![selectedCell];
+          return (
+            <div
+              className={`rounded-lg border p-3 space-y-2 animate-fade-in ${REGIME_BORDER_COLORS[selectedCell] ?? "border-gray-200"} ${REGIME_BG_COLORS[selectedCell] ?? "bg-gray-50"}`}
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={`text-xs font-bold ${REGIME_TEXT_COLORS[selectedCell] ?? "text-gray-700"}`}
+                >
+                  {selectedCell}
+                </span>
+                <button
+                  onClick={() => setSelectedCell(null)}
+                  className="text-[9px] text-gray-400 hover:text-gray-600"
+                >
+                  Close
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-500">{cellData?.brief}</p>
+              <div className="grid grid-cols-5 gap-1">
+                {[
+                  { label: "Eq", value: returns.equities },
+                  { label: "Bond", value: returns.bonds },
+                  { label: "Gold", value: returns.gold },
+                  { label: "Cmdty", value: returns.commodities },
+                  { label: "Cash", value: returns.cash },
+                ].map((a) => (
+                  <div key={a.label} className="text-center">
+                    <div className="text-[8px] text-gray-400">{a.label}</div>
+                    <div
+                      className={`text-[10px] font-bold ${a.value > 0 ? "text-emerald-600" : a.value < 0 ? "text-red-600" : "text-gray-500"}`}
+                    >
+                      {a.value > 0 ? "+" : ""}
+                      {a.value}%
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {qDef && (
+                <div className="flex gap-3 text-[9px]">
+                  <div>
+                    <span className="font-bold text-emerald-600">Own:</span>{" "}
+                    {qDef.buy.join(", ")}
+                  </div>
+                  <div>
+                    <span className="font-bold text-red-600">Avoid:</span>{" "}
+                    {qDef.sell.join(", ")}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
-            {qDef && (
-              <div className="flex gap-3 text-[9px]">
-                <div><span className="font-bold text-emerald-600">Own:</span> {qDef.buy.join(", ")}</div>
-                <div><span className="font-bold text-red-600">Avoid:</span> {qDef.sell.join(", ")}</div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       {/* Expanded detail */}
       {expanded && (
@@ -1101,16 +1237,12 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
               </div>
             </div>
             <div className="bg-gray-50 rounded-lg p-2.5">
-              <div className="text-[10px] text-gray-500 mb-0.5">
-                Gold / WTI
-              </div>
+              <div className="text-[10px] text-gray-500 mb-0.5">Gold / WTI</div>
               <div className="flex items-baseline gap-1.5">
                 <span className="text-sm font-bold text-gray-900">
                   {keyRatios.goldWti.current.toFixed(2)}
                 </span>
-                <span className="text-[9px] text-gray-400">
-                  bbl/oz
-                </span>
+                <span className="text-[9px] text-gray-400">bbl/oz</span>
               </div>
               <div className="text-[10px] text-gray-400">
                 7yMA: {keyRatios.goldWti.ma7y.toFixed(2)}
