@@ -45,7 +45,9 @@ export function ThemeLeaderboardLite() {
           return;
         }
 
-        const liteThemes: ThemeLite[] = data.themes;
+        const liteThemes: ThemeLite[] = data.themes.filter(
+          (t: ThemeLite) => t.stocks.length > 0,
+        );
         // Initialize with loading state
         setThemes(
           liteThemes.map((t) => ({
