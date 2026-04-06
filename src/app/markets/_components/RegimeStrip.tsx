@@ -121,19 +121,24 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail, expectedReturns
             {loading.sentiment || loading.regime ? (
               <>
                 <div className="text-center text-[10px] text-gray-400">
+                  <span className="opacity-60">ERP </span>
+                  <Skeleton className="h-3 w-10 inline-block !bg-gray-100" />
+                </div>
+                <div className="text-center text-[10px] text-gray-400">
                   <span className="opacity-60">RY </span>
-                  <Skeleton className="h-3 w-8 inline-block !bg-gray-100" />
+                  <Skeleton className="h-3 w-12 inline-block !bg-gray-100" />
                 </div>
                 <span className="hidden sm:contents">
                   <div className="text-center text-[10px] text-gray-400">
                     <span className="opacity-60">D/G </span>
-                    <Skeleton className="h-3 w-8 inline-block !bg-gray-100" />
+                    <Skeleton className="h-3 w-10 inline-block !bg-gray-100" />
                   </div>
                   <div className="text-center text-[10px] text-gray-400">
                     <span className="opacity-60">Def </span>
-                    <Skeleton className="h-3 w-8 inline-block !bg-gray-100" />
+                    <Skeleton className="h-3 w-10 inline-block !bg-gray-100" />
                   </div>
                 </span>
+                <Skeleton className="h-3.5 w-3.5" />
               </>
             ) : regimeData ? (
               <>
@@ -254,10 +259,25 @@ export function RegimeStrip({ regimeData, loading, onOpenDetail, expectedReturns
         </button>
 
         {/* Expected returns ranking + tactical summary */}
-        {!expectedReturns && (
+        {(!expectedReturns || loading.sentiment || loading.regime) && (
           <div className="mt-2 pt-2 border-t border-gray-100 space-y-1.5">
-            <Skeleton className="h-3 w-48 !bg-gray-50" />
-            <Skeleton className="h-5 w-64 !bg-gray-50 rounded" />
+            {/* Ranking strip */}
+            <div className="flex items-center gap-1">
+              <Skeleton className="h-2.5 w-8" />
+              {Array.from({ length: 5 }).map((_, i) => (
+                <span key={i} className="flex items-center">
+                  <Skeleton className="h-2.5 w-8" />
+                  {i < 4 && <Skeleton className="h-2.5 w-2.5 mx-0.5" />}
+                </span>
+              ))}
+              <Skeleton className="h-2.5 w-24 ml-1" />
+            </div>
+            {/* Tactical summary */}
+            <div className="flex items-center gap-1 px-2 py-1 rounded bg-gray-50">
+              <Skeleton className="h-2.5 w-2.5" />
+              <Skeleton className="h-2.5 w-16" />
+              <Skeleton className="h-2.5 w-40" />
+            </div>
           </div>
         )}
         {expectedReturns && expectedReturns.assets.length > 0 && (
