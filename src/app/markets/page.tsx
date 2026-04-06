@@ -6,10 +6,13 @@ import { PageHero } from "@/components/PageHero";
 import { detectRegime } from "./_components/helpers";
 
 import { MarketMood } from "./_components/MarketMood";
-import { AssetsAndMacro } from "./_components/AssetsAndMacro";
+import { Barometers } from "./_components/Barometers";
+import { HardAssets } from "./_components/HardAssets";
+import { Indicators } from "./_components/Indicators";
 import { RegimeAndValuations } from "./_components/RegimeAndValuations";
 import { AllocationSignal } from "./_components/AllocationSignal";
 import { ThemeLeaderboardLite } from "./_components/ThemeLeaderboardLite";
+import { MacroToggle } from "./_components/MacroToggle";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
   MacroIndicator,
@@ -193,13 +196,20 @@ export default function StocksDashboard() {
           toggleExpanded={toggleExpanded}
         />
 
-        <AssetsAndMacro
+        <Barometers
           marketEtfs={marketEtfs}
-          loadingEtfs={loading.etfs}
+          loading={loading.etfs}
+          expandedIds={expandedIds}
+          toggleExpanded={toggleExpanded}
+          expectedReturns={expectedReturns}
+        />
+
+        <HardAssets expectedReturns={expectedReturns} />
+
+        <MacroToggle
           macroIndicators={macroIndicators}
           yieldSpreads={yieldSpreads}
-          loadingMacro={loading.macro}
-          expectedReturns={expectedReturns}
+          loading={loading.macro}
           expandedIds={expandedIds}
           toggleExpanded={toggleExpanded}
         />
