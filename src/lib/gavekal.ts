@@ -104,35 +104,23 @@ export interface PortfolioAllocation {
   weight: string;
 }
 
-const REGIME_ALLOCATIONS: Record<string, PortfolioAllocation[]> = {
-  "Inflationary Bust": [
-    { asset: "Cash / T-bills", vehicle: "SGOV / SHV / BIL", weight: "20%" },
-    { asset: "Gold", vehicle: "GLDM / GLD / IAU", weight: "25%" },
-    { asset: "Energy equities", vehicle: "XLE / OIH", weight: "20%" },
-    { asset: "Short-duration TIPS", vehicle: "VTIP / STIP", weight: "15%" },
-    { asset: "Broad equities", vehicle: "VOO / SPY", weight: "20%" },
-  ],
-  "Inflationary Boom": [
-    { asset: "Gold & commodities", vehicle: "GLDM / DBC / GSG", weight: "30%" },
-    { asset: "Value equities", vehicle: "VTV / RPV", weight: "25%" },
-    { asset: "Real estate", vehicle: "VNQ / XLRE", weight: "20%" },
-    { asset: "EM equities", vehicle: "VWO / EEM", weight: "15%" },
-    { asset: "Cash", vehicle: "SGOV / SHV / BIL", weight: "10%" },
-  ],
-  "Deflationary Boom": [
-    { asset: "Growth equities", vehicle: "QQQ / VUG / SPY", weight: "40%" },
-    { asset: "Long-duration bonds", vehicle: "TLT / EDV / ZROZ", weight: "25%" },
-    { asset: "Corporate bonds", vehicle: "LQD / VCIT", weight: "20%" },
-    { asset: "Real estate", vehicle: "VNQ", weight: "10%" },
-    { asset: "Cash", vehicle: "SGOV / SHV", weight: "5%" },
-  ],
-  "Deflationary Bust": [
-    { asset: "Government bonds", vehicle: "TLT / IEF / GOVT", weight: "35%" },
-    { asset: "Cash / T-bills", vehicle: "SGOV / SHV / BIL", weight: "30%" },
-    { asset: "Defensive equities", vehicle: "XLU / XLP / USMV / SPLV", weight: "20%" },
-    { asset: "Gold", vehicle: "GLDM / GLD", weight: "15%" },
-  ],
-};
+// Browne Dynamic portfolio (Charles Gave, "The General Theory of Portfolio
+// Construction", Chapters 7–10). Five buckets, four held at any time:
+//   - Cash (T-bills)
+//   - S&P 500
+//   - XLE (energy producers — added as a separate bucket because energy is
+//     only ~4% of the S&P 500 vs ~30% in 1980, leaving the index unhedged
+//     against an oil shock)
+//   - Gold OR 10-year US Treasuries (mutually exclusive — switched by the
+//     7-year MA of the bond/gold ratio, see buildPortfolioAllocation)
+// Equal-weighted at 25% each. The ebook does NOT prescribe per-quadrant
+// allocations; the same Browne Dynamic is held in all four quadrants and the
+// only regime-driven change is the gold↔bonds switch.
+const BROWNE_DYNAMIC_BASE: PortfolioAllocation[] = [
+  { asset: "Cash / T-bills", vehicle: "SGOV / BIL / SHV", weight: "25%" },
+  { asset: "S&P 500", vehicle: "VOO / SPY", weight: "25%" },
+  { asset: "Energy equities", vehicle: "XLE", weight: "25%" },
+];
 
 export interface GavekalDataQuality {
   symbolStatus: Record<string, "ok" | "stale" | "missing">;
@@ -168,58 +156,53 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
     score: 2,
     color: "bg-emerald-100 border-emerald-300 text-emerald-800",
     description: "Energy efficient + good currency — best for capitalism",
+    // Gave Ch. 2: "long-duration equities, i.e. growth stocks. Value managers
+    // underperform. Government and corporate bonds do well, as does real
+    // estate. Basically, any 'long-duration' asset thrives."
     buySignals: [
-      "Growth equities (QQQ, VUG, SPY)",
-      "Long-duration bonds (TLT, EDV, ZROZ)",
-      "Corporate bonds (LQD, VCIT)",
-      "Real estate (VNQ, XLRE)",
+      "Innovative companies with pricing power",
+      "Long-duration assets (growth equities, long bonds)",
     ],
-    sellSignals: ["Gold (GLD)", "Commodities (DBC)", "Cash"],
+    sellSignals: ["Companies with little pricing power"],
   },
   "1,-1": {
     name: "Inflationary Boom",
     score: 0,
     color: "bg-orange-100 border-orange-300 text-orange-800",
     description: "Energy efficient + bad currency — nominal growth, real erosion",
+    // Gave Ch. 2: "scarcity assets, with the most obvious being gold, although
+    // commodities more broadly usually outperform. Value managers also do
+    // well, as do emerging market managers. In an inflationary boom, bonds
+    // typically struggle."
     buySignals: [
-      "Gold (GLDM, GLD, IAU)",
-      "Commodities (DBC, GSG)",
-      "Value stocks (VTV, RPV)",
-      "Real estate (VNQ, XLRE)",
-      "EM equities (VWO, EEM)",
+      "Stores of value (real estate, gold, commodities)",
+      "High fixed cost cyclical producers",
     ],
-    sellSignals: ["Long-term bonds (TLT)", "Cash", "Growth equities (QQQ)"],
+    sellSignals: ["Long-term bonds"],
   },
   "-1,1": {
     name: "Deflationary Bust",
     score: 0,
     color: "bg-blue-100 border-blue-300 text-blue-800",
     description: "Energy inefficient + good currency — recession risk",
-    buySignals: [
-      "Government bonds (TLT, IEF, GOVT)",
-      "Cash / T-bills (SGOV, SHV, BIL)",
-      "Defensive equities (XLU, XLP, USMV, SPLV)",
-      "Gold (GLDM, GLD)",
-    ],
-    sellSignals: ["Cyclicals (XLI, XLB)", "Commodities (DBC)", "Real estate"],
+    // Gave Ch. 2: "the only assets that rise are long-dated government bonds."
+    buySignals: ["Safe government bonds"],
+    sellSignals: ["Everything else"],
   },
   "-1,-1": {
     name: "Inflationary Bust",
     score: -2,
     color: "bg-red-100 border-red-300 text-red-800",
     description: "Energy inefficient + bad currency — stagflation, worst scenario",
+    // Gave Ch. 2: "very few assets do well. Long-duration assets do especially
+    // poorly. Even bonds collapse. At such times, one should own cash, and
+    // usually energy since the way the broader economy is often pushed into
+    // stagflation is through a spike in energy prices."
     buySignals: [
-      "Cash / T-bills (SGOV, SHV, BIL)",
-      "Gold (GLDM, GLD, IAU)",
-      "Energy equities (XLE, OIH)",
-      "Short-duration TIPS (VTIP, STIP)",
-      "Broad equities (VOO, SPY)",
+      "Cash in safest currency",
+      "Energy producers",
     ],
-    sellSignals: [
-      "Most financial assets",
-      "Long-duration bonds (TLT)",
-      "Growth equities (QQQ, ARKK)",
-    ],
+    sellSignals: ["Financial assets"],
   },
 };
 
@@ -932,34 +915,28 @@ export async function computeGavekalQuadrant(
     xle: xleData,
     changelog,
     regimeReturns: REGIME_RETURNS,
-    portfolioAllocation: buildPortfolioAllocation(quadrant.name, currencyQuality.signal),
+    portfolioAllocation: buildPortfolioAllocation(currencyQuality.signal),
     updatedAt: new Date().toISOString(),
   };
 }
 
-// ── Portfolio allocation (dynamic Gold/TLT based on currency signal) ────────
-
+// ── Portfolio allocation (Browne Dynamic — gold↔bonds switch) ───────────────
+//
+// The fourth bucket is Gold OR 10-year US Treasuries, never both. The switch
+// follows Charles Gave's rule (Chapter 8): if the IEF/Gold ratio is above its
+// 7-year moving average, the bond market is acting as a proper store of value
+// and we hold bonds; otherwise, the currency is being debased and we hold
+// gold. The same single Browne Dynamic portfolio is held in all four
+// quadrants — there are no per-quadrant baskets in the ebook.
 function buildPortfolioAllocation(
-  quadrantName: string,
   currencySignal: 1 | -1,
 ): PortfolioAllocation[] {
-  const base = REGIME_ALLOCATIONS[quadrantName];
-  if (!base) return [];
+  const switchedRow: PortfolioAllocation =
+    currencySignal === 1
+      ? { asset: "10y Treasuries", vehicle: "TLT / IEF", weight: "25%" }
+      : { asset: "Gold", vehicle: "GLDM / GLD / IAU", weight: "25%" };
 
-  return base.map((row) => {
-    // Dynamic Gold vs Bonds: if currency quality is good (signal=1), recommend TLT; else GLD
-    if (row.asset === "Gold" && quadrantName === "Inflationary Bust") {
-      return currencySignal === 1
-        ? { ...row, asset: "Bonds", vehicle: "TLT / IEF" }
-        : row;
-    }
-    if (row.asset === "Gold" && quadrantName === "Deflationary Bust") {
-      return currencySignal === 1
-        ? { ...row, asset: "Bonds", vehicle: "TLT / IEF" }
-        : row;
-    }
-    return row;
-  });
+  return [...BROWNE_DYNAMIC_BASE, switchedRow];
 }
 
 // ── Historical quadrant time series (full resolution) ──────────────────────

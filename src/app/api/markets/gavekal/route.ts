@@ -5,8 +5,9 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-// v5: ratio chart histories now sourced from monthly historical pipeline (1971+)
-const CACHE_KEY = "gavekal:quadrant:v5";
+// v6: portfolioAllocation refactored to single Browne Dynamic (per ebook),
+// no more per-quadrant baskets — invalidate v5 cached payloads
+const CACHE_KEY = "gavekal:quadrant:v6";
 const CACHE_MAX_AGE = 6 * 60 * 60; // 6 hours — ratios move slowly
 
 export async function GET(request: Request) {

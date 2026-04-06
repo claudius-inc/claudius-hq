@@ -1105,26 +1105,24 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
         data.regimeReturns[selectedCell] &&
         (() => {
           const cellData = QUADRANT_CELLS.find((c) => c.key === selectedCell);
+          // Mirrors the ebook-narrative buy/sell signals defined in
+          // QUADRANTS in src/lib/gavekal.ts (Charles Gave, Ch. 2).
           const qDef = {
             "Deflationary Boom": {
-              buy: [
-                "Growth equities",
-                "Long-duration assets",
-                "Corporate bonds",
-              ],
-              sell: ["Gold", "Commodities"],
+              buy: ["Innovative companies with pricing power", "Long-duration assets"],
+              sell: ["Companies with little pricing power"],
             },
             "Inflationary Boom": {
-              buy: ["Gold & commodities", "Real estate", "Value stocks"],
-              sell: ["Long-term bonds", "Growth equities"],
+              buy: ["Stores of value (real estate, gold, commodities)", "Cyclical producers"],
+              sell: ["Long-term bonds"],
             },
             "Deflationary Bust": {
-              buy: ["Government bonds", "Cash", "Defensive equities"],
-              sell: ["Cyclicals", "Commodities"],
+              buy: ["Safe government bonds"],
+              sell: ["Everything else"],
             },
             "Inflationary Bust": {
-              buy: ["Cash", "Energy stocks", "Short-duration TIPS"],
-              sell: ["Financial assets", "Long bonds"],
+              buy: ["Cash in safest currency", "Energy producers"],
+              sell: ["Financial assets"],
             },
           }[selectedCell];
           const returns = data.regimeReturns![selectedCell];
