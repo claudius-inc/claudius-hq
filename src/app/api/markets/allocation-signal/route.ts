@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCache, setCache } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
+import { computeGavekalQuadrant } from "@/lib/gavekal";
 
 export const dynamic = "force-dynamic";
 
@@ -136,24 +137,42 @@ function buildBiasLine(
   return parts.join(". ") + ".";
 }
 
+// Map Gavekal quadrant name to simple color key
+function quadrantToColor(name: string): string {
+  const map: Record<string, string> = {
+    "Deflationary Boom": "emerald",
+    "Inflationary Boom": "orange",
+    "Deflationary Bust": "blue",
+    "Inflationary Bust": "red",
+  };
+  return map[name] || "gray";
+}
+
 async function fetchAllocationSignal(baseUrl: string): Promise<AllocationSignalResponse> {
-  // Fetch all required data in parallel from internal endpoints
-  const [gavekalRes, valuationRes, sentimentRes, breadthRes, themesRes, pricesMap] = await Promise.all([
-    fetch(`${baseUrl}/api/markets/gavekal`).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch(`${baseUrl}/api/markets/valuation`).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch(`${baseUrl}/api/markets/sentiment`).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch(`${baseUrl}/api/markets/breadth`).then(r => r.ok ? r.json() : null).catch(() => null),
-    fetch(`${baseUrl}/api/themes/lite`).then(r => r.ok ? r.json() : null).catch(() => null),
-    // We'll fetch theme prices below after we know tickers
-    Promise.resolve(null),
+  // Fetch gavekal directly (avoids server-to-server HTTP anti-pattern)
+  // Other endpoints use HTTP fetch with timeout
+  const fetchWithTimeout = (url: string, ms = 8000) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { signal: controller.signal })
+      .then(r => { clearTimeout(timeout); return r.ok ? r.json() : null; })
+      .catch(() => { clearTimeout(timeout); return null; });
+  };
+
+  const [gavekalData, valuationRes, sentimentRes, breadthRes, themesRes] = await Promise.all([
+    computeGavekalQuadrant().catch(() => null),
+    fetchWithTimeout(`${baseUrl}/api/markets/valuation`),
+    fetchWithTimeout(`${baseUrl}/api/markets/sentiment`),
+    fetchWithTimeout(`${baseUrl}/api/markets/breadth`),
+    fetchWithTimeout(`${baseUrl}/api/themes/lite`),
   ]);
 
-  // Regime from Gavekal
-  const regime = gavekalRes?.quadrant
+  // Regime from Gavekal (direct import, no HTTP)
+  const regime = gavekalData?.quadrant
     ? {
-        name: gavekalRes.quadrant.name as string,
-        implication: gavekalRes.quadrant.description as string,
-        color: gavekalRes.quadrant.color as string,
+        name: gavekalData.quadrant.name as string,
+        implication: gavekalData.quadrant.description as string,
+        color: quadrantToColor(gavekalData.quadrant.name),
       }
     : { name: "Unknown", implication: "Insufficient data", color: "gray" };
 
