@@ -5,13 +5,9 @@ import { mutate } from "swr";
 import { PageHero } from "@/components/PageHero";
 import { detectRegime } from "./_components/helpers";
 
-import { Barometers } from "./_components/Barometers";
-import { Sentiment } from "./_components/Sentiment";
-import { SmartMoney } from "./_components/SmartMoney";
-import { Indicators } from "./_components/Indicators";
-import { HardAssets } from "./_components/HardAssets";
-import { ValuationCards } from "./_components/ValuationCards";
-import { GavekalQuadrant } from "./_components/GavekalQuadrant";
+import { MarketMood } from "./_components/MarketMood";
+import { AssetsAndMacro } from "./_components/AssetsAndMacro";
+import { RegimeAndValuations } from "./_components/RegimeAndValuations";
 import { AllocationSignal } from "./_components/AllocationSignal";
 import { ThemeLeaderboardLite } from "./_components/ThemeLeaderboardLite";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
@@ -181,46 +177,29 @@ export default function StocksDashboard() {
           <AllocationSignal />
         </div>
 
-        <div className="col-span-full">
-          <GavekalQuadrant data={gavekalData} loading={loading.gavekal} />
-        </div>
-
-        <ValuationCards />
+        <RegimeAndValuations gavekalData={gavekalData} loadingGavekal={loading.gavekal} />
 
         <div className="col-span-full">
           <ThemeLeaderboardLite />
         </div>
 
-        <div className="space-y-4">
-          <Barometers
-            marketEtfs={marketEtfs}
-            loading={loading.etfs}
-            expandedIds={expandedIds}
-            toggleExpanded={toggleExpanded}
-            expectedReturns={expectedReturns}
-          />
-          <SmartMoney
-            congressData={congressData}
-            insiderData={insiderData}
-            expandedIds={expandedIds}
-            toggleExpanded={toggleExpanded}
-          />
-        </div>
-
-        <HardAssets expectedReturns={expectedReturns} />
-
-        <Sentiment
+        <MarketMood
           sentimentData={sentimentData}
           breadthData={breadthData}
           crowdingData={crowdingData}
+          congressData={congressData}
+          insiderData={insiderData}
           expandedIds={expandedIds}
           toggleExpanded={toggleExpanded}
         />
 
-        <Indicators
+        <AssetsAndMacro
+          marketEtfs={marketEtfs}
+          loadingEtfs={loading.etfs}
           macroIndicators={macroIndicators}
           yieldSpreads={yieldSpreads}
-          loading={loading.macro}
+          loadingMacro={loading.macro}
+          expectedReturns={expectedReturns}
           expandedIds={expandedIds}
           toggleExpanded={toggleExpanded}
         />
