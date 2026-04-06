@@ -19,7 +19,8 @@ export interface MarketValuation {
   value: number | null;
   historicalMean: number;
   historicalRange: { min: number; max: number };
-  zone: "UNDERVALUED" | "FAIR" | "OVERVALUED" | "EXPENSIVE";
+  thresholds: { undervalued: number; overvalued: number };
+  zone: "UNDERVALUED" | "FAIR" | "OVERVALUED";
   percentOfMean: number;
   dividendYield: number | null;
   priceToBook: number | null;
@@ -31,36 +32,31 @@ export interface MarketValuation {
 const ZONES = {
   US: {
     undervalued: 14,
-    fair: 22,
-    overvalued: 30,
+    overvalued: 22,
     mean: 17,
     range: { min: 5, max: 45 },
   },
   JAPAN: {
     undervalued: 12,
-    fair: 18,
-    overvalued: 23,
+    overvalued: 18,
     mean: 15,
     range: { min: 8, max: 35 },
   },
   SINGAPORE: {
     undervalued: 11,
-    fair: 15,
-    overvalued: 18,
+    overvalued: 15,
     mean: 13,
     range: { min: 8, max: 25 },
   },
   CHINA: {
     undervalued: 10,
-    fair: 14,
-    overvalued: 18,
+    overvalued: 14,
     mean: 12,
     range: { min: 6, max: 30 },
   },
   HONG_KONG: {
     undervalued: 11,
-    fair: 17,
-    overvalued: 22,
+    overvalued: 17,
     mean: 15,
     range: { min: 6, max: 30 },
   },
@@ -68,12 +64,11 @@ const ZONES = {
 
 function getZone(
   value: number,
-  thresholds: { undervalued: number; fair: number; overvalued: number }
+  thresholds: { undervalued: number; overvalued: number }
 ): MarketValuation["zone"] {
   if (value < thresholds.undervalued) return "UNDERVALUED";
-  if (value < thresholds.fair) return "FAIR";
-  if (value < thresholds.overvalued) return "OVERVALUED";
-  return "EXPENSIVE";
+  if (value < thresholds.overvalued) return "FAIR";
+  return "OVERVALUED";
 }
 
 interface MarketData {
@@ -168,6 +163,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       value: usCape,
       historicalMean: ZONES.US.mean,
       historicalRange: ZONES.US.range,
+      thresholds: { undervalued: ZONES.US.undervalued, overvalued: ZONES.US.overvalued },
       zone: usCape ? getZone(usCape, ZONES.US) : "FAIR",
       percentOfMean: usCape ? Math.round((usCape / ZONES.US.mean) * 100) : 100,
       dividendYield: usData.dividendYield,
@@ -185,6 +181,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       value: jpPE,
       historicalMean: ZONES.JAPAN.mean,
       historicalRange: ZONES.JAPAN.range,
+      thresholds: { undervalued: ZONES.JAPAN.undervalued, overvalued: ZONES.JAPAN.overvalued },
       zone: jpPE ? getZone(jpPE, ZONES.JAPAN) : "FAIR",
       percentOfMean: jpPE ? Math.round((jpPE / ZONES.JAPAN.mean) * 100) : 100,
       dividendYield: jpData.dividendYield,
@@ -202,6 +199,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       value: sgPE,
       historicalMean: ZONES.SINGAPORE.mean,
       historicalRange: ZONES.SINGAPORE.range,
+      thresholds: { undervalued: ZONES.SINGAPORE.undervalued, overvalued: ZONES.SINGAPORE.overvalued },
       zone: sgPE ? getZone(sgPE, ZONES.SINGAPORE) : "FAIR",
       percentOfMean: sgPE ? Math.round((sgPE / ZONES.SINGAPORE.mean) * 100) : 100,
       dividendYield: sgData.dividendYield,
@@ -219,6 +217,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       value: cnPE,
       historicalMean: ZONES.CHINA.mean,
       historicalRange: ZONES.CHINA.range,
+      thresholds: { undervalued: ZONES.CHINA.undervalued, overvalued: ZONES.CHINA.overvalued },
       zone: cnPE ? getZone(cnPE, ZONES.CHINA) : "FAIR",
       percentOfMean: cnPE ? Math.round((cnPE / ZONES.CHINA.mean) * 100) : 100,
       dividendYield: cnData.dividendYield,
@@ -236,6 +235,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       value: hsiPE,
       historicalMean: ZONES.HONG_KONG.mean,
       historicalRange: ZONES.HONG_KONG.range,
+      thresholds: { undervalued: ZONES.HONG_KONG.undervalued, overvalued: ZONES.HONG_KONG.overvalued },
       zone: hsiPE ? getZone(hsiPE, ZONES.HONG_KONG) : "FAIR",
       percentOfMean: hsiPE ? Math.round((hsiPE / ZONES.HONG_KONG.mean) * 100) : 100,
       dividendYield: hsiData.dividendYield,
