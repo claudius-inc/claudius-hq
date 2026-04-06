@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Skeleton } from "@/components/Skeleton";
+import { Modal } from "@/components/ui/Modal";
 import {
   Grid3X3,
   TrendingUp,
@@ -10,8 +11,7 @@ import {
   Fuel,
   Coins,
   Landmark,
-  ChevronDown,
-  ChevronUp,
+  Maximize2,
   AlertTriangle,
   Clock,
   ArrowRight,
@@ -1092,11 +1092,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
               </span>
             </span>
           </div>
-          {expanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-300" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-gray-300" />
-          )}
+          <Maximize2 className="w-3.5 h-3.5 text-gray-300" />
         </div>
       </button>
 
@@ -1269,9 +1265,14 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
           );
         })()}
 
-      {/* Expanded detail */}
-      {expanded && (
-        <div className="space-y-4 pt-2 border-t border-gray-100 animate-fade-in">
+      {/* Detail modal */}
+      <Modal
+        open={expanded}
+        onClose={() => setExpanded(false)}
+        title={`${quadrant.name} — Macro Detail`}
+        size="xl"
+      >
+        <div className="space-y-4">
           {/* Regime timeline */}
           {regimeHistory && regimeHistory.length > 0 && (
             <RegimeTimeline history={regimeHistory} />
@@ -1447,7 +1448,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
             </div>
           )}
         </div>
-      )}
+      </Modal>
     </div>
   );
 }
