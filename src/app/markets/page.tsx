@@ -12,6 +12,8 @@ import { Indicators } from "./_components/Indicators";
 import { HardAssets } from "./_components/HardAssets";
 import { ValuationCards } from "./_components/ValuationCards";
 import { GavekalQuadrant } from "./_components/GavekalQuadrant";
+import { AllocationSignal } from "./_components/AllocationSignal";
+import { ThemeLeaderboardLite } from "./_components/ThemeLeaderboardLite";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
   MacroIndicator,
@@ -176,10 +178,18 @@ export default function StocksDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
         <div className="col-span-full">
+          <AllocationSignal />
+        </div>
+
+        <div className="col-span-full">
           <GavekalQuadrant data={gavekalData} loading={loading.gavekal} />
         </div>
 
         <ValuationCards />
+
+        <div className="col-span-full">
+          <ThemeLeaderboardLite />
+        </div>
 
         <div className="space-y-4">
           <Barometers
