@@ -11,7 +11,6 @@ import { HardAssets } from "./_components/HardAssets";
 import { Indicators } from "./_components/Indicators";
 import { GavekalQuadrant } from "./_components/GavekalQuadrant";
 import { CompactValuationStrip } from "./_components/CompactValuationStrip";
-import { AllocationSignal } from "./_components/AllocationSignal";
 import { ThemeLeaderboardLite } from "./_components/ThemeLeaderboardLite";
 import { MacroToggle } from "./_components/MacroToggle";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
@@ -177,10 +176,6 @@ export default function StocksDashboard() {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
-        <div className="col-span-full">
-          <AllocationSignal />
-        </div>
-
         <div className="col-span-full">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
             <div className="lg:col-span-2">
