@@ -62,7 +62,7 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
   const dotPct = data.value ? clampPct(((data.value - min) / span) * 100) : 0;
 
   return (
-    <div className="px-3 py-1 hover:bg-gray-50 transition-colors">
+    <div className="px-3 py-1.5 hover:bg-gray-50 transition-colors">
       {/* Top row: flag, country, badge, value */}
       <div className="flex items-center gap-2">
         <span className="text-base shrink-0">{data.flag}</span>
@@ -147,7 +147,7 @@ export function CompactValuationStrip() {
       <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
         {loading
           ? Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="px-3 py-1">
+              <div key={i} className="px-3 py-1.5">
                 <div className="flex items-center gap-2">
                   <Skeleton className="h-5 w-5 rounded" />
                   <Skeleton className="h-3 w-16 flex-1" />
