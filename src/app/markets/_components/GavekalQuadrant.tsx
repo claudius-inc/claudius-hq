@@ -113,58 +113,6 @@ const REGIME_BORDER_COLORS: Record<string, string> = {
 // Historical mean for Gold/WTI ratio (~16 barrels per oz)
 const GOLD_WTI_HISTORICAL_MEAN = 16;
 
-// Static allocation recommendations per Gavekal quadrant.
-// Mirrors REGIME_ALLOCATIONS in src/lib/gavekal.ts so the table renders
-// deterministically client-side without depending on cached API payloads.
-const REGIME_ALLOCATIONS: Record<string, PortfolioAllocation[]> = {
-  "Inflationary Bust": [
-    { asset: "Cash / T-bills", vehicle: "SHV / BIL", weight: "25%" },
-    { asset: "Gold", vehicle: "GLD / IAU", weight: "25%" },
-    { asset: "Broad equities", vehicle: "VWRA", weight: "25%" },
-    { asset: "Energy equities", vehicle: "XLE", weight: "20-25%" },
-  ],
-  "Inflationary Boom": [
-    { asset: "Gold & commodities", vehicle: "GLD / DJP / GSG", weight: "30%" },
-    { asset: "Value equities", vehicle: "VTV / RPV", weight: "25%" },
-    { asset: "Real estate", vehicle: "VNQ / XLRE", weight: "20%" },
-    { asset: "EM equities", vehicle: "VWO / EEM", weight: "15%" },
-    { asset: "Cash", vehicle: "SHV / BIL", weight: "10%" },
-  ],
-  "Deflationary Boom": [
-    { asset: "Growth equities", vehicle: "QQQ / VUG", weight: "40%" },
-    { asset: "Long-duration bonds", vehicle: "TLT / ZROZ", weight: "25%" },
-    { asset: "Corporate bonds", vehicle: "LQD / VCIT", weight: "20%" },
-    { asset: "Real estate", vehicle: "VNQ", weight: "10%" },
-    { asset: "Cash", vehicle: "SHV", weight: "5%" },
-  ],
-  "Deflationary Bust": [
-    { asset: "Government bonds", vehicle: "TLT / IEF / GOVT", weight: "35%" },
-    { asset: "Cash / T-bills", vehicle: "SHV / BIL / SGOV", weight: "30%" },
-    { asset: "Defensive equities", vehicle: "XLU / XLP / SPLV", weight: "20%" },
-    { asset: "Gold", vehicle: "GLD", weight: "15%" },
-  ],
-};
-
-function buildAllocationsForRegime(
-  quadrantName: string,
-  currencySignal: 1 | -1,
-): PortfolioAllocation[] {
-  const base = REGIME_ALLOCATIONS[quadrantName];
-  if (!base) return [];
-  return base.map((row) => {
-    // Bust regimes: if currency quality is good, swap Gold → long bonds
-    if (
-      row.asset === "Gold" &&
-      (quadrantName === "Inflationary Bust" ||
-        quadrantName === "Deflationary Bust") &&
-      currencySignal === 1
-    ) {
-      return { ...row, asset: "Bonds", vehicle: "TLT / IEF" };
-    }
-    return row;
-  });
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDuration(startDate: string, endDate: string): string {
@@ -1122,14 +1070,11 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
           </div>
         </div>
 
-        {/* Portfolio Allocation Table — always rendered, computed client-side
-            from quadrant + currency signal so it never silently disappears */}
+        {/* Portfolio Allocation Table — sourced from API (src/lib/gavekal.ts)
+            so client and server stay in sync */}
         <div className="lg:w-[280px] shrink-0">
           <AllocationTable
-            allocations={buildAllocationsForRegime(
-              quadrant.name,
-              currencyQuality.signal,
-            )}
+            allocations={data.portfolioAllocation ?? []}
             regimeName={quadrant.name}
           />
         </div>
