@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCache, setCache } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
 import { computeGavekalQuadrant } from "@/lib/gavekal";
+import { fetchValuationData } from "@/lib/valuation";
+import { fetchSentimentData } from "@/lib/sentiment";
+import { fetchBreadthData } from "@/lib/breadth";
+import { fetchThemesLite, fetchThemePrices } from "@/lib/themes";
 
 export const dynamic = "force-dynamic";
 
@@ -148,26 +152,17 @@ function quadrantToColor(name: string): string {
   return map[name] || "gray";
 }
 
-async function fetchAllocationSignal(baseUrl: string): Promise<AllocationSignalResponse> {
-  // Fetch gavekal directly (avoids server-to-server HTTP anti-pattern)
-  // Other endpoints use HTTP fetch with timeout
-  const fetchWithTimeout = (url: string, ms = 8000) => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), ms);
-    return fetch(url, { signal: controller.signal })
-      .then(r => { clearTimeout(timeout); return r.ok ? r.json() : null; })
-      .catch(() => { clearTimeout(timeout); return null; });
-  };
-
+async function fetchAllocationSignal(): Promise<AllocationSignalResponse> {
+  // All data fetched via direct imports — no HTTP self-fetches
   const [gavekalData, valuationRes, sentimentRes, breadthRes, themesRes] = await Promise.all([
     computeGavekalQuadrant().catch(() => null),
-    fetchWithTimeout(`${baseUrl}/api/markets/valuation`),
-    fetchWithTimeout(`${baseUrl}/api/markets/sentiment`),
-    fetchWithTimeout(`${baseUrl}/api/markets/breadth`),
-    fetchWithTimeout(`${baseUrl}/api/themes/lite`),
+    fetchValuationData().catch(() => null),
+    fetchSentimentData().catch(() => null),
+    fetchBreadthData().catch(() => null),
+    fetchThemesLite().catch(() => null),
   ]);
 
-  // Regime from Gavekal (direct import, no HTTP)
+  // Regime from Gavekal
   const regime = gavekalData?.quadrant
     ? {
         name: gavekalData.quadrant.name as string,
@@ -189,7 +184,6 @@ async function fetchAllocationSignal(baseUrl: string): Promise<AllocationSignalR
   // Theme top 3 by 1M performance
   let top3Themes: Array<{ name: string; perf1m: number; crowding: number | null }> = [];
   if (themesRes?.themes && Array.isArray(themesRes.themes)) {
-    // Fetch prices for all theme stocks to get performance
     const allTickers = new Set<string>();
     for (const theme of themesRes.themes) {
       if (theme.stocks) {
@@ -199,45 +193,39 @@ async function fetchAllocationSignal(baseUrl: string): Promise<AllocationSignalR
 
     if (allTickers.size > 0) {
       try {
-        const tickerStr = Array.from(allTickers).join(",");
-        const pricesRes = await fetch(`${baseUrl}/api/themes/prices?tickers=${tickerStr}`);
-        if (pricesRes.ok) {
-          const pricesData = await pricesRes.json();
-          const prices = pricesData.prices || {};
+        const tickers = Array.from(allTickers);
+        const pricesData = await fetchThemePrices(tickers);
+        const prices = pricesData.prices || {};
 
-          // Calculate 1M performance per theme
-          const themesWithPerf = themesRes.themes.map((theme: { name: string; stocks: string[] }) => {
-            const stockPerfs: number[] = [];
-            for (const ticker of theme.stocks || []) {
-              const p = prices[ticker];
-              if (p?.performance_1m != null) stockPerfs.push(p.performance_1m);
-            }
-            const avgPerf = stockPerfs.length > 0
-              ? stockPerfs.reduce((a: number, b: number) => a + b, 0) / stockPerfs.length
-              : null;
+        const themesWithPerf = themesRes.themes.map((theme) => {
+          const stockPerfs: number[] = [];
+          for (const ticker of theme.stocks || []) {
+            const p = prices[ticker];
+            if (p?.performance_1m != null) stockPerfs.push(p.performance_1m);
+          }
+          const avgPerf = stockPerfs.length > 0
+            ? stockPerfs.reduce((a: number, b: number) => a + b, 0) / stockPerfs.length
+            : null;
 
-            // Crowding from basket data
-            const basket = pricesData.baskets?.[theme.name];
-            const crowding = basket?.crowdingScore ?? null;
+          const basket = pricesData.basket;
+          const crowding = basket?.crowdingScore ?? null;
 
-            return {
-              name: theme.name,
-              perf1m: avgPerf,
-              crowding,
-            };
-          });
+          return {
+            name: theme.name,
+            perf1m: avgPerf,
+            crowding,
+          };
+        });
 
-          // Sort by 1M perf descending, take top 3 with data
-          top3Themes = themesWithPerf
-            .filter((t: { perf1m: number | null }) => t.perf1m != null)
-            .sort((a: { perf1m: number | null }, b: { perf1m: number | null }) => (b.perf1m ?? 0) - (a.perf1m ?? 0))
-            .slice(0, 3)
-            .map((t: { name: string; perf1m: number | null; crowding: number | null }) => ({
-              name: t.name,
-              perf1m: Math.round((t.perf1m ?? 0) * 100) / 100,
-              crowding: t.crowding,
-            }));
-        }
+        top3Themes = themesWithPerf
+          .filter((t: { perf1m: number | null }) => t.perf1m != null)
+          .sort((a: { perf1m: number | null }, b: { perf1m: number | null }) => (b.perf1m ?? 0) - (a.perf1m ?? 0))
+          .slice(0, 3)
+          .map((t: { name: string; perf1m: number | null; crowding: number | null }) => ({
+            name: t.name,
+            perf1m: Math.round((t.perf1m ?? 0) * 100) / 100,
+            crowding: t.crowding,
+          }));
       } catch (e) {
         logger.error("allocation-signal", "Failed to fetch theme prices", { error: e });
       }
@@ -267,16 +255,14 @@ export async function GET(request: NextRequest) {
       }
       if (cached) {
         // Return stale data, refresh in background
-        const origin = request.nextUrl.origin;
-        fetchAllocationSignal(origin)
+        fetchAllocationSignal()
           .then((data) => setCache(CACHE_KEY, data))
           .catch((e) => logger.error("allocation-signal", "Background refresh failed", { error: e }));
         return NextResponse.json({ ...cached.data, cached: true, isStale: true });
       }
     }
 
-    const origin = request.nextUrl.origin;
-    const data = await fetchAllocationSignal(origin);
+    const data = await fetchAllocationSignal();
     await setCache(CACHE_KEY, data);
 
     return NextResponse.json({ ...data, cached: false });
