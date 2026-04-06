@@ -181,6 +181,29 @@ export interface GavekalRegimePoint {
   quadrant: string;
 }
 
+export interface GavekalXleData {
+  price: number | null;
+  changePercent: number | null;
+  xleSpyRatio: number | null;
+  trailingPE: number | null;
+  dividendYield: number | null;
+}
+
+export interface GavekalChangeEvent {
+  date: string;
+  type: "crossover" | "threshold" | "regime_change";
+  signal: string;
+  description: string;
+}
+
+export interface GavekalRegimeReturns {
+  equities: number;
+  bonds: number;
+  gold: number;
+  commodities: number;
+  cash: number;
+}
+
 export interface GavekalData {
   quadrant: GavekalQuadrantData;
   energyEfficiency: GavekalRatioData;
@@ -191,6 +214,9 @@ export interface GavekalData {
   };
   exclusions: GavekalExclusionData[];
   regimeHistory: GavekalRegimePoint[];
+  xle?: GavekalXleData;
+  changelog?: GavekalChangeEvent[];
+  regimeReturns?: Record<string, GavekalRegimeReturns>;
   updatedAt: string;
 }
 

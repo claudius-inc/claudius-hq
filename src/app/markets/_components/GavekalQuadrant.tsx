@@ -17,12 +17,18 @@ import {
   Activity,
   CheckCircle,
   AlertCircle,
+  Zap,
+  History,
+  BarChart3,
 } from "lucide-react";
 import type {
   GavekalData,
   GavekalRatioData,
   GavekalRegimePoint,
   GavekalExclusionData,
+  GavekalXleData,
+  GavekalChangeEvent,
+  GavekalRegimeReturns,
 } from "./types";
 
 interface GavekalQuadrantProps {
@@ -609,11 +615,134 @@ function ExclusionCard({ ex }: { ex: GavekalExclusionData }) {
   );
 }
 
+// ── XLE Sub-Panel ───────────────────────────────────────────────────────────
+
+function XlePanel({ xle }: { xle: GavekalXleData }) {
+  return (
+    <div className="bg-gray-50 rounded-lg p-3">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Zap className="w-3.5 h-3.5 text-amber-500" />
+        <span className="text-[11px] font-semibold text-gray-700">Energy Sector (XLE)</span>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div>
+          <div className="text-[9px] text-gray-400 uppercase">Price</div>
+          <div className="text-sm font-bold text-gray-900">
+            {xle.price ? `$${xle.price.toFixed(2)}` : "\u2014"}
+          </div>
+          {xle.changePercent != null && (
+            <div className={`text-[10px] tabular-nums ${xle.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+              {xle.changePercent >= 0 ? "+" : ""}{xle.changePercent.toFixed(2)}%
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="text-[9px] text-gray-400 uppercase">Trailing P/E</div>
+          <div className="text-sm font-bold text-gray-900">
+            {xle.trailingPE ? `${xle.trailingPE.toFixed(1)}x` : "\u2014"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] text-gray-400 uppercase">Div Yield</div>
+          <div className="text-sm font-bold text-gray-900">
+            {xle.dividendYield ? `${xle.dividendYield.toFixed(1)}%` : "\u2014"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] text-gray-400 uppercase">XLE / SPY</div>
+          <div className="text-sm font-bold text-gray-900">
+            {xle.xleSpyRatio ? xle.xleSpyRatio.toFixed(3) : "\u2014"}
+          </div>
+          <div className="text-[9px] text-gray-400">Relative strength</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── What Changed Changelog ──────────────────────────────────────────────────
+
+function ChangelogPanel({ events }: { events: GavekalChangeEvent[] }) {
+  if (!events.length) return null;
+
+  const typeIcon = (type: string) => {
+    if (type === "regime_change") return <Activity className="w-3 h-3 text-blue-500" />;
+    if (type === "threshold") return <AlertTriangle className="w-3 h-3 text-amber-500" />;
+    return <ArrowRight className="w-3 h-3 text-gray-400" />;
+  };
+
+  return (
+    <div>
+      <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+        <History className="w-3.5 h-3.5 text-gray-400" />
+        What Changed
+      </div>
+      <div className="space-y-1.5">
+        {events.map((ev, i) => (
+          <div key={i} className="flex items-start gap-2 text-[10px] bg-gray-50 rounded-lg px-2.5 py-1.5">
+            <div className="mt-0.5 shrink-0">{typeIcon(ev.type)}</div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-gray-700">{ev.signal}</span>
+                <span className="text-gray-400">{formatShortDate(ev.date)}</span>
+              </div>
+              <p className="text-gray-500 leading-snug">{ev.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Historical Regime Returns ───────────────────────────────────────────────
+
+function RegimeReturnsPanel({
+  currentQuadrant,
+  regimeReturns,
+}: {
+  currentQuadrant: string;
+  regimeReturns: Record<string, GavekalRegimeReturns>;
+}) {
+  const returns = regimeReturns[currentQuadrant];
+  if (!returns) return null;
+
+  const assets = [
+    { label: "Equities", value: returns.equities },
+    { label: "Bonds", value: returns.bonds },
+    { label: "Gold", value: returns.gold },
+    { label: "Commodities", value: returns.commodities },
+    { label: "Cash", value: returns.cash },
+  ];
+
+  return (
+    <div>
+      <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+        <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
+        Historical Returns in {currentQuadrant}
+      </div>
+      <div className="grid grid-cols-5 gap-1.5">
+        {assets.map((a) => (
+          <div key={a.label} className="bg-gray-50 rounded-lg p-2 text-center">
+            <div className="text-[9px] text-gray-400 mb-0.5">{a.label}</div>
+            <div className={`text-sm font-bold ${a.value > 0 ? "text-emerald-600" : a.value < 0 ? "text-red-600" : "text-gray-500"}`}>
+              {a.value > 0 ? "+" : ""}{a.value}%
+            </div>
+            <div className="text-[8px] text-gray-300">ann.</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-[8px] text-gray-400 mt-1.5">Approximate annualized real returns based on historical regime periods. Past performance does not predict future results.</p>
+    </div>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────
 
 export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
   const [expanded, setExpanded] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
+  const [selectedCell, setSelectedCell] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -729,20 +858,24 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
         </div>
       </button>
 
-      {/* Quadrant Grid — with hover tooltips and regime-consistent colors */}
+      {/* Quadrant Grid — interactive with hover tooltips and regime-consistent colors */}
       <div className="grid grid-cols-2 gap-1.5">
         {QUADRANT_CELLS.map((cell) => {
           const active = cell.key === quadrant.name;
           const hovered = hoveredCell === cell.key;
+          const selected = selectedCell === cell.key;
 
           return (
             <div
               key={cell.key}
-              className={`relative rounded-lg px-2.5 py-2 text-center transition-all duration-300 ease-out border-2 ${
+              className={`relative rounded-lg px-2.5 py-2 text-center transition-all duration-300 ease-out border-2 cursor-pointer ${
                 active
                   ? QUADRANT_ACTIVE[cell.key]
-                  : "bg-gray-50 text-gray-400 border-transparent hover:bg-gray-100"
+                  : selected
+                    ? `${REGIME_BG_COLORS[cell.key] ?? "bg-gray-50"} ${REGIME_TEXT_COLORS[cell.key] ?? "text-gray-600"} ${REGIME_BORDER_COLORS[cell.key] ?? "border-gray-200"} opacity-80`
+                    : "bg-gray-50 text-gray-400 border-transparent hover:bg-gray-100"
               }`}
+              onClick={() => setSelectedCell(selected ? null : cell.key)}
               onMouseEnter={() => setHoveredCell(cell.key)}
               onMouseLeave={() => setHoveredCell(null)}
             >
@@ -793,6 +926,38 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
         <span>Bad currency (inflation)</span>
         <span>Good currency (deflation)</span>
       </div>
+
+      {/* Selected quadrant detail panel */}
+      {selectedCell && selectedCell !== quadrant.name && data.regimeReturns && data.regimeReturns[selectedCell] && (() => {
+        const cellData = QUADRANT_CELLS.find(c => c.key === selectedCell);
+        const qDef = { "Deflationary Boom": { buy: ["Growth equities", "Long-duration assets", "Corporate bonds"], sell: ["Gold", "Commodities"] }, "Inflationary Boom": { buy: ["Gold & commodities", "Real estate", "Value stocks"], sell: ["Long-term bonds", "Growth equities"] }, "Deflationary Bust": { buy: ["Government bonds", "Cash", "Defensive equities"], sell: ["Cyclicals", "Commodities"] }, "Inflationary Bust": { buy: ["Cash", "Energy stocks", "Short-duration TIPS"], sell: ["Financial assets", "Long bonds"] } }[selectedCell];
+        const returns = data.regimeReturns![selectedCell];
+        return (
+          <div className={`rounded-lg border p-3 space-y-2 animate-fade-in ${REGIME_BORDER_COLORS[selectedCell] ?? "border-gray-200"} ${REGIME_BG_COLORS[selectedCell] ?? "bg-gray-50"}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-xs font-bold ${REGIME_TEXT_COLORS[selectedCell] ?? "text-gray-700"}`}>{selectedCell}</span>
+              <button onClick={() => setSelectedCell(null)} className="text-[9px] text-gray-400 hover:text-gray-600">Close</button>
+            </div>
+            <p className="text-[10px] text-gray-500">{cellData?.brief}</p>
+            <div className="grid grid-cols-5 gap-1">
+              {[{ label: "Eq", value: returns.equities }, { label: "Bond", value: returns.bonds }, { label: "Gold", value: returns.gold }, { label: "Cmdty", value: returns.commodities }, { label: "Cash", value: returns.cash }].map(a => (
+                <div key={a.label} className="text-center">
+                  <div className="text-[8px] text-gray-400">{a.label}</div>
+                  <div className={`text-[10px] font-bold ${a.value > 0 ? "text-emerald-600" : a.value < 0 ? "text-red-600" : "text-gray-500"}`}>
+                    {a.value > 0 ? "+" : ""}{a.value}%
+                  </div>
+                </div>
+              ))}
+            </div>
+            {qDef && (
+              <div className="flex gap-3 text-[9px]">
+                <div><span className="font-bold text-emerald-600">Own:</span> {qDef.buy.join(", ")}</div>
+                <div><span className="font-bold text-red-600">Avoid:</span> {qDef.sell.join(", ")}</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Expanded detail */}
       {expanded && (
@@ -948,6 +1113,22 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
               </div>
             </div>
           </div>
+
+          {/* XLE Energy Sub-Panel */}
+          {data.xle && <XlePanel xle={data.xle} />}
+
+          {/* Historical Regime Returns */}
+          {data.regimeReturns && (
+            <RegimeReturnsPanel
+              currentQuadrant={quadrant.name}
+              regimeReturns={data.regimeReturns}
+            />
+          )}
+
+          {/* What Changed Changelog */}
+          {data.changelog && data.changelog.length > 0 && (
+            <ChangelogPanel events={data.changelog} />
+          )}
 
           {/* Browne Portfolio Rules — redesigned as status indicator cards */}
           {exclusions.length > 0 && (
