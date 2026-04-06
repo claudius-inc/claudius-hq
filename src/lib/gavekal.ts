@@ -71,6 +71,29 @@ export interface GavekalRegimePoint {
   quadrant: GavekalQuadrantName;
 }
 
+export interface GavekalXleData {
+  price: number | null;
+  changePercent: number | null;
+  xleSpyRatio: number | null;
+  trailingPE: number | null;
+  dividendYield: number | null;
+}
+
+export interface GavekalChangeEvent {
+  date: string;
+  type: "crossover" | "threshold" | "regime_change";
+  signal: string;
+  description: string;
+}
+
+export interface GavekalRegimeReturns {
+  equities: number;
+  bonds: number;
+  gold: number;
+  commodities: number;
+  cash: number;
+}
+
 export interface GavekalDataQuality {
   symbolStatus: Record<string, "ok" | "stale" | "missing">;
   dataPoints: number;
@@ -90,6 +113,9 @@ export interface GavekalData {
   exclusions: GavekalExclusion[];
   regimeHistory: GavekalRegimePoint[];
   dataQuality?: GavekalDataQuality;
+  xle?: GavekalXleData;
+  changelog?: GavekalChangeEvent[];
+  regimeReturns?: Record<string, GavekalRegimeReturns>;
   updatedAt: string;
 }
 
@@ -548,6 +574,140 @@ function analyzeTrend(
   return { direction, strength };
 }
 
+// ── Regime returns (hardcoded from Gave's published backtests) ─────────────
+
+const REGIME_RETURNS: Record<string, GavekalRegimeReturns> = {
+  "Deflationary Boom": { equities: 12, bonds: 6, gold: -2, commodities: -5, cash: 3 },
+  "Inflationary Boom": { equities: 5, bonds: -2, gold: 15, commodities: 12, cash: 1 },
+  "Deflationary Bust": { equities: -8, bonds: 10, gold: 3, commodities: -15, cash: 4 },
+  "Inflationary Bust": { equities: -5, bonds: -8, gold: 20, commodities: 8, cash: 2 },
+};
+
+// ── XLE data fetching ─────────────────────────────────────────────────────
+
+async function fetchXleData(): Promise<GavekalXleData | undefined> {
+  try {
+    const [xleQuote, spyQuote] = await Promise.all([
+      yahooFinance.quote("XLE"),
+      yahooFinance.quote("SPY"),
+    ]);
+
+    const xlePrice = (xleQuote as Record<string, unknown>).regularMarketPrice as number | undefined;
+    const xlePrevClose = (xleQuote as Record<string, unknown>).regularMarketPreviousClose as number | undefined;
+    const spyPrice = (spyQuote as Record<string, unknown>).regularMarketPrice as number | undefined;
+    const xleTrailingPE = (xleQuote as Record<string, unknown>).trailingPE as number | undefined;
+    const xleDividendYield = (xleQuote as Record<string, unknown>).dividendYield as number | undefined;
+
+    const changePercent =
+      xlePrice != null && xlePrevClose != null && xlePrevClose > 0
+        ? ((xlePrice - xlePrevClose) / xlePrevClose) * 100
+        : null;
+
+    const xleSpyRatio =
+      xlePrice != null && spyPrice != null && spyPrice > 0
+        ? xlePrice / spyPrice
+        : null;
+
+    return {
+      price: xlePrice ?? null,
+      changePercent: changePercent != null ? Math.round(changePercent * 100) / 100 : null,
+      xleSpyRatio: xleSpyRatio != null ? Math.round(xleSpyRatio * 10000) / 10000 : null,
+      trailingPE: xleTrailingPE ?? null,
+      dividendYield: xleDividendYield ?? null,
+    };
+  } catch (error) {
+    logger.error(LOG_SRC, "Failed to fetch XLE data", { error });
+    return undefined;
+  }
+}
+
+// ── Changelog extraction ──────────────────────────────────────────────────
+
+function extractChangelog(
+  energyHistory: GavekalRatio["history"],
+  currencyHistory: GavekalRatio["history"],
+  goldWtiHistory: GavekalRatio["history"],
+  regimeHistory: GavekalRegimePoint[],
+): GavekalChangeEvent[] {
+  const events: GavekalChangeEvent[] = [];
+
+  // Detect energy efficiency crossovers (S&P/WTI vs 7yr MA)
+  for (let i = 1; i < energyHistory.length; i++) {
+    const prev = energyHistory[i - 1];
+    const curr = energyHistory[i];
+    if (prev.ma === null || curr.ma === null) continue;
+
+    const prevAbove = prev.value > prev.ma;
+    const currAbove = curr.value > curr.ma;
+    if (prevAbove !== currAbove) {
+      events.push({
+        date: curr.date,
+        type: "crossover",
+        signal: currAbove ? "S&P/WTI above 7yr MA" : "S&P/WTI below 7yr MA",
+        description: currAbove
+          ? "Energy efficiency turned positive — favors equities over commodities"
+          : "Energy efficiency turned negative — energy costs weighing on profits",
+      });
+    }
+  }
+
+  // Detect currency quality crossovers (IEF/Gold vs 7yr MA)
+  for (let i = 1; i < currencyHistory.length; i++) {
+    const prev = currencyHistory[i - 1];
+    const curr = currencyHistory[i];
+    if (prev.ma === null || curr.ma === null) continue;
+
+    const prevAbove = prev.value > prev.ma;
+    const currAbove = curr.value > curr.ma;
+    if (prevAbove !== currAbove) {
+      events.push({
+        date: curr.date,
+        type: "crossover",
+        signal: currAbove ? "IEF/Gold above 7yr MA" : "IEF/Gold below 7yr MA",
+        description: currAbove
+          ? "Currency quality improved — bonds preferred over gold"
+          : "Currency quality deteriorated — gold preferred over bonds",
+      });
+    }
+  }
+
+  // Detect Gold/WTI recession threshold crossings (1.2x MA)
+  for (let i = 1; i < goldWtiHistory.length; i++) {
+    const prev = goldWtiHistory[i - 1];
+    const curr = goldWtiHistory[i];
+    if (prev.ma === null || curr.ma === null) continue;
+
+    const prevAboveThreshold = prev.value > prev.ma * 1.2;
+    const currAboveThreshold = curr.value > curr.ma * 1.2;
+    if (prevAboveThreshold !== currAboveThreshold) {
+      events.push({
+        date: curr.date,
+        type: "threshold",
+        signal: currAboveThreshold
+          ? "Gold/WTI above recession threshold"
+          : "Gold/WTI below recession threshold",
+        description: currAboveThreshold
+          ? "Gold/WTI ratio exceeded 1.2x its 7yr MA — recession warning activated"
+          : "Gold/WTI ratio fell below 1.2x its 7yr MA — recession warning cleared",
+      });
+    }
+  }
+
+  // Detect regime changes
+  for (const point of regimeHistory) {
+    events.push({
+      date: point.date,
+      type: "regime_change",
+      signal: `Regime → ${point.quadrant}`,
+      description: `Quadrant shifted to ${point.quadrant}`,
+    });
+  }
+
+  // Sort by date descending and return last 10
+  events.sort((a, b) => b.date.localeCompare(a.date));
+  return events.slice(0, 10);
+}
+
 // ── Main entry point ────────────────────────────────────────────────────────
 
 export interface ComputeGavekalOptions {
@@ -561,17 +721,20 @@ export async function computeGavekalQuadrant(
   const maWeeks = options?.maWeeks ?? DEFAULT_MA_WEEKS;
   const historyYears = options?.historyYears ?? 10;
 
-  // Fetch all four series with per-symbol error isolation
-  const symbolResults = await Promise.all(
-    GAVEKAL_SYMBOLS.map(async (symbol) => {
-      try {
-        return { symbol, ...(await loadWeeklyPrices(symbol, historyYears)) };
-      } catch (error) {
-        logger.error(LOG_SRC, `Error loading ${symbol}`, { error });
-        return { symbol, prices: [] as WeeklyPoint[], source: "api" as const };
-      }
-    }),
-  );
+  // Fetch all four series with per-symbol error isolation, plus XLE in parallel
+  const [symbolResults, xleData] = await Promise.all([
+    Promise.all(
+      GAVEKAL_SYMBOLS.map(async (symbol) => {
+        try {
+          return { symbol, ...(await loadWeeklyPrices(symbol, historyYears)) };
+        } catch (error) {
+          logger.error(LOG_SRC, `Error loading ${symbol}`, { error });
+          return { symbol, prices: [] as WeeklyPoint[], source: "api" as const };
+        }
+      }),
+    ),
+    fetchXleData(),
+  ]);
 
   // Build data quality report
   const symbolStatus: Record<string, "ok" | "stale" | "missing"> = {};
@@ -680,6 +843,14 @@ export async function computeGavekalQuadrant(
     currencyQuality.history,
   );
 
+  // Extract changelog events from ratio histories
+  const changelog = extractChangelog(
+    energyEfficiency.history,
+    currencyQuality.history,
+    goldWtiRatio.history,
+    regimeHistory,
+  );
+
   return {
     quadrant,
     energyEfficiency,
@@ -697,6 +868,9 @@ export async function computeGavekalQuadrant(
       newestDate,
       source: overallSource,
     },
+    xle: xleData,
+    changelog,
+    regimeReturns: REGIME_RETURNS,
     updatedAt: new Date().toISOString(),
   };
 }
