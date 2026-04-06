@@ -46,6 +46,17 @@ function clampPct(pct: number) {
   return Math.min(100, Math.max(0, pct));
 }
 
+// Convert a flag emoji (two regional indicator symbols) to its ISO 3166-1
+// alpha-2 country code, lowercased — e.g. "🇺🇸" → "us". Windows desktop does
+// not render flag emoji, so we serve actual images keyed by this code instead.
+function flagEmojiToIso(flag: string): string | null {
+  const codePoints = Array.from(flag).map((c) => c.codePointAt(0) ?? 0);
+  if (codePoints.length !== 2) return null;
+  const base = 0x1f1e6;
+  const chars = codePoints.map((cp) => String.fromCharCode(cp - base + 97));
+  return chars.join("");
+}
+
 function CompactValuationRow({ data }: { data: MarketValuation }) {
   const zoneStyle = ZONE_STYLES[data.zone];
   const metricLabel = data.metric === "CAPE" ? "CAPE" : "P/E";
@@ -60,12 +71,25 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
     ((data.thresholds.overvalued - min) / span) * 100,
   );
   const dotPct = data.value ? clampPct(((data.value - min) / span) * 100) : 0;
+  const iso = flagEmojiToIso(data.flag);
 
   return (
     <div className="px-3 py-1.5 hover:bg-gray-50 transition-colors">
       {/* Top row: flag, country, badge, value */}
       <div className="flex items-center gap-2">
-        <span className="text-base shrink-0">{data.flag}</span>
+        {iso ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={`https://flagcdn.com/w40/${iso}.png`}
+            srcSet={`https://flagcdn.com/w80/${iso}.png 2x`}
+            width={20}
+            height={15}
+            alt={`${data.country} flag`}
+            className="shrink-0 rounded-sm object-cover"
+          />
+        ) : (
+          <span className="text-base shrink-0">{data.flag}</span>
+        )}
         <span className="text-xs font-medium text-gray-900 truncate flex-1">
           {data.country}
         </span>
@@ -149,7 +173,7 @@ export function CompactValuationStrip() {
           ? Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="px-3 py-1.5">
                 <div className="flex items-center gap-2">
-                  <Skeleton className="h-5 w-5 rounded" />
+                  <Skeleton className="h-[15px] w-5 rounded-sm" />
                   <Skeleton className="h-3 w-16 flex-1" />
                   <Skeleton className="h-3 w-10" />
                   <Skeleton className="h-3 w-12" />
