@@ -2,6 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { Skeleton } from "@/components/Skeleton";
+import {
+  ChevronUpCircle,
+  ChevronDownCircle,
+  MinusCircle,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface MarketValuation {
   market: string;
@@ -19,6 +30,31 @@ interface MarketValuation {
   dividendYield: number | null;
   priceToBook: number | null;
   price: number | null;
+  // Optional tactical bias for the US row only — merged client-side from
+  // /api/valuation/expected-returns. Combined with the strategic zone to
+  // produce a "strategic call strengthening / weakening" chevron icon.
+  tacticalBias?: "bullish" | "neutral" | "bearish";
+}
+
+/**
+ * Direct mapping from tactical bias to a visual direction. Bullish → up,
+ * bearish → down, neutral → flat. The chevron is a short-horizon momentum
+ * read that sits next to the long-horizon zone badge — when they agree
+ * (e.g. Expensive + ↓), both signals reinforce; when they disagree (e.g.
+ * Expensive + ↑), the chevron is the contradiction the user needs to
+ * notice. Tooltip explains the underlying signals.
+ *
+ * Note: an earlier version of this code reframed the chevron as
+ * "strategic call strengthening / weakening" by XOR-ing the zone with
+ * the bias. That reframing only works when there's a chart visible to
+ * provide temporal context (e.g. the Gavekal momentum charts) — in the
+ * strip there's no chart and the reframed icon is counterintuitive.
+ */
+function deriveTacticalDirection(
+  bias: MarketValuation["tacticalBias"],
+): "up" | "down" | "neutral" {
+  if (!bias || bias === "neutral") return "neutral";
+  return bias === "bullish" ? "up" : "down";
 }
 
 const ZONE_STYLES = {
@@ -73,6 +109,37 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
   const dotPct = data.value ? clampPct(((data.value - min) / span) * 100) : 0;
   const iso = flagEmojiToIso(data.flag);
 
+  // Tactical momentum chevron — only US row has tactical bias data, so
+  // direction is "neutral" everywhere else and the chevron renders nothing.
+  const tacticalDirection = deriveTacticalDirection(data.tacticalBias);
+  const showChevron = data.tacticalBias !== undefined;
+
+  // Tooltip content explains, in plain English, what the chevron means.
+  // The chevron is a short-horizon read that sits next to the long-
+  // horizon zone badge — the tooltip names which signals feed it and
+  // calls out agreement or divergence with the strategic zone.
+  const zoneWord = zoneStyle.label; // "Cheap" | "Fair" | "Expensive"
+  let chevronTooltip: string;
+  if (tacticalDirection === "up") {
+    const agreement =
+      data.zone === "UNDERVALUED"
+        ? ` Reinforces the ${zoneWord} valuation read.`
+        : data.zone === "OVERVALUED"
+          ? ` Diverges from the ${zoneWord} valuation read — late-cycle momentum despite stretched multiples.`
+          : "";
+    chevronTooltip = `Short-term tactical momentum is bullish. Combines 200-day moving average, RSI, VIX, yield curve, and equity risk premium signals.${agreement}`;
+  } else if (tacticalDirection === "down") {
+    const agreement =
+      data.zone === "OVERVALUED"
+        ? ` Reinforces the ${zoneWord} valuation read — both long-term valuation and short-term technicals point the same way.`
+        : data.zone === "UNDERVALUED"
+          ? ` Diverges from the ${zoneWord} valuation read — falling-knife risk: the asset is cheap but still selling off.`
+          : "";
+    chevronTooltip = `Short-term tactical momentum is bearish. Combines 200-day moving average, RSI, VIX, yield curve, and equity risk premium signals.${agreement}`;
+  } else {
+    chevronTooltip = `Short-term tactical signals are mixed or neutral. No strong directional read from 200-day MA, RSI, VIX, yield curve, or equity risk premium.`;
+  }
+
   return (
     <div className="px-3 py-1.5 hover:bg-gray-50 transition-colors">
       {/* Top row: flag, country, badge, value */}
@@ -93,6 +160,39 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
         <span className="text-xs font-medium text-gray-900 truncate flex-1">
           {data.country}
         </span>
+        {showChevron && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Tactical momentum ${tacticalDirection === "up" ? "bullish" : tacticalDirection === "down" ? "bearish" : "neutral"}`}
+                // Touch-fix: Radix Tooltip on mobile opens on touchstart
+                // but the subsequent click event triggers an immediate
+                // close. Calling preventDefault here stops the click from
+                // toggling the open state away. Hover behavior on desktop
+                // is unaffected.
+                onClick={(e) => e.preventDefault()}
+                className="inline-flex items-center justify-center shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 rounded-full"
+              >
+                {tacticalDirection === "up" ? (
+                  <ChevronUpCircle className="w-3.5 h-3.5 text-emerald-600" />
+                ) : tacticalDirection === "down" ? (
+                  <ChevronDownCircle className="w-3.5 h-3.5 text-red-600" />
+                ) : (
+                  <MinusCircle className="w-3.5 h-3.5 text-gray-400" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent
+              side="top"
+              align="end"
+              collisionPadding={8}
+              className="z-[10000] max-w-xs text-[11px] leading-snug"
+            >
+              {chevronTooltip}
+            </TooltipContent>
+          </Tooltip>
+        )}
         <span
           className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${zoneStyle.bg} ${zoneStyle.text}`}
         >
@@ -159,32 +259,57 @@ export function CompactValuationStrip() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/markets/valuation")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setValuations(data?.valuations || []))
+    // Two parallel fetches:
+    //   - /api/markets/valuation: 5-market valuation grid (US row uses
+    //     real Shiller CAPE from multpl.com)
+    //   - /api/valuation/expected-returns: modern engine that produces
+    //     a tactical bias for SPY (combines 200dma/50dma/RSI/VIX/yield-
+    //     curve/ERP signals). We extract the SPY bias and merge it onto
+    //     the US row only — other markets stay unchanged.
+    Promise.all([
+      fetch("/api/markets/valuation").then((res) =>
+        res.ok ? res.json() : null,
+      ),
+      fetch("/api/valuation/expected-returns")
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null), // bias merge is best-effort, never fails the strip
+    ])
+      .then(([valuationData, expectedReturnsData]) => {
+        const rows: MarketValuation[] = valuationData?.valuations || [];
+        const spyBias = expectedReturnsData?.assets?.find(
+          (a: { symbol: string }) => a.symbol === "SPY",
+        )?.tactical?.bias as "bullish" | "neutral" | "bearish" | undefined;
+        if (spyBias) {
+          const usIdx = rows.findIndex((r) => r.market === "US");
+          if (usIdx >= 0) rows[usIdx] = { ...rows[usIdx], tacticalBias: spyBias };
+        }
+        setValuations(rows);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
   return (
-    <div className="h-full">
-      <div className="card overflow-hidden !p-0 divide-y divide-gray-100 h-full">
-        {loading
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="px-3 py-1.5">
-                <div className="flex items-center gap-2">
-                  <Skeleton className="h-[22px] w-5 rounded-sm" />
-                  <Skeleton className="h-3 w-16 flex-1" />
-                  <Skeleton className="h-3 w-10" />
-                  <Skeleton className="h-3 w-12" />
+    <TooltipProvider delayDuration={150}>
+      <div className="h-full">
+        <div className="card overflow-hidden !p-0 divide-y divide-gray-100 h-full">
+          {loading
+            ? Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="px-3 py-1.5">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-[22px] w-5 rounded-sm" />
+                    <Skeleton className="h-3 w-16 flex-1" />
+                    <Skeleton className="h-3 w-10" />
+                    <Skeleton className="h-3 w-12" />
+                  </div>
+                  <Skeleton className="h-1.5 w-full mt-2 rounded-full" />
                 </div>
-                <Skeleton className="h-1.5 w-full mt-2 rounded-full" />
-              </div>
-            ))
-          : valuations.map((v) => (
-              <CompactValuationRow key={v.market} data={v} />
-            ))}
+              ))
+            : valuations.map((v) => (
+                <CompactValuationRow key={v.market} data={v} />
+              ))}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

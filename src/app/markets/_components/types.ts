@@ -32,27 +32,6 @@ export interface MacroIndicator {
   percentile: number | null;
 }
 
-export interface MarketEtf {
-  ticker: string;
-  name: string;
-  description: string;
-  whyItMatters: string;
-  ranges: Array<{ label: string; min: number | null; max: number | null; meaning: string; color: string }>;
-  affectedAssets: string[];
-  data: {
-    price: number;
-    change: number;
-    changePercent: number;
-    previousClose: number;
-    fiftyTwoWeekLow: number;
-    fiftyTwoWeekHigh: number;
-    fiftyDayAvg: number;
-    twoHundredDayAvg: number;
-    rangePosition: number;
-  } | null;
-  interpretation: { label: string; meaning: string; color: string } | null;
-}
-
 export interface RegimeData {
   name: string;
   description: string;

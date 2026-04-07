@@ -15,6 +15,8 @@ export interface MarketValuation {
   flag: string;
   index: string;
   ticker: string;
+  // CAPE for the US row when multpl.com fetch succeeds; TTM_PE everywhere
+  // else (and as the US fallback if the Shiller fetch fails).
   metric: "CAPE" | "TTM_PE";
   value: number | null;
   historicalMean: number;
@@ -27,6 +29,11 @@ export interface MarketValuation {
   price: number | null;
   change24h: number | null;
   secondaryIndex?: SecondaryIndex;
+  // Optional tactical bias for the US row only — populated client-side
+  // by merging /api/valuation/expected-returns into the strip. Other
+  // markets will always have this undefined. The strip renders a small
+  // Bull / Bear pill when this is non-neutral.
+  tacticalBias?: "bullish" | "neutral" | "bearish";
 }
 
 const ZONES = {
@@ -122,35 +129,85 @@ async function fetchETFPE(ticker: string): Promise<number | null> {
   }
 }
 
-async function fetchUSCape(): Promise<number | null> {
+/**
+ * Fetch the real Shiller CAPE Ratio (Cyclically Adjusted P/E, 10-year
+ * trailing real earnings) from multpl.com — the canonical free source.
+ *
+ * Why multpl.com: FRED does not publish Shiller CAPE as a series; the
+ * authoritative source is Robert Shiller's Yale dataset, which multpl.com
+ * mirrors and updates daily. multpl.com has been stable for years and
+ * requires no API key. The page is server-rendered and has a known
+ * "Current S&P 500 Shiller CAPE Ratio" element near the top.
+ *
+ * Strategy: GET the page once a day (Shiller PE updates monthly anyway),
+ * try multiple regex patterns for resilience against minor markup tweaks,
+ * sanity-bound the result to a plausible CAPE range (5–100), and return
+ * `null` on any failure so the caller can fall back to TTM P/E.
+ */
+async function fetchShillerCape(): Promise<number | null> {
   try {
-    const quote = await yahooFinance.quoteSummary("SPY", {
-      modules: ["summaryDetail"],
+    const res = await fetch("https://www.multpl.com/shiller-pe", {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; claudius-hq/1.0; valuation strip)",
+      },
+      next: { revalidate: 86400 }, // 24h — Shiller updates monthly
     });
-    const ttmPE = quote.summaryDetail?.trailingPE;
-    if (ttmPE && typeof ttmPE === "number") {
-      return ttmPE * 1.5;
+    if (!res.ok) {
+      console.error(
+        `multpl.com Shiller PE fetch failed with status ${res.status}`,
+      );
+      return null;
     }
+    const html = await res.text();
+    // Try several patterns in order of specificity. multpl.com renders
+    // the current value inside a div near the top of the page; the exact
+    // markup has shifted over the years so we cast a wide net.
+    const patterns: RegExp[] = [
+      /Current[^<]*Shiller[^<]*[:\s]*<[^>]*>\s*<[^>]*>\s*([0-9]{1,2}\.[0-9]{1,2})/i,
+      /id=["']current["'][\s\S]{0,500}?([0-9]{2}\.[0-9]{1,2})/i,
+      /Shiller PE Ratio[\s\S]{0,500}?<b[^>]*>\s*([0-9]{1,2}\.[0-9]{1,2})/i,
+      /Shiller PE Ratio[\s\S]{0,800}?>\s*([0-9]{2}\.[0-9]{1,2})\s*</i,
+    ];
+    for (const re of patterns) {
+      const m = html.match(re);
+      if (m) {
+        const v = parseFloat(m[1]);
+        if (isFinite(v) && v > 5 && v < 100) {
+          return Math.round(v * 100) / 100;
+        }
+      }
+    }
+    console.error(
+      "multpl.com Shiller PE: no pattern matched — markup may have changed",
+    );
     return null;
   } catch (e) {
-    console.error("Error fetching CAPE:", e);
+    console.error("Error fetching Shiller CAPE from multpl.com:", e);
     return null;
   }
 }
 
 export async function fetchValuationData(): Promise<{ valuations: MarketValuation[]; updatedAt: string }> {
-  const [usData, jpData, sgData, cnData, hsiData, usCape, jpPE, sgPE, cnPE, hsiPE] = await Promise.all([
+  const [usData, jpData, sgData, cnData, hsiData, shillerCape, spyTtmPe, jpPE, sgPE, cnPE, hsiPE] = await Promise.all([
     fetchMarketData("SPY"),
     fetchMarketData("^N225"),
     fetchMarketData("^STI"),
     fetchMarketData("000300.SS"),
     fetchMarketData("^HSI"),
-    fetchUSCape(),
+    fetchShillerCape(),
+    fetchETFPE("SPY"),
     fetchETFPE("EWJ"),
     fetchETFPE("EWS"),
     fetchETFPE("ASHR"),
     fetchETFPE("EWH"),
   ]);
+
+  // Real Shiller CAPE if multpl.com responded; otherwise honest TTM P/E.
+  // The metric label flips with the data so the strip never lies about
+  // what it's showing.
+  const usMetric: "CAPE" | "TTM_PE" = shillerCape != null ? "CAPE" : "TTM_PE";
+  const usValue: number | null = shillerCape ?? spyTtmPe;
 
   const valuations: MarketValuation[] = [
     {
@@ -159,13 +216,13 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       flag: "🇺🇸",
       index: "S&P 500",
       ticker: "SPY",
-      metric: "CAPE",
-      value: usCape,
+      metric: usMetric,
+      value: usValue,
       historicalMean: ZONES.US.mean,
       historicalRange: ZONES.US.range,
       thresholds: { undervalued: ZONES.US.undervalued, overvalued: ZONES.US.overvalued },
-      zone: usCape ? getZone(usCape, ZONES.US) : "FAIR",
-      percentOfMean: usCape ? Math.round((usCape / ZONES.US.mean) * 100) : 100,
+      zone: usValue != null ? getZone(usValue, ZONES.US) : "FAIR",
+      percentOfMean: usValue != null ? Math.round((usValue / ZONES.US.mean) * 100) : 100,
       dividendYield: usData.dividendYield,
       priceToBook: usData.priceToBook,
       price: usData.price,
