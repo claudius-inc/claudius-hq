@@ -19,13 +19,11 @@ import type {
   BreadthData,
   CongressData,
   InsiderData,
-  YieldSpread,
   CrowdingData,
 } from "./types";
 
 interface MacroResponse {
   indicators?: MacroIndicator[];
-  yieldSpreads?: YieldSpread[];
 }
 
 interface GoldLiteResponse {
@@ -152,9 +150,8 @@ export function MarketsClient({
       fallbackData: initialGoldLite ?? undefined,
     });
 
-  // Derive macroIndicators / yieldSpreads from the SWR'd macro response.
+  // Derive macroIndicators from the SWR'd macro response.
   const macroIndicators = macroData?.indicators ?? [];
-  const yieldSpreads = macroData?.yieldSpreads ?? [];
 
   // Derive regime detection from macro + goldLite (same logic that used to
   // live in the old useEffect Promise.all).
@@ -209,13 +206,30 @@ export function MarketsClient({
         </div>
 
         <div className="col-span-full">
-          <ThemeLeaderboardLite
-            initialData={
-              initialThemes as NonNullable<
-                React.ComponentProps<typeof ThemeLeaderboardLite>
-              >["initialData"]
-            }
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
+            <div className="lg:col-span-2 h-full">
+              <ThemeLeaderboardLite
+                initialData={
+                  initialThemes as NonNullable<
+                    React.ComponentProps<typeof ThemeLeaderboardLite>
+                  >["initialData"]
+                }
+              />
+            </div>
+            <div className="lg:col-span-1 h-full">
+              <HardAssets
+                expectedReturns={expectedReturnsData ?? null}
+                initialBtc={null}
+                initialGold={
+                  initialGold as React.ComponentProps<
+                    typeof HardAssets
+                  >["initialGold"]
+                }
+                initialSilver={null}
+                initialSilverPrice={null}
+              />
+            </div>
+          </div>
         </div>
 
         <MarketMood
@@ -229,20 +243,8 @@ export function MarketsClient({
           refreshing={moodRefreshing}
         />
 
-        <HardAssets
-          expectedReturns={expectedReturnsData ?? null}
-          initialBtc={null}
-          initialGold={
-            initialGold as React.ComponentProps<typeof HardAssets>["initialGold"]
-          }
-          initialOil={null}
-          initialSilver={null}
-          initialSilverPrice={null}
-        />
-
         <MacroToggle
           macroIndicators={macroIndicators}
-          yieldSpreads={yieldSpreads}
           loading={!macroData}
           expandedIds={expandedIds}
           toggleExpanded={toggleExpanded}

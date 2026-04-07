@@ -129,13 +129,6 @@ export interface InsiderData {
   }>;
 }
 
-export interface YieldSpread {
-  name: string;
-  value: number | null;
-  interpretation: string;
-  color: "green" | "amber" | "gray";
-}
-
 export type TileAction = "own" | "avoid" | "hold";
 
 export interface GavekalQuadrantData {

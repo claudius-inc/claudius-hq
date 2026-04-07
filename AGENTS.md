@@ -131,8 +131,8 @@ When data changes, invalidate these paths:
 | ---------------- | ------------------------------------------------- |
 | Projects         | `/projects`, `/projects/[id]`, `/`                |
 | Ideas            | `/projects/ideas`                                 |
-| Themes           | `/markets/themes`                                 |
-| Theme Stocks     | `/markets/themes`                                 |
+| Themes           | `/markets/scanner/themes`                         |
+| Theme Stocks     | `/markets/scanner.themes`                         |
 | Research Reports | `/markets/research`, `/markets/research/[ticker]` |
 | Scanner Results  | `/markets/scanner`                                |
 | Portfolio        | `/portfolio`                                      |

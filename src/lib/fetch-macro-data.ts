@@ -97,19 +97,11 @@ export interface MacroIndicatorResult {
   percentile: number | null;
 }
 
-export interface YieldSpread {
-  name: string;
-  value: number | null;
-  interpretation: string;
-  color: "green" | "amber" | "gray";
-}
-
 export interface MacroDataResult {
   status: "live" | "demo";
   message?: string;
   lastUpdated: string;
   indicators: MacroIndicatorResult[];
-  yieldSpreads?: YieldSpread[];
 }
 
 export async function fetchMacroData(): Promise<MacroDataResult> {
@@ -147,7 +139,7 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
       }
 
       // Credit spreads: FRED reports in %, ranges expect bps
-      if (data && (indicator.id === "hy-spread" || indicator.id === "ig-spread")) {
+      if (data && indicator.id === "hy-spread") {
         data.current = data.current * 100;
         data.history = data.history.map(v => v * 100);
       }
@@ -191,41 +183,9 @@ export async function fetchMacroData(): Promise<MacroDataResult> {
     })
   );
 
-  // Calculate yield spreads
-  const us10yIndicator = results.find(r => r.id === "10y-yield");
-  const japan10yIndicator = results.find(r => r.id === "japan-10y");
-
-  const yieldSpreads: YieldSpread[] = [];
-
-  // US-Japan spread (carry trade signal)
-  if (us10yIndicator?.data && japan10yIndicator?.data) {
-    const spread = us10yIndicator.data.current - japan10yIndicator.data.current;
-    let interpretation: string;
-    let color: "green" | "amber" | "gray";
-    
-    if (spread > 3) {
-      interpretation = "Attractive Carry";
-      color = "green";
-    } else if (spread >= 2) {
-      interpretation = "Moderate Carry";
-      color = "amber";
-    } else {
-      interpretation = "Unattractive";
-      color = "amber";
-    }
-    
-    yieldSpreads.push({
-      name: "US-Japan Spread",
-      value: Math.round(spread * 100) / 100,
-      interpretation,
-      color,
-    });
-  }
-
   return {
     status: "live",
     lastUpdated: new Date().toISOString(),
     indicators: results,
-    yieldSpreads,
   };
 }

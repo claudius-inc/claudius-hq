@@ -1,12 +1,20 @@
 import { db, themes, themeStocks, stockPricesDaily } from "@/db";
 import YahooFinance from "yahoo-finance2";
-import { and, eq, gte, desc } from "drizzle-orm";
+import { and, eq, gte } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { getCrowdingScores, aggregateCrowdingScores, CrowdingScore } from "@/lib/crowding";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 const LOG_SRC = "lib/themes";
+
+// How many calendar days of history we want available for the 3-month
+// comparison. ~95 calendar days ≈ 60-65 trading days, which is enough to
+// look up the close from "today − 7 / 30 / 90 days ago".
+const HISTORY_WINDOW_DAYS = 95;
+// Minimum trading-day rows that count as "cache is warm enough" for a
+// ticker. Below this, do a one-time chart() backfill.
+const MIN_CACHED_ROWS = 50;
 
 interface HistoricalRow {
   date: Date;
@@ -18,26 +26,19 @@ interface DailyPoint {
   close: number;
 }
 
-/**
- * Load ~3 months of daily closes for a ticker, DB-first with Yahoo fallback.
- *
- * Past closes are immutable, so we materialize them in `stock_prices_daily`
- * and only fall back to Yahoo when the cache is sparse or doesn't extend far
- * enough back. New rows are appended on each Yahoo refetch — over time the
- * fallback fires only for tickers we haven't seen recently.
- */
-async function loadDailyPriceWindow(
-  ticker: string,
-  daysBack: number,
-): Promise<DailyPoint[]> {
+// ── DB-only history read ────────────────────────────────────────────────────
+//
+// Past closes are immutable, so we read whatever's in the DB unconditionally.
+// Freshness comes from the live `quote()` call in `fetchLiveQuotes`, not from
+// re-running `chart()` on every refresh.
+
+async function loadHistoricalCloses(ticker: string): Promise<DailyPoint[]> {
   const fromDate = new Date();
-  fromDate.setDate(fromDate.getDate() - daysBack - 1);
+  fromDate.setDate(fromDate.getDate() - HISTORY_WINDOW_DAYS - 1);
   const fromDateStr = fromDate.toISOString().split("T")[0];
 
-  // Try DB first
-  let dbRows: DailyPoint[] = [];
   try {
-    dbRows = await db
+    return await db
       .select({
         date: stockPricesDaily.date,
         close: stockPricesDaily.close,
@@ -52,20 +53,22 @@ async function loadDailyPriceWindow(
       .orderBy(stockPricesDaily.date);
   } catch (e) {
     logger.warn(LOG_SRC, `DB read failed for ${ticker}`, { error: e });
+    return [];
   }
+}
 
-  // ~63 trading days in ~90 calendar days. Require at least 60% coverage
-  // before trusting the DB; otherwise we fall back to Yahoo and re-store.
-  const expectedTradingDays = Math.floor(daysBack * 0.6);
-  if (dbRows.length >= expectedTradingDays) {
-    return dbRows;
-  }
-
-  // Cache miss / sparse — fetch from Yahoo and persist.
+/**
+ * One-time backfill from Yahoo `chart()` for a ticker we haven't seen.
+ * Subsequent requests for this ticker read from the DB and use a live
+ * `quote()` for today's close — no more `chart()` calls per ticker.
+ */
+async function backfillTickerHistory(
+  ticker: string,
+): Promise<DailyPoint[]> {
   try {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysBack);
+    startDate.setDate(startDate.getDate() - HISTORY_WINDOW_DAYS);
 
     const chartResult = await yahooFinance.chart(ticker, {
       period1: startDate,
@@ -73,7 +76,7 @@ async function loadDailyPriceWindow(
       interval: "1d",
     });
     const quotes = chartResult.quotes as HistoricalRow[];
-    if (!quotes || quotes.length === 0) return dbRows; // best-effort
+    if (!quotes || quotes.length === 0) return [];
 
     const points: DailyPoint[] = quotes
       .filter((q) => q.close !== null && q.close !== undefined)
@@ -91,15 +94,17 @@ async function loadDailyPriceWindow(
 
     return points;
   } catch (e) {
-    logger.warn(LOG_SRC, `Yahoo fetch failed for ${ticker}`, { error: e });
-    return dbRows; // fall back to whatever we had (possibly empty)
+    logger.warn(LOG_SRC, `Yahoo chart() backfill failed for ${ticker}`, {
+      error: e,
+    });
+    return [];
   }
 }
 
 async function storeStockPrices(ticker: string, points: DailyPoint[]) {
   if (points.length === 0) return;
-  // Drizzle's onConflictDoNothing relies on the unique index we created
-  // on (ticker, date). Batch in groups to stay under the SQLite param cap.
+  // Drizzle's onConflictDoNothing relies on the unique index on (ticker, date).
+  // Batch in groups to stay under the SQLite param cap.
   const BATCH = 100;
   for (let i = 0; i < points.length; i += BATCH) {
     const batch = points.slice(i, i + BATCH).map((p) => ({
@@ -122,7 +127,6 @@ function closeAtOrBefore(
 ): number | null {
   if (points.length === 0) return null;
   const targetStr = targetDate.toISOString().split("T")[0];
-  // Walk from the end backwards (smallest array, most recent first).
   for (let i = points.length - 1; i >= 0; i--) {
     if (points[i].date <= targetStr) return points[i].close;
   }
@@ -135,15 +139,103 @@ interface PerfTriple {
   performance_3m: number | null;
 }
 
-/**
- * Get 1w/1m/3m returns for a single ticker. Internally fetches ONE 3-month
- * window (DB-first) and derives all three periods from it — drops the call
- * count from 3 Yahoo chart() per ticker to 0 (warm) or 1 (cold).
- */
-async function getTickerPerformance(ticker: string): Promise<PerfTriple> {
-  const points = await loadDailyPriceWindow(ticker, 95); // a bit > 3 months
+// ── Live quote batching ─────────────────────────────────────────────────────
+//
+// Yahoo's quote() accepts string | string[] but the batched call is
+// all-or-nothing — one bad ticker fails the whole array. We chunk to ~20 and
+// fall back to per-ticker quotes inside a chunk on failure so a single bad
+// symbol doesn't kill its peers.
 
-  if (points.length === 0) {
+interface YahooQuoteShape {
+  symbol?: string;
+  regularMarketPrice?: number;
+}
+
+async function fetchLiveQuotes(
+  tickers: string[],
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (tickers.length === 0) return result;
+
+  const CHUNK = 20;
+  const chunks: string[][] = [];
+  for (let i = 0; i < tickers.length; i += CHUNK) {
+    chunks.push(tickers.slice(i, i + CHUNK));
+  }
+
+  // Fire all chunks in parallel — Yahoo handles ~8 concurrent requests fine.
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const quotes = (await yahooFinance.quote(chunk)) as
+          | YahooQuoteShape
+          | YahooQuoteShape[];
+        const arr = Array.isArray(quotes) ? quotes : [quotes];
+        for (const q of arr) {
+          if (q?.symbol && q.regularMarketPrice != null) {
+            result.set(q.symbol, q.regularMarketPrice);
+          }
+        }
+      } catch (e) {
+        logger.warn(LOG_SRC, "Batch quote failed, falling back per-ticker", {
+          error: e,
+          chunkSize: chunk.length,
+        });
+        // One bad ticker shouldn't kill the chunk — try each individually.
+        await Promise.all(
+          chunk.map(async (t) => {
+            try {
+              const q = (await yahooFinance.quote(t)) as
+                | YahooQuoteShape
+                | YahooQuoteShape[];
+              const single = Array.isArray(q) ? q[0] : q;
+              if (single?.regularMarketPrice != null) {
+                result.set(t, single.regularMarketPrice);
+              }
+            } catch {
+              /* skip — null perf for this ticker */
+            }
+          }),
+        );
+      }
+    }),
+  );
+
+  return result;
+}
+
+/**
+ * Get 1w/1m/3m returns for a single ticker.
+ *
+ * Strategy: read all past closes from the DB (immutable, never stale), use
+ * the freshly-batched live quote as `end`, and look up `start` for each
+ * comparison period via `closeAtOrBefore`. If the DB is sparse for this
+ * ticker (first time we've seen it), do a one-time chart() backfill.
+ *
+ * Today's close is appended back into the DB so tomorrow's request finds it
+ * as part of history — keeping the materialized view continuously current
+ * without ever needing to refetch past closes.
+ */
+async function getTickerPerformance(
+  ticker: string,
+  liveClose: number | null | undefined,
+): Promise<PerfTriple> {
+  let history = await loadHistoricalCloses(ticker);
+
+  // First time we've seen this ticker (or the DB is sparse) → backfill.
+  if (history.length < MIN_CACHED_ROWS) {
+    history = await backfillTickerHistory(ticker);
+  }
+
+  // The "end" close: prefer the live quote, fall back to the freshest DB row.
+  const end =
+    liveClose != null
+      ? liveClose
+      : history.length > 0
+        ? history[history.length - 1].close
+        : null;
+
+  if (end == null) {
     return {
       performance_1w: null,
       performance_1m: null,
@@ -151,6 +243,19 @@ async function getTickerPerformance(ticker: string): Promise<PerfTriple> {
     };
   }
 
+  // Append today's live close to history so it becomes part of the
+  // materialized view going forward. Idempotent via the unique index.
+  if (liveClose != null) {
+    const todayStr = new Date().toISOString().split("T")[0];
+    storeStockPrices(ticker, [{ date: todayStr, close: liveClose }]).catch(
+      (e) =>
+        logger.warn(LOG_SRC, `Failed to append today's close for ${ticker}`, {
+          error: e,
+        }),
+    );
+  }
+
+  // Compute the comparison start dates and look them up in history.
   const today = new Date();
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(today.getDate() - 7);
@@ -159,10 +264,9 @@ async function getTickerPerformance(ticker: string): Promise<PerfTriple> {
   const threeMonthsAgo = new Date();
   threeMonthsAgo.setMonth(today.getMonth() - 3);
 
-  const end = points[points.length - 1].close;
-  const start1w = closeAtOrBefore(points, oneWeekAgo);
-  const start1m = closeAtOrBefore(points, oneMonthAgo);
-  const start3m = closeAtOrBefore(points, threeMonthsAgo);
+  const start1w = closeAtOrBefore(history, oneWeekAgo);
+  const start1m = closeAtOrBefore(history, oneMonthAgo);
+  const start3m = closeAtOrBefore(history, threeMonthsAgo);
 
   return {
     performance_1w: calcPerformance(start1w, end),
@@ -171,22 +275,28 @@ async function getTickerPerformance(ticker: string): Promise<PerfTriple> {
   };
 }
 
-// Legacy single-period helper kept for `fetchThemePrices()` below which
-// returns one period at a time. Now goes through the same DB-first cache.
+/**
+ * Legacy single-period helper kept for `fetchThemePrices()` below. Goes
+ * through the same DB-first store but does NOT use a batched live quote
+ * (the caller already fetches its own quotes).
+ */
 async function getHistoricalPrices(
   ticker: string,
   period: "1w" | "1m" | "3m",
 ): Promise<{ start: number | null; end: number | null }> {
-  const points = await loadDailyPriceWindow(ticker, 95);
-  if (points.length === 0) return { start: null, end: null };
+  let history = await loadHistoricalCloses(ticker);
+  if (history.length < MIN_CACHED_ROWS) {
+    history = await backfillTickerHistory(ticker);
+  }
+  if (history.length === 0) return { start: null, end: null };
 
-  const end = points[points.length - 1].close;
+  const end = history[history.length - 1].close;
   const targetDate = new Date();
   if (period === "1w") targetDate.setDate(targetDate.getDate() - 7);
   else if (period === "1m") targetDate.setMonth(targetDate.getMonth() - 1);
   else targetDate.setMonth(targetDate.getMonth() - 3);
 
-  return { start: closeAtOrBefore(points, targetDate), end };
+  return { start: closeAtOrBefore(history, targetDate), end };
 }
 
 function calcPerformance(start: number | null, end: number | null): number | null {
@@ -260,10 +370,15 @@ export async function fetchThemePerformanceAll(): Promise<ThemePerformanceRespon
   }
   const allTickers = Array.from(tickerSet);
 
-  // Crowding scores in one batch call
-  const crowdingMap = await getCrowdingScores(allTickers);
+  // Two batched Yahoo calls in parallel: today's live quotes + crowding.
+  // Live quotes drive the "end" close for every comparison; the historical
+  // "start" closes come from the DB and never need a Yahoo round-trip.
+  const [liveQuoteMap, crowdingMap] = await Promise.all([
+    fetchLiveQuotes(allTickers),
+    getCrowdingScores(allTickers),
+  ]);
 
-  // Bounded-concurrency per-ticker price fetch (Yahoo throttles aggressive fan-outs)
+  // Bounded-concurrency per-ticker DB read + (rare) chart() backfill.
   const CONCURRENCY = 10;
   const perfMap = new Map<string, TickerPerf>();
 
@@ -273,9 +388,12 @@ export async function fetchThemePerformanceAll(): Promise<ThemePerformanceRespon
       const idx = cursor++;
       const ticker = allTickers[idx];
       try {
-        // ONE DB read (or 1 Yahoo fallback) per ticker, derives all 3 periods.
-        // Was previously 3 Yahoo chart() calls per ticker.
-        perfMap.set(ticker, await getTickerPerformance(ticker));
+        // DB read + live quote drives the comparison. Backfill (1 chart() call)
+        // only fires the first time we see this ticker.
+        perfMap.set(
+          ticker,
+          await getTickerPerformance(ticker, liveQuoteMap.get(ticker)),
+        );
       } catch (e) {
         logger.warn(LOG_SRC, `Failed to fetch prices for ${ticker}`, {
           error: e,
