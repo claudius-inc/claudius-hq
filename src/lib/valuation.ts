@@ -29,10 +29,10 @@ export interface MarketValuation {
   price: number | null;
   change24h: number | null;
   secondaryIndex?: SecondaryIndex;
-  // Optional tactical bias for the US row only — populated client-side
-  // by merging /api/valuation/expected-returns into the strip. Other
-  // markets will always have this undefined. The strip renders a small
-  // Bull / Bear pill when this is non-neutral.
+  // Per-market tactical momentum bias derived from price vs 50-day and
+  // 200-day moving averages. Universal across all markets so the strip
+  // can render a consistent chevron icon for each row. See
+  // deriveTacticalBias() for the rules.
   tacticalBias?: "bullish" | "neutral" | "bearish";
 }
 
@@ -84,19 +84,50 @@ interface MarketData {
   pe: number | null;
   dividendYield: number | null;
   priceToBook: number | null;
+  // 50-day and 200-day moving averages, fetched from yahooFinance.quote()
+  // (the simple `quote` endpoint exposes these directly, while the
+  // `quoteSummary` modules used for valuation data don't include them).
+  // Used to compute the per-market tactical bias chevron.
+  sma50: number | null;
+  sma200: number | null;
+}
+
+// Subset of yahooFinance.quote(ticker)'s response that we actually use.
+// The library's full type is large and changes between versions; this
+// shape captures only the moving-average fields we need so the cast is
+// narrow and reviewable.
+interface YahooQuoteMa {
+  fiftyDayAverage?: number;
+  twoHundredDayAverage?: number;
 }
 
 async function fetchMarketData(ticker: string): Promise<MarketData> {
   try {
-    const quote = await yahooFinance.quoteSummary(ticker, {
-      modules: ["summaryDetail", "defaultKeyStatistics", "price"],
-    });
+    // Two parallel calls: quoteSummary for valuation modules (PE, P/B,
+    // dividend yield, price), and the simple quote endpoint for the
+    // moving averages (which quoteSummary doesn't expose). Both use the
+    // same ticker so they share the same Yahoo connection budget.
+    const [summary, quoteRaw] = await Promise.all([
+      yahooFinance.quoteSummary(ticker, {
+        modules: ["summaryDetail", "defaultKeyStatistics", "price"],
+      }),
+      yahooFinance.quote(ticker).catch(() => null),
+    ]);
 
-    const priceData = quote.price;
-    const summaryData = quote.summaryDetail;
-    const statsData = quote.defaultKeyStatistics;
+    const priceData = summary.price;
+    const summaryData = summary.summaryDetail;
+    const statsData = summary.defaultKeyStatistics;
 
     const divYield = summaryData?.dividendYield;
+
+    // Narrow the quote response to just the MA fields we use.
+    const quote = quoteRaw as YahooQuoteMa | null;
+    const sma50 =
+      typeof quote?.fiftyDayAverage === "number" ? quote.fiftyDayAverage : null;
+    const sma200 =
+      typeof quote?.twoHundredDayAverage === "number"
+        ? quote.twoHundredDayAverage
+        : null;
 
     return {
       price: priceData?.regularMarketPrice ?? null,
@@ -104,6 +135,8 @@ async function fetchMarketData(ticker: string): Promise<MarketData> {
       pe: summaryData?.trailingPE ?? null,
       dividendYield: divYield ? Number(divYield) * 100 : null,
       priceToBook: statsData?.priceToBook ?? null,
+      sma50,
+      sma200,
     };
   } catch (e) {
     console.error(`Error fetching ${ticker}:`, e);
@@ -113,8 +146,43 @@ async function fetchMarketData(ticker: string): Promise<MarketData> {
       pe: null,
       dividendYield: null,
       priceToBook: null,
+      sma50: null,
+      sma200: null,
     };
   }
+}
+
+/**
+ * Derive a coarse tactical-momentum bias from price vs its 50-day and
+ * 200-day moving averages. Universal across markets — no VIX, no yield
+ * curve, no ERP — just pure trend position. Decision rules:
+ *
+ *   - Bullish: price is meaningfully above both MAs (>0.5%)
+ *   - Bearish: price is meaningfully below both MAs (>0.5%)
+ *   - Neutral: mixed (above one, below the other) or near either MA
+ *
+ * The 0.5% buffer prevents whiplash when price is hugging an MA. Falls
+ * back to a 200-DMA-only check if the 50-DMA is missing (sometimes the
+ * case for foreign indexes).
+ */
+function deriveTacticalBias(
+  price: number | null,
+  sma50: number | null,
+  sma200: number | null,
+): "bullish" | "neutral" | "bearish" {
+  if (price == null || sma200 == null || sma200 <= 0) return "neutral";
+  const above200 = price > sma200 * 1.005;
+  const below200 = price < sma200 * 0.995;
+  if (sma50 != null && sma50 > 0) {
+    const above50 = price > sma50 * 1.005;
+    const below50 = price < sma50 * 0.995;
+    if (above200 && above50) return "bullish";
+    if (below200 && below50) return "bearish";
+    return "neutral";
+  }
+  if (above200) return "bullish";
+  if (below200) return "bearish";
+  return "neutral";
 }
 
 async function fetchETFPE(ticker: string): Promise<number | null> {
@@ -227,6 +295,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       priceToBook: usData.priceToBook,
       price: usData.price,
       change24h: usData.change24h,
+      tacticalBias: deriveTacticalBias(usData.price, usData.sma50, usData.sma200),
     },
     {
       market: "JAPAN",
@@ -245,6 +314,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       priceToBook: jpData.priceToBook,
       price: jpData.price,
       change24h: jpData.change24h,
+      tacticalBias: deriveTacticalBias(jpData.price, jpData.sma50, jpData.sma200),
     },
     {
       market: "SINGAPORE",
@@ -263,6 +333,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       priceToBook: sgData.priceToBook,
       price: sgData.price,
       change24h: sgData.change24h,
+      tacticalBias: deriveTacticalBias(sgData.price, sgData.sma50, sgData.sma200),
     },
     {
       market: "CHINA",
@@ -281,6 +352,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       priceToBook: cnData.priceToBook,
       price: cnData.price,
       change24h: cnData.change24h,
+      tacticalBias: deriveTacticalBias(cnData.price, cnData.sma50, cnData.sma200),
     },
     {
       market: "HONG_KONG",
@@ -299,6 +371,7 @@ export async function fetchValuationData(): Promise<{ valuations: MarketValuatio
       priceToBook: hsiData.priceToBook,
       price: hsiData.price,
       change24h: hsiData.change24h,
+      tacticalBias: deriveTacticalBias(hsiData.price, hsiData.sma50, hsiData.sma200),
     },
   ];
 
