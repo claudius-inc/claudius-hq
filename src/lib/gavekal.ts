@@ -47,6 +47,8 @@ export type GavekalQuadrantName =
   | "Deflationary Bust"
   | "Inflationary Bust";
 
+export type TileAction = "own" | "avoid" | "hold";
+
 export interface GavekalQuadrant {
   name: GavekalQuadrantName;
   score: number; // +2, 0, -2
@@ -54,6 +56,19 @@ export interface GavekalQuadrant {
   description: string;
   buySignals: string[];
   sellSignals: string[];
+  // Per-quadrant action mapping for the 5-asset-class tile grid in the
+  // "What to do now" section. Authoritative quantized version of the
+  // narrative buy/sell signals: each tile gets exactly one verdict so the
+  // grid can show a clear action badge alongside the historical return.
+  // Hardcoded per quadrant rather than runtime-derived from buySignals
+  // strings, to keep the mapping explicit and reviewable.
+  tileActions: {
+    equities: TileAction;
+    bonds: TileAction;
+    gold: TileAction;
+    commodities: TileAction;
+    cash: TileAction;
+  };
 }
 
 export interface GavekalRatio {
@@ -62,12 +77,6 @@ export interface GavekalRatio {
   ma7y: number;
   signal: 1 | -1;
   history: { date: string; value: number; ma: number | null }[];
-}
-
-export interface GavekalExclusion {
-  name: string;
-  signal: string;
-  description: string;
 }
 
 export interface GavekalRegimePoint {
@@ -81,13 +90,17 @@ export interface GavekalXleData {
   xleSpyRatio: number | null;
   trailingPE: number | null;
   dividendYield: number | null;
-}
-
-export interface GavekalChangeEvent {
-  date: string;
-  type: "crossover" | "threshold" | "regime_change";
-  signal: string;
-  description: string;
+  // History of the XLE / SPY relative-strength ratio for sparkline + 7y MA
+  xleSpyHistory: { date: string; value: number; ma: number | null }[];
+  // Energy sector weight in S&P 500 (e.g. 0.041 for 4.1%) — sourced from
+  // SPY topHoldings.sectorWeightings via Yahoo. Anchors the Browne Dynamic
+  // Ch. 10 rationale: hedge exists because energy is structurally
+  // underweight in the S&P (was ~30% in 1980, now ~4%).
+  energyPctOfSp500: number | null;
+  // 1-year rolling correlation between XLE weekly returns and WTI weekly
+  // returns. Validates that the energy hedge is actually tracking its
+  // underlying commodity. Healthy range historically ~0.5–0.85.
+  xleWtiCorrelation: number | null;
 }
 
 export interface GavekalRegimeReturns {
@@ -135,14 +148,20 @@ export interface GavekalData {
   energyEfficiency: GavekalRatio;
   currencyQuality: GavekalRatio;
   keyRatios: {
-    spGold: { current: number; ma7y: number };
-    goldWti: { current: number; ma7y: number };
+    spGold: {
+      current: number;
+      ma7y: number;
+      history: { date: string; value: number; ma: number | null }[];
+    };
+    goldWti: {
+      current: number;
+      ma7y: number;
+      history: { date: string; value: number; ma: number | null }[];
+    };
   };
-  exclusions: GavekalExclusion[];
   regimeHistory: GavekalRegimePoint[];
   dataQuality?: GavekalDataQuality;
   xle?: GavekalXleData;
-  changelog?: GavekalChangeEvent[];
   regimeReturns?: Record<string, GavekalRegimeReturns>;
   portfolioAllocation?: PortfolioAllocation[];
   updatedAt: string;
@@ -164,6 +183,13 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
       "Long-duration assets (growth equities, long bonds)",
     ],
     sellSignals: ["Companies with little pricing power"],
+    tileActions: {
+      equities: "own",
+      bonds: "own",
+      gold: "avoid",
+      commodities: "avoid",
+      cash: "hold",
+    },
   },
   "1,-1": {
     name: "Inflationary Boom",
@@ -179,6 +205,13 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
       "High fixed cost cyclical producers",
     ],
     sellSignals: ["Long-term bonds"],
+    tileActions: {
+      equities: "hold",
+      bonds: "avoid",
+      gold: "own",
+      commodities: "own",
+      cash: "hold",
+    },
   },
   "-1,1": {
     name: "Deflationary Bust",
@@ -188,6 +221,13 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
     // Gave Ch. 2: "the only assets that rise are long-dated government bonds."
     buySignals: ["Safe government bonds"],
     sellSignals: ["Everything else"],
+    tileActions: {
+      equities: "avoid",
+      bonds: "own",
+      gold: "hold",
+      commodities: "avoid",
+      cash: "hold",
+    },
   },
   "-1,-1": {
     name: "Inflationary Bust",
@@ -198,11 +238,24 @@ const QUADRANTS: Record<string, GavekalQuadrant> = {
     // poorly. Even bonds collapse. At such times, one should own cash, and
     // usually energy since the way the broader economy is often pushed into
     // stagflation is through a spike in energy prices."
+    // Gold added per the Browne Dynamic gold/bonds switch (Ch. 8): when the
+    // IEF/Gold ratio is below its 7y MA the currency is being debased and
+    // gold is the antifragile asset of choice — the typical state during
+    // inflationary bust regimes, and historically the best-performing asset
+    // class in this quadrant by a wide margin.
     buySignals: [
       "Cash in safest currency",
       "Energy producers",
+      "Gold",
     ],
     sellSignals: ["Financial assets"],
+    tileActions: {
+      equities: "avoid",
+      bonds: "avoid",
+      gold: "own",
+      commodities: "own",
+      cash: "own",
+    },
   },
 };
 
@@ -441,7 +494,7 @@ function apiToWeekly(prices: { date: Date; close: number }[]): WeeklyPoint[] {
 // ── Data loading (DB-first with API fallback) ──────────────────────────────
 
 async function loadWeeklyPrices(
-  symbol: GavekalSymbol,
+  symbol: string,
   years: number,
 ): Promise<{ prices: WeeklyPoint[]; source: "db" | "api" }> {
   const fromDate = new Date();
@@ -583,27 +636,6 @@ function buildRegimeHistory(
   return points;
 }
 
-// ── Trend analysis for S&P/Gold ────────────────────────────────────────────
-
-function analyzeTrend(
-  ratios: number[],
-  mas: (number | null)[],
-): { direction: "rising" | "falling" | "flat"; strength: number } {
-  const lookback = Math.min(13, ratios.length);
-  if (lookback < 4) return { direction: "flat", strength: 0 };
-
-  const recent = ratios.slice(-lookback);
-  const change = (recent[recent.length - 1] - recent[0]) / recent[0];
-
-  let direction: "rising" | "falling" | "flat";
-  if (change > 0.02) direction = "rising";
-  else if (change < -0.02) direction = "falling";
-  else direction = "flat";
-
-  const strength = Math.min(100, Math.round(Math.abs(change) * 500));
-  return { direction, strength };
-}
-
 // ── Regime returns (hardcoded from Gave's published backtests) ─────────────
 
 const REGIME_RETURNS: Record<string, GavekalRegimeReturns> = {
@@ -615,11 +647,18 @@ const REGIME_RETURNS: Record<string, GavekalRegimeReturns> = {
 
 // ── XLE data fetching ─────────────────────────────────────────────────────
 
+/** Fetch live XLE/SPY quotes + the energy sector weight in S&P 500 from
+ *  SPY's topHoldings.sectorWeightings. The sector weight anchors the
+ *  Browne Dynamic Ch. 10 rationale: the hedge exists because energy is
+ *  structurally underweight in the S&P (was ~30% in 1980, now ~4%). */
 async function fetchXleData(): Promise<GavekalXleData | undefined> {
   try {
-    const [xleQuote, spyQuote] = await Promise.all([
+    const [xleQuote, spyQuote, spySummary] = await Promise.all([
       yahooFinance.quote("XLE"),
       yahooFinance.quote("SPY"),
+      yahooFinance
+        .quoteSummary("SPY", { modules: ["topHoldings"] })
+        .catch(() => null),
     ]);
 
     const xlePrice = (xleQuote as Record<string, unknown>).regularMarketPrice as number | undefined;
@@ -638,12 +677,35 @@ async function fetchXleData(): Promise<GavekalXleData | undefined> {
         ? xlePrice / spyPrice
         : null;
 
+    // Extract the energy sector weight. Yahoo returns sectorWeightings as
+    // an array of single-key objects, e.g. [{ energy: 0.0411 }, ...].
+    let energyPctOfSp500: number | null = null;
+    const sectorWeightings = (
+      spySummary as { topHoldings?: { sectorWeightings?: Array<Record<string, number>> } } | null
+    )?.topHoldings?.sectorWeightings;
+    if (Array.isArray(sectorWeightings)) {
+      for (const entry of sectorWeightings) {
+        if (entry && typeof entry === "object" && "energy" in entry) {
+          const v = entry.energy;
+          if (typeof v === "number" && isFinite(v)) {
+            energyPctOfSp500 = v;
+            break;
+          }
+        }
+      }
+    }
+
     return {
       price: xlePrice ?? null,
       changePercent: changePercent != null ? Math.round(changePercent * 100) / 100 : null,
       xleSpyRatio: xleSpyRatio != null ? Math.round(xleSpyRatio * 10000) / 10000 : null,
       trailingPE: xleTrailingPE ?? null,
       dividendYield: xleDividendYield ?? null,
+      // Historical fields are filled in after the main symbol fetch by
+      // enrichXleHistorical(); default to empty/null here.
+      xleSpyHistory: [],
+      energyPctOfSp500,
+      xleWtiCorrelation: null,
     };
   } catch (error) {
     logger.error(LOG_SRC, "Failed to fetch XLE data", { error });
@@ -651,91 +713,73 @@ async function fetchXleData(): Promise<GavekalXleData | undefined> {
   }
 }
 
-// ── Changelog extraction ──────────────────────────────────────────────────
+/** Fetch XLE + SPY weekly histories and compute (a) the XLE/SPY ratio
+ *  history with 7y MA for the sparkline, and (b) the rolling 1-year
+ *  correlation between XLE weekly returns and WTI weekly returns. WTI
+ *  prices are passed in (already loaded by the main pipeline). */
+async function enrichXleHistorical(
+  wti: WeeklyPoint[],
+  historyYears: number,
+  maWeeks: number,
+): Promise<{
+  xleSpyHistory: { date: string; value: number; ma: number | null }[];
+  xleWtiCorrelation: number | null;
+}> {
+  try {
+    const [xleData, spyData] = await Promise.all([
+      loadWeeklyPrices("XLE", historyYears).catch(() => ({ prices: [] as WeeklyPoint[] })),
+      loadWeeklyPrices("SPY", historyYears).catch(() => ({ prices: [] as WeeklyPoint[] })),
+    ]);
 
-function extractChangelog(
-  energyHistory: GavekalRatio["history"],
-  currencyHistory: GavekalRatio["history"],
-  goldWtiHistory: GavekalRatio["history"],
-  regimeHistory: GavekalRegimePoint[],
-): GavekalChangeEvent[] {
-  const events: GavekalChangeEvent[] = [];
-
-  // Detect energy efficiency crossovers (S&P/WTI vs 7yr MA)
-  for (let i = 1; i < energyHistory.length; i++) {
-    const prev = energyHistory[i - 1];
-    const curr = energyHistory[i];
-    if (prev.ma === null || curr.ma === null) continue;
-
-    const prevAbove = prev.value > prev.ma;
-    const currAbove = curr.value > curr.ma;
-    if (prevAbove !== currAbove) {
-      events.push({
-        date: curr.date,
-        type: "crossover",
-        signal: currAbove ? "S&P/WTI above 7yr MA" : "S&P/WTI below 7yr MA",
-        description: currAbove
-          ? "Energy efficiency turned positive — favors equities over commodities"
-          : "Energy efficiency turned negative — energy costs weighing on profits",
-      });
+    // XLE / SPY ratio history with the same monthly downsampling +
+    // 7y MA pattern as buildRatio() so the MiniSparkline gets a clean
+    // shape consistent with other ratio charts in the dashboard.
+    let xleSpyHistory: { date: string; value: number; ma: number | null }[] = [];
+    if (xleData.prices.length && spyData.prices.length) {
+      const aligned = alignWeeklySeries(xleData.prices, spyData.prices);
+      const xleSpyRatio = buildRatio(aligned, "XLE / SPY", maWeeks);
+      xleSpyHistory = xleSpyRatio.history;
     }
-  }
 
-  // Detect currency quality crossovers (IEF/Gold vs 7yr MA)
-  for (let i = 1; i < currencyHistory.length; i++) {
-    const prev = currencyHistory[i - 1];
-    const curr = currencyHistory[i];
-    if (prev.ma === null || curr.ma === null) continue;
-
-    const prevAbove = prev.value > prev.ma;
-    const currAbove = curr.value > curr.ma;
-    if (prevAbove !== currAbove) {
-      events.push({
-        date: curr.date,
-        type: "crossover",
-        signal: currAbove ? "IEF/Gold above 7yr MA" : "IEF/Gold below 7yr MA",
-        description: currAbove
-          ? "Currency quality improved — bonds preferred over gold"
-          : "Currency quality deteriorated — gold preferred over bonds",
-      });
+    // 1-year rolling correlation between XLE and WTI weekly returns.
+    // Healthy structural hedge: ~0.5–0.85. A persistent break below
+    // ~0.4 would indicate the hedge has decoupled from its underlying.
+    let xleWtiCorrelation: number | null = null;
+    if (xleData.prices.length && wti.length) {
+      const aligned = alignWeeklySeries(xleData.prices, wti);
+      const lookbackWeeks = 52;
+      if (aligned.length > lookbackWeeks + 1) {
+        const xleReturns: number[] = [];
+        const wtiReturns: number[] = [];
+        const tail = aligned.slice(-lookbackWeeks - 1);
+        for (let i = 1; i < tail.length; i++) {
+          xleReturns.push((tail[i].aClose - tail[i - 1].aClose) / tail[i - 1].aClose);
+          wtiReturns.push((tail[i].bClose - tail[i - 1].bClose) / tail[i - 1].bClose);
+        }
+        const meanX = xleReturns.reduce((a, b) => a + b, 0) / xleReturns.length;
+        const meanY = wtiReturns.reduce((a, b) => a + b, 0) / wtiReturns.length;
+        let cov = 0;
+        let varX = 0;
+        let varY = 0;
+        for (let i = 0; i < xleReturns.length; i++) {
+          const dx = xleReturns[i] - meanX;
+          const dy = wtiReturns[i] - meanY;
+          cov += dx * dy;
+          varX += dx * dx;
+          varY += dy * dy;
+        }
+        const denom = Math.sqrt(varX * varY);
+        if (denom > 0) {
+          xleWtiCorrelation = Math.round((cov / denom) * 100) / 100;
+        }
+      }
     }
+
+    return { xleSpyHistory, xleWtiCorrelation };
+  } catch (error) {
+    logger.error(LOG_SRC, "Failed to enrich XLE historical data", { error });
+    return { xleSpyHistory: [], xleWtiCorrelation: null };
   }
-
-  // Detect Gold/WTI recession threshold crossings (1.2x MA)
-  for (let i = 1; i < goldWtiHistory.length; i++) {
-    const prev = goldWtiHistory[i - 1];
-    const curr = goldWtiHistory[i];
-    if (prev.ma === null || curr.ma === null) continue;
-
-    const prevAboveThreshold = prev.value > prev.ma * 1.2;
-    const currAboveThreshold = curr.value > curr.ma * 1.2;
-    if (prevAboveThreshold !== currAboveThreshold) {
-      events.push({
-        date: curr.date,
-        type: "threshold",
-        signal: currAboveThreshold
-          ? "Gold/WTI above recession threshold"
-          : "Gold/WTI below recession threshold",
-        description: currAboveThreshold
-          ? "Gold/WTI ratio exceeded 1.2x its 7yr MA — recession warning activated"
-          : "Gold/WTI ratio fell below 1.2x its 7yr MA — recession warning cleared",
-      });
-    }
-  }
-
-  // Detect regime changes
-  for (const point of regimeHistory) {
-    events.push({
-      date: point.date,
-      type: "regime_change",
-      signal: `Regime → ${point.quadrant}`,
-      description: `Quadrant shifted to ${point.quadrant}`,
-    });
-  }
-
-  // Sort by date descending and return last 10
-  events.sort((a, b) => b.date.localeCompare(a.date));
-  return events.slice(0, 10);
 }
 
 // ── Main entry point ────────────────────────────────────────────────────────
@@ -801,6 +845,15 @@ export async function computeGavekalQuadrant(
   const gold = symbolMap["GC=F"] || [];
   const ief = symbolMap["IEF"] || [];
 
+  // Enrich the live XLE quote payload with historical fields (XLE/SPY
+  // sparkline history + XLE/WTI rolling correlation). Done after the main
+  // symbol fetch so we can reuse the already-loaded WTI history.
+  let enrichedXleData = xleData;
+  if (xleData) {
+    const xleHistorical = await enrichXleHistorical(wti, historyYears, maWeeks);
+    enrichedXleData = { ...xleData, ...xleHistorical };
+  }
+
   // Align and compute ratios
   const energyAligned = alignWeeklySeries(spx, wti);
   const currencyAligned = alignWeeklySeries(ief, gold);
@@ -815,59 +868,6 @@ export async function computeGavekalQuadrant(
   // Determine quadrant
   const key = `${energyEfficiency.signal},${currencyQuality.signal}`;
   const quadrant = QUADRANTS[key] ?? QUADRANTS["-1,-1"];
-
-  // Exclusion rules (Browne Permanent Portfolio)
-  const exclusions: GavekalExclusion[] = [];
-
-  if (currencyQuality.signal === 1) {
-    exclusions.push({
-      name: "Bonds vs Gold",
-      signal: "Own bonds",
-      description: "UST/Gold above 7yma — bonds are proper store of value",
-    });
-  } else {
-    exclusions.push({
-      name: "Bonds vs Gold",
-      signal: "Own gold",
-      description: "UST/Gold below 7yma — currency being debased, gold outperforms",
-    });
-  }
-
-  if (energyEfficiency.signal === 1) {
-    exclusions.push({
-      name: "Equities vs Cash",
-      signal: "Own equities",
-      description: "S&P/WTI above 7yma — energy transformation profitable",
-    });
-  } else {
-    exclusions.push({
-      name: "Equities vs Cash",
-      signal: "Own cash",
-      description: "S&P/WTI below 7yma — energy transformation unprofitable",
-    });
-  }
-
-  // Gold/WTI recession indicator
-  if (goldWtiRatio.current > goldWtiRatio.ma7y * 1.2) {
-    exclusions.push({
-      name: "Recession Indicator",
-      signal: "Warning",
-      description: "Gold/WTI ratio elevated — historically precedes recessions",
-    });
-  }
-
-  // S&P 500/Gold trend analysis
-  const spGoldRatios = spGoldAligned.map((r) => r.aClose / r.bClose);
-  const spGoldMas = computeMovingAverage(spGoldRatios, maWeeks);
-  const spGoldTrend = analyzeTrend(spGoldRatios, spGoldMas);
-
-  if (spGoldTrend.direction === "falling" && spGoldTrend.strength > 30) {
-    exclusions.push({
-      name: "S&P/Gold Trend",
-      signal: "Caution",
-      description: `S&P/Gold ratio falling (strength ${spGoldTrend.strength}/100) — real returns deteriorating`,
-    });
-  }
 
   // Prefer the long-history monthly regime computation (1971–present) seeded
   // by scripts/seed-gavekal-historical.ts. Also overwrite the per-ratio
@@ -887,23 +887,22 @@ export async function computeGavekalQuadrant(
     );
   }
 
-  // Extract changelog events from ratio histories
-  const changelog = extractChangelog(
-    energyEfficiency.history,
-    currencyQuality.history,
-    goldWtiRatio.history,
-    regimeHistory,
-  );
-
   return {
     quadrant,
     energyEfficiency,
     currencyQuality,
     keyRatios: {
-      spGold: { current: spGoldRatio.current, ma7y: spGoldRatio.ma7y },
-      goldWti: { current: goldWtiRatio.current, ma7y: goldWtiRatio.ma7y },
+      spGold: {
+        current: spGoldRatio.current,
+        ma7y: spGoldRatio.ma7y,
+        history: spGoldRatio.history,
+      },
+      goldWti: {
+        current: goldWtiRatio.current,
+        ma7y: goldWtiRatio.ma7y,
+        history: goldWtiRatio.history,
+      },
     },
-    exclusions,
     regimeHistory,
     dataQuality: {
       symbolStatus,
@@ -912,8 +911,7 @@ export async function computeGavekalQuadrant(
       newestDate,
       source: overallSource,
     },
-    xle: xleData,
-    changelog,
+    xle: enrichedXleData,
     regimeReturns: REGIME_RETURNS,
     portfolioAllocation: buildPortfolioAllocation(currencyQuality.signal),
     updatedAt: new Date().toISOString(),
