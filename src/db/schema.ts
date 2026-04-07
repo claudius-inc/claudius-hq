@@ -428,6 +428,31 @@ export type GavekalPrice = typeof gavekalPrices.$inferSelect;
 export type NewGavekalPrice = typeof gavekalPrices.$inferInsert;
 
 // ============================================================================
+// Gavekal Historical Snapshot — materialized monthly regime/ratio view.
+// Precomputed from the four `_M`-suffixed monthly series in gavekal_prices,
+// so the cold path doesn't have to recompute the 84-month MA + regime
+// classification on every cache miss. Past months are immutable.
+// ============================================================================
+
+export const gavekalHistoricalSnapshot = sqliteTable(
+  "gavekal_historical_snapshot",
+  {
+    date: text("date").primaryKey(), // YYYY-MM-DD, first of month
+    energyRatio: real("energy_ratio").notNull(), // S&P 500 / WTI
+    currencyRatio: real("currency_ratio").notNull(), // 10y UST / Gold
+    energyMa: real("energy_ma"), // 84-month MA, NULL during warmup
+    currencyMa: real("currency_ma"), // 84-month MA, NULL during warmup
+    regime: text("regime").notNull(), // "Inflationary Boom" | etc.
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+);
+
+export type GavekalHistoricalSnapshotRow =
+  typeof gavekalHistoricalSnapshot.$inferSelect;
+export type NewGavekalHistoricalSnapshotRow =
+  typeof gavekalHistoricalSnapshot.$inferInsert;
+
+// ============================================================================
 // Market Data Cache (Stale-While-Revalidate Pattern)
 // ============================================================================
 
