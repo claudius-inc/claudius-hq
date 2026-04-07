@@ -30,9 +30,10 @@ interface MarketValuation {
   dividendYield: number | null;
   priceToBook: number | null;
   price: number | null;
-  // Optional tactical bias for the US row only — merged client-side from
-  // /api/valuation/expected-returns. Combined with the strategic zone to
-  // produce a "strategic call strengthening / weakening" chevron icon.
+  // Per-market tactical momentum bias — derived server-side from price
+  // vs 50/200-day moving averages. See deriveTacticalBias() in
+  // src/lib/valuation.ts. Renders as the chevron icon next to the
+  // country name.
   tacticalBias?: "bullish" | "neutral" | "bearish";
 }
 
@@ -109,15 +110,17 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
   const dotPct = data.value ? clampPct(((data.value - min) / span) * 100) : 0;
   const iso = flagEmojiToIso(data.flag);
 
-  // Tactical momentum chevron — only US row has tactical bias data, so
-  // direction is "neutral" everywhere else and the chevron renders nothing.
+  // Tactical momentum chevron — populated server-side for every market
+  // from price vs 50/200-day MAs. Hidden when tacticalBias is undefined
+  // (e.g. if Yahoo's quote endpoint failed and we couldn't compute it).
   const tacticalDirection = deriveTacticalDirection(data.tacticalBias);
   const showChevron = data.tacticalBias !== undefined;
 
   // Tooltip content explains, in plain English, what the chevron means.
-  // The chevron is a short-horizon read that sits next to the long-
-  // horizon zone badge — the tooltip names which signals feed it and
-  // calls out agreement or divergence with the strategic zone.
+  // The chevron is a short-horizon trend read (price vs 50/200-day moving
+  // averages) that sits next to the long-horizon valuation zone badge.
+  // When they agree, both signals reinforce; when they disagree, the
+  // tooltip explicitly flags the divergence.
   const zoneWord = zoneStyle.label; // "Cheap" | "Fair" | "Expensive"
   let chevronTooltip: string;
   if (tacticalDirection === "up") {
@@ -127,7 +130,7 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
         : data.zone === "OVERVALUED"
           ? ` Diverges from the ${zoneWord} valuation read — late-cycle momentum despite stretched multiples.`
           : "";
-    chevronTooltip = `Short-term tactical momentum is bullish. Combines 200-day moving average, RSI, VIX, yield curve, and equity risk premium signals.${agreement}`;
+    chevronTooltip = `Short-term momentum is bullish — price is above both the 50-day and 200-day moving averages.${agreement}`;
   } else if (tacticalDirection === "down") {
     const agreement =
       data.zone === "OVERVALUED"
@@ -135,9 +138,9 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
         : data.zone === "UNDERVALUED"
           ? ` Diverges from the ${zoneWord} valuation read — falling-knife risk: the asset is cheap but still selling off.`
           : "";
-    chevronTooltip = `Short-term tactical momentum is bearish. Combines 200-day moving average, RSI, VIX, yield curve, and equity risk premium signals.${agreement}`;
+    chevronTooltip = `Short-term momentum is bearish — price is below both the 50-day and 200-day moving averages.${agreement}`;
   } else {
-    chevronTooltip = `Short-term tactical signals are mixed or neutral. No strong directional read from 200-day MA, RSI, VIX, yield curve, or equity risk premium.`;
+    chevronTooltip = `Short-term momentum is mixed — price is between or close to the 50-day and 200-day moving averages, no clear directional trend.`;
   }
 
   return (
@@ -259,32 +262,12 @@ export function CompactValuationStrip() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Two parallel fetches:
-    //   - /api/markets/valuation: 5-market valuation grid (US row uses
-    //     real Shiller CAPE from multpl.com)
-    //   - /api/valuation/expected-returns: modern engine that produces
-    //     a tactical bias for SPY (combines 200dma/50dma/RSI/VIX/yield-
-    //     curve/ERP signals). We extract the SPY bias and merge it onto
-    //     the US row only — other markets stay unchanged.
-    Promise.all([
-      fetch("/api/markets/valuation").then((res) =>
-        res.ok ? res.json() : null,
-      ),
-      fetch("/api/valuation/expected-returns")
-        .then((res) => (res.ok ? res.json() : null))
-        .catch(() => null), // bias merge is best-effort, never fails the strip
-    ])
-      .then(([valuationData, expectedReturnsData]) => {
-        const rows: MarketValuation[] = valuationData?.valuations || [];
-        const spyBias = expectedReturnsData?.assets?.find(
-          (a: { symbol: string }) => a.symbol === "SPY",
-        )?.tactical?.bias as "bullish" | "neutral" | "bearish" | undefined;
-        if (spyBias) {
-          const usIdx = rows.findIndex((r) => r.market === "US");
-          if (usIdx >= 0) rows[usIdx] = { ...rows[usIdx], tacticalBias: spyBias };
-        }
-        setValuations(rows);
-      })
+    // /api/markets/valuation now ships tacticalBias per market computed
+    // server-side from price vs 50/200-day MAs. No client-side merge
+    // needed any more — the chevron renders for every row uniformly.
+    fetch("/api/markets/valuation")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => setValuations(data?.valuations || []))
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
