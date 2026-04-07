@@ -65,15 +65,50 @@ export function ThemeLeaderboardLite() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Skeleton className="h-4 w-4 rounded" />
-          <Skeleton className="h-4 w-32" />
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-h-[377px]">
+        {/* Header bar — mirrors loaded structure */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-4 rounded" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-14" />
+          </div>
+          <Skeleton className="h-3 w-16" />
         </div>
-        <div className="space-y-2">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full rounded" />
-          ))}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-3 py-2 text-left text-[10px] font-medium text-gray-500 uppercase">Theme</th>
+                <th className="px-3 py-2 text-right text-[10px] font-medium text-gray-500 uppercase">1w</th>
+                <th className="px-3 py-2 text-right text-[10px] font-medium text-gray-500 uppercase">1m</th>
+                <th className="px-3 py-2 text-right text-[10px] font-medium text-gray-500 uppercase">3m</th>
+                <th className="px-3 py-2 text-center text-[10px] font-medium text-gray-500 uppercase">Crowd</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-50">
+              {Array.from({ length: MAX_VISIBLE }).map((_, i) => (
+                <tr key={i}>
+                  <td className="px-3 py-2 whitespace-nowrap">
+                    <Skeleton className="h-3 w-32 mb-1" />
+                    <Skeleton className="h-2.5 w-14" />
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-right">
+                    <Skeleton className="h-3 w-10 ml-auto" />
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-right">
+                    <Skeleton className="h-3 w-10 ml-auto" />
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-right">
+                    <Skeleton className="h-3 w-10 ml-auto" />
+                  </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-center">
+                    <Skeleton className="h-3.5 w-8 rounded-full mx-auto" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     );
@@ -82,7 +117,7 @@ export function ThemeLeaderboardLite() {
   if (themes.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-h-[377px]">
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <Layers className="w-4 h-4 text-gray-500" />

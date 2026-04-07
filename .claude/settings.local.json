@@ -29,7 +29,8 @@
       "Bash(curl -sL \"https://www.bundesbank.de/resource/blob/793246/0d5e10095fe6f4d3c3a3f6c1a7f6fa5b/mL/bbk01-wt5511-data.csv\")",
       "Bash(curl -sL \"https://raw.githubusercontent.com/datasets/gold-prices/master/data/monthly.csv\")",
       "Bash(curl -s \"http://localhost:3000/api/markets/gavekal\")",
-      "Bash(ls tailwind.config.*)"
+      "Bash(ls tailwind.config.*)",
+      "Bash(npx eslint:*)"
     ]
   }
 }
