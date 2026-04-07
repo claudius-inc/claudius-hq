@@ -6,6 +6,7 @@ import { Gem, ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 import { GoldDetail } from "./GoldDetail";
 import { BtcDetail } from "./BtcDetail";
+import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 
 interface BtcSnapshot {
@@ -130,7 +131,21 @@ function TacticalBias({ bias }: { bias: "bullish" | "neutral" | "bearish" }) {
   return <span className={`text-[9px] px-1 py-0.5 rounded ${styles[bias]}`}>{labels[bias]}</span>;
 }
 
-export function HardAssets({ expectedReturns }: { expectedReturns?: ExpectedReturnsResponse | null }) {
+export function HardAssets({
+  expectedReturns,
+  initialBtc,
+  initialGold,
+  initialOil,
+  initialSilver,
+  initialSilverPrice,
+}: {
+  expectedReturns?: ExpectedReturnsResponse | null;
+  initialBtc?: BtcSnapshot | null;
+  initialGold?: GoldSnapshot | null;
+  initialOil?: OilSnapshot | null;
+  initialSilver?: SilverSnapshot | null;
+  initialSilverPrice?: SilverPriceSnapshot | null;
+}) {
   const btcValuation = expectedReturns?.assets.find((a) => a.symbol === "BTC");
   const goldValuation = expectedReturns?.assets.find((a) => a.symbol === "GLD");
   const [btcOpen, setBtcOpen] = useState(false);
@@ -138,11 +153,19 @@ export function HardAssets({ expectedReturns }: { expectedReturns?: ExpectedRetu
   const [oilExpanded, setOilExpanded] = useState(false);
   const [silverExpanded, setSilverExpanded] = useState(false);
 
-  const { data: btc, isLoading: loadingBtc } = useSWR<BtcSnapshot>("/api/btc", fetcher, swrConfig);
-  const { data: gold, isLoading: loadingGold } = useSWR<GoldSnapshot>("/api/gold", fetcher, swrConfig);
-  const { data: oil, isLoading: loadingOil } = useSWR<OilSnapshot>("/api/oil", fetcher, swrConfig);
-  const { data: silver } = useSWR<SilverSnapshot>("/api/markets/silver", fetcher, swrConfig);
-  const { data: silverPrice, isLoading: loadingSilverPrice } = useSWR<SilverPriceSnapshot>("/api/silver-price", fetcher, swrConfig);
+  const { data: btc, isLoading: loadingBtc, isValidating: validatingBtc } =
+    useSWR<BtcSnapshot>("/api/btc", fetcher, { ...swrConfig, fallbackData: initialBtc ?? undefined });
+  const { data: gold, isLoading: loadingGold, isValidating: validatingGold } =
+    useSWR<GoldSnapshot>("/api/gold", fetcher, { ...swrConfig, fallbackData: initialGold ?? undefined });
+  const { data: oil, isLoading: loadingOil, isValidating: validatingOil } =
+    useSWR<OilSnapshot>("/api/oil", fetcher, { ...swrConfig, fallbackData: initialOil ?? undefined });
+  const { data: silver, isValidating: validatingSilver } =
+    useSWR<SilverSnapshot>("/api/markets/silver", fetcher, { ...swrConfig, fallbackData: initialSilver ?? undefined });
+  const { data: silverPrice, isLoading: loadingSilverPrice, isValidating: validatingSilverPrice } =
+    useSWR<SilverPriceSnapshot>("/api/silver-price", fetcher, { ...swrConfig, fallbackData: initialSilverPrice ?? undefined });
+
+  const refreshing =
+    validatingBtc || validatingGold || validatingOil || validatingSilver || validatingSilverPrice;
 
   const goldPrice = gold?.livePrice;
   const oilGoldRatio = oil?.wti?.price && goldPrice ? oil.wti.price / goldPrice : null;
@@ -152,6 +175,7 @@ export function HardAssets({ expectedReturns }: { expectedReturns?: ExpectedRetu
       <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
         <span className="flex items-center text-gray-400"><Gem className="w-3.5 h-3.5" /></span>
         Commodities
+        <RefreshIndicator active={refreshing} />
       </h3>
 
       <div className="card overflow-hidden !p-0 divide-y divide-gray-100 min-h-[148px]">

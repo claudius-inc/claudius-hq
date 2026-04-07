@@ -22,13 +22,15 @@ export interface MacroIndicator {
   name: string;
   category: string;
   unit: string;
-  description: string;
-  whyItMatters: string;
-  ranges: Array<{ label: string; min: number | null; max: number | null; meaning: string; marketImpact: string }>;
+  // The fields below are UI-only metadata that may be merged in client-side
+  // from a static config; the lib `fetchMacroData()` does not populate them.
+  description?: string;
+  whyItMatters?: string;
+  ranges?: Array<{ label: string; min: number | null; max: number | null; meaning: string; marketImpact: string }>;
   keyLevels?: Array<{ level: number; significance: string }>;
-  affectedAssets: string[];
+  affectedAssets?: string[];
   data: { current: number; min: number; max: number; avg: number } | null;
-  interpretation: { label: string; meaning: string; marketImpact: string } | null;
+  interpretation: { label: string; meaning: string; marketImpact?: string } | null;
   percentile: number | null;
 }
 
@@ -90,15 +92,16 @@ export interface CongressData {
   level: "bullish" | "neutral" | "bearish";
   totalTrades: number;
   topTickers: Array<{ ticker: string; count: number }>;
+  // Fields are nullable because the underlying DB rows can have nulls.
   recentTrades: Array<{
-    date: string;
-    member: string;
-    party: string;
-    state: string;
-    chamber: string;
+    date: string | null;
+    member: string | null;
+    party: string | null;
+    state: string | null;
+    chamber: string | null;
     ticker: string;
     type: string;
-    amount: string;
+    amount: string | null;
   }>;
 }
 
@@ -112,16 +115,17 @@ export interface InsiderData {
   level: "bullish" | "neutral" | "bearish";
   totalTrades: number;
   clusterBuys: Array<{ ticker: string; buys: number; buyValue: number }>;
+  // Fields are nullable because the underlying DB rows can have nulls.
   recentTrades: Array<{
-    date: string;
-    company: string;
+    date: string | null;
+    company: string | null;
     ticker: string;
-    insider: string;
-    title: string;
+    insider: string | null;
+    title: string | null;
     type: string;
-    shares: number;
-    price: number;
-    value: number;
+    shares: number | null;
+    price: number | null;
+    value: number | null;
   }>;
 }
 
@@ -208,7 +212,6 @@ export interface GavekalData {
   xle?: GavekalXleData;
   regimeReturns?: Record<string, GavekalRegimeReturns>;
   portfolioAllocation?: PortfolioAllocation[];
-  updatedAt: string;
 }
 
 export interface CrowdingData {

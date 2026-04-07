@@ -1,49 +1,192 @@
-import { db, themes, themeStocks } from "@/db";
+import { db, themes, themeStocks, stockPricesDaily } from "@/db";
 import YahooFinance from "yahoo-finance2";
+import { and, eq, gte, desc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { getCrowdingScores, aggregateCrowdingScores, CrowdingScore } from "@/lib/crowding";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+
+const LOG_SRC = "lib/themes";
 
 interface HistoricalRow {
   date: Date;
   close: number;
 }
 
-async function getHistoricalPrices(
+interface DailyPoint {
+  date: string;
+  close: number;
+}
+
+/**
+ * Load ~3 months of daily closes for a ticker, DB-first with Yahoo fallback.
+ *
+ * Past closes are immutable, so we materialize them in `stock_prices_daily`
+ * and only fall back to Yahoo when the cache is sparse or doesn't extend far
+ * enough back. New rows are appended on each Yahoo refetch — over time the
+ * fallback fires only for tickers we haven't seen recently.
+ */
+async function loadDailyPriceWindow(
   ticker: string,
-  period: "1w" | "1m" | "3m"
-): Promise<{ start: number | null; end: number | null }> {
+  daysBack: number,
+): Promise<DailyPoint[]> {
+  const fromDate = new Date();
+  fromDate.setDate(fromDate.getDate() - daysBack - 1);
+  const fromDateStr = fromDate.toISOString().split("T")[0];
+
+  // Try DB first
+  let dbRows: DailyPoint[] = [];
+  try {
+    dbRows = await db
+      .select({
+        date: stockPricesDaily.date,
+        close: stockPricesDaily.close,
+      })
+      .from(stockPricesDaily)
+      .where(
+        and(
+          eq(stockPricesDaily.ticker, ticker),
+          gte(stockPricesDaily.date, fromDateStr),
+        ),
+      )
+      .orderBy(stockPricesDaily.date);
+  } catch (e) {
+    logger.warn(LOG_SRC, `DB read failed for ${ticker}`, { error: e });
+  }
+
+  // ~63 trading days in ~90 calendar days. Require at least 60% coverage
+  // before trusting the DB; otherwise we fall back to Yahoo and re-store.
+  const expectedTradingDays = Math.floor(daysBack * 0.6);
+  if (dbRows.length >= expectedTradingDays) {
+    return dbRows;
+  }
+
+  // Cache miss / sparse — fetch from Yahoo and persist.
   try {
     const endDate = new Date();
     const startDate = new Date();
-
-    if (period === "1w") {
-      startDate.setDate(startDate.getDate() - 7);
-    } else if (period === "1m") {
-      startDate.setMonth(startDate.getMonth() - 1);
-    } else {
-      startDate.setMonth(startDate.getMonth() - 3);
-    }
+    startDate.setDate(startDate.getDate() - daysBack);
 
     const chartResult = await yahooFinance.chart(ticker, {
       period1: startDate,
       period2: endDate,
       interval: "1d",
     });
-    const result = chartResult.quotes as HistoricalRow[];
+    const quotes = chartResult.quotes as HistoricalRow[];
+    if (!quotes || quotes.length === 0) return dbRows; // best-effort
 
-    if (!result || result.length === 0) {
-      return { start: null, end: null };
-    }
+    const points: DailyPoint[] = quotes
+      .filter((q) => q.close !== null && q.close !== undefined)
+      .map((q) => ({
+        date: q.date.toISOString().split("T")[0],
+        close: q.close,
+      }));
 
-    return {
-      start: result[0]?.close ?? null,
-      end: result[result.length - 1]?.close ?? null,
-    };
-  } catch {
-    return { start: null, end: null };
+    // Persist in background — don't block the response.
+    storeStockPrices(ticker, points).catch((e) =>
+      logger.warn(LOG_SRC, `Background store failed for ${ticker}`, {
+        error: e,
+      }),
+    );
+
+    return points;
+  } catch (e) {
+    logger.warn(LOG_SRC, `Yahoo fetch failed for ${ticker}`, { error: e });
+    return dbRows; // fall back to whatever we had (possibly empty)
   }
+}
+
+async function storeStockPrices(ticker: string, points: DailyPoint[]) {
+  if (points.length === 0) return;
+  // Drizzle's onConflictDoNothing relies on the unique index we created
+  // on (ticker, date). Batch in groups to stay under the SQLite param cap.
+  const BATCH = 100;
+  for (let i = 0; i < points.length; i += BATCH) {
+    const batch = points.slice(i, i + BATCH).map((p) => ({
+      ticker,
+      date: p.date,
+      close: p.close,
+    }));
+    await db.insert(stockPricesDaily).values(batch).onConflictDoNothing();
+  }
+}
+
+/**
+ * Pick the close at-or-just-before the target date from a sorted DailyPoint
+ * array. Used to translate "1w/1m/3m ago" into a real trading-day close
+ * regardless of weekends and holidays.
+ */
+function closeAtOrBefore(
+  points: DailyPoint[],
+  targetDate: Date,
+): number | null {
+  if (points.length === 0) return null;
+  const targetStr = targetDate.toISOString().split("T")[0];
+  // Walk from the end backwards (smallest array, most recent first).
+  for (let i = points.length - 1; i >= 0; i--) {
+    if (points[i].date <= targetStr) return points[i].close;
+  }
+  return null;
+}
+
+interface PerfTriple {
+  performance_1w: number | null;
+  performance_1m: number | null;
+  performance_3m: number | null;
+}
+
+/**
+ * Get 1w/1m/3m returns for a single ticker. Internally fetches ONE 3-month
+ * window (DB-first) and derives all three periods from it — drops the call
+ * count from 3 Yahoo chart() per ticker to 0 (warm) or 1 (cold).
+ */
+async function getTickerPerformance(ticker: string): Promise<PerfTriple> {
+  const points = await loadDailyPriceWindow(ticker, 95); // a bit > 3 months
+
+  if (points.length === 0) {
+    return {
+      performance_1w: null,
+      performance_1m: null,
+      performance_3m: null,
+    };
+  }
+
+  const today = new Date();
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(today.getDate() - 7);
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(today.getMonth() - 1);
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(today.getMonth() - 3);
+
+  const end = points[points.length - 1].close;
+  const start1w = closeAtOrBefore(points, oneWeekAgo);
+  const start1m = closeAtOrBefore(points, oneMonthAgo);
+  const start3m = closeAtOrBefore(points, threeMonthsAgo);
+
+  return {
+    performance_1w: calcPerformance(start1w, end),
+    performance_1m: calcPerformance(start1m, end),
+    performance_3m: calcPerformance(start3m, end),
+  };
+}
+
+// Legacy single-period helper kept for `fetchThemePrices()` below which
+// returns one period at a time. Now goes through the same DB-first cache.
+async function getHistoricalPrices(
+  ticker: string,
+  period: "1w" | "1m" | "3m",
+): Promise<{ start: number | null; end: number | null }> {
+  const points = await loadDailyPriceWindow(ticker, 95);
+  if (points.length === 0) return { start: null, end: null };
+
+  const end = points[points.length - 1].close;
+  const targetDate = new Date();
+  if (period === "1w") targetDate.setDate(targetDate.getDate() - 7);
+  else if (period === "1m") targetDate.setMonth(targetDate.getMonth() - 1);
+  else targetDate.setMonth(targetDate.getMonth() - 3);
+
+  return { start: closeAtOrBefore(points, targetDate), end };
 }
 
 function calcPerformance(start: number | null, end: number | null): number | null {
@@ -130,19 +273,18 @@ export async function fetchThemePerformanceAll(): Promise<ThemePerformanceRespon
       const idx = cursor++;
       const ticker = allTickers[idx];
       try {
-        const [p1w, p1m, p3m] = await Promise.all([
-          getHistoricalPrices(ticker, "1w"),
-          getHistoricalPrices(ticker, "1m"),
-          getHistoricalPrices(ticker, "3m"),
-        ]);
-        perfMap.set(ticker, {
-          performance_1w: calcPerformance(p1w.start, p1w.end),
-          performance_1m: calcPerformance(p1m.start, p1m.end),
-          performance_3m: calcPerformance(p3m.start, p3m.end),
-        });
+        // ONE DB read (or 1 Yahoo fallback) per ticker, derives all 3 periods.
+        // Was previously 3 Yahoo chart() calls per ticker.
+        perfMap.set(ticker, await getTickerPerformance(ticker));
       } catch (e) {
-        logger.warn("themes", `Failed to fetch prices for ${ticker}`, { error: e });
-        perfMap.set(ticker, { performance_1w: null, performance_1m: null, performance_3m: null });
+        logger.warn(LOG_SRC, `Failed to fetch prices for ${ticker}`, {
+          error: e,
+        });
+        perfMap.set(ticker, {
+          performance_1w: null,
+          performance_1m: null,
+          performance_3m: null,
+        });
       }
     }
   }

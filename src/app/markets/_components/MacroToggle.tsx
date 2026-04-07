@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, TrendingUp } from "lucide-react";
 import { Indicators } from "./Indicators";
+import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
 import type { MacroIndicator, YieldSpread } from "./types";
 
 interface MacroToggleProps {
@@ -11,6 +12,7 @@ interface MacroToggleProps {
   loading: boolean;
   expandedIds: Set<string>;
   toggleExpanded: (id: string) => void;
+  refreshing?: boolean;
 }
 
 export function MacroToggle({
@@ -19,6 +21,7 @@ export function MacroToggle({
   loading,
   expandedIds,
   toggleExpanded,
+  refreshing = false,
 }: MacroToggleProps) {
   const [expanded, setExpanded] = useState(false);
 
@@ -30,6 +33,7 @@ export function MacroToggle({
       >
         <span className="flex items-center text-gray-400"><TrendingUp className="w-3.5 h-3.5" /></span>
         Macro Indicators
+        <RefreshIndicator active={refreshing} />
         <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
         {!expanded && (
           <span className="text-[10px] font-normal text-gray-400 ml-1">
