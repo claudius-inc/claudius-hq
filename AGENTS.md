@@ -276,6 +276,31 @@ interface PageHeroProps {
 />
 ```
 
+## Loading Skeletons & CLS Prevention
+
+**Every async UI section MUST reserve a stable outer height before data arrives.** Layout shift is unacceptable.
+
+### The Rule
+
+1. **Outer container reserves space — but only when the skeleton can't perfectly match the loaded shape.** If the skeleton DOM mirrors the loaded DOM 1:1 (same row count, same paddings, same wrappers), the heights will naturally match and you do NOT need `min-h`. Adding `min-h` in that case creates dead space below the loaded content and makes the column tower over its neighbors. Only reach for an explicit `min-h-[Xpx]` (or fixed height) when the loaded row count is variable or the skeleton can't faithfully mirror the loaded structure — and when you do, apply the SAME `min-h` to both the loading and the loaded branches so the swap is invisible.
+2. **Skeleton mirrors loaded structure 1:1.** Same wrappers, same paddings, same header bar, same row count, same DOM element types (`<table>` stays a `<table>`, not a stack of divs). Replace text/badges/icons with `<Skeleton/>` placeholders sized to match the real content.
+3. **Skeleton row count is driven by the SAME constant the loaded state uses** — not a hand-picked number like `[...Array(4)]`. If the loaded state slices `MAX_VISIBLE = 8`, the skeleton renders 8 rows. If the loaded state iterates a static config array (e.g. `MACRO_INDICATORS`), the skeleton iterates the same array.
+4. **Per-row inline skeletons must render a placeholder for every loaded element**, not just one. A row with `ratio + price + change% + zone badge` needs four skeleton spans of matching widths — not one `h-3.5 w-20`.
+5. **For lists with truly unknown length**, pad the skeleton to the maximum expected count and rely on the container's `min-h` to absorb the difference.
+
+### Reference Implementation
+
+`src/app/markets/_components/GavekalQuadrant.tsx` — the skeleton block (search for `if (loading)`) mirrors header + grid + allocation table exactly. Use it as a template.
+
+### Anti-patterns
+
+- Hard-coding skeleton row counts that don't match the loaded data (`[...Array(4)]` when the loaded state shows 8).
+- Wrapping a skeleton in a different card shape than the loaded state (e.g. `p-4` skeleton card vs `overflow-hidden` loaded card with header bar).
+- Inline `Skeleton` for one element when the loaded row has 3+ elements — render a placeholder for each loaded element so widths don't shift.
+- Omitting the header/title bar from the skeleton when the loaded state has one.
+- Adding `min-h` only to the loading branch and forgetting the loaded branch (or vice versa).
+- Adding `min-h` "just in case" when the skeleton already mirrors the loaded shape exactly — the extra reserved space becomes visible dead space below the loaded content and can make the column tower over its grid neighbors.
+
 ## ACP Pillars
 
 Valid pillar values: `quality`, `replace`, `build`, `experiment`, `distribute`

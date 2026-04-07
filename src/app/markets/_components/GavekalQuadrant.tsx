@@ -10,13 +10,11 @@ import {
 import { Skeleton } from "@/components/Skeleton";
 import { Modal } from "@/components/ui/Modal";
 import {
-  Grid3X3,
   TrendingUp,
   TrendingDown,
   Shield,
   Fuel,
   Coins,
-  Landmark,
   Maximize2,
   AlertTriangle,
   Clock,
@@ -1032,22 +1030,28 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
 
   if (loading) {
     return (
-      <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4 space-y-3">
-        {/* Header skeleton: icon + (regime name + mood badge + description) + side badges + maximize */}
+      <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4 space-y-3 h-full">
+        {/* Header skeleton: (Current Regime label + name+badge+info + description) + side badges + maximize */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Skeleton className="h-7 w-7 rounded-lg" />
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <Skeleton className="h-5 w-44" />
+            <div>
+              {/* "Current Regime:" line — font-mono text-xs */}
+              <Skeleton className="h-3 w-24" />
+              {/* Regime name (text-base) + mood badge + info icon */}
+              <div className="flex items-center gap-2 mt-1">
+                <Skeleton className="h-4 w-44" />
                 <Skeleton className="h-4 w-20 rounded-md" />
+                <Skeleton className="h-3.5 w-3.5 rounded-sm" />
               </div>
-              <Skeleton className="h-3 w-64" />
+              {/* Description text-[11px] mt-0.5 */}
+              <Skeleton className="h-3 w-64 mt-1" />
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-3">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-3 w-20" />
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="hidden sm:flex items-center gap-3">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-20" />
+            </div>
             <Skeleton className="h-3.5 w-3.5" />
           </div>
         </div>
@@ -1058,30 +1062,33 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
           <div className="flex-1 min-w-0">
             <div className="grid grid-cols-2 gap-1.5">
               {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
               ))}
             </div>
-            <div className="flex justify-between mt-1.5">
+            {/* Axis labels — text-[9px] mt-1.5 */}
+            <div className="flex justify-between mt-1.5 px-1">
               <Skeleton className="h-2 w-24" />
               <Skeleton className="h-2 w-24" />
             </div>
           </div>
 
-          {/* Allocation table skeleton */}
+          {/* Allocation table skeleton — mirrors AllocationTable structure */}
           <div className="lg:w-[280px] shrink-0">
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-2.5 space-y-2">
-              <Skeleton className="h-3 w-32" />
-              <div className="space-y-2 pt-1">
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-2.5">
+              {/* Header: text-[11px] font-semibold mb-2 */}
+              <Skeleton className="h-3 w-32 mb-2" />
+              {/* Rows: py-1, text-[10px] */}
+              <div>
                 {[...Array(4)].map((_, i) => (
                   <div
                     key={i}
-                    className="flex items-center justify-between gap-2"
+                    className="flex items-center justify-between gap-2 py-1 border-b border-black/5 last:border-0"
                   >
-                    <div className="flex-1 space-y-1">
-                      <Skeleton className="h-3 w-24" />
-                      <Skeleton className="h-2 w-32" />
+                    <div className="flex-1 flex flex-row gap-2 items-center">
+                      <Skeleton className="h-2.5 w-20" />
+                      <Skeleton className="h-2 w-14" />
                     </div>
-                    <Skeleton className="h-3 w-8" />
+                    <Skeleton className="h-2.5 w-7" />
                   </div>
                 ))}
               </div>
@@ -1132,427 +1139,454 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
   const currencyMomentum = computeMomentum(currencyQuality);
 
   return (
-    <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4 space-y-3">
-      {/* Header — regime label as hero element with prominent banner */}
-      <button
-        type="button"
-        className="flex items-center justify-between w-full text-left cursor-pointer"
-        onClick={() => setExpanded((e) => !e)}
-      >
-        <div className="flex items-center gap-3">
-          <div
-            className={`p-1.5 rounded-lg ${REGIME_BG_COLORS[quadrant.name] ?? "bg-gray-50"}`}
-          >
-            <Grid3X3
-              className={`w-4 h-4 ${REGIME_TEXT_COLORS[quadrant.name] ?? "text-gray-500"}`}
-            />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span
-                title="Charles Gave's 4-quadrant macro model. Two axes: equity/oil ratio (energy efficiency) and bond/gold ratio (currency quality), each above or below their 7y moving average."
-                className={`text-base sm:text-lg font-extrabold tracking-tight cursor-help ${SCORE_COLORS[quadrant.score] ?? "text-gray-600"}`}
-              >
-                {quadrant.name}
-              </span>
-              <span
-                className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md ${
-                  quadrant.score === -2
-                    ? "bg-red-100 text-red-700"
-                    : "bg-gray-100 text-gray-600"
-                }`}
-              >
-                {QUADRANT_CELLS.find((c) => c.key === quadrant.name)?.mood ??
-                  ""}
-              </span>
-            </div>
-            <p className="text-[11px] text-gray-400 leading-tight mt-0.5">
-              {quadrant.description}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="hidden sm:flex items-center gap-3 text-[10px] text-gray-400">
-            <span
-              title="S&P 500 ÷ WTI vs its 7y moving average. Below MA = each $ of equities buys less oil than usual, energy is expensive relative to stocks."
-              className="cursor-help"
-            >
-              <span className="opacity-60">Energy </span>
-              <span
-                className={`font-bold ${energyEfficiency.signal === 1 ? "text-gray-600" : "text-red-600"}`}
-              >
-                {energyEfficiency.signal === 1 ? "Cheap ↓" : "Expensive ↑"}
-              </span>
-            </span>
-            <span
-              title="10y UST total return ÷ Gold vs its 7y moving average. Below MA = bonds losing to gold, fiat currency is being debased."
-              className="cursor-help"
-            >
-              <span className="opacity-60">Currency </span>
-              <span
-                className={`font-bold ${currencyQuality.signal === 1 ? "text-gray-600" : "text-red-600"}`}
-              >
-                {currencyQuality.signal === 1 ? "Strong ↑" : "Weak ↓"}
-              </span>
-            </span>
-          </div>
-          <Maximize2 className="w-3.5 h-3.5 text-gray-300" />
-        </div>
-      </button>
-
-      {/* Quadrant Grid + Allocation Table — side by side on lg+ */}
-      <div className="flex flex-col lg:flex-row gap-3">
-        {/* Quadrant Grid */}
-        <div className="flex-1 min-w-0">
-          <div className="grid grid-cols-2 gap-1.5">
-            {QUADRANT_CELLS.map((cell) => {
-              const active = cell.key === quadrant.name;
-              const hovered = hoveredCell === cell.key;
-              const selected = selectedCell === cell.key;
-
-              return (
-                <div
-                  key={cell.key}
-                  className={`relative rounded-lg px-2.5 py-2 text-center transition-all duration-300 ease-out border-2 cursor-pointer ${
-                    active
-                      ? QUADRANT_ACTIVE[cell.key]
-                      : selected
-                        ? `${REGIME_BG_COLORS[cell.key] ?? "bg-gray-50"} ${REGIME_TEXT_COLORS[cell.key] ?? "text-gray-600"} ${REGIME_BORDER_COLORS[cell.key] ?? "border-gray-200"} opacity-80`
-                        : "bg-gray-50 text-gray-400 border-transparent hover:bg-gray-100"
-                  }`}
-                  onClick={() => setSelectedCell(selected ? null : cell.key)}
-                  onMouseEnter={() => setHoveredCell(cell.key)}
-                  onMouseLeave={() => setHoveredCell(null)}
-                >
-                  <div
-                    className={`text-[10px] font-semibold ${active ? "" : "opacity-60"}`}
-                  >
-                    {cell.label}
-                  </div>
-                  <div
-                    className={`text-[9px] uppercase tracking-wide ${active ? "font-bold" : "opacity-40"}`}
-                  >
-                    {cell.mood}
-                  </div>
-
-                  {/* Tooltip on hover (non-active cells) */}
-                  {hovered && !active && (
-                    <div className="absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 w-40 bg-gray-800 text-white text-[9px] rounded-md px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in">
-                      <div className="font-semibold mb-0.5">{cell.label}</div>
-                      <div className="opacity-80">{cell.brief}</div>
-                    </div>
-                  )}
-
-                  {/* Tooltip on hover (active cell — show current data) */}
-                  {hovered && active && (
-                    <div className="absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 w-48 bg-gray-800 text-white text-[9px] rounded-md px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in">
-                      <div className="font-semibold mb-0.5">
-                        Current: {cell.label}
-                      </div>
-                      <div className="opacity-80">{quadrant.description}</div>
-                      <div className="mt-1 pt-1 border-t border-gray-600 opacity-70">
-                        S&P/WTI: {energyEfficiency.current.toFixed(2)} vs{" "}
-                        {energyEfficiency.ma7y.toFixed(2)} MA
-                      </div>
-                      <div className="opacity-70">
-                        UST/Gold: {currencyQuality.current.toFixed(2)} vs{" "}
-                        {currencyQuality.ma7y.toFixed(2)} MA
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Axis labels */}
-          <div className="flex justify-between text-[9px] text-gray-300 px-1 mt-1.5">
-            <span>Bad currency (inflation)</span>
-            <span>Good currency (deflation)</span>
-          </div>
-        </div>
-
-        {/* Portfolio Allocation Table — sourced from API (src/lib/gavekal.ts)
-            so client and server stay in sync */}
-        <div className="lg:w-[280px] shrink-0">
-          <AllocationTable
-            allocations={data.portfolioAllocation ?? []}
-            regimeName={quadrant.name}
-          />
-        </div>
-      </div>
-
-      {/* Selected quadrant detail panel */}
-      {selectedCell &&
-        selectedCell !== quadrant.name &&
-        data.regimeReturns &&
-        data.regimeReturns[selectedCell] &&
-        (() => {
-          const cellData = QUADRANT_CELLS.find((c) => c.key === selectedCell);
-          // Mirrors the ebook-narrative buy/sell signals defined in
-          // QUADRANTS in src/lib/gavekal.ts (Charles Gave, Ch. 2).
-          const qDef = {
-            "Deflationary Boom": {
-              buy: [
-                "Innovative companies with pricing power",
-                "Long-duration assets",
-              ],
-              sell: ["Companies with little pricing power"],
-            },
-            "Inflationary Boom": {
-              buy: [
-                "Stores of value (real estate, gold, commodities)",
-                "Cyclical producers",
-              ],
-              sell: ["Long-term bonds"],
-            },
-            "Deflationary Bust": {
-              buy: ["Safe government bonds"],
-              sell: ["Everything else"],
-            },
-            "Inflationary Bust": {
-              buy: ["Cash in safest currency", "Energy producers"],
-              sell: ["Financial assets"],
-            },
-          }[selectedCell];
-          const returns = data.regimeReturns![selectedCell];
-          return (
-            <div
-              className={`rounded-lg border p-3 space-y-2 animate-fade-in ${REGIME_BORDER_COLORS[selectedCell] ?? "border-gray-200"} ${REGIME_BG_COLORS[selectedCell] ?? "bg-gray-50"}`}
-            >
-              <div className="flex items-center justify-between">
+    <TooltipProvider delayDuration={150}>
+      <div className="rounded-lg bg-white border border-gray-200 shadow-sm p-3 sm:p-4 space-y-3 h-full">
+        {/* Header — regime label as hero element with prominent banner */}
+        <button
+          type="button"
+          className="flex items-center justify-between w-full text-left cursor-pointer"
+          onClick={() => setExpanded((e) => !e)}
+        >
+          <div className="flex items-center gap-3">
+            <div>
+              <div className="font-mono text-xs text-gray-500">
+                Current Regime:
+              </div>
+              <div className="flex items-center gap-2">
                 <span
-                  className={`text-xs font-bold ${REGIME_TEXT_COLORS[selectedCell] ?? "text-gray-700"}`}
+                  className={`text-base font-bold tracking-tight ${SCORE_COLORS[quadrant.score] ?? "text-gray-600"}`}
                 >
-                  {selectedCell}
+                  {quadrant.name}
                 </span>
-                <button
-                  onClick={() => setSelectedCell(null)}
-                  className="text-[9px] text-gray-400 hover:text-gray-600"
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md ${
+                    quadrant.score === -2
+                      ? "bg-red-50 text-red-700"
+                      : "bg-gray-100 text-gray-600"
+                  }`}
                 >
-                  Close
-                </button>
-              </div>
-              <p className="text-[10px] text-gray-500">{cellData?.brief}</p>
-              <div className="grid grid-cols-5 gap-1">
-                {[
-                  { label: "Eq", value: returns.equities },
-                  { label: "Bond", value: returns.bonds },
-                  { label: "Gold", value: returns.gold },
-                  { label: "Cmdty", value: returns.commodities },
-                  { label: "Cash", value: returns.cash },
-                ].map((a) => (
-                  <div key={a.label} className="text-center">
-                    <div className="text-[8px] text-gray-400">{a.label}</div>
-                    <div
-                      className={`text-[10px] font-bold ${a.value < 0 ? "text-red-600" : "text-gray-700"}`}
+                  {QUADRANT_CELLS.find((c) => c.key === quadrant.name)?.mood ??
+                    ""}
+                </span>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      aria-label="About this model"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === " " || e.key === "Enter")
+                          e.stopPropagation();
+                      }}
+                      className="inline-flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 rounded-sm cursor-help"
                     >
-                      {a.value > 0 ? "+" : ""}
-                      {a.value}%
+                      <Info className="w-3.5 h-3.5" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    align="start"
+                    collisionPadding={8}
+                    className="max-w-xs text-[11px] leading-snug"
+                  >
+                    Charles Gave&apos;s 4-quadrant macro model. Two axes:
+                    equity/oil ratio (energy efficiency) and bond/gold ratio
+                    (currency quality), each above or below their 7y moving
+                    average.
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <p className="text-[11px] text-gray-400 leading-tight mt-0.5">
+                {quadrant.description}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="hidden sm:flex items-center gap-3 text-[10px] text-gray-400">
+              <span
+                title="S&P 500 ÷ WTI vs its 7y moving average. Below MA = each $ of equities buys less oil than usual, energy is expensive relative to stocks."
+                className="cursor-help"
+              >
+                <span className="opacity-60">Energy </span>
+                <span
+                  className={`font-bold ${energyEfficiency.signal === 1 ? "text-gray-600" : "text-red-600"}`}
+                >
+                  {energyEfficiency.signal === 1 ? "Cheap ↓" : "Expensive ↑"}
+                </span>
+              </span>
+              <span
+                title="10y UST total return ÷ Gold vs its 7y moving average. Below MA = bonds losing to gold, fiat currency is being debased."
+                className="cursor-help"
+              >
+                <span className="opacity-60">Currency </span>
+                <span
+                  className={`font-bold ${currencyQuality.signal === 1 ? "text-gray-600" : "text-red-600"}`}
+                >
+                  {currencyQuality.signal === 1 ? "Strong ↑" : "Weak ↓"}
+                </span>
+              </span>
+            </div>
+            <Maximize2 className="w-3.5 h-3.5 text-gray-300" />
+          </div>
+        </button>
+
+        {/* Quadrant Grid + Allocation Table — side by side on lg+ */}
+        <div className="flex flex-col lg:flex-row gap-3">
+          {/* Quadrant Grid */}
+          <div className="flex-1 min-w-0">
+            <div className="grid grid-cols-2 gap-1.5">
+              {QUADRANT_CELLS.map((cell) => {
+                const active = cell.key === quadrant.name;
+                const hovered = hoveredCell === cell.key;
+                const selected = selectedCell === cell.key;
+
+                return (
+                  <div
+                    key={cell.key}
+                    className={`flex flex-col justify-center relative rounded-lg px-2.5 py-2 text-center transition-all duration-300 ease-out border-2 cursor-pointer h-14 ${
+                      active
+                        ? QUADRANT_ACTIVE[cell.key]
+                        : selected
+                          ? `${REGIME_BG_COLORS[cell.key] ?? "bg-gray-50"} ${REGIME_TEXT_COLORS[cell.key] ?? "text-gray-600"} ${REGIME_BORDER_COLORS[cell.key] ?? "border-gray-200"} opacity-80`
+                          : "bg-gray-50 text-gray-400 border-transparent hover:bg-gray-100"
+                    }`}
+                    onClick={() => setSelectedCell(selected ? null : cell.key)}
+                    onMouseEnter={() => setHoveredCell(cell.key)}
+                    onMouseLeave={() => setHoveredCell(null)}
+                  >
+                    <div
+                      className={`text-[10px] font-semibold ${active ? "" : "opacity-60"}`}
+                    >
+                      {cell.label}
+                    </div>
+                    <div
+                      className={`text-[8px] uppercase tracking-wide bg-white/50 rounded-md ${active ? "font-bold" : "opacity-40"}`}
+                    >
+                      {cell.mood}
+                    </div>
+
+                    {/* Tooltip on hover (non-active cells) */}
+                    {hovered && !active && (
+                      <div className="absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 w-40 bg-gray-800 text-white text-[9px] rounded-md px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in">
+                        <div className="font-semibold mb-0.5">{cell.label}</div>
+                        <div className="opacity-80">{cell.brief}</div>
+                      </div>
+                    )}
+
+                    {/* Tooltip on hover (active cell — show current data) */}
+                    {hovered && active && (
+                      <div className="absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 w-48 bg-gray-800 text-white text-[9px] rounded-md px-2.5 py-1.5 shadow-lg pointer-events-none animate-fade-in">
+                        <div className="font-semibold mb-0.5">
+                          Current: {cell.label}
+                        </div>
+                        <div className="opacity-80">{quadrant.description}</div>
+                        <div className="mt-1 pt-1 border-t border-gray-600 opacity-70">
+                          S&P/WTI: {energyEfficiency.current.toFixed(2)} vs{" "}
+                          {energyEfficiency.ma7y.toFixed(2)} MA
+                        </div>
+                        <div className="opacity-70">
+                          UST/Gold: {currencyQuality.current.toFixed(2)} vs{" "}
+                          {currencyQuality.ma7y.toFixed(2)} MA
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Axis labels */}
+            <div className="flex justify-between text-[9px] text-gray-300 px-1 mt-1.5">
+              <span>Bad currency (inflation)</span>
+              <span>Good currency (deflation)</span>
+            </div>
+          </div>
+
+          {/* Portfolio Allocation Table — sourced from API (src/lib/gavekal.ts)
+            so client and server stay in sync */}
+          <div className="lg:w-[280px] shrink-0">
+            <AllocationTable
+              allocations={data.portfolioAllocation ?? []}
+              regimeName={quadrant.name}
+            />
+          </div>
+        </div>
+
+        {/* Selected quadrant detail panel */}
+        {selectedCell &&
+          selectedCell !== quadrant.name &&
+          data.regimeReturns &&
+          data.regimeReturns[selectedCell] &&
+          (() => {
+            const cellData = QUADRANT_CELLS.find((c) => c.key === selectedCell);
+            // Mirrors the ebook-narrative buy/sell signals defined in
+            // QUADRANTS in src/lib/gavekal.ts (Charles Gave, Ch. 2).
+            const qDef = {
+              "Deflationary Boom": {
+                buy: [
+                  "Innovative companies with pricing power",
+                  "Long-duration assets",
+                ],
+                sell: ["Companies with little pricing power"],
+              },
+              "Inflationary Boom": {
+                buy: [
+                  "Stores of value (real estate, gold, commodities)",
+                  "Cyclical producers",
+                ],
+                sell: ["Long-term bonds"],
+              },
+              "Deflationary Bust": {
+                buy: ["Safe government bonds"],
+                sell: ["Everything else"],
+              },
+              "Inflationary Bust": {
+                buy: ["Cash in safest currency", "Energy producers"],
+                sell: ["Financial assets"],
+              },
+            }[selectedCell];
+            const returns = data.regimeReturns![selectedCell];
+            return (
+              <div
+                className={`rounded-lg border p-3 space-y-2 animate-fade-in ${REGIME_BORDER_COLORS[selectedCell] ?? "border-gray-200"} ${REGIME_BG_COLORS[selectedCell] ?? "bg-gray-50"}`}
+              >
+                <div className="flex items-center justify-between">
+                  <span
+                    className={`text-xs font-bold ${REGIME_TEXT_COLORS[selectedCell] ?? "text-gray-700"}`}
+                  >
+                    {selectedCell}
+                  </span>
+                  <button
+                    onClick={() => setSelectedCell(null)}
+                    className="text-[9px] text-gray-400 hover:text-gray-600"
+                  >
+                    Close
+                  </button>
+                </div>
+                <p className="text-[10px] text-gray-500">{cellData?.brief}</p>
+                <div className="grid grid-cols-5 gap-1">
+                  {[
+                    { label: "Eq", value: returns.equities },
+                    { label: "Bond", value: returns.bonds },
+                    { label: "Gold", value: returns.gold },
+                    { label: "Cmdty", value: returns.commodities },
+                    { label: "Cash", value: returns.cash },
+                  ].map((a) => (
+                    <div key={a.label} className="text-center">
+                      <div className="text-[8px] text-gray-400">{a.label}</div>
+                      <div
+                        className={`text-[10px] font-bold ${a.value < 0 ? "text-red-600" : "text-gray-700"}`}
+                      >
+                        {a.value > 0 ? "+" : ""}
+                        {a.value}%
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {qDef && (
+                  <div className="flex gap-3 text-[9px]">
+                    <div>
+                      <span className="font-bold text-gray-700">Own:</span>{" "}
+                      {qDef.buy.join(", ")}
+                    </div>
+                    <div>
+                      <span className="font-bold text-red-600">Avoid:</span>{" "}
+                      {qDef.sell.join(", ")}
                     </div>
                   </div>
-                ))}
+                )}
               </div>
-              {qDef && (
-                <div className="flex gap-3 text-[9px]">
-                  <div>
-                    <span className="font-bold text-gray-700">Own:</span>{" "}
-                    {qDef.buy.join(", ")}
-                  </div>
-                  <div>
-                    <span className="font-bold text-red-600">Avoid:</span>{" "}
-                    {qDef.sell.join(", ")}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })()}
+            );
+          })()}
 
-      {/* Detail modal */}
-      <Modal
-        open={expanded}
-        onClose={() => setExpanded(false)}
-        title={`${quadrant.name} — Macro Detail`}
-        size="xl"
-      >
-        <div className="space-y-4">
-          {/* Regime timeline */}
-          {regimeHistory && regimeHistory.length > 0 && (
-            <RegimeTimeline history={regimeHistory} />
-          )}
+        {/* Detail modal */}
+        <Modal
+          open={expanded}
+          onClose={() => setExpanded(false)}
+          title={`${quadrant.name} — Macro Detail`}
+          size="xl"
+        >
+          <div className="space-y-4">
+            {/* Regime timeline */}
+            {regimeHistory && regimeHistory.length > 0 && (
+              <RegimeTimeline history={regimeHistory} />
+            )}
 
-          {/* Signal ratios with interactive charts — larger */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <RatioChart
-                ratio={energyEfficiency}
-                icon={<Fuel className="w-3.5 h-3.5 text-gray-400" />}
-              />
-              <div className="flex items-center gap-1.5 px-1">
-                <Activity className="w-3 h-3 text-gray-300" />
-                <span className="text-[9px] text-gray-400">
-                  Momentum:{" "}
-                  <span
-                    className={`font-medium ${
-                      energyMomentum.direction === "down"
-                        ? "text-red-600"
-                        : "text-gray-600"
-                    }`}
-                  >
-                    {energyMomentum.label}
+            {/* Signal ratios with interactive charts — larger */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <RatioChart
+                  ratio={energyEfficiency}
+                  icon={<Fuel className="w-3.5 h-3.5 text-gray-400" />}
+                />
+                <div className="flex items-center gap-1.5 px-1">
+                  <Activity className="w-3 h-3 text-gray-300" />
+                  <span className="text-[9px] text-gray-400">
+                    Momentum:{" "}
+                    <span
+                      className={`font-medium ${
+                        energyMomentum.direction === "down"
+                          ? "text-red-600"
+                          : "text-gray-600"
+                      }`}
+                    >
+                      {energyMomentum.label}
+                    </span>
                   </span>
-                </span>
+                </div>
               </div>
-            </div>
-            <div className="space-y-1.5">
-              <RatioChart
-                ratio={currencyQuality}
-                icon={<Coins className="w-3.5 h-3.5 text-gray-400" />}
-              />
-              <div className="flex items-center gap-1.5 px-1">
-                <Activity className="w-3 h-3 text-gray-300" />
-                <span className="text-[9px] text-gray-400">
-                  Momentum:{" "}
-                  <span
-                    className={`font-medium ${
-                      currencyMomentum.direction === "down"
-                        ? "text-red-600"
-                        : "text-gray-600"
-                    }`}
-                  >
-                    {currencyMomentum.label}
+              <div className="space-y-1.5">
+                <RatioChart
+                  ratio={currencyQuality}
+                  icon={<Coins className="w-3.5 h-3.5 text-gray-400" />}
+                />
+                <div className="flex items-center gap-1.5 px-1">
+                  <Activity className="w-3 h-3 text-gray-300" />
+                  <span className="text-[9px] text-gray-400">
+                    Momentum:{" "}
+                    <span
+                      className={`font-medium ${
+                        currencyMomentum.direction === "down"
+                          ? "text-red-600"
+                          : "text-gray-600"
+                      }`}
+                    >
+                      {currencyMomentum.label}
+                    </span>
                   </span>
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Key supplementary ratios with deviation analysis */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gray-50 rounded-lg p-2.5">
-              <div className="text-[10px] text-gray-500 mb-0.5">
-                S&P 500 / Gold
-              </div>
-              <div className="text-sm font-bold text-gray-900">
-                {keyRatios.spGold.current.toFixed(2)}
-              </div>
-              <div className="text-[10px] text-gray-400">
-                7yMA: {keyRatios.spGold.ma7y.toFixed(2)}
-              </div>
-              <div
-                className={`text-[10px] font-medium mt-0.5 ${
-                  keyRatios.spGold.current > keyRatios.spGold.ma7y
-                    ? "text-gray-600"
-                    : "text-red-600"
-                }`}
-              >
-                {keyRatios.spGold.current > keyRatios.spGold.ma7y
-                  ? "Equities outperforming gold"
-                  : "Gold outperforming equities (monetary illusion?)"}
-              </div>
-            </div>
-            <div className="bg-gray-50 rounded-lg p-2.5">
-              <div className="text-[10px] text-gray-500 mb-0.5">Gold / WTI</div>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-sm font-bold text-gray-900">
-                  {keyRatios.goldWti.current.toFixed(2)}
-                </span>
-                <span className="text-[9px] text-gray-400">bbl/oz</span>
-              </div>
-              <div className="text-[10px] text-gray-400">
-                7yMA: {keyRatios.goldWti.ma7y.toFixed(2)}
-              </div>
-              <div className="text-[10px] text-gray-400 mt-0.5">
-                Hist. mean: ~{GOLD_WTI_HISTORICAL_MEAN} bbl/oz
-              </div>
-              <div
-                className={`text-[10px] font-bold mt-1 px-1.5 py-0.5 rounded inline-block ${
-                  goldWtiDeviation > 2
-                    ? "bg-red-100 text-red-700"
-                    : goldWtiDeviation > 1.5
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-gray-100 text-gray-700"
-                }`}
-              >
-                {goldWtiDeviation.toFixed(1)}x above mean
-                {goldWtiDeviation > 2 && " — recession risk"}
-              </div>
-            </div>
-          </div>
-
-          {/* Investment implications — styled cards with regime colors */}
-          <div>
-            <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-gray-400" />
-              Investment Implications
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5">
-                <div className="text-[10px] font-bold text-gray-700 mb-1.5 flex items-center gap-1">
-                  <TrendingUp className="w-3 h-3" />
-                  What to own
                 </div>
-                {quadrant.buySignals.map((s) => (
-                  <div
-                    key={s}
-                    className="text-[10px] text-gray-700 flex items-center gap-1.5 py-0.5"
-                  >
-                    <span className="w-1 h-1 rounded-full bg-gray-500 shrink-0" />
-                    {s}
-                  </div>
-                ))}
-              </div>
-              <div className="bg-red-50 border border-red-200 rounded-lg p-2.5">
-                <div className="text-[10px] font-bold text-red-700 mb-1.5 flex items-center gap-1">
-                  <TrendingDown className="w-3 h-3" />
-                  What to avoid
-                </div>
-                {quadrant.sellSignals.map((s) => (
-                  <div
-                    key={s}
-                    className="text-[10px] text-red-800 flex items-center gap-1.5 py-0.5"
-                  >
-                    <span className="w-1 h-1 rounded-full bg-red-500 shrink-0" />
-                    {s}
-                  </div>
-                ))}
               </div>
             </div>
-          </div>
 
-          {/* XLE Energy Sub-Panel */}
-          {data.xle && <XlePanel xle={data.xle} />}
+            {/* Key supplementary ratios with deviation analysis */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-gray-50 rounded-lg p-2.5">
+                <div className="text-[10px] text-gray-500 mb-0.5">
+                  S&P 500 / Gold
+                </div>
+                <div className="text-sm font-bold text-gray-900">
+                  {keyRatios.spGold.current.toFixed(2)}
+                </div>
+                <div className="text-[10px] text-gray-400">
+                  7yMA: {keyRatios.spGold.ma7y.toFixed(2)}
+                </div>
+                <div
+                  className={`text-[10px] font-medium mt-0.5 ${
+                    keyRatios.spGold.current > keyRatios.spGold.ma7y
+                      ? "text-gray-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {keyRatios.spGold.current > keyRatios.spGold.ma7y
+                    ? "Equities outperforming gold"
+                    : "Gold outperforming equities (monetary illusion?)"}
+                </div>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-2.5">
+                <div className="text-[10px] text-gray-500 mb-0.5">
+                  Gold / WTI
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-sm font-bold text-gray-900">
+                    {keyRatios.goldWti.current.toFixed(2)}
+                  </span>
+                  <span className="text-[9px] text-gray-400">bbl/oz</span>
+                </div>
+                <div className="text-[10px] text-gray-400">
+                  7yMA: {keyRatios.goldWti.ma7y.toFixed(2)}
+                </div>
+                <div className="text-[10px] text-gray-400 mt-0.5">
+                  Hist. mean: ~{GOLD_WTI_HISTORICAL_MEAN} bbl/oz
+                </div>
+                <div
+                  className={`text-[10px] font-bold mt-1 px-1.5 py-0.5 rounded inline-block ${
+                    goldWtiDeviation > 2
+                      ? "bg-red-100 text-red-700"
+                      : goldWtiDeviation > 1.5
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {goldWtiDeviation.toFixed(1)}x above mean
+                  {goldWtiDeviation > 2 && " — recession risk"}
+                </div>
+              </div>
+            </div>
 
-          {/* Historical Regime Returns */}
-          {data.regimeReturns && (
-            <RegimeReturnsPanel
-              currentQuadrant={quadrant.name}
-              regimeReturns={data.regimeReturns}
-            />
-          )}
-
-          {/* What Changed Changelog */}
-          {data.changelog && data.changelog.length > 0 && (
-            <ChangelogPanel events={data.changelog} />
-          )}
-
-          {/* Browne Portfolio Rules — redesigned as status indicator cards */}
-          {exclusions.length > 0 && (
+            {/* Investment implications — styled cards with regime colors */}
             <div>
               <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
                 <Shield className="w-3.5 h-3.5 text-gray-400" />
-                Browne Portfolio Rules
+                Investment Implications
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {exclusions.map((ex) => (
-                  <ExclusionCard key={ex.name} ex={ex} />
-                ))}
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5">
+                  <div className="text-[10px] font-bold text-gray-700 mb-1.5 flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3" />
+                    What to own
+                  </div>
+                  {quadrant.buySignals.map((s) => (
+                    <div
+                      key={s}
+                      className="text-[10px] text-gray-700 flex items-center gap-1.5 py-0.5"
+                    >
+                      <span className="w-1 h-1 rounded-full bg-gray-500 shrink-0" />
+                      {s}
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-2.5">
+                  <div className="text-[10px] font-bold text-red-700 mb-1.5 flex items-center gap-1">
+                    <TrendingDown className="w-3 h-3" />
+                    What to avoid
+                  </div>
+                  {quadrant.sellSignals.map((s) => (
+                    <div
+                      key={s}
+                      className="text-[10px] text-red-800 flex items-center gap-1.5 py-0.5"
+                    >
+                      <span className="w-1 h-1 rounded-full bg-red-500 shrink-0" />
+                      {s}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
-          )}
-        </div>
-      </Modal>
-    </div>
+
+            {/* XLE Energy Sub-Panel */}
+            {data.xle && <XlePanel xle={data.xle} />}
+
+            {/* Historical Regime Returns */}
+            {data.regimeReturns && (
+              <RegimeReturnsPanel
+                currentQuadrant={quadrant.name}
+                regimeReturns={data.regimeReturns}
+              />
+            )}
+
+            {/* What Changed Changelog */}
+            {data.changelog && data.changelog.length > 0 && (
+              <ChangelogPanel events={data.changelog} />
+            )}
+
+            {/* Browne Portfolio Rules — redesigned as status indicator cards */}
+            {exclusions.length > 0 && (
+              <div>
+                <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 text-gray-400" />
+                  Browne Portfolio Rules
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {exclusions.map((ex) => (
+                    <ExclusionCard key={ex.name} ex={ex} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </Modal>
+      </div>
+    </TooltipProvider>
   );
 }

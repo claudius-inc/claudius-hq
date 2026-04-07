@@ -68,7 +68,7 @@ export function Barometers({ marketEtfs, loading, expandedIds, toggleExpanded, e
         Market Barometers
       </h3>
       {loading ? (
-        <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
+        <div className="card overflow-hidden !p-0 divide-y divide-gray-100 min-h-[74px]">
           {BAROMETER_NAMES.map(({ ticker, name }) => (
             <div key={ticker} className="px-3 py-2.5 flex items-center gap-3">
               <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
@@ -79,7 +79,7 @@ export function Barometers({ marketEtfs, loading, expandedIds, toggleExpanded, e
           ))}
         </div>
       ) : (
-        <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
+        <div className="card overflow-hidden !p-0 divide-y divide-gray-100 min-h-[74px]">
           {/* SPY row — from valuation data */}
           {spyValuation && (() => {
             const spyId = "spy-valuation";

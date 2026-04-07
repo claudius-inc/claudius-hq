@@ -167,13 +167,13 @@ export function CompactValuationStrip() {
   }, []);
 
   return (
-    <div>
-      <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
+    <div className="h-full">
+      <div className="card overflow-hidden !p-0 divide-y divide-gray-100 h-full">
         {loading
           ? Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="px-3 py-1.5">
                 <div className="flex items-center gap-2">
-                  <Skeleton className="h-[15px] w-5 rounded-sm" />
+                  <Skeleton className="h-[22px] w-5 rounded-sm" />
                   <Skeleton className="h-3 w-16 flex-1" />
                   <Skeleton className="h-3 w-10" />
                   <Skeleton className="h-3 w-12" />
