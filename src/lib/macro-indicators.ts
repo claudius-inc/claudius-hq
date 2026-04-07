@@ -274,30 +274,6 @@ export const MACRO_INDICATORS: MacroIndicator[] = [
     ],
     affectedAssets: ["High yield bonds", "Leveraged companies", "Banks", "Risk assets broadly"],
   },
-  {
-    id: "ig-spread",
-    name: "Investment Grade Credit Spread",
-    fredCode: "BAMLC0A0CM",
-    category: "rates",
-    unit: "bps",
-    frequency: "daily",
-    description: "The extra yield investors demand to hold investment-grade corporate bonds over Treasuries. Measures stress in high-quality credit.",
-    whyItMatters: "IG spreads widen when even quality companies face funding stress. Unlike HY, IG stress signals systemic problems — when blue-chip companies can't borrow cheaply, something is very wrong.",
-    ranges: [
-      { label: "Very Tight", min: null, max: 80, meaning: "Extremely low risk perception", marketImpact: "Risk-on, potential complacency" },
-      { label: "Normal", min: 80, max: 120, meaning: "Healthy credit conditions", marketImpact: "Balanced risk appetite" },
-      { label: "Elevated", min: 120, max: 180, meaning: "Rising credit concerns", marketImpact: "Quality companies face higher borrowing costs" },
-      { label: "Stressed", min: 180, max: 250, meaning: "Significant credit stress", marketImpact: "Risk-off, flight to quality" },
-      { label: "Crisis", min: 250, max: null, meaning: "Credit market dysfunction", marketImpact: "Fed intervention likely, recession signal" },
-    ],
-    keyLevels: [
-      { level: 150, significance: "Stress emerging threshold" },
-      { level: 200, significance: "Crisis watch level" },
-      { level: 300, significance: "2008/2020 crisis peaks" },
-    ],
-    affectedAssets: ["Investment grade bonds", "Quality corporates", "Banks", "Broad equity market"],
-  },
-
   // === FX RATES ===
   {
     id: "usdjpy",

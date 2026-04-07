@@ -28,20 +28,6 @@ interface GoldSnapshot {
   analysis: { ath: number | null; athDate: string | null } | null;
 }
 
-interface OilSnapshot {
-  wti: {
-    price: number | null;
-    changePercent: number | null;
-    fiftyTwoWeekHigh: number | null;
-    fiftyTwoWeekLow: number | null;
-  } | null;
-  brent: {
-    price: number | null;
-    changePercent: number | null;
-  } | null;
-  spread: number | null;
-}
-
 interface SilverSnapshot {
   latest: {
     registeredMoz: number;
@@ -78,22 +64,6 @@ function formatUsd(n: number, decimals = 0) {
     maximumFractionDigits: decimals,
   }).format(n);
 }
-
-function OilGoldZone({ ratio }: { ratio: number }) {
-  if (ratio < 0.02) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Very Cheap</span>;
-  if (ratio < 0.035) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Cheap</span>;
-  if (ratio < 0.055) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">Normal</span>;
-  if (ratio < 0.08) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">Expensive</span>;
-  return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700">Crisis</span>;
-}
-
-const OIL_GOLD_RANGES = [
-  { label: "Very Cheap", range: "< 0.020", min: 0, max: 0.02, meaning: "Oil deeply undervalued vs gold — energy sector distress or gold mania" },
-  { label: "Cheap", range: "0.020 – 0.035", min: 0.02, max: 0.035, meaning: "Oil cheap relative to gold — energy underweight opportunity" },
-  { label: "Normal", range: "0.035 – 0.055", min: 0.035, max: 0.055, meaning: "Fair value — historical equilibrium between energy and hard assets" },
-  { label: "Expensive", range: "0.055 – 0.080", min: 0.055, max: 0.08, meaning: "Oil elevated vs gold — supply shock or geopolitical premium" },
-  { label: "Crisis", range: "> 0.080", min: 0.08, max: 999, meaning: "Oil spike territory — demand destruction likely incoming" },
-];
 
 function GoldSilverRatioZone({ ratio }: { ratio: number }) {
   if (ratio > 100) return <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Extreme</span>;
@@ -135,14 +105,12 @@ export function HardAssets({
   expectedReturns,
   initialBtc,
   initialGold,
-  initialOil,
   initialSilver,
   initialSilverPrice,
 }: {
   expectedReturns?: ExpectedReturnsResponse | null;
   initialBtc?: BtcSnapshot | null;
   initialGold?: GoldSnapshot | null;
-  initialOil?: OilSnapshot | null;
   initialSilver?: SilverSnapshot | null;
   initialSilverPrice?: SilverPriceSnapshot | null;
 }) {
@@ -150,25 +118,21 @@ export function HardAssets({
   const goldValuation = expectedReturns?.assets.find((a) => a.symbol === "GLD");
   const [btcOpen, setBtcOpen] = useState(false);
   const [goldOpen, setGoldOpen] = useState(false);
-  const [oilExpanded, setOilExpanded] = useState(false);
   const [silverExpanded, setSilverExpanded] = useState(false);
 
   const { data: btc, isLoading: loadingBtc, isValidating: validatingBtc } =
     useSWR<BtcSnapshot>("/api/btc", fetcher, { ...swrConfig, fallbackData: initialBtc ?? undefined });
   const { data: gold, isLoading: loadingGold, isValidating: validatingGold } =
     useSWR<GoldSnapshot>("/api/gold", fetcher, { ...swrConfig, fallbackData: initialGold ?? undefined });
-  const { data: oil, isLoading: loadingOil, isValidating: validatingOil } =
-    useSWR<OilSnapshot>("/api/oil", fetcher, { ...swrConfig, fallbackData: initialOil ?? undefined });
   const { data: silver, isValidating: validatingSilver } =
     useSWR<SilverSnapshot>("/api/markets/silver", fetcher, { ...swrConfig, fallbackData: initialSilver ?? undefined });
   const { data: silverPrice, isLoading: loadingSilverPrice, isValidating: validatingSilverPrice } =
     useSWR<SilverPriceSnapshot>("/api/silver-price", fetcher, { ...swrConfig, fallbackData: initialSilverPrice ?? undefined });
 
   const refreshing =
-    validatingBtc || validatingGold || validatingOil || validatingSilver || validatingSilverPrice;
+    validatingBtc || validatingGold || validatingSilver || validatingSilverPrice;
 
   const goldPrice = gold?.livePrice;
-  const oilGoldRatio = oil?.wti?.price && goldPrice ? oil.wti.price / goldPrice : null;
 
   return (
     <div>
@@ -317,75 +281,6 @@ export function HardAssets({
           )}
         </div>
 
-        {/* Oil Row */}
-        <div>
-          <button
-            onClick={() => setOilExpanded(!oilExpanded)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50 transition-colors"
-          >
-            <ChevronRight className={`w-3 h-3 text-gray-400 transition-transform shrink-0 ${oilExpanded ? "rotate-90" : ""}`} />
-            <span className="text-xs font-semibold text-gray-900 flex-1 min-w-0 truncate">Oil (WTI)</span>
-            {loadingOil ? (
-              <>
-                <Skeleton className="h-2.5 w-14 shrink-0" />
-                <Skeleton className="h-3 w-14 shrink-0" />
-                <Skeleton className="h-2.5 w-10 shrink-0" />
-                <Skeleton className="h-3 w-10 rounded shrink-0" />
-              </>
-            ) : oil?.wti?.price ? (
-              <>
-                {oilGoldRatio !== null && (
-                  <span className="text-[10px] text-gray-400 shrink-0">
-                    Oil/Au <span className={`font-medium ${oilGoldRatio < 0.035 ? "text-emerald-600" : oilGoldRatio > 0.055 ? "text-red-600" : "text-gray-600"}`}>{oilGoldRatio.toFixed(3)}</span>
-                  </span>
-                )}
-                <span className="text-xs font-bold tabular-nums text-gray-900 shrink-0">{formatUsd(oil.wti.price, 2)}</span>
-                {oil.wti.changePercent != null && (
-                  <span className={`text-[10px] tabular-nums shrink-0 ${oil.wti.changePercent >= 0 ? "text-emerald-600" : "text-red-600"}`}>
-                    {oil.wti.changePercent >= 0 ? "+" : ""}{oil.wti.changePercent.toFixed(2)}%
-                  </span>
-                )}
-                {oilGoldRatio !== null && <OilGoldZone ratio={oilGoldRatio} />}
-              </>
-            ) : (
-              <span className="text-xs text-gray-400">&mdash;</span>
-            )}
-          </button>
-          {oilExpanded && (
-            <div className="px-3 pb-3 pt-2 bg-gray-50/50 border-t border-gray-100">
-              {oilGoldRatio !== null && (
-                <div className="flex items-center gap-2 text-[10px] mb-2">
-                  <span className="text-gray-500">Oil/Gold Ratio:</span>
-                  <span className="font-bold text-gray-700 font-mono">{oilGoldRatio.toFixed(3)}</span>
-                  <span className="text-gray-400">(WTI per barrel / Gold per oz)</span>
-                </div>
-              )}
-              <div className="mb-2.5">
-                <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Interpretation Guide</h4>
-                <div className="space-y-1">
-                  {OIL_GOLD_RANGES.map((range, idx) => {
-                    const isActive = oilGoldRatio !== null && oilGoldRatio >= range.min && oilGoldRatio < range.max;
-                    return (
-                      <div
-                        key={idx}
-                        className={`flex flex-wrap items-start gap-1 text-[10px] p-1 rounded ${
-                          isActive
-                            ? "bg-blue-50 text-blue-700 ring-1 ring-offset-1 ring-gray-300"
-                            : "bg-gray-50"
-                        }`}
-                      >
-                        <span className="font-medium w-20 shrink-0">{range.label}</span>
-                        <span className="text-gray-500 w-24 shrink-0 font-mono">{range.range}</span>
-                        <span className="text-gray-600 flex-1">{range.meaning}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <p className="text-[9px] text-gray-400">Oil/Gold ratio strips out inflation — measures energy cost in real asset terms. Historical mean ~0.04–0.05.</p>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Detail Modals */}
