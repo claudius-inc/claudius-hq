@@ -5,32 +5,31 @@
 **Every commit MUST be followed by a push.** Never leave unpushed commits.
 
 After completing work on a task:
+
 1. Stage and commit your changes
 2. **Immediately run `git push origin <branch>`** after the commit succeeds
 3. **Verify the push succeeded** by checking the command output for errors
 4. If the push fails (auth, network, conflict), report it as a blocker — do NOT silently move on
 
 **Git identity:** All commits MUST use the `manapixels` identity. Before your first commit, verify:
+
 ```bash
 git config user.name   # must be: manapixels
 git config user.email  # must be: 15624933+manapixels@users.noreply.github.com
 ```
+
 If either is wrong, set them at the repo level:
-```bash
+
+````bash
 git config user.name "manapixels"
 git config user.email "15624933+manapixels@users.noreply.github.com"
-```
-
-**Do NOT commit as any other user** (e.g. `Claudius`, `Paperclip-Paperclip`, or your agent name).
-
-**Do NOT add `Co-Authored-By` trailers to commits.** No Paperclip, no agent names — only `manapixels` should appear as author.
 
 ```bash
 # Correct pattern — always push after commit
 git add <files>
 git commit -m "feat: description"
 git push origin main   # REQUIRED — never skip this step
-```
+````
 
 **Never report work as "done" or "pushed" without confirming `git push` output shows success.**
 
@@ -66,12 +65,14 @@ logger.info("api/stocks/research", "Research queued", { ticker, jobId });
 **Always check Vercel logs FIRST before guessing causes.**
 
 When investigating production issues:
+
 1. Check Vercel Runtime Logs: `vercel logs --follow` or dashboard
 2. Look for actual error messages, not symptoms
 3. Don't assume missing env vars — verify in Vercel dashboard
 4. Check middleware logs for auth/redirect issues
 
 Common pitfalls:
+
 - 307 redirects on static files = middleware matcher too broad
 - "Unauthorized API request" = check auth middleware, not env vars
 - Empty data = could be cache, API failure, OR auth — check logs first
@@ -86,11 +87,11 @@ HQ uses Next.js **ISR (Incremental Static Regeneration)** for pages that fetch d
 
 **Time-based revalidation** (`export const revalidate = N`):
 
-| Data Source | Revalidate Time | Rationale |
-|-------------|-----------------|-----------|
-| External APIs (Yahoo Finance, etc.) | 60-300s | Balance freshness vs. API rate limits |
-| DB data with external enrichment | 60-120s | Reflects market data staleness |
-| Internal DB-only data | **Don't use time-based** | Use on-demand revalidation instead |
+| Data Source                         | Revalidate Time          | Rationale                             |
+| ----------------------------------- | ------------------------ | ------------------------------------- |
+| External APIs (Yahoo Finance, etc.) | 60-300s                  | Balance freshness vs. API rate limits |
+| DB data with external enrichment    | 60-120s                  | Reflects market data staleness        |
+| Internal DB-only data               | **Don't use time-based** | Use on-demand revalidation instead    |
 
 ```ts
 // page.tsx with external data
@@ -117,6 +118,7 @@ revalidatePath("/"); // Homepage shows recent projects
 ```
 
 **Key rules:**
+
 1. Call `revalidatePath()` AFTER the DB write succeeds (not before)
 2. Call from API routes, not from client components
 3. Revalidate all paths that display the changed data
@@ -125,15 +127,15 @@ revalidatePath("/"); // Homepage shows recent projects
 
 When data changes, invalidate these paths:
 
-| Data Changed | Invalidate Paths |
-|--------------|------------------|
-| Projects | `/projects`, `/projects/[id]`, `/` |
-| Ideas | `/projects/ideas` |
-| Themes | `/markets/themes` |
-| Theme Stocks | `/markets/themes` |
+| Data Changed     | Invalidate Paths                                  |
+| ---------------- | ------------------------------------------------- |
+| Projects         | `/projects`, `/projects/[id]`, `/`                |
+| Ideas            | `/projects/ideas`                                 |
+| Themes           | `/markets/themes`                                 |
+| Theme Stocks     | `/markets/themes`                                 |
 | Research Reports | `/markets/research`, `/markets/research/[ticker]` |
-| Scanner Results | `/markets/scanner` |
-| Portfolio | `/portfolio` |
+| Scanner Results  | `/markets/scanner`                                |
+| Portfolio        | `/portfolio`                                      |
 
 **Example implementation:**
 
@@ -142,12 +144,12 @@ When data changes, invalidate these paths:
 export async function POST(req: Request) {
   const data = await req.json();
   const project = await db.insert(projects).values(data).returning();
-  
+
   // Invalidate affected pages
   revalidatePath("/projects");
   revalidatePath(`/projects/${project[0].id}`);
   revalidatePath("/");
-  
+
   return NextResponse.json(project[0]);
 }
 ```
@@ -167,9 +169,11 @@ Background jobs (cron, workflows) should call dedicated revalidation endpoints a
 ```
 
 **Existing endpoints:**
+
 - `/api/scanner/revalidate` — Called after scanner workflow completes
 
 **Add similar endpoints for:**
+
 - Theme updates from external sources
 - Portfolio sync jobs
 - Any background data refresh
@@ -178,15 +182,15 @@ Background jobs (cron, workflows) should call dedicated revalidation endpoints a
 
 1. **Always revalidate after DB writes in API routes**
    - Never assume the cache will expire "soon enough"
-   
 2. **Use specific paths, not broad invalidation**
    - ✅ `revalidatePath("/projects/123")`
    - ❌ `revalidatePath("/")` alone when only a project changed
 
 3. **Log revalidation for debugging**
+
    ```ts
-   logger.info("api/projects", "Revalidating paths", { 
-     paths: ["/projects", `/projects/${id}`] 
+   logger.info("api/projects", "Revalidating paths", {
+     paths: ["/projects", `/projects/${id}`],
    });
    revalidatePath("/projects");
    revalidatePath(`/projects/${id}`);
@@ -197,6 +201,7 @@ Background jobs (cron, workflows) should call dedicated revalidation endpoints a
    - Reviewer checklist: "Does this endpoint revalidate all affected pages?"
 
 5. **Test revalidation locally**
+
    ```bash
    # Build production locally to test ISR behavior
    npm run build && npm start
@@ -205,3 +210,74 @@ Background jobs (cron, workflows) should call dedicated revalidation endpoints a
 6. **Don't over-invalidate**
    - Invalidating too many paths defeats the purpose of caching
    - Map out data dependencies carefully
+
+# Style Guide
+
+## Hero Sections
+
+All page hero sections must use the `PageHero` component from `@/components/PageHero`.
+
+### Required Pattern
+
+```tsx
+import { PageHero } from "@/components/PageHero";
+
+// In your component:
+<PageHero title="Page Title" subtitle="Brief description or stats" />;
+```
+
+### Rules
+
+- **No icons before titles** — titles are clean text only
+- **Consistent styling** — `PageHero` handles responsive design, typography, and spacing
+- **Actions support** — use `actions` prop for page-level buttons (e.g., "Add Item", "Refresh")
+- **Custom slots** — use `actionSlot` for complex custom action areas
+
+### PageHero Props
+
+```typescript
+interface PageHeroProps {
+  title: string;
+  subtitle?: string;
+  badge?: ReactNode; // Optional status badge next to subtitle
+  actions?: PageHeroAction[]; // Action buttons (collapsed to menu on mobile)
+  actionSlot?: ReactNode; // Custom action area (replaces actions)
+}
+```
+
+### Examples
+
+**Simple hero:**
+
+```tsx
+<PageHero title="Offerings" subtitle="15 active of 20 total" />
+```
+
+**With actions:**
+
+```tsx
+<PageHero
+  title="Tasks"
+  subtitle="5 pending"
+  actions={[
+    { label: "Add Task", onClick: handleAdd, variant: "primary" },
+    { label: "Refresh", onClick: handleRefresh },
+  ]}
+/>
+```
+
+**With custom slot:**
+
+```tsx
+<PageHero
+  title="Dashboard"
+  subtitle="Real-time overview"
+  actionSlot={<ServerStatus isRunning={true} />}
+/>
+```
+
+## ACP Pillars
+
+Valid pillar values: `quality`, `replace`, `build`, `experiment`, `distribute`
+
+Use `AcpPillarBadge` component for displaying pillars consistently.

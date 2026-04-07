@@ -1,6 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/Skeleton";
 import { Modal } from "@/components/ui/Modal";
 import {
@@ -21,6 +27,7 @@ import {
   Zap,
   History,
   BarChart3,
+  Info,
 } from "lucide-react";
 import type {
   GavekalData,
@@ -167,6 +174,11 @@ function RatioChart({
   // background shading + an actionable top-right label.
   const isCurrencyChart = ratio.label.includes("Gold");
 
+  // Regime band fill colors — shared between SVG <rect> shading and the
+  // legend swatches so they cannot drift apart.
+  const BONDS_BAND_FILL = "rgba(59, 130, 246, 0.08)";
+  const GOLD_BAND_FILL = "rgba(245, 158, 11, 0.10)";
+
   if (!ratio.history.length) return null;
 
   const values = ratio.history.map((h) => h.value);
@@ -219,7 +231,8 @@ function RatioChart({
   // Regime segments — contiguous runs on the same side of the MA. Used by
   // the currency chart for background shading. Skip the bootstrap window
   // where MA is still null.
-  const regimeSegments: { startIdx: number; endIdx: number; above: boolean }[] = [];
+  const regimeSegments: { startIdx: number; endIdx: number; above: boolean }[] =
+    [];
   if (isCurrencyChart) {
     let segStart: number | null = null;
     let segAbove: boolean | null = null;
@@ -230,13 +243,21 @@ function RatioChart({
         segStart = i;
         segAbove = isAbove;
       } else if (isAbove !== segAbove) {
-        regimeSegments.push({ startIdx: segStart, endIdx: i, above: segAbove! });
+        regimeSegments.push({
+          startIdx: segStart,
+          endIdx: i,
+          above: segAbove!,
+        });
         segStart = i;
         segAbove = isAbove;
       }
     }
     if (segStart !== null && segAbove !== null) {
-      regimeSegments.push({ startIdx: segStart, endIdx: values.length - 1, above: segAbove });
+      regimeSegments.push({
+        startIdx: segStart,
+        endIdx: values.length - 1,
+        above: segAbove,
+      });
     }
   }
 
@@ -281,238 +302,276 @@ function RatioChart({
 
   // Methodology tooltip for the currency ratio (only chart that uses a
   // synthetic series for historical data).
-  const wrapperTitle = ratio.label.includes("Gold")
+  const methodologyTooltip = ratio.label.includes("Gold")
     ? "Bond total return / gold price vs 7y MA. 2002+ uses IEF ETF data; pre-2002 historical regimes use a synthetic 10y constant-maturity Treasury total return computed from Shiller monthly yields. Historical regime classification starts 1971 (post-Bretton-Woods)."
     : undefined;
 
   return (
-    <div className="bg-gray-50 rounded-lg p-3" title={wrapperTitle}>
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5">
-          {icon}
-          <span className="text-[11px] font-medium text-gray-500">
-            {ratio.label}
+    <TooltipProvider delayDuration={150}>
+      <div className="bg-gray-50 rounded-lg p-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1.5">
+            {icon}
+            <span className="text-[11px] font-medium text-gray-500">
+              {ratio.label}
+            </span>
+            {methodologyTooltip && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Methodology"
+                    className="inline-flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 rounded-sm"
+                  >
+                    <Info className="w-3 h-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  align="start"
+                  collisionPadding={8}
+                  className="z-[10000] max-w-xs text-[11px] leading-snug"
+                >
+                  {methodologyTooltip}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+          {isCurrencyChart ? (
+            <div
+              className={`flex items-center gap-1 text-xs font-bold ${above ? "text-blue-600" : "text-amber-600"}`}
+            >
+              {above ? "Hold 10y Treasuries" : "Hold gold"}
+            </div>
+          ) : (
+            <div
+              className={`flex items-center gap-0.5 text-xs font-bold ${above ? "text-gray-600" : "text-red-600"}`}
+            >
+              {above ? (
+                <TrendingUp className="w-3 h-3" />
+              ) : (
+                <TrendingDown className="w-3 h-3" />
+              )}
+              {above ? "Above" : "Below"} 7yMA
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-baseline gap-2 mb-2">
+          <span className="text-lg font-bold text-gray-900">
+            {ratio.current.toFixed(2)}
+          </span>
+          <span className="text-xs text-gray-400">
+            vs {ratio.ma7y.toFixed(2)}
+          </span>
+          <span
+            className="text-xs font-bold px-1.5 py-0.5 rounded"
+            style={{
+              color: pctColor,
+              backgroundColor: pctBgColor,
+            }}
+          >
+            {pct >= 0 ? "+" : ""}
+            {pct.toFixed(1)}%
           </span>
         </div>
-        {isCurrencyChart ? (
-          <div
-            className={`flex items-center gap-1 text-xs font-bold ${above ? "text-blue-600" : "text-amber-600"}`}
-          >
-            {above ? (
-              <Landmark className="w-3 h-3" />
-            ) : (
-              <Coins className="w-3 h-3" />
-            )}
-            {above ? "Hold 10y Treasuries" : "Hold gold"}
-          </div>
-        ) : (
-          <div
-            className={`flex items-center gap-0.5 text-xs font-bold ${above ? "text-gray-600" : "text-red-600"}`}
-          >
-            {above ? (
-              <TrendingUp className="w-3 h-3" />
-            ) : (
-              <TrendingDown className="w-3 h-3" />
-            )}
-            {above ? "Above" : "Below"} 7yMA
-          </div>
-        )}
-      </div>
 
-      <div className="flex items-baseline gap-2 mb-2">
-        <span className="text-lg font-bold text-gray-900">
-          {ratio.current.toFixed(2)}
-        </span>
-        <span className="text-xs text-gray-400">
-          vs {ratio.ma7y.toFixed(2)}
-        </span>
-        <span
-          className="text-xs font-bold px-1.5 py-0.5 rounded"
-          style={{
-            color: pctColor,
-            backgroundColor: pctBgColor,
-          }}
-        >
-          {pct >= 0 ? "+" : ""}
-          {pct.toFixed(1)}%
-        </span>
-      </div>
-
-      {/* Hover info */}
-      <div className="h-4 mb-1">
-        {hoverPoint && (
-          <div className="flex items-center gap-3 text-[10px] text-gray-500">
-            <span className="font-medium">{hoverPoint.date}</span>
-            <span>
-              Value:{" "}
-              <span className="font-bold text-gray-700">
-                {hoverPoint.value.toFixed(4)}
-              </span>
-            </span>
-            {hoverPoint.ma !== null && (
+        {/* Hover info */}
+        <div className="h-4 mb-1">
+          {hoverPoint && (
+            <div className="flex items-center gap-3 text-[10px] text-gray-500">
+              <span className="font-medium">{hoverPoint.date}</span>
               <span>
-                7yMA:{" "}
-                <span className="font-bold text-gray-400">
-                  {hoverPoint.ma.toFixed(4)}
+                Value:{" "}
+                <span className="font-bold text-gray-700">
+                  {hoverPoint.value.toFixed(4)}
                 </span>
               </span>
-            )}
-          </div>
-        )}
-      </div>
+              {hoverPoint.ma !== null && (
+                <span>
+                  7yMA:{" "}
+                  <span className="font-bold text-gray-400">
+                    {hoverPoint.ma.toFixed(4)}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
 
-      {/* Chart */}
-      <svg
-        viewBox={`0 0 ${w} ${height}`}
-        className="w-full"
-        style={{ height: `${height}px` }}
-        preserveAspectRatio="none"
-        onMouseLeave={() => setHoverIdx(null)}
-        onMouseMove={(e) => {
-          const rect = e.currentTarget.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const idx = Math.round((x / rect.width) * (values.length - 1));
-          if (idx >= 0 && idx < values.length) setHoverIdx(idx);
-        }}
-      >
-        {/* Regime background bands — currency chart only. Each rect spans
+        {/* Chart */}
+        <svg
+          viewBox={`0 0 ${w} ${height}`}
+          className="w-full"
+          style={{ height: `${height}px` }}
+          preserveAspectRatio="none"
+          onMouseLeave={() => setHoverIdx(null)}
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const idx = Math.round((x / rect.width) * (values.length - 1));
+            if (idx >= 0 && idx < values.length) setHoverIdx(idx);
+          }}
+        >
+          {/* Regime background bands — currency chart only. Each rect spans
             a contiguous run on one side of the MA: blue = hold bonds,
             amber = hold gold (Charles Gave, Ch. 8). */}
-        {isCurrencyChart &&
-          regimeSegments.map((seg, i) => {
-            const x1 = toX(seg.startIdx);
-            const x2 = toX(seg.endIdx);
-            return (
-              <rect
-                key={`regime-${i}`}
-                x={x1}
-                y={0}
-                width={x2 - x1}
-                height={chartH}
-                fill={
-                  seg.above
-                    ? "rgba(59, 130, 246, 0.08)"
-                    : "rgba(245, 158, 11, 0.10)"
-                }
+          {isCurrencyChart &&
+            regimeSegments.map((seg, i) => {
+              const x1 = toX(seg.startIdx);
+              const x2 = toX(seg.endIdx);
+              return (
+                <rect
+                  key={`regime-${i}`}
+                  x={x1}
+                  y={0}
+                  width={x2 - x1}
+                  height={chartH}
+                  fill={seg.above ? BONDS_BAND_FILL : GOLD_BAND_FILL}
+                />
+              );
+            })}
+
+          {/* Fill area — neutral gray */}
+          <path d={fillPath} fill="#6b728015" />
+
+          {/* MA line */}
+          <path
+            d={maPath}
+            fill="none"
+            stroke="#9ca3af"
+            strokeWidth="1.5"
+            strokeDasharray="4 2"
+          />
+
+          {/* Value line — neutral gray */}
+          <path d={valuePath} fill="none" stroke="#6b7280" strokeWidth="2" />
+
+          {/* Crossover annotations — neutral gray */}
+          {crossovers.map((co, i) => (
+            <g key={i}>
+              <circle
+                cx={toX(co.idx)}
+                cy={toY(values[co.idx])}
+                r="4"
+                fill="#6b7280"
+                stroke="white"
+                strokeWidth="1.5"
               />
-            );
-          })}
+              <line
+                x1={toX(co.idx)}
+                y1={toY(values[co.idx]) - 6}
+                x2={toX(co.idx)}
+                y2={toY(values[co.idx]) + 6}
+                stroke="#6b7280"
+                strokeWidth="0.5"
+                opacity="0.5"
+              />
+            </g>
+          ))}
 
-        {/* Fill area — neutral gray */}
-        <path d={fillPath} fill="#6b728015" />
+          {/* Date axis */}
+          {dateLabels.map((dl) => (
+            <g key={dl.idx}>
+              <line
+                x1={toX(dl.idx)}
+                y1={chartH}
+                x2={toX(dl.idx)}
+                y2={chartH + 3}
+                stroke="#d1d5db"
+                strokeWidth="0.5"
+              />
+              <text
+                x={toX(dl.idx)}
+                y={height - 2}
+                textAnchor="middle"
+                fill="#9ca3af"
+                fontSize="9"
+                fontFamily="sans-serif"
+              >
+                {dl.label}
+              </text>
+            </g>
+          ))}
 
-        {/* MA line */}
-        <path
-          d={maPath}
-          fill="none"
-          stroke="#9ca3af"
-          strokeWidth="1.5"
-          strokeDasharray="4 2"
-        />
-
-        {/* Value line — neutral gray */}
-        <path d={valuePath} fill="none" stroke="#6b7280" strokeWidth="2" />
-
-        {/* Crossover annotations — neutral gray */}
-        {crossovers.map((co, i) => (
-          <g key={i}>
-            <circle
-              cx={toX(co.idx)}
-              cy={toY(values[co.idx])}
-              r="4"
-              fill="#6b7280"
-              stroke="white"
-              strokeWidth="1.5"
-            />
-            <line
-              x1={toX(co.idx)}
-              y1={toY(values[co.idx]) - 6}
-              x2={toX(co.idx)}
-              y2={toY(values[co.idx]) + 6}
-              stroke="#6b7280"
-              strokeWidth="0.5"
-              opacity="0.5"
-            />
-          </g>
-        ))}
-
-        {/* Date axis */}
-        {dateLabels.map((dl) => (
-          <g key={dl.idx}>
-            <line
-              x1={toX(dl.idx)}
-              y1={chartH}
-              x2={toX(dl.idx)}
-              y2={chartH + 3}
-              stroke="#d1d5db"
-              strokeWidth="0.5"
-            />
-            <text
-              x={toX(dl.idx)}
-              y={height - 2}
-              textAnchor="middle"
-              fill="#9ca3af"
-              fontSize="9"
-              fontFamily="sans-serif"
-            >
-              {dl.label}
-            </text>
-          </g>
-        ))}
-
-        {/* Hover crosshair */}
-        {hoverIdx !== null && (
-          <>
-            <line
-              x1={toX(hoverIdx)}
-              y1={0}
-              x2={toX(hoverIdx)}
-              y2={chartH}
-              stroke="#6b7280"
-              strokeWidth="0.5"
-              strokeDasharray="2 2"
-            />
-            <circle
-              cx={toX(hoverIdx)}
-              cy={toY(values[hoverIdx])}
-              r="3"
-              fill="#6b7280"
-              stroke="white"
-              strokeWidth="1.5"
-            />
-            {mas[hoverIdx] !== null && (
+          {/* Hover crosshair */}
+          {hoverIdx !== null && (
+            <>
+              <line
+                x1={toX(hoverIdx)}
+                y1={0}
+                x2={toX(hoverIdx)}
+                y2={chartH}
+                stroke="#6b7280"
+                strokeWidth="0.5"
+                strokeDasharray="2 2"
+              />
               <circle
                 cx={toX(hoverIdx)}
-                cy={toY(mas[hoverIdx]!)}
-                r="2.5"
-                fill="#9ca3af"
+                cy={toY(values[hoverIdx])}
+                r="3"
+                fill="#6b7280"
                 stroke="white"
-                strokeWidth="1"
+                strokeWidth="1.5"
               />
-            )}
-          </>
-        )}
-      </svg>
+              {mas[hoverIdx] !== null && (
+                <circle
+                  cx={toX(hoverIdx)}
+                  cy={toY(mas[hoverIdx]!)}
+                  r="2.5"
+                  fill="#9ca3af"
+                  stroke="white"
+                  strokeWidth="1"
+                />
+              )}
+            </>
+          )}
+        </svg>
 
-      {/* Legend */}
-      <div className="flex items-center gap-3 mt-1.5 text-[9px] text-gray-400">
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-[2px] bg-gray-500" />
-          Ratio
-        </span>
-        <span className="flex items-center gap-1">
-          <span
-            className="inline-block w-3 h-[2px] bg-gray-400"
-            style={{ borderTop: "1px dashed #9ca3af" }}
-          />
-          7yr MA
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-2 h-2 rounded-full bg-gray-500 opacity-60" />
-          Crossover
-        </span>
+        {/* Legend */}
+        <div className="flex items-center gap-3 mt-1.5 text-[9px] text-gray-400">
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-3 h-[2px] bg-gray-500" />
+            Ratio
+          </span>
+          <span className="flex items-center gap-1">
+            <span
+              className="inline-block w-3 h-[2px]"
+              style={{ borderTop: "1px dashed #9ca3af" }}
+            />
+            7yr MA
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-gray-500 opacity-60" />
+            Crossover
+          </span>
+          {isCurrencyChart && (
+            <>
+              <span className="flex items-center gap-1">
+                <span
+                  className="inline-block w-3 h-2 rounded-sm"
+                  style={{
+                    backgroundColor: BONDS_BAND_FILL,
+                    border: "1px solid rgba(59, 130, 246, 0.35)",
+                  }}
+                />
+                Bonds favored
+              </span>
+              <span className="flex items-center gap-1">
+                <span
+                  className="inline-block w-3 h-2 rounded-sm"
+                  style={{
+                    backgroundColor: GOLD_BAND_FILL,
+                    border: "1px solid rgba(245, 158, 11, 0.4)",
+                  }}
+                />
+                Gold favored
+              </span>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
 
@@ -1014,7 +1073,10 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
               <Skeleton className="h-3 w-32" />
               <div className="space-y-2 pt-1">
                 {[...Array(4)].map((_, i) => (
-                  <div key={i} className="flex items-center justify-between gap-2">
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-2"
+                  >
                     <div className="flex-1 space-y-1">
                       <Skeleton className="h-3 w-24" />
                       <Skeleton className="h-2 w-32" />
