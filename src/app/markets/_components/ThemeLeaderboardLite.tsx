@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import useSWR from "swr";
 import Link from "next/link";
 import { Layers, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 import { formatPercent, getPercentColor } from "@/components/themes/utils";
 import { getCrowdingBgColor } from "@/lib/crowding-utils";
+import { fetcher, ssrHydratedConfig } from "@/lib/swr-config";
+import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
 
 interface ThemeRow {
   id: number;
@@ -17,28 +20,33 @@ interface ThemeRow {
   crowdingScore: number | null;
 }
 
+interface ThemePerformanceResponse {
+  themes: ThemeRow[];
+}
+
 type SortField = "1w" | "1m" | "3m";
 type SortDir = "asc" | "desc";
 
 const MAX_VISIBLE = 8;
 
-export function ThemeLeaderboardLite() {
-  const [themes, setThemes] = useState<ThemeRow[]>([]);
-  const [loading, setLoading] = useState(true);
+export interface ThemeLeaderboardLiteProps {
+  initialData?: ThemePerformanceResponse | null;
+}
+
+export function ThemeLeaderboardLite(props: ThemeLeaderboardLiteProps = {}) {
+  const { initialData } = props;
+  const { data, isValidating } = useSWR<ThemePerformanceResponse>(
+    "/api/themes/performance",
+    fetcher,
+    {
+      ...ssrHydratedConfig,
+      fallbackData: initialData ?? undefined,
+    },
+  );
+  const themes = data?.themes ?? [];
+  const loading = !data;
   const [sortField, setSortField] = useState<SortField>("1m");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-
-  useEffect(() => {
-    fetch("/api/themes/performance")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.themes) {
-          setThemes(data.themes);
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -123,6 +131,7 @@ export function ThemeLeaderboardLite() {
           <Layers className="w-4 h-4 text-gray-500" />
           <h2 className="text-sm font-semibold text-gray-900">Theme Performance</h2>
           <span className="text-xs text-gray-400">{themes.length} themes</span>
+          <RefreshIndicator active={isValidating} />
         </div>
         <Link
           href="/markets/themes"

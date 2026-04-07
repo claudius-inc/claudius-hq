@@ -4,6 +4,7 @@ import { ChevronRight, Gauge, Users, Activity } from "lucide-react";
 import { vixRanges, putCallRanges, breadthRanges, termStructureRanges, congressRanges, insiderRanges } from "./constants";
 import { getCrowdingBgColor } from "@/lib/crowding-utils";
 import { formatSentimentLevel } from "./helpers";
+import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
 import type { SentimentData, BreadthData, CrowdingData, CongressData, InsiderData } from "./types";
 
 interface MarketMoodProps {
@@ -14,6 +15,8 @@ interface MarketMoodProps {
   insiderData: InsiderData | null;
   expandedIds: Set<string>;
   toggleExpanded: (id: string) => void;
+  /** True when any of the 5 underlying SWR sources is currently revalidating. */
+  refreshing?: boolean;
 }
 
 type TabId = "sentiment" | "breadth" | "positioning";
@@ -110,6 +113,7 @@ export function MarketMood({
   insiderData,
   expandedIds,
   toggleExpanded,
+  refreshing = false,
 }: MarketMoodProps) {
   const [activeTab, setActiveTab] = useState<TabId>("sentiment");
   const composite = computeComposite(sentimentData, breadthData, crowdingData);
@@ -125,6 +129,7 @@ export function MarketMood({
       <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
         <span className="flex items-center text-gray-400"><Gauge className="w-3.5 h-3.5" /></span>
         Market Mood
+        <RefreshIndicator active={refreshing} />
         {composite && (
           <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${composite.color}`}>
             {composite.score} - {composite.label}

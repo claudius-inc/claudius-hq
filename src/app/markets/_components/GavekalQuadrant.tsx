@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/Skeleton";
 import { Modal } from "@/components/ui/Modal";
+import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
 import {
   Shield,
   Maximize2,
@@ -33,6 +34,7 @@ import type {
 interface GavekalQuadrantProps {
   data: GavekalData | null;
   loading: boolean;
+  refreshing?: boolean;
 }
 
 const QUADRANT_CELLS = [
@@ -1306,7 +1308,7 @@ function AllocationTable({
 
 // ── Main Component ─────────────────────────────────────────────────────────
 
-export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
+export function GavekalQuadrant({ data, loading, refreshing = false }: GavekalQuadrantProps) {
   const [expanded, setExpanded] = useState(false);
   const [hoveredCell, setHoveredCell] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
@@ -1406,8 +1408,9 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
         >
           <div className="flex items-center gap-3">
             <div>
-              <div className="font-mono text-xs text-gray-500">
+              <div className="font-mono text-xs text-gray-500 flex items-center gap-1.5">
                 Current Regime:
+                <RefreshIndicator active={refreshing} />
               </div>
               <div className="flex items-center gap-2">
                 <span

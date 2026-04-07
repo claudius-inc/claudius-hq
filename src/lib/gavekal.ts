@@ -135,14 +135,6 @@ const BROWNE_DYNAMIC_BASE: PortfolioAllocation[] = [
   { asset: "Energy equities", vehicle: "XLE", weight: "25%" },
 ];
 
-export interface GavekalDataQuality {
-  symbolStatus: Record<string, "ok" | "stale" | "missing">;
-  dataPoints: number;
-  oldestDate: string;
-  newestDate: string;
-  source: "db" | "api" | "mixed";
-}
-
 export interface GavekalData {
   quadrant: GavekalQuadrant;
   energyEfficiency: GavekalRatio;
@@ -160,11 +152,9 @@ export interface GavekalData {
     };
   };
   regimeHistory: GavekalRegimePoint[];
-  dataQuality?: GavekalDataQuality;
   xle?: GavekalXleData;
   regimeReturns?: Record<string, GavekalRegimeReturns>;
   portfolioAllocation?: PortfolioAllocation[];
-  updatedAt: string;
 }
 
 // ── Quadrant definitions ────────────────────────────────────────────────────
@@ -812,33 +802,6 @@ export async function computeGavekalQuadrant(
     fetchXleData(),
   ]);
 
-  // Build data quality report
-  const symbolStatus: Record<string, "ok" | "stale" | "missing"> = {};
-  let oldestDate = "";
-  let newestDate = "";
-  let totalPoints = 0;
-  const sources = new Set<string>();
-
-  for (const { symbol, prices, source } of symbolResults) {
-    sources.add(source);
-    if (prices.length === 0) {
-      symbolStatus[symbol] = "missing";
-    } else {
-      const lastDate = prices[prices.length - 1].date;
-      const daysSince = Math.ceil(
-        (Date.now() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24),
-      );
-      symbolStatus[symbol] = daysSince > 7 ? "stale" : "ok";
-      const firstDate = prices[0].date;
-      if (!oldestDate || firstDate < oldestDate) oldestDate = firstDate;
-      if (!newestDate || lastDate > newestDate) newestDate = lastDate;
-      totalPoints += prices.length;
-    }
-  }
-
-  const overallSource: "db" | "api" | "mixed" =
-    sources.has("db") && sources.has("api") ? "mixed" : sources.has("db") ? "db" : "api";
-
   const symbolMap = Object.fromEntries(symbolResults.map((r) => [r.symbol, r.prices]));
   const spx = symbolMap["^GSPC"] || [];
   const wti = symbolMap["CL=F"] || [];
@@ -904,17 +867,9 @@ export async function computeGavekalQuadrant(
       },
     },
     regimeHistory,
-    dataQuality: {
-      symbolStatus,
-      dataPoints: totalPoints,
-      oldestDate,
-      newestDate,
-      source: overallSource,
-    },
     xle: enrichedXleData,
     regimeReturns: REGIME_RETURNS,
     portfolioAllocation: buildPortfolioAllocation(currencyQuality.signal),
-    updatedAt: new Date().toISOString(),
   };
 }
 

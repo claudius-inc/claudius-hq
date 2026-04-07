@@ -453,6 +453,24 @@ export type NewGavekalHistoricalSnapshotRow =
   typeof gavekalHistoricalSnapshot.$inferInsert;
 
 // ============================================================================
+// Stock Daily Prices — materialized cache for theme performance.
+// One row per (ticker, date). Past closes are immutable so this is an
+// append-only store. Used by `fetchThemePerformanceAll()` to skip the
+// per-ticker Yahoo chart() calls on warm cache misses.
+// ============================================================================
+
+export const stockPricesDaily = sqliteTable("stock_prices_daily", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ticker: text("ticker").notNull(),
+  date: text("date").notNull(), // YYYY-MM-DD
+  close: real("close").notNull(),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type StockPriceDailyRow = typeof stockPricesDaily.$inferSelect;
+export type NewStockPriceDailyRow = typeof stockPricesDaily.$inferInsert;
+
+// ============================================================================
 // Market Data Cache (Stale-While-Revalidate Pattern)
 // ============================================================================
 

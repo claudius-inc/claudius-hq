@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import useSWR from "swr";
 import { Skeleton } from "@/components/Skeleton";
 import {
   ChevronUpCircle,
@@ -13,6 +13,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { fetcher, ssrHydratedConfig } from "@/lib/swr-config";
+import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
 
 interface MarketValuation {
   market: string;
@@ -257,24 +259,33 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
   );
 }
 
-export function CompactValuationStrip() {
-  const [valuations, setValuations] = useState<MarketValuation[]>([]);
-  const [loading, setLoading] = useState(true);
+interface ValuationResponse {
+  valuations: MarketValuation[];
+}
 
-  useEffect(() => {
-    // /api/markets/valuation now ships tacticalBias per market computed
-    // server-side from price vs 50/200-day MAs. No client-side merge
-    // needed any more — the chevron renders for every row uniformly.
-    fetch("/api/markets/valuation")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => setValuations(data?.valuations || []))
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
+export interface CompactValuationStripProps {
+  initialData?: ValuationResponse | null;
+}
+
+export function CompactValuationStrip(props: CompactValuationStripProps = {}) {
+  const { initialData } = props;
+  const { data, isValidating } = useSWR<ValuationResponse>(
+    "/api/markets/valuation",
+    fetcher,
+    {
+      ...ssrHydratedConfig,
+      fallbackData: initialData ?? undefined,
+    },
+  );
+  const valuations = data?.valuations ?? [];
+  const loading = !data;
 
   return (
     <TooltipProvider delayDuration={150}>
-      <div className="h-full">
+      <div className="h-full relative">
+        <div className="absolute top-1.5 right-2 z-10">
+          <RefreshIndicator active={isValidating} />
+        </div>
         <div className="card overflow-hidden !p-0 divide-y divide-gray-100 h-full">
           {loading
             ? Array.from({ length: 5 }).map((_, i) => (

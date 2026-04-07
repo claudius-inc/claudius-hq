@@ -18,7 +18,7 @@ export function IndicatorDetails({ indicator }: { indicator: MacroIndicator }) {
       <div>
         <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Interpretation Guide</h4>
         <div className="space-y-1">
-          {indicator.ranges.map((range, idx) => (
+          {(indicator.ranges ?? []).map((range, idx) => (
             <div
               key={idx}
               className={`flex flex-wrap items-start gap-1 text-[10px] p-1 rounded ${
@@ -52,7 +52,7 @@ export function IndicatorDetails({ indicator }: { indicator: MacroIndicator }) {
       <div>
         <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1">Assets Affected</h4>
         <div className="flex flex-wrap gap-1">
-          {indicator.affectedAssets.map((asset, idx) => (
+          {(indicator.affectedAssets ?? []).map((asset, idx) => (
             <span key={idx} className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{asset}</span>
           ))}
         </div>
