@@ -22,7 +22,6 @@ export const CACHE_KEYS = {
   CONGRESS: "congress:data",
   INSIDER: "insider:data",
   MARKETS: "markets:momentum",
-  MACRO_ETFS: "macro:etfs",
   STOCK_PRICES: "stocks:prices",
   GAVEKAL: "gavekal:quadrant",
 } as const;

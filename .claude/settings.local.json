@@ -30,7 +30,8 @@
       "Bash(curl -sL \"https://raw.githubusercontent.com/datasets/gold-prices/master/data/monthly.csv\")",
       "Bash(curl -s \"http://localhost:3000/api/markets/gavekal\")",
       "Bash(ls tailwind.config.*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Read(//tmp/**)"
     ]
   }
 }

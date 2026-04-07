@@ -6,7 +6,6 @@ import { PageHero } from "@/components/PageHero";
 import { detectRegime } from "./_components/helpers";
 
 import { MarketMood } from "./_components/MarketMood";
-import { Barometers } from "./_components/Barometers";
 import { HardAssets } from "./_components/HardAssets";
 import { Indicators } from "./_components/Indicators";
 import { GavekalQuadrant } from "./_components/GavekalQuadrant";
@@ -16,7 +15,6 @@ import { MacroToggle } from "./_components/MacroToggle";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
   MacroIndicator,
-  MarketEtf,
   RegimeData,
   SentimentData,
   BreadthData,
@@ -32,7 +30,6 @@ export default function StocksDashboard() {
   const [sentimentData, setSentimentData] = useState<SentimentData | null>(
     null,
   );
-  const [marketEtfs, setMarketEtfs] = useState<MarketEtf[]>([]);
   const [regimeData, setRegimeData] = useState<RegimeData | null>(null);
   const [breadthData, setBreadthData] = useState<BreadthData | null>(null);
   const [congressData, setCongressData] = useState<CongressData | null>(null);
@@ -45,7 +42,6 @@ export default function StocksDashboard() {
   const [loading, setLoading] = useState({
     macro: true,
     sentiment: true,
-    etfs: true,
     regime: true,
     breadth: true,
     congress: true,
@@ -75,14 +71,6 @@ export default function StocksDashboard() {
   }, []);
 
   useEffect(() => {
-    fetch("/api/macro/etfs")
-      .then((res) => res.json())
-      .then((data) => {
-        setMarketEtfs(data.etfs || []);
-      })
-      .catch(console.error)
-      .finally(() => setLoading((prev) => ({ ...prev, etfs: false })));
-
     fetch("/api/markets/sentiment")
       .then((res) => res.json())
       .then((data) => {
@@ -199,14 +187,6 @@ export default function StocksDashboard() {
           insiderData={insiderData}
           expandedIds={expandedIds}
           toggleExpanded={toggleExpanded}
-        />
-
-        <Barometers
-          marketEtfs={marketEtfs}
-          loading={loading.etfs}
-          expandedIds={expandedIds}
-          toggleExpanded={toggleExpanded}
-          expectedReturns={expectedReturns}
         />
 
         <HardAssets expectedReturns={expectedReturns} />
