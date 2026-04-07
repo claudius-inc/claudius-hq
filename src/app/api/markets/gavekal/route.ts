@@ -5,8 +5,9 @@ import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
 
-// v7: regime descriptions rewritten in plain English (de-jargonized header)
-const CACHE_KEY = "gavekal:quadrant:v7";
+// v12: each QUADRANTS entry now carries tileActions (own/avoid/hold per
+// asset class), used by the merged "What to do now" tile-grid layout
+const CACHE_KEY = "gavekal:quadrant:v12";
 const CACHE_MAX_AGE = 6 * 60 * 60; // 6 hours — ratios move slowly
 
 export async function GET(request: Request) {

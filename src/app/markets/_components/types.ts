@@ -153,6 +153,8 @@ export interface YieldSpread {
   color: "green" | "amber" | "gray";
 }
 
+export type TileAction = "own" | "avoid" | "hold";
+
 export interface GavekalQuadrantData {
   name: string;
   score: number;
@@ -160,6 +162,13 @@ export interface GavekalQuadrantData {
   description: string;
   buySignals: string[];
   sellSignals: string[];
+  tileActions: {
+    equities: TileAction;
+    bonds: TileAction;
+    gold: TileAction;
+    commodities: TileAction;
+    cash: TileAction;
+  };
 }
 
 export interface GavekalRatioData {
@@ -168,12 +177,6 @@ export interface GavekalRatioData {
   ma7y: number;
   signal: 1 | -1;
   history: { date: string; value: number; ma: number | null }[];
-}
-
-export interface GavekalExclusionData {
-  name: string;
-  signal: string;
-  description: string;
 }
 
 export interface GavekalRegimePoint {
@@ -187,13 +190,9 @@ export interface GavekalXleData {
   xleSpyRatio: number | null;
   trailingPE: number | null;
   dividendYield: number | null;
-}
-
-export interface GavekalChangeEvent {
-  date: string;
-  type: "crossover" | "threshold" | "regime_change";
-  signal: string;
-  description: string;
+  xleSpyHistory: { date: string; value: number; ma: number | null }[];
+  energyPctOfSp500: number | null;
+  xleWtiCorrelation: number | null;
 }
 
 export interface GavekalRegimeReturns {
@@ -215,13 +214,19 @@ export interface GavekalData {
   energyEfficiency: GavekalRatioData;
   currencyQuality: GavekalRatioData;
   keyRatios: {
-    spGold: { current: number; ma7y: number };
-    goldWti: { current: number; ma7y: number };
+    spGold: {
+      current: number;
+      ma7y: number;
+      history: { date: string; value: number; ma: number | null }[];
+    };
+    goldWti: {
+      current: number;
+      ma7y: number;
+      history: { date: string; value: number; ma: number | null }[];
+    };
   };
-  exclusions: GavekalExclusionData[];
   regimeHistory: GavekalRegimePoint[];
   xle?: GavekalXleData;
-  changelog?: GavekalChangeEvent[];
   regimeReturns?: Record<string, GavekalRegimeReturns>;
   portfolioAllocation?: PortfolioAllocation[];
   updatedAt: string;

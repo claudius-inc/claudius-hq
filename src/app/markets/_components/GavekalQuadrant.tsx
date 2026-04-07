@@ -10,31 +10,23 @@ import {
 import { Skeleton } from "@/components/Skeleton";
 import { Modal } from "@/components/ui/Modal";
 import {
-  TrendingUp,
-  TrendingDown,
   Shield,
-  Fuel,
-  Coins,
   Maximize2,
-  AlertTriangle,
-  Clock,
   ArrowRight,
   Activity,
   CheckCircle,
   AlertCircle,
   Zap,
-  History,
-  BarChart3,
   Info,
+  ChevronUpCircle,
+  ChevronDownCircle,
+  MinusCircle,
 } from "lucide-react";
 import type {
   GavekalData,
   GavekalRatioData,
   GavekalRegimePoint,
-  GavekalExclusionData,
   GavekalXleData,
-  GavekalChangeEvent,
-  GavekalRegimeReturns,
   PortfolioAllocation,
 } from "./types";
 
@@ -149,6 +141,35 @@ function deviationIntensity(current: number, ma: number): number {
   return Math.min(1, pct / 50); // 50% deviation = max intensity
 }
 
+/** Compute the ratio's momentum — % change over the last ~4 months. The
+ *  history is sampled monthly (see buildRatio in src/lib/gavekal.ts), so
+ *  comparing the last point against the 5th-from-last gives a ~4-month look-
+ *  back. The ±2% band is treated as "stable". */
+function computeMomentum(ratio: GavekalRatioData): {
+  direction: "up" | "down" | "flat";
+  change: number;
+  label: string;
+} {
+  const hist = ratio.history;
+  if (hist.length < 5) return { direction: "flat", change: 0, label: "Stable" };
+  const recent = hist[hist.length - 1].value;
+  const prior = hist[Math.max(0, hist.length - 5)].value;
+  const change = ((recent - prior) / prior) * 100;
+  if (change > 2)
+    return {
+      direction: "up",
+      change,
+      label: `Accelerating (+${change.toFixed(1)}%)`,
+    };
+  if (change < -2)
+    return {
+      direction: "down",
+      change,
+      label: `Decelerating (${change.toFixed(1)}%)`,
+    };
+  return { direction: "flat", change, label: "Stable" };
+}
+
 // ── Ratio Chart (interactive SVG with MA overlay + hover + date axis) ─────
 
 function RatioChart({
@@ -165,6 +186,7 @@ function RatioChart({
   const above = ratio.signal === 1;
   const pct = ((ratio.current - ratio.ma7y) / ratio.ma7y) * 100;
   const intensity = deviationIntensity(ratio.current, ratio.ma7y);
+  const momentum = computeMomentum(ratio);
 
   // The currency-quality ratio (10y UST total return / gold) maps directly
   // to a Browne Dynamic asset choice (Gave, Ch. 8): above MA → hold bonds,
@@ -176,6 +198,8 @@ function RatioChart({
   // legend swatches so they cannot drift apart.
   const BONDS_BAND_FILL = "rgba(59, 130, 246, 0.08)";
   const GOLD_BAND_FILL = "rgba(245, 158, 11, 0.10)";
+  const BOOMS_BAND_FILL = "rgba(16, 185, 129, 0.08)"; // emerald-500 @ 8%
+  const BUSTS_BAND_FILL = "rgba(239, 68, 68, 0.08)"; // red-500 @ 8%
 
   if (!ratio.history.length) return null;
 
@@ -227,11 +251,12 @@ function RatioChart({
   }
 
   // Regime segments — contiguous runs on the same side of the MA. Used by
-  // the currency chart for background shading. Skip the bootstrap window
-  // where MA is still null.
+  // both charts for background shading: currency chart maps to bonds/gold,
+  // energy chart maps to booms/busts. Skip the bootstrap window where MA is
+  // still null.
   const regimeSegments: { startIdx: number; endIdx: number; above: boolean }[] =
     [];
-  if (isCurrencyChart) {
+  {
     let segStart: number | null = null;
     let segAbove: boolean | null = null;
     for (let i = 0; i < values.length; i++) {
@@ -298,11 +323,144 @@ function RatioChart({
       ? `rgba(75, 85, 99, ${0.05 + intensity * 0.1})`
       : `rgba(239, 68, 68, ${0.05 + intensity * 0.1})`;
 
-  // Methodology tooltip for the currency ratio (only chart that uses a
-  // synthetic series for historical data).
-  const methodologyTooltip = ratio.label.includes("Gold")
-    ? "Bond total return / gold price vs 7y MA. 2002+ uses IEF ETF data; pre-2002 historical regimes use a synthetic 10y constant-maturity Treasury total return computed from Shiller monthly yields. Historical regime classification starts 1971 (post-Bretton-Woods)."
-    : undefined;
+  // Methodology tooltip — structured JSX (stats grid + sectioned body)
+  // instead of a flat text blob. The stats row surfaces the raw current
+  // value and 7y MA (these used to live in a dedicated row that nobody
+  // read); the body explains either the data sources (currency chart) or
+  // the framework interpretation (energy chart).
+  const methodologyTooltip = (
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div className="text-[9px] uppercase tracking-wide text-gray-400">
+            Current
+          </div>
+          <div className="text-sm font-bold text-white">
+            {ratio.current.toFixed(2)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[9px] uppercase tracking-wide text-gray-400">
+            7y average
+          </div>
+          <div className="text-sm font-bold text-white">
+            {ratio.ma7y.toFixed(2)}
+          </div>
+        </div>
+      </div>
+      <div className="border-t border-white/15 pt-2 space-y-1.5 text-gray-200">
+        {isCurrencyChart ? (
+          <>
+            <p>
+              <span className="font-semibold text-white">What it is:</span> Bond
+              total return / gold price vs 7-year moving average.
+            </p>
+            <p>
+              <span className="font-semibold text-white">Data sources:</span>{" "}
+              2002+ uses IEF ETF data; pre-2002 uses a synthetic 10y
+              constant-maturity Treasury total return computed from Shiller
+              monthly yields.
+            </p>
+            <p className="text-gray-400">
+              Historical regime classification starts 1971 (post-Bretton-Woods).
+            </p>
+          </>
+        ) : (
+          <>
+            <p>
+              <span className="font-semibold text-white">What it is:</span> S&P
+              500 / WTI crude oil price vs 7-year moving average.
+            </p>
+            <p>
+              <span className="font-semibold text-white">Why it matters:</span>{" "}
+              Charles Gave&apos;s energy-efficiency proxy. When stocks rise
+              faster than oil, energy is being transformed productively — the
+              economy is on the Boom side of the Four Quadrants. When oil rises
+              faster than stocks, the economy is stalling — Bust side.
+            </p>
+            <p>
+              <span className="font-semibold text-white">Crossovers:</span> Mark
+              transitions between the right and left sides of the wheel.
+            </p>
+            <p className="text-gray-400">Source: Gave, Ch. 3.</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  // Regime-strength icon — flips the raw ratio direction relative to the
+  // current side of the MA so the icon always answers the natural question
+  // "is the current regime call getting stronger or weaker?". Examples:
+  //   - "Hold gold" (below MA) + ratio falling further → REINFORCED ↑
+  //   - "Hold gold" + ratio rising back toward MA      → WEAKENING  ↓
+  //   - "Growth ahead" (above MA) + ratio rising       → REINFORCED ↑
+  //   - "Growth ahead" + ratio falling toward MA       → WEAKENING  ↓
+  const regimeDirection: "strengthening" | "weakening" | "flat" =
+    momentum.direction === "flat"
+      ? "flat"
+      : (momentum.direction === "up") === above
+        ? "strengthening"
+        : "weakening";
+
+  // Human-readable labels for the current regime and its opposite, used in
+  // the tooltip. Mirrors the top-right banner labels below.
+  const currentRegimeLabel = isCurrencyChart
+    ? above
+      ? "Hold 10y Treasuries"
+      : "Hold gold"
+    : above
+      ? "Growth ahead"
+      : "Slowdown risk";
+  const oppositeRegimeLabel = isCurrencyChart
+    ? above
+      ? "Hold gold"
+      : "Hold 10y Treasuries"
+    : above
+      ? "Slowdown risk"
+      : "Growth ahead";
+
+  // Momentum tooltip — frames the icon in regime-strength terms (not raw
+  // ratio direction), since "Hold gold + ratio falling" is intuitively
+  // confusing if you don't know which side of the MA you're on.
+  const momentumPctText = `${momentum.change >= 0 ? "+" : ""}${momentum.change.toFixed(1)}%`;
+  const momentumTooltip =
+    regimeDirection === "flat"
+      ? `${currentRegimeLabel} is stable. The ratio has moved less than ±2% (${momentumPctText}) over the last ~4 months — no meaningful directional change.`
+      : regimeDirection === "strengthening"
+        ? `${currentRegimeLabel} is being reinforced. Over the last ~4 months the ratio has moved ${momentumPctText}, pulling further ${above ? "above" : "below"} its 7-year moving average.`
+        : `${currentRegimeLabel} is weakening. Over the last ~4 months the ratio has moved ${momentumPctText}, heading back toward its 7-year moving average — watch for a potential flip to "${oppositeRegimeLabel}".`;
+
+  // Momentum icon — colored chevron-circle next to the regime label.
+  // Green up = current regime reinforced, red down = current regime
+  // weakening, gray flat = stable. Wrapped in a Tooltip for explanation.
+  const momentumIcon = (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`${currentRegimeLabel} ${regimeDirection}`}
+          className="inline-flex items-center justify-center focus:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 rounded-full"
+        >
+          {regimeDirection === "strengthening" ? (
+            <ChevronUpCircle className="w-3.5 h-3.5 text-emerald-600" />
+          ) : regimeDirection === "weakening" ? (
+            <ChevronDownCircle className="w-3.5 h-3.5 text-red-600" />
+          ) : (
+            <MinusCircle className="w-3.5 h-3.5 text-gray-400" />
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        align="end"
+        collisionPadding={8}
+        className="z-[10000] max-w-xs text-[11px] leading-snug"
+      >
+        {momentumTooltip}
+      </TooltipContent>
+    </Tooltip>
+  );
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -328,50 +486,46 @@ function RatioChart({
                   side="top"
                   align="start"
                   collisionPadding={8}
-                  className="z-[10000] max-w-xs text-[11px] leading-snug"
+                  className="z-[10000] max-w-sm text-[11px] leading-snug p-3"
                 >
                   {methodologyTooltip}
                 </TooltipContent>
               </Tooltip>
             )}
           </div>
-          {isCurrencyChart ? (
-            <div
-              className={`flex items-center gap-1 text-xs font-bold ${above ? "text-blue-600" : "text-amber-600"}`}
+          <div className="flex items-center gap-1.5">
+            {/* Deviation badge — quantifies how far the ratio sits from
+                its 7y MA. Sits immediately before the regime label so the
+                signal cluster reads as a single unit (e.g. "−14.6%
+                Slowdown risk"). The raw current and MA values used to live
+                in their own row but were dead weight; they're now in the
+                methodology tooltip. */}
+            <span
+              className="text-[11px] font-bold px-1.5 py-0.5 rounded"
+              style={{
+                color: pctColor,
+                backgroundColor: pctBgColor,
+              }}
             >
-              {above ? "Hold 10y Treasuries" : "Hold gold"}
-            </div>
-          ) : (
-            <div
-              className={`flex items-center gap-0.5 text-xs font-bold ${above ? "text-gray-600" : "text-red-600"}`}
-            >
-              {above ? (
-                <TrendingUp className="w-3 h-3" />
-              ) : (
-                <TrendingDown className="w-3 h-3" />
-              )}
-              {above ? "Above" : "Below"} 7yMA
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-baseline gap-2 mb-2">
-          <span className="text-lg font-bold text-gray-900">
-            {ratio.current.toFixed(2)}
-          </span>
-          <span className="text-xs text-gray-400">
-            vs {ratio.ma7y.toFixed(2)}
-          </span>
-          <span
-            className="text-xs font-bold px-1.5 py-0.5 rounded"
-            style={{
-              color: pctColor,
-              backgroundColor: pctBgColor,
-            }}
-          >
-            {pct >= 0 ? "+" : ""}
-            {pct.toFixed(1)}%
-          </span>
+              {pct >= 0 ? "+" : ""}
+              {pct.toFixed(1)}%
+            </span>
+            {isCurrencyChart ? (
+              <div
+                className={`flex items-center gap-1 text-xs font-bold ${above ? "text-blue-600" : "text-amber-600"}`}
+              >
+                {above ? "Hold 10y Treasuries" : "Hold gold"}
+                {momentumIcon}
+              </div>
+            ) : (
+              <div
+                className={`flex items-center gap-1 text-xs font-bold ${above ? "text-emerald-600" : "text-red-600"}`}
+              >
+                {above ? "Growth ahead" : "Slowdown risk"}
+                {momentumIcon}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Hover info */}
@@ -411,24 +565,31 @@ function RatioChart({
             if (idx >= 0 && idx < values.length) setHoverIdx(idx);
           }}
         >
-          {/* Regime background bands — currency chart only. Each rect spans
-            a contiguous run on one side of the MA: blue = hold bonds,
-            amber = hold gold (Charles Gave, Ch. 8). */}
-          {isCurrencyChart &&
-            regimeSegments.map((seg, i) => {
-              const x1 = toX(seg.startIdx);
-              const x2 = toX(seg.endIdx);
-              return (
-                <rect
-                  key={`regime-${i}`}
-                  x={x1}
-                  y={0}
-                  width={x2 - x1}
-                  height={chartH}
-                  fill={seg.above ? BONDS_BAND_FILL : GOLD_BAND_FILL}
-                />
-              );
-            })}
+          {/* Regime background bands. Each rect spans a contiguous run on
+            one side of the MA. Currency chart: blue = hold bonds, amber =
+            hold gold (Gave Ch. 8). Energy chart: green = booms favored, red
+            = busts favored (Gave Ch. 3). */}
+          {regimeSegments.map((seg, i) => {
+            const x1 = toX(seg.startIdx);
+            const x2 = toX(seg.endIdx);
+            const fill = isCurrencyChart
+              ? seg.above
+                ? BONDS_BAND_FILL
+                : GOLD_BAND_FILL
+              : seg.above
+                ? BOOMS_BAND_FILL
+                : BUSTS_BAND_FILL;
+            return (
+              <rect
+                key={`regime-${i}`}
+                x={x1}
+                y={0}
+                width={x2 - x1}
+                height={chartH}
+                fill={fill}
+              />
+            );
+          })}
 
           {/* Fill area — neutral gray */}
           <path d={fillPath} fill="#6b728015" />
@@ -543,11 +704,11 @@ function RatioChart({
             <span className="inline-block w-2 h-2 rounded-full bg-gray-500 opacity-60" />
             Crossover
           </span>
-          {isCurrencyChart && (
+          {isCurrencyChart ? (
             <>
               <span className="flex items-center gap-1">
                 <span
-                  className="inline-block w-3 h-2 rounded-sm"
+                  className="inline-block w-2.5 h-2.5 rounded-sm aspect-square"
                   style={{
                     backgroundColor: BONDS_BAND_FILL,
                     border: "1px solid rgba(59, 130, 246, 0.35)",
@@ -557,7 +718,7 @@ function RatioChart({
               </span>
               <span className="flex items-center gap-1">
                 <span
-                  className="inline-block w-3 h-2 rounded-sm"
+                  className="inline-block w-2.5 h-2.5 rounded-sm aspect-square"
                   style={{
                     backgroundColor: GOLD_BAND_FILL,
                     border: "1px solid rgba(245, 158, 11, 0.4)",
@@ -566,10 +727,113 @@ function RatioChart({
                 Gold favored
               </span>
             </>
+          ) : (
+            <>
+              <span className="flex items-center gap-1">
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-sm aspect-square"
+                  style={{
+                    backgroundColor: BOOMS_BAND_FILL,
+                    border: "1px solid rgba(16, 185, 129, 0.35)",
+                  }}
+                />
+                Growth ahead
+              </span>
+              <span className="flex items-center gap-1">
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-sm aspect-square"
+                  style={{
+                    backgroundColor: BUSTS_BAND_FILL,
+                    border: "1px solid rgba(239, 68, 68, 0.35)",
+                  }}
+                />
+                Slowdown risk
+              </span>
+            </>
           )}
         </div>
       </div>
     </TooltipProvider>
+  );
+}
+
+// ── MiniSparkline ─────────────────────────────────────────────────────────
+//
+// Compact static sparkline used in the supplementary "Confirmation signals"
+// cards (S&P 500 / Gold and Gold / WTI). Deliberately smaller and simpler
+// than RatioChart so the visual hierarchy makes clear that these ratios
+// supplement the main regime axes — they don't replace them. Renders the
+// value path, a faint MA overlay, and a single dot at the current point.
+function MiniSparkline({
+  history,
+  width = 96,
+  height = 32,
+}: {
+  history: { date: string; value: number; ma: number | null }[];
+  width?: number;
+  height?: number;
+}) {
+  if (!history.length) return null;
+  const values = history.map((h) => h.value);
+  const mas = history.map((h) => h.ma);
+  const validMas = mas.filter((v): v is number => v !== null);
+  const min = Math.min(...values, ...validMas);
+  const max = Math.max(...values, ...validMas);
+  const range = max - min || 1;
+  const pad = range * 0.08;
+
+  const toY = (v: number) =>
+    height - ((v - (min - pad)) / (range + pad * 2)) * height;
+  const toX = (i: number) => (i / (values.length - 1)) * width;
+
+  const valuePath = values
+    .map((v, i) => `${i === 0 ? "M" : "L"}${toX(i)},${toY(v)}`)
+    .join(" ");
+
+  const maSegments: string[] = [];
+  let seg = "";
+  for (let i = 0; i < mas.length; i++) {
+    if (mas[i] !== null) {
+      seg += `${seg === "" ? "M" : "L"}${toX(i)},${toY(mas[i]!)} `;
+    } else if (seg) {
+      maSegments.push(seg.trim());
+      seg = "";
+    }
+  }
+  if (seg) maSegments.push(seg.trim());
+  const maPath = maSegments.join(" ");
+
+  const lastIdx = values.length - 1;
+  const lastValue = values[lastIdx];
+  const lastMa = mas[lastIdx];
+  const above = lastMa !== null ? lastValue > lastMa : true;
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      style={{ width: `${width}px`, height: `${height}px` }}
+      preserveAspectRatio="none"
+      aria-hidden="true"
+    >
+      {maPath && (
+        <path
+          d={maPath}
+          fill="none"
+          stroke="#d1d5db"
+          strokeWidth="1"
+          strokeDasharray="2 2"
+        />
+      )}
+      <path d={valuePath} fill="none" stroke="#6b7280" strokeWidth="1.25" />
+      <circle
+        cx={toX(lastIdx)}
+        cy={toY(lastValue)}
+        r="2"
+        fill={above ? "#6b7280" : "#dc2626"}
+        stroke="white"
+        strokeWidth="1"
+      />
+    </svg>
   );
 }
 
@@ -635,7 +899,6 @@ function RegimeTimeline({ history }: { history: GavekalRegimePoint[] }) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5 text-gray-400" />
           <span className="text-[11px] font-semibold text-gray-700">
             Regime History
           </span>
@@ -778,78 +1041,119 @@ function RegimeTimeline({ history }: { history: GavekalRegimePoint[] }) {
   );
 }
 
-// ── Browne Portfolio Rule Card ────────────────────────────────────────────
-
-function ExclusionCard({ ex }: { ex: GavekalExclusionData }) {
-  const isWarning = ex.signal === "Warning";
-  const isCaution = ex.signal === "Caution";
-  const isPositive = ex.signal === "Own equities" || ex.signal === "Own bonds";
-
-  let badgeColor: string;
-  let badgeBg: string;
-  let borderColor: string;
-  let IconComponent: typeof CheckCircle;
-
-  if (isWarning) {
-    badgeColor = "text-red-700";
-    badgeBg = "bg-red-100";
-    borderColor = "border-red-200";
-    IconComponent = AlertTriangle;
-  } else if (isCaution) {
-    badgeColor = "text-amber-700";
-    badgeBg = "bg-amber-100";
-    borderColor = "border-amber-200";
-    IconComponent = AlertCircle;
-  } else if (isPositive) {
-    badgeColor = "text-gray-700";
-    badgeBg = "bg-gray-100";
-    borderColor = "border-gray-200";
-    IconComponent = CheckCircle;
-  } else {
-    badgeColor = "text-gray-700";
-    badgeBg = "bg-gray-100";
-    borderColor = "border-gray-200";
-    IconComponent = Activity;
-  }
-
-  return (
-    <div
-      className={`flex items-start gap-2.5 rounded-lg border px-3 py-2.5 ${borderColor} bg-white`}
-    >
-      <div className={`p-1 rounded-md ${badgeBg} shrink-0 mt-0.5`}>
-        <IconComponent className={`w-3.5 h-3.5 ${badgeColor}`} />
-      </div>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className="text-[11px] font-semibold text-gray-700">
-            {ex.name}
-          </span>
-          <span
-            className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${badgeBg} ${badgeColor}`}
-          >
-            {ex.signal}
-          </span>
-        </div>
-        <p className="text-[10px] text-gray-500 leading-snug">
-          {ex.description}
-        </p>
-      </div>
-    </div>
-  );
-}
-
 // ── XLE Sub-Panel ───────────────────────────────────────────────────────────
 
-function XlePanel({ xle }: { xle: GavekalXleData }) {
+// Per Charles Gave's "General Theory of Portfolio Construction" Ch. 10, the
+// energy bucket is a STRUCTURAL hedge — held permanently because the S&P 500
+// is uniquely vulnerable to oil shocks now that energy is only ~4% of the
+// index (vs ~30% in 1980). The card is reframed accordingly: it answers
+// "is the structural hedge working?" rather than "should I time XLE?".
+function XlePanel({
+  xle,
+  quadrantName,
+}: {
+  xle: GavekalXleData;
+  quadrantName: string;
+}) {
+  // Regime-aware verdict — frames XLE's current performance honestly given
+  // what the framework expects in this quadrant. Disinflationary regimes
+  // are SUPPOSED to underperform the hedge; that's the cost of insurance.
+  const verdict: { active: boolean; text: string } = (() => {
+    switch (quadrantName) {
+      case "Inflationary Bust":
+        return {
+          active: true,
+          text: "Hedge active — energy is the regime's strongest asset, the bucket is doing its job.",
+        };
+      case "Inflationary Boom":
+        return {
+          active: true,
+          text: "Hedge active — energy benefits as commodities reflate.",
+        };
+      case "Deflationary Boom":
+        return {
+          active: false,
+          text: "Hedge dormant — disinflation drags on energy. The bucket is insurance you don't currently need.",
+        };
+      case "Deflationary Bust":
+        return {
+          active: false,
+          text: "Hedge dormant — both stocks and oil weak. The bucket protects against tail risk only.",
+        };
+      default:
+        return { active: false, text: "" };
+    }
+  })();
+
+  // XLE/SPY position vs its 7y MA — same convention as the supplementary
+  // cards: above MA = energy outperforming, below MA = lagging.
+  const xleSpyAbove =
+    xle.xleSpyHistory.length > 0 &&
+    xle.xleSpyHistory[xle.xleSpyHistory.length - 1].ma !== null
+      ? xle.xleSpyHistory[xle.xleSpyHistory.length - 1].value >
+        xle.xleSpyHistory[xle.xleSpyHistory.length - 1].ma!
+      : null;
+
   return (
     <div className="bg-gray-50 rounded-lg p-3">
-      <div className="flex items-center gap-1.5 mb-2">
-        <Zap className="w-3.5 h-3.5 text-gray-500" />
-        <span className="text-[11px] font-semibold text-gray-700">
-          Energy Sector (XLE)
-        </span>
+      {/* Header — reframed as a structural hedge bucket, not a tactical bet */}
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-start gap-1.5">
+          <Zap className="w-3.5 h-3.5 text-gray-500 mt-0.5 shrink-0" />
+          <div>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] font-semibold text-gray-700">
+                Energy hedge bucket (XLE)
+              </span>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label="Energy hedge methodology"
+                    className="inline-flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 rounded-sm"
+                  >
+                    <Info className="w-3 h-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent
+                  side="top"
+                  align="start"
+                  collisionPadding={8}
+                  className="z-[10000] max-w-sm text-[11px] leading-snug p-3"
+                >
+                  <div className="space-y-2 text-gray-200">
+                    <p>
+                      <span className="font-semibold text-white">
+                        What it is:
+                      </span>{" "}
+                      A permanent ~20% slice of the Browne Dynamic portfolio,
+                      held in the SPDR Energy Sector ETF (XLE).
+                    </p>
+                    <p>
+                      <span className="font-semibold text-white">
+                        Why it&apos;s permanent:
+                      </span>{" "}
+                      Per Gave Ch. 10, energy was ~30% of the S&P 500 in 1980
+                      but only ~4% today — leaving the index uniquely vulnerable
+                      to an oil shock. The bucket is structural insurance, not a
+                      tactical bet. You don&apos;t time it; you always hold it.
+                    </p>
+                    <p className="text-gray-400">Source: Gave, Ch. 10.</p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <div className="text-[10px] text-gray-400 leading-snug mt-0.5">
+              Permanent ~20% allocation per the Browne Dynamic
+            </div>
+          </div>
+        </div>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+      {/* Stats grid — replaces Trailing P/E with Energy % of S&P 500 (the
+          actual rationale for the bucket) and adds XLE/WTI correlation
+          (validates the hedge is tracking its underlying commodity). */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         <div>
           <div className="text-[9px] text-gray-400 uppercase">Price</div>
           <div className="text-sm font-bold text-gray-900">
@@ -865,115 +1169,92 @@ function XlePanel({ xle }: { xle: GavekalXleData }) {
           )}
         </div>
         <div>
-          <div className="text-[9px] text-gray-400 uppercase">Trailing P/E</div>
-          <div className="text-sm font-bold text-gray-900">
-            {xle.trailingPE ? `${xle.trailingPE.toFixed(1)}x` : "\u2014"}
-          </div>
-        </div>
-        <div>
           <div className="text-[9px] text-gray-400 uppercase">Div Yield</div>
           <div className="text-sm font-bold text-gray-900">
             {xle.dividendYield ? `${xle.dividendYield.toFixed(1)}%` : "\u2014"}
           </div>
+          <div className="text-[9px] text-gray-400">income leg</div>
         </div>
         <div>
-          <div className="text-[9px] text-gray-400 uppercase">XLE / SPY</div>
+          <div className="text-[9px] text-gray-400 uppercase">Energy % S&P</div>
           <div className="text-sm font-bold text-gray-900">
-            {xle.xleSpyRatio ? xle.xleSpyRatio.toFixed(3) : "\u2014"}
+            {xle.energyPctOfSp500 != null
+              ? `${(xle.energyPctOfSp500 * 100).toFixed(1)}%`
+              : "~4%"}
           </div>
-          <div className="text-[9px] text-gray-400">Relative strength</div>
+          <div className="text-[9px] text-gray-400">vs ~30% in 1980</div>
+        </div>
+        <div>
+          <div className="text-[9px] text-gray-400 uppercase">
+            XLE / WTI corr
+          </div>
+          <div
+            className={`text-sm font-bold ${
+              xle.xleWtiCorrelation == null
+                ? "text-gray-400"
+                : xle.xleWtiCorrelation >= 0.5
+                  ? "text-gray-900"
+                  : xle.xleWtiCorrelation >= 0.3
+                    ? "text-amber-700"
+                    : "text-red-700"
+            }`}
+          >
+            {xle.xleWtiCorrelation != null
+              ? xle.xleWtiCorrelation.toFixed(2)
+              : "\u2014"}
+          </div>
+          <div className="text-[9px] text-gray-400">1y rolling</div>
         </div>
       </div>
-    </div>
-  );
-}
 
-// ── What Changed Changelog ──────────────────────────────────────────────────
-
-function ChangelogPanel({ events }: { events: GavekalChangeEvent[] }) {
-  if (!events.length) return null;
-
-  const typeIcon = (type: string) => {
-    if (type === "regime_change")
-      return <Activity className="w-3 h-3 text-gray-500" />;
-    if (type === "threshold")
-      return <AlertTriangle className="w-3 h-3 text-amber-500" />;
-    return <ArrowRight className="w-3 h-3 text-gray-400" />;
-  };
-
-  return (
-    <div>
-      <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-        <History className="w-3.5 h-3.5 text-gray-400" />
-        What Changed
-      </div>
-      <div className="space-y-1.5">
-        {events.map((ev, i) => (
-          <div
-            key={i}
-            className="flex items-start gap-2 text-[10px] bg-gray-50 rounded-lg px-2.5 py-1.5"
-          >
-            <div className="mt-0.5 shrink-0">{typeIcon(ev.type)}</div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-gray-700">{ev.signal}</span>
-                <span className="text-gray-400">
-                  {formatShortDate(ev.date)}
-                </span>
-              </div>
-              <p className="text-gray-500 leading-snug">{ev.description}</p>
+      {/* XLE / SPY relative strength — small sparkline (same tier as the
+          confirmation signal cards) showing whether the hedge is currently
+          outperforming or lagging the broader market. */}
+      {xle.xleSpyHistory.length > 0 && (
+        <div className="border-t border-gray-200 pt-2 mb-2">
+          <div className="flex items-center justify-between mb-1">
+            <div className="text-[9px] text-gray-400 uppercase tracking-wide">
+              XLE / SPY relative strength
             </div>
+            <MiniSparkline history={xle.xleSpyHistory} />
           </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Historical Regime Returns ───────────────────────────────────────────────
-
-function RegimeReturnsPanel({
-  currentQuadrant,
-  regimeReturns,
-}: {
-  currentQuadrant: string;
-  regimeReturns: Record<string, GavekalRegimeReturns>;
-}) {
-  const returns = regimeReturns[currentQuadrant];
-  if (!returns) return null;
-
-  const assets = [
-    { label: "Equities", value: returns.equities },
-    { label: "Bonds", value: returns.bonds },
-    { label: "Gold", value: returns.gold },
-    { label: "Commodities", value: returns.commodities },
-    { label: "Cash", value: returns.cash },
-  ];
-
-  return (
-    <div>
-      <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-        <BarChart3 className="w-3.5 h-3.5 text-gray-400" />
-        Historical Returns in {currentQuadrant}
-      </div>
-      <div className="grid grid-cols-5 gap-1.5">
-        {assets.map((a) => (
-          <div key={a.label} className="bg-gray-50 rounded-lg p-2 text-center">
-            <div className="text-[9px] text-gray-400 mb-0.5">{a.label}</div>
-            <div
-              className={`text-sm font-bold ${a.value < 0 ? "text-red-600" : "text-gray-700"}`}
-            >
-              {a.value > 0 ? "+" : ""}
-              {a.value}%
-            </div>
-            <div className="text-[8px] text-gray-300">ann.</div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-sm font-bold text-gray-900">
+              {xle.xleSpyRatio != null ? xle.xleSpyRatio.toFixed(3) : "\u2014"}
+            </span>
+            {xleSpyAbove != null && (
+              <span
+                className={`text-[10px] font-medium ${
+                  xleSpyAbove ? "text-emerald-700" : "text-gray-500"
+                }`}
+              >
+                {xleSpyAbove
+                  ? "↑ above 7y average — outperforming"
+                  : "↓ below 7y average — lagging"}
+              </span>
+            )}
           </div>
-        ))}
-      </div>
-      <p className="text-[8px] text-gray-400 mt-1.5">
-        Approximate annualized real returns based on historical regime periods.
-        Past performance does not predict future results.
-      </p>
+        </div>
+      )}
+
+      {/* Regime-aware verdict — frames performance honestly given what the
+          framework expects in the current quadrant. */}
+      {verdict.text && (
+        <div
+          className={`text-[10px] font-medium px-2 py-1.5 rounded leading-snug flex items-start gap-1.5 ${
+            verdict.active
+              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+              : "bg-gray-100 text-gray-600 border border-gray-200"
+          }`}
+        >
+          {verdict.active ? (
+            <CheckCircle className="w-3 h-3 mt-0.5 shrink-0" />
+          ) : (
+            <Shield className="w-3 h-3 mt-0.5 shrink-0" />
+          )}
+          <span>{verdict.text}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -1106,37 +1387,11 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
     energyEfficiency,
     currencyQuality,
     keyRatios,
-    exclusions,
     regimeHistory,
   } = data;
 
   // Compute Gold/WTI deviation from historical mean
   const goldWtiDeviation = keyRatios.goldWti.current / GOLD_WTI_HISTORICAL_MEAN;
-
-  // Compute momentum (rate of change) for key ratios from history
-  const computeMomentum = (
-    ratio: GavekalRatioData,
-  ): { direction: string; label: string } => {
-    const hist = ratio.history;
-    if (hist.length < 5) return { direction: "flat", label: "Stable" };
-    const recent = hist[hist.length - 1].value;
-    const prior = hist[Math.max(0, hist.length - 5)].value;
-    const change = ((recent - prior) / prior) * 100;
-    if (change > 2)
-      return {
-        direction: "up",
-        label: `Accelerating (+${change.toFixed(1)}%)`,
-      };
-    if (change < -2)
-      return {
-        direction: "down",
-        label: `Decelerating (${change.toFixed(1)}%)`,
-      };
-    return { direction: "flat", label: "Stable" };
-  };
-
-  const energyMomentum = computeMomentum(energyEfficiency);
-  const currencyMomentum = computeMomentum(currencyQuality);
 
   return (
     <TooltipProvider delayDuration={150}>
@@ -1404,7 +1659,7 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
         <Modal
           open={expanded}
           onClose={() => setExpanded(false)}
-          title={`${quadrant.name} — Macro Detail`}
+          title={`Current Regime: ${quadrant.name}`}
           size="xl"
         >
           <div className="space-y-4">
@@ -1413,176 +1668,437 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
               <RegimeTimeline history={regimeHistory} />
             )}
 
-            {/* Signal ratios with interactive charts — larger */}
+            {/* Signal ratios with interactive charts — larger. Momentum
+                indicator now lives inside each chart's top-right regime
+                label as a chevron-circle icon (see RatioChart). */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <RatioChart
-                  ratio={energyEfficiency}
-                  icon={<Fuel className="w-3.5 h-3.5 text-gray-400" />}
-                />
-                <div className="flex items-center gap-1.5 px-1">
-                  <Activity className="w-3 h-3 text-gray-300" />
-                  <span className="text-[9px] text-gray-400">
-                    Momentum:{" "}
-                    <span
-                      className={`font-medium ${
-                        energyMomentum.direction === "down"
-                          ? "text-red-600"
-                          : "text-gray-600"
-                      }`}
-                    >
-                      {energyMomentum.label}
+              <RatioChart ratio={energyEfficiency} icon={null} />
+              <RatioChart ratio={currencyQuality} icon={null} />
+            </div>
+
+            {/* Confirmation signals — supplementary ratios that supplement
+                (don't replace) the two main regime axes above. S&P/Gold is a
+                leading indicator for the energy axis per Gave Ch. 4;
+                Gold/WTI is a macro stress gauge against the historical
+                ~16 bbl/oz mean. */}
+            {(() => {
+              const spGoldAbove =
+                keyRatios.spGold.current > keyRatios.spGold.ma7y;
+              const spGoldDevPct =
+                ((keyRatios.spGold.current - keyRatios.spGold.ma7y) /
+                  keyRatios.spGold.ma7y) *
+                100;
+              const energyAbove = energyEfficiency.signal === 1;
+              // Agreement: S&P/Gold confirms the energy axis when both are
+              // on the same side of their respective 7y MAs.
+              const spGoldConfirms = spGoldAbove === energyAbove;
+
+              // Gold/WTI is a stress gauge. >2x historical mean signals
+              // recession-like stress. It "confirms" the regime when stress
+              // is present and we're already on the Bust side; it "warns"
+              // when stress is present despite a Boom-side regime.
+              const goldWtiHighStress = goldWtiDeviation > 2;
+              const goldWtiModerateStress =
+                goldWtiDeviation > 1.5 && goldWtiDeviation <= 2;
+              const goldWtiConfirms = goldWtiHighStress && !energyAbove;
+              const goldWtiWarns = goldWtiHighStress && energyAbove;
+
+              return (
+                <div>
+                  {/* Section header */}
+                  <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-gray-400" />
+                    Confirmation signals
+                    <span className="text-[10px] font-normal text-gray-400">
+                      — supplementary checks against the regime axes above
                     </span>
-                  </span>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <RatioChart
-                  ratio={currencyQuality}
-                  icon={<Coins className="w-3.5 h-3.5 text-gray-400" />}
-                />
-                <div className="flex items-center gap-1.5 px-1">
-                  <Activity className="w-3 h-3 text-gray-300" />
-                  <span className="text-[9px] text-gray-400">
-                    Momentum:{" "}
-                    <span
-                      className={`font-medium ${
-                        currencyMomentum.direction === "down"
-                          ? "text-red-600"
-                          : "text-gray-600"
-                      }`}
-                    >
-                      {currencyMomentum.label}
-                    </span>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Key supplementary ratios with deviation analysis */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-gray-50 rounded-lg p-2.5">
-                <div className="text-[10px] text-gray-500 mb-0.5">
-                  S&P 500 / Gold
-                </div>
-                <div className="text-sm font-bold text-gray-900">
-                  {keyRatios.spGold.current.toFixed(2)}
-                </div>
-                <div className="text-[10px] text-gray-400">
-                  7yMA: {keyRatios.spGold.ma7y.toFixed(2)}
-                </div>
-                <div
-                  className={`text-[10px] font-medium mt-0.5 ${
-                    keyRatios.spGold.current > keyRatios.spGold.ma7y
-                      ? "text-gray-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {keyRatios.spGold.current > keyRatios.spGold.ma7y
-                    ? "Equities outperforming gold"
-                    : "Gold outperforming equities (monetary illusion?)"}
-                </div>
-              </div>
-              <div className="bg-gray-50 rounded-lg p-2.5">
-                <div className="text-[10px] text-gray-500 mb-0.5">
-                  Gold / WTI
-                </div>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-sm font-bold text-gray-900">
-                    {keyRatios.goldWti.current.toFixed(2)}
-                  </span>
-                  <span className="text-[9px] text-gray-400">bbl/oz</span>
-                </div>
-                <div className="text-[10px] text-gray-400">
-                  7yMA: {keyRatios.goldWti.ma7y.toFixed(2)}
-                </div>
-                <div className="text-[10px] text-gray-400 mt-0.5">
-                  Hist. mean: ~{GOLD_WTI_HISTORICAL_MEAN} bbl/oz
-                </div>
-                <div
-                  className={`text-[10px] font-bold mt-1 px-1.5 py-0.5 rounded inline-block ${
-                    goldWtiDeviation > 2
-                      ? "bg-red-100 text-red-700"
-                      : goldWtiDeviation > 1.5
-                        ? "bg-amber-100 text-amber-700"
-                        : "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  {goldWtiDeviation.toFixed(1)}x above mean
-                  {goldWtiDeviation > 2 && " — recession risk"}
-                </div>
-              </div>
-            </div>
-
-            {/* Investment implications — styled cards with regime colors */}
-            <div>
-              <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-gray-400" />
-                Investment Implications
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5">
-                  <div className="text-[10px] font-bold text-gray-700 mb-1.5 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" />
-                    What to own
                   </div>
-                  {quadrant.buySignals.map((s) => (
-                    <div
-                      key={s}
-                      className="text-[10px] text-gray-700 flex items-center gap-1.5 py-0.5"
-                    >
-                      <span className="w-1 h-1 rounded-full bg-gray-500 shrink-0" />
-                      {s}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* S&P 500 / Gold — leading indicator card */}
+                    <div className="bg-gray-50 rounded-lg p-2.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-gray-500">
+                            S&P 500 / Gold
+                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="S&P 500 / Gold methodology"
+                                className="inline-flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 rounded-sm"
+                              >
+                                <Info className="w-2.5 h-2.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              align="start"
+                              collisionPadding={8}
+                              className="z-[10000] max-w-sm text-[11px] leading-snug p-3"
+                            >
+                              <div className="space-y-2">
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div>
+                                    <div className="text-[9px] uppercase tracking-wide text-gray-400">
+                                      Current
+                                    </div>
+                                    <div className="text-sm font-bold text-white">
+                                      {keyRatios.spGold.current.toFixed(2)}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[9px] uppercase tracking-wide text-gray-400">
+                                      7y average
+                                    </div>
+                                    <div className="text-sm font-bold text-white">
+                                      {keyRatios.spGold.ma7y.toFixed(2)}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="border-t border-white/15 pt-2 space-y-1.5 text-gray-200">
+                                  <p>
+                                    <span className="font-semibold text-white">
+                                      What it is:
+                                    </span>{" "}
+                                    The S&P 500 valued in gold terms. Strips out
+                                    currency-debasement effects.
+                                  </p>
+                                  <p>
+                                    <span className="font-semibold text-white">
+                                      Why it matters:
+                                    </span>{" "}
+                                    When this ratio falls, equities are losing
+                                    real purchasing power even if nominal prices
+                                    rise (the &ldquo;monetary illusion&rdquo;).
+                                  </p>
+                                  <p>
+                                    <span className="font-semibold text-white">
+                                      Leading indicator:
+                                    </span>{" "}
+                                    A breakdown below the 7y MA often precedes a
+                                    breakdown in S&P 500 / WTI by 1–6 months.
+                                  </p>
+                                  <p className="text-gray-400">
+                                    Source: Gave, Ch. 4.
+                                  </p>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <MiniSparkline history={keyRatios.spGold.history} />
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-bold text-gray-900">
+                          {keyRatios.spGold.current.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          vs 7yMA {keyRatios.spGold.ma7y.toFixed(2)}
+                        </span>
+                        <span
+                          className={`text-[10px] font-medium ${
+                            spGoldAbove ? "text-gray-600" : "text-red-600"
+                          }`}
+                        >
+                          {spGoldDevPct >= 0 ? "+" : ""}
+                          {spGoldDevPct.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-gray-500 mt-1 leading-snug">
+                        Leading indicator for the S&P 500 / WTI axis above —
+                        often moves 1–6 months ahead.
+                      </div>
+                      <div
+                        className={`text-[10px] font-medium mt-1 flex items-center gap-1 ${
+                          spGoldConfirms ? "text-emerald-700" : "text-amber-700"
+                        }`}
+                      >
+                        {spGoldConfirms ? (
+                          <>
+                            <CheckCircle className="w-3 h-3" />
+                            Confirms{" "}
+                            {energyAbove ? "Growth ahead" : "Slowdown risk"}
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-3 h-3" />
+                            Diverging — early warning of a possible flip to{" "}
+                            {energyAbove ? "Slowdown risk" : "Growth ahead"}
+                          </>
+                        )}
+                      </div>
                     </div>
-                  ))}
-                </div>
-                <div className="bg-red-50 border border-red-200 rounded-lg p-2.5">
-                  <div className="text-[10px] font-bold text-red-700 mb-1.5 flex items-center gap-1">
-                    <TrendingDown className="w-3 h-3" />
-                    What to avoid
+
+                    {/* Gold / WTI — macro stress gauge card */}
+                    <div className="bg-gray-50 rounded-lg p-2.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-gray-500">
+                            Gold / WTI
+                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="Gold / WTI methodology"
+                                className="inline-flex items-center justify-center text-gray-400 hover:text-gray-600 focus:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 rounded-sm"
+                              >
+                                <Info className="w-2.5 h-2.5" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              align="start"
+                              collisionPadding={8}
+                              className="z-[10000] max-w-sm text-[11px] leading-snug p-3"
+                            >
+                              <div className="space-y-2">
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div>
+                                    <div className="text-[9px] uppercase tracking-wide text-gray-400">
+                                      Current
+                                    </div>
+                                    <div className="text-sm font-bold text-white">
+                                      {keyRatios.goldWti.current.toFixed(1)}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[9px] uppercase tracking-wide text-gray-400">
+                                      7y average
+                                    </div>
+                                    <div className="text-sm font-bold text-white">
+                                      {keyRatios.goldWti.ma7y.toFixed(1)}
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[9px] uppercase tracking-wide text-gray-400">
+                                      Hist. mean
+                                    </div>
+                                    <div className="text-sm font-bold text-white">
+                                      ~{GOLD_WTI_HISTORICAL_MEAN}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="border-t border-white/15 pt-2 space-y-1.5 text-gray-200">
+                                  <p>
+                                    <span className="font-semibold text-white">
+                                      What it is:
+                                    </span>{" "}
+                                    Barrels of oil per ounce of gold. Historical
+                                    mean since 1900 is ~
+                                    {GOLD_WTI_HISTORICAL_MEAN} bbl/oz.
+                                  </p>
+                                  <p>
+                                    <span className="font-semibold text-white">
+                                      Above 2× mean:
+                                    </span>{" "}
+                                    Gold is &ldquo;expensive&rdquo; relative to
+                                    oil — historically coincides with recessions
+                                    because oil collapses faster than gold under
+                                    economic stress.
+                                  </p>
+                                  <p>
+                                    <span className="font-semibold text-white">
+                                      Below 1× mean:
+                                    </span>{" "}
+                                    Oil is &ldquo;expensive&rdquo; relative to
+                                    gold — signals energy / inflation stress.
+                                  </p>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <MiniSparkline history={keyRatios.goldWti.history} />
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-sm font-bold text-gray-900">
+                          {keyRatios.goldWti.current.toFixed(2)}
+                        </span>
+                        <span className="text-[9px] text-gray-400">bbl/oz</span>
+                        <span
+                          className={`text-[10px] font-bold px-1 py-0.5 rounded ${
+                            goldWtiHighStress
+                              ? "bg-red-100 text-red-700"
+                              : goldWtiModerateStress
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-gray-100 text-gray-700"
+                          }`}
+                        >
+                          {goldWtiDeviation.toFixed(1)}× mean
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-gray-500 mt-1 leading-snug">
+                        Macro stress gauge — recession risk above 2× the
+                        historical ~{GOLD_WTI_HISTORICAL_MEAN} bbl/oz mean.
+                      </div>
+                      <div
+                        className={`text-[10px] font-medium mt-1 flex items-center gap-1 ${
+                          goldWtiWarns
+                            ? "text-amber-700"
+                            : goldWtiConfirms
+                              ? "text-emerald-700"
+                              : "text-gray-500"
+                        }`}
+                      >
+                        {goldWtiWarns ? (
+                          <>
+                            <AlertCircle className="w-3 h-3" />
+                            High stress despite Growth-ahead regime — watch for
+                            reversal
+                          </>
+                        ) : goldWtiConfirms ? (
+                          <>
+                            <CheckCircle className="w-3 h-3" />
+                            Confirms Slowdown risk — recession-like stress
+                          </>
+                        ) : goldWtiModerateStress ? (
+                          <>
+                            <AlertCircle className="w-3 h-3" />
+                            Moderate stress — watch for escalation
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="w-3 h-3" />
+                            No recession stress signal
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  {quadrant.sellSignals.map((s) => (
-                    <div
-                      key={s}
-                      className="text-[10px] text-red-800 flex items-center gap-1.5 py-0.5"
-                    >
-                      <span className="w-1 h-1 rounded-full bg-red-500 shrink-0" />
-                      {s}
-                    </div>
-                  ))}
                 </div>
-              </div>
-            </div>
+              );
+            })()}
 
-            {/* XLE Energy Sub-Panel */}
-            {data.xle && <XlePanel xle={data.xle} />}
-
-            {/* Historical Regime Returns */}
-            {data.regimeReturns && (
-              <RegimeReturnsPanel
-                currentQuadrant={quadrant.name}
-                regimeReturns={data.regimeReturns}
-              />
-            )}
-
-            {/* What Changed Changelog */}
-            {data.changelog && data.changelog.length > 0 && (
-              <ChangelogPanel events={data.changelog} />
-            )}
-
-            {/* Browne Portfolio Rules — redesigned as status indicator cards */}
-            {exclusions.length > 0 && (
+            {/* What to do now — merged action+returns view. The 5 tiles
+                show historical real returns from Gave's published backtests
+                with an action badge per asset class (own/avoid/hold) drawn
+                from quadrant.tileActions. Below the grid, narrative items
+                from buySignals/sellSignals add within-asset-class
+                specificity (e.g. "Energy producers" within commodities).
+                Replaces the prior Own/Avoid card grid AND the standalone
+                "Historical Returns" section, which inferred each other. */}
+            {data.regimeReturns?.[quadrant.name] && (
               <div>
                 <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
                   <Shield className="w-3.5 h-3.5 text-gray-400" />
-                  Browne Portfolio Rules
+                  What to do now
+                  <span className="text-[10px] font-normal text-gray-400">
+                    — {quadrant.name}
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {exclusions.map((ex) => (
-                    <ExclusionCard key={ex.name} ex={ex} />
-                  ))}
-                </div>
+
+                {(() => {
+                  const returns = data.regimeReturns![quadrant.name];
+                  const tiles = [
+                    {
+                      key: "equities" as const,
+                      label: "Equities",
+                      value: returns.equities,
+                    },
+                    {
+                      key: "bonds" as const,
+                      label: "Bonds",
+                      value: returns.bonds,
+                    },
+                    {
+                      key: "gold" as const,
+                      label: "Gold",
+                      value: returns.gold,
+                    },
+                    {
+                      key: "commodities" as const,
+                      label: "Commodities",
+                      value: returns.commodities,
+                    },
+                    {
+                      key: "cash" as const,
+                      label: "Cash",
+                      value: returns.cash,
+                    },
+                  ];
+
+                  return (
+                    <>
+                      <div className="grid grid-cols-5 gap-1.5">
+                        {tiles.map((t) => {
+                          const action = quadrant.tileActions[t.key];
+                          const badgeClasses =
+                            action === "own"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : action === "avoid"
+                                ? "bg-red-100 text-red-700"
+                                : "bg-gray-200 text-gray-600";
+                          const badgeIcon =
+                            action === "own"
+                              ? "✓"
+                              : action === "avoid"
+                                ? "✗"
+                                : "•";
+                          const badgeText =
+                            action === "own"
+                              ? "own"
+                              : action === "avoid"
+                                ? "avoid"
+                                : "hold";
+                          return (
+                            <div
+                              key={t.key}
+                              className="bg-gray-50 rounded-lg p-2 text-center"
+                            >
+                              <div className="text-[9px] text-gray-400 mb-0.5">
+                                {t.label}
+                              </div>
+                              <div
+                                className={`text-sm font-bold ${t.value < 0 ? "text-red-600" : "text-gray-700"}`}
+                              >
+                                {t.value > 0 ? "+" : ""}
+                                {t.value}%
+                              </div>
+                              <div
+                                className={`mt-1 inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${badgeClasses}`}
+                              >
+                                <span>{badgeIcon}</span>
+                                <span>{badgeText}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Narrative footer — within-class specificity that
+                          can't be expressed by the 5 generic tiles. */}
+                      <div className="mt-2 space-y-0.5 text-[10px] leading-snug">
+                        <div className="text-gray-600">
+                          <span className="font-semibold text-gray-700">
+                            Own:
+                          </span>{" "}
+                          {quadrant.buySignals.join(" · ")}
+                        </div>
+                        <div className="text-gray-600">
+                          <span className="font-semibold text-red-700">
+                            Avoid:
+                          </span>{" "}
+                          {quadrant.sellSignals.join(" · ")}
+                        </div>
+                      </div>
+
+                      <p className="text-[8px] text-gray-400 mt-1.5">
+                        Annualized real returns from Gave&apos;s published
+                        backtests. Past performance does not predict future
+                        results.
+                      </p>
+                    </>
+                  );
+                })()}
               </div>
+            )}
+
+            {/* XLE Energy Sub-Panel */}
+            {data.xle && (
+              <XlePanel xle={data.xle} quadrantName={quadrant.name} />
             )}
           </div>
         </Modal>
