@@ -896,9 +896,11 @@ function RegimeTimeline({ history }: { history: GavekalRegimePoint[] }) {
 
   return (
     <div className="space-y-2">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
+      {/* Header — stacks on mobile, single row from sm: up. flex-wrap on the
+          "Current" cluster so the regime name + duration can wrap together
+          rather than truncating. */}
+      <div className="flex flex-col gap-y-1 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px] font-semibold text-gray-700">
             Regime History
           </span>
@@ -906,7 +908,7 @@ function RegimeTimeline({ history }: { history: GavekalRegimePoint[] }) {
             {formatShortDate(segments[0].startDate)} – Now ({yearSpan}y)
           </span>
         </div>
-        <div className="flex items-center gap-1.5 text-[10px]">
+        <div className="flex items-center gap-1.5 text-[10px] flex-wrap">
           <span className="text-gray-400">Current:</span>
           <span
             className="w-2 h-2 rounded-full shrink-0"
@@ -1705,16 +1707,20 @@ export function GavekalQuadrant({ data, loading }: GavekalQuadrantProps) {
 
               return (
                 <div>
-                  {/* Section header */}
-                  <div className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5 text-gray-400" />
-                    Confirmation signals
+                  {/* Section header — flex-wrap so the dash subtitle can drop
+                      onto its own line on narrow widths instead of wrapping
+                      mid-phrase. */}
+                  <div className="text-xs font-semibold text-gray-700 mb-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                    <span className="flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5 text-gray-400" />
+                      Confirmation signals
+                    </span>
                     <span className="text-[10px] font-normal text-gray-400">
                       — supplementary checks against the regime axes above
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* S&P 500 / Gold — leading indicator card */}
                     <div className="bg-gray-50 rounded-lg p-2.5">
                       <div className="flex items-center justify-between mb-1">
