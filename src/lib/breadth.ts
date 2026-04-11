@@ -21,7 +21,88 @@ interface BreadthData {
   interpretation: string;
 }
 
-async function fetchBreadthFromIndex(): Promise<BreadthData> {
+/**
+ * Fetch real NYSE advance/decline and new highs/lows from WSJ Markets Diary.
+ * This returns actual counts — not estimates.
+ */
+async function fetchBreadthFromWSJ(): Promise<BreadthData> {
+  const url =
+    "https://www.wsj.com/market-data/stocks?id=%7B%22application%22%3A%22WSJ%22%2C%22marketsDiaryType%22%3A%22overview%22%7D&type=mdc_marketsdiary";
+
+  const resp = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (compatible; claudius-hq/1.0)",
+      Accept: "application/json",
+    },
+  });
+
+  if (!resp.ok) throw new Error(`WSJ breadth fetch failed: ${resp.status}`);
+
+  const json = await resp.json();
+  const instrumentSets = json.data.instrumentSets;
+
+  // instrumentSets[0] = Issues (Advancing, Declining, Unchanged, Total)
+  // instrumentSets[1] = Issues At (New Highs, New Lows)
+  const issues = instrumentSets[0].instruments;
+  const issuesAt = instrumentSets[1].instruments;
+
+  const parseNum = (s: string) => parseInt(s.replace(/,/g, ""), 10);
+
+  const advances = parseNum(issues.find((i: { name: string }) => i.name === "Advancing").NYSE);
+  const declines = parseNum(issues.find((i: { name: string }) => i.name === "Declining").NYSE);
+  const unchanged = parseNum(issues.find((i: { name: string }) => i.name === "Unchanged").NYSE);
+
+  const newHighs = parseNum(issuesAt.find((i: { name: string }) => i.name === "New Highs").NYSE);
+  const newLows = parseNum(issuesAt.find((i: { name: string }) => i.name === "New Lows").NYSE);
+
+  // Compute derived values
+  const ratio = declines > 0 ? Math.round((advances / declines) * 100) / 100 : 2;
+  const hlRatio = newLows > 0 ? Math.round((newHighs / newLows) * 100) / 100 : 2;
+
+  let level: "bullish" | "neutral" | "bearish";
+  let interpretation: string;
+
+  if (ratio > 2) {
+    level = "bullish";
+    interpretation = "Strong breadth — broad buying";
+  } else if (ratio > 1.2) {
+    level = "bullish";
+    interpretation = "Healthy breadth — more advancers than decliners";
+  } else if (ratio < 0.5) {
+    level = "bearish";
+    interpretation = "Weak breadth — broad selling pressure";
+  } else if (ratio < 0.8) {
+    level = "bearish";
+    interpretation = "Deteriorating breadth — declining stocks dominate";
+  } else {
+    level = "neutral";
+    interpretation = "Mixed breadth — roughly equal advancers and decliners";
+  }
+
+  return {
+    advanceDecline: {
+      advances,
+      declines,
+      unchanged,
+      ratio,
+      netAdvances: advances - declines,
+    },
+    newHighsLows: {
+      newHighs,
+      newLows,
+      ratio: hlRatio,
+      netHighs: newHighs - newLows,
+    },
+    level,
+    interpretation,
+  };
+}
+
+/**
+ * Fallback: estimate breadth from ETF price changes when WSJ is unavailable.
+ * This is less accurate but better than showing nothing.
+ */
+async function fetchBreadthFallback(): Promise<BreadthData> {
   try {
     const [spyQuote, qqqQuote, iwmQuote] = await Promise.all([
       yahooFinance.quote("SPY"),
@@ -29,17 +110,13 @@ async function fetchBreadthFromIndex(): Promise<BreadthData> {
       yahooFinance.quote("IWM"),
     ]);
 
-    try {
-      await yahooFinance.quoteSummary("^GSPC", { modules: ["summaryDetail", "price"] });
-    } catch {
-      // Fallback: estimate from ETF performance
-    }
+    const spyChange =
+      (spyQuote as { regularMarketChangePercent?: number })?.regularMarketChangePercent || 0;
+    const qqqChange =
+      (qqqQuote as { regularMarketChangePercent?: number })?.regularMarketChangePercent || 0;
+    const iwmChange =
+      (iwmQuote as { regularMarketChangePercent?: number })?.regularMarketChangePercent || 0;
 
-    const spyChange = (spyQuote as { regularMarketChangePercent?: number })?.regularMarketChangePercent || 0;
-    const qqqChange = (qqqQuote as { regularMarketChangePercent?: number })?.regularMarketChangePercent || 0;
-    const iwmChange = (iwmQuote as { regularMarketChangePercent?: number })?.regularMarketChangePercent || 0;
-
-    const breadthSignal = iwmChange - spyChange;
     const avgChange = (spyChange + qqqChange + iwmChange) / 3;
 
     let advances: number;
@@ -80,12 +157,6 @@ async function fetchBreadthFromIndex(): Promise<BreadthData> {
     } else if (adRatio < 0.7 || hlRatio < 0.5) {
       level = "bearish";
       interpretation = "Weak breadth - selling pressure widespread";
-    } else if (breadthSignal > 1) {
-      level = "bullish";
-      interpretation = "Small caps leading - risk-on breadth";
-    } else if (breadthSignal < -1) {
-      level = "bearish";
-      interpretation = "Large caps leading - narrow market, defensive breadth";
     } else {
       level = "neutral";
       interpretation = "Mixed breadth signals";
@@ -109,7 +180,7 @@ async function fetchBreadthFromIndex(): Promise<BreadthData> {
       interpretation,
     };
   } catch (e) {
-    logger.error("breadth", "Failed to fetch breadth data", { error: e });
+    logger.error("breadth", "Fallback breadth fetch also failed", { error: e });
     return {
       advanceDecline: {
         advances: null,
@@ -145,9 +216,14 @@ async function fetchMcClellanData() {
       return { oscillator: null, signal: null };
     }
 
-    const returns = spyHistory.slice(-40).map((d, i, arr) =>
-      i > 0 ? ((d.close || 0) - (arr[i-1]?.close || 0)) / (arr[i-1]?.close || 1) : 0
-    ).slice(1);
+    const returns = spyHistory
+      .slice(-40)
+      .map((d, i, arr) =>
+        i > 0
+          ? ((d.close || 0) - (arr[i - 1]?.close || 0)) / (arr[i - 1]?.close || 1)
+          : 0,
+      )
+      .slice(1);
 
     const ema19 = calculateEMA(returns, 19);
     const ema39 = calculateEMA(returns, 39);
@@ -176,16 +252,29 @@ function calculateEMA(data: number[], period: number): number {
 }
 
 export async function fetchBreadthData() {
-  const [breadth, mcclellan] = await Promise.all([
-    fetchBreadthFromIndex(),
-    fetchMcClellanData(),
-  ]);
+  // Try WSJ first (real data), fall back to ETF estimation
+  let breadth: BreadthData;
+  let source: string;
+  let note: string;
+
+  try {
+    breadth = await fetchBreadthFromWSJ();
+    source = "WSJ Markets Diary";
+    note = "NYSE advance/decline and new highs/lows from Wall Street Journal";
+  } catch (e) {
+    logger.warn("breadth", "WSJ fetch failed, using ETF fallback", { error: e });
+    breadth = await fetchBreadthFallback();
+    source = "Estimated from market ETFs";
+    note = "NYSE advance/decline and new highs/lows approximated from broad market ETF performance";
+  }
+
+  const mcclellan = await fetchMcClellanData();
 
   return {
     ...breadth,
     mcclellan,
-    source: "Estimated from market ETFs",
-    note: "NYSE advance/decline and new highs/lows approximated from broad market ETF performance",
+    source,
+    note,
     updatedAt: new Date().toISOString(),
   };
 }

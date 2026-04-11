@@ -17,9 +17,6 @@ import type {
   RegimeData,
   SentimentData,
   BreadthData,
-  CongressData,
-  InsiderData,
-  CrowdingData,
 } from "./types";
 
 interface MacroResponse {
@@ -48,7 +45,6 @@ interface MarketsClientProps {
   // fires on mount with a per-panel refresh indicator visible.
   initialSentiment: SentimentData | null;
   initialBreadth: BreadthData | null;
-  initialCrowding: CrowdingData | null;
   // The following are typed loosely on purpose: the SSR fetchers return
   // shapes that are runtime-compatible with what the panel components
   // need but not necessarily TypeScript-equivalent. SWR's `fallbackData`
@@ -56,8 +52,6 @@ interface MarketsClientProps {
   initialValuation: unknown;
   initialThemes: unknown;
   initialMacro: MacroResponse | null;
-  initialCongress: CongressData | null;
-  initialInsider: InsiderData | null;
   initialExpectedReturns: ExpectedReturnsResponse | null;
   initialGold: unknown;
 }
@@ -66,12 +60,9 @@ export function MarketsClient({
   gavekalSlot,
   initialSentiment,
   initialBreadth,
-  initialCrowding,
   initialValuation,
   initialThemes,
   initialMacro,
-  initialCongress,
-  initialInsider,
   initialExpectedReturns,
   initialGold,
 }: MarketsClientProps) {
@@ -113,24 +104,6 @@ export function MarketsClient({
     useSWR<BreadthData>("/api/markets/breadth", fetcher, {
       ...ssrHydratedConfig,
       fallbackData: initialBreadth ?? undefined,
-    });
-
-  const { data: crowdingData, isValidating: validatingCrowding } =
-    useSWR<CrowdingData>("/api/markets/regime", fetcher, {
-      ...ssrHydratedConfig,
-      fallbackData: initialCrowding ?? undefined,
-    });
-
-  const { data: congressData, isValidating: validatingCongress } =
-    useSWR<CongressData>("/api/markets/congress", fetcher, {
-      ...ssrHydratedConfig,
-      fallbackData: initialCongress ?? undefined,
-    });
-
-  const { data: insiderData, isValidating: validatingInsider } =
-    useSWR<InsiderData>("/api/markets/insider", fetcher, {
-      ...ssrHydratedConfig,
-      fallbackData: initialInsider ?? undefined,
     });
 
   const { data: expectedReturnsData } = useSWR<ExpectedReturnsResponse>(
@@ -196,12 +169,7 @@ export function MarketsClient({
   }, [macroData, goldLiteData]);
   void _regimeData; // currently unused in JSX (was already dead state in the old version)
 
-  const moodRefreshing =
-    validatingSentiment ||
-    validatingBreadth ||
-    validatingCrowding ||
-    validatingCongress ||
-    validatingInsider;
+  const moodRefreshing = validatingSentiment || validatingBreadth;
 
   const macroRefreshing = validatingMacro || validatingGoldLite;
 
@@ -255,9 +223,6 @@ export function MarketsClient({
         <MarketMood
           sentimentData={sentimentData ?? null}
           breadthData={breadthData ?? null}
-          crowdingData={crowdingData ?? null}
-          congressData={congressData ?? null}
-          insiderData={insiderData ?? null}
           expandedIds={expandedIds}
           toggleExpanded={toggleExpanded}
           refreshing={moodRefreshing}
