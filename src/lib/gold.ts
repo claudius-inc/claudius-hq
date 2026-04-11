@@ -11,6 +11,7 @@ import { db } from "@/db";
 import { goldAnalysis, goldFlows } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -19,19 +20,42 @@ const LOG_SRC = "lib/gold";
 const LATEST_CPI_YOY = 2.9;
 const FRED_API_KEY = process.env.FRED_API_KEY;
 
-async function fetchFredValue(seriesId: string): Promise<number | null> {
+/**
+ * Fetch a FRED series value, with independent caching.
+ * DFII10 (real yields): 4h TTL — updates daily
+ * M2SL (money supply): 24h TTL — updates monthly
+ */
+async function fetchFredValue(
+  seriesId: string,
+  ttlSeconds = 4 * 3600,
+): Promise<number | null> {
   if (!FRED_API_KEY) return null;
+
+  const cacheKey =
+    seriesId === "DFII10" ? CACHE_KEYS.FRED_DFII10 : seriesId === "M2SL" ? CACHE_KEYS.FRED_M2SL : `fred:${seriesId}`;
+
+  // Check cache first
+  const cached = await getCache<number>(cacheKey, ttlSeconds);
+  if (cached && !cached.isStale) return cached.data;
+
   try {
     const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${FRED_API_KEY}&file_type=json&sort_order=desc&limit=5`;
     const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Return stale if fetch fails
+      return cached?.data ?? null;
+    }
     const data = await res.json();
     const obs = data.observations?.find(
       (o: { value: string }) => o.value !== ".",
     );
-    return obs ? parseFloat(obs.value) : null;
+    const value = obs ? parseFloat(obs.value) : null;
+    if (value !== null) {
+      await setCache(cacheKey, value);
+    }
+    return value;
   } catch {
-    return null;
+    return cached?.data ?? null;
   }
 }
 
@@ -61,14 +85,57 @@ function computeEma(closes: number[], period: number): number | null {
   return Math.round(ema * 100) / 100;
 }
 
+/**
+ * Fetch gold historical chart data for EMA computation, with 1h caching.
+ */
+async function fetchGoldHistoricalCached(): Promise<{
+  ema50: number | null;
+  ema200: number | null;
+}> {
+  const cached = await getCache<{ ema50: number | null; ema200: number | null }>(
+    CACHE_KEYS.GOLD_HIST,
+    3600, // 1 hour
+  );
+  if (cached && !cached.isStale) return cached.data;
+
+  try {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 300);
+    const hist = (
+      await yahooFinance.chart("GC=F", {
+        period1: startDate,
+        period2: new Date(),
+        interval: "1d",
+      })
+    ).quotes as HistoricalRow[];
+
+    const closes = hist
+      .map((h) => h.close)
+      .filter((c): c is number => c !== null && c > 0);
+
+    const result = {
+      ema50: computeEma(closes, 50),
+      ema200: computeEma(closes, 200),
+    };
+    await setCache(CACHE_KEYS.GOLD_HIST, result);
+    return result;
+  } catch (e) {
+    logger.error(LOG_SRC, "Error fetching gold historical for EMAs", {
+      error: e,
+    });
+    return cached?.data ?? { ema50: null, ema200: null };
+  }
+}
+
 export async function fetchGoldData() {
-  const analysis = await db
+  // DB calls can run in parallel with everything else
+  const analysisPromise = db
     .select()
     .from(goldAnalysis)
     .orderBy(desc(goldAnalysis.id))
     .limit(1);
 
-  const flows = await db
+  const flowsPromise = db
     .select()
     .from(goldFlows)
     .orderBy(desc(goldFlows.date))
@@ -114,14 +181,30 @@ export async function fetchGoldData() {
   let priceSource: "GC=F" | "GLD" = "GC=F";
 
   try {
-    const gcQuote = (await yahooFinance.quote("GC=F")) as QuoteResult & {
-      regularMarketTime?: number;
-    };
-    const gldQuote = (await yahooFinance.quote("GLD")) as QuoteResult & {
-      sharesOutstanding?: number;
-      regularMarketTime?: number;
-    };
+    // ALL external calls in ONE Promise.all (parallelized)
+    const [
+      gcQuote,
+      gldQuote,
+      djiQuote,
+      siQuote,
+      dxyQuote,
+      tnxQuote,
+      tipsValue,
+      m2Billions,
+      histEMAs,
+    ] = await Promise.all([
+      yahooFinance.quote("GC=F") as Promise<QuoteResult & { regularMarketTime?: unknown }>,
+      yahooFinance.quote("GLD") as Promise<QuoteResult & { sharesOutstanding?: number; regularMarketTime?: unknown }>,
+      yahooFinance.quote("^DJI") as Promise<QuoteResult>,
+      yahooFinance.quote("SI=F") as Promise<QuoteResult>,
+      yahooFinance.quote("DX-Y.NYB") as Promise<QuoteResult>,
+      yahooFinance.quote("^TNX") as Promise<QuoteResult>,
+      fetchFredValue("DFII10", 4 * 3600),
+      fetchFredValue("M2SL", 24 * 3600),
+      fetchGoldHistoricalCached(),
+    ]);
 
+    // ── Price source selection (GC=F vs GLD) ──────────────────────────
     const parseTime = (t: unknown): number => {
       if (!t) return 0;
       if (t instanceof Date) return t.getTime();
@@ -129,8 +212,8 @@ export async function fetchGoldData() {
       if (typeof t === "number") return t > 1e12 ? t : t * 1000;
       return 0;
     };
-    const gcfTimestamp = parseTime(gcQuote.regularMarketTime);
-    const gldTimestamp = parseTime(gldQuote.regularMarketTime);
+    const gcfTimestamp = parseTime((gcQuote as { regularMarketTime?: unknown }).regularMarketTime);
+    const gldTimestamp = parseTime((gldQuote as { regularMarketTime?: unknown }).regularMarketTime);
     const now = Date.now();
     const twoHoursMs = 2 * 60 * 60 * 1000;
     const gcfIsStale = gcfTimestamp > 0 && now - gcfTimestamp > twoHoursMs;
@@ -175,79 +258,51 @@ export async function fetchGoldData() {
       changePercent: gldQuote.regularMarketChangePercent,
     };
 
-    try {
-      const [djiQuote, siQuote, dxyQuote, tnxQuote, tipsValue] =
-        await Promise.all([
-          yahooFinance.quote("^DJI") as Promise<QuoteResult>,
-          yahooFinance.quote("SI=F") as Promise<QuoteResult>,
-          yahooFinance.quote("DX-Y.NYB") as Promise<QuoteResult>,
-          yahooFinance.quote("^TNX") as Promise<QuoteResult>,
-          fetchFredValue("DFII10"),
-        ]);
-
-      if (livePrice && djiQuote.regularMarketPrice) {
-        ratios.dowGold =
-          Math.round((djiQuote.regularMarketPrice / livePrice) * 100) / 100;
-      }
-      if (livePrice && siQuote.regularMarketPrice) {
-        ratios.goldSilver =
-          Math.round((livePrice / siQuote.regularMarketPrice) * 100) / 100;
-      }
-      const m2Billions = await fetchFredValue("M2SL");
-      if (m2Billions && livePrice) {
-        ratios.m2Gold = Math.round((m2Billions / livePrice) * 100) / 100;
-        ratios.m2Value = Math.round(m2Billions / 100) / 10;
-      }
-
-      if (dxyQuote.regularMarketPrice) {
-        dxyData = {
-          price: dxyQuote.regularMarketPrice,
-          change: dxyQuote.regularMarketChange || 0,
-          changePercent: dxyQuote.regularMarketChangePercent || 0,
-        };
-      }
-
-      const tnxPrice = tnxQuote.regularMarketPrice ?? null;
-      if (tipsValue !== null || tnxPrice !== null) {
-        const realYield = tipsValue ?? tnxPrice! - LATEST_CPI_YOY;
-        realYieldsData = {
-          value: realYield,
-          tips: tipsValue,
-          tnx: tnxPrice,
-          cpi: LATEST_CPI_YOY,
-          change: tnxQuote.regularMarketChange || 0,
-          changePercent: tnxQuote.regularMarketChangePercent || 0,
-        };
-      }
-    } catch (e) {
-      logger.error(LOG_SRC, "Error fetching macro/ratio data", { error: e });
+    // ── Ratios ─────────────────────────────────────────────────────────
+    if (livePrice && djiQuote.regularMarketPrice) {
+      ratios.dowGold =
+        Math.round((djiQuote.regularMarketPrice / livePrice) * 100) / 100;
+    }
+    if (livePrice && siQuote.regularMarketPrice) {
+      ratios.goldSilver =
+        Math.round((livePrice / siQuote.regularMarketPrice) * 100) / 100;
+    }
+    if (m2Billions && livePrice) {
+      ratios.m2Gold = Math.round((m2Billions / livePrice) * 100) / 100;
+      ratios.m2Value = Math.round(m2Billions / 100) / 10;
     }
 
-    try {
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 300);
-      const hist = (
-        await yahooFinance.chart("GC=F", {
-          period1: startDate,
-          period2: new Date(),
-          interval: "1d",
-        })
-      ).quotes as HistoricalRow[];
-
-      const closes = hist
-        .map((h) => h.close)
-        .filter((c): c is number => c !== null && c > 0);
-
-      movingAverages.ema50 = computeEma(closes, 50);
-      movingAverages.ema200 = computeEma(closes, 200);
-    } catch (e) {
-      logger.error(LOG_SRC, "Error fetching gold historical for EMAs", {
-        error: e,
-      });
+    // ── DXY ────────────────────────────────────────────────────────────
+    if (dxyQuote.regularMarketPrice) {
+      dxyData = {
+        price: dxyQuote.regularMarketPrice,
+        change: dxyQuote.regularMarketChange || 0,
+        changePercent: dxyQuote.regularMarketChangePercent || 0,
+      };
     }
+
+    // ── Real yields ────────────────────────────────────────────────────
+    const tnxPrice = tnxQuote.regularMarketPrice ?? null;
+    if (tipsValue !== null || tnxPrice !== null) {
+      const realYield = tipsValue ?? tnxPrice! - LATEST_CPI_YOY;
+      realYieldsData = {
+        value: realYield,
+        tips: tipsValue,
+        tnx: tnxPrice,
+        cpi: LATEST_CPI_YOY,
+        change: tnxQuote.regularMarketChange || 0,
+        changePercent: tnxQuote.regularMarketChangePercent || 0,
+      };
+    }
+
+    // ── Moving averages (from cache) ───────────────────────────────────
+    movingAverages.ema50 = histEMAs.ema50;
+    movingAverages.ema200 = histEMAs.ema200;
   } catch (e) {
-    logger.error(LOG_SRC, "Error fetching gold price", { error: e });
+    logger.error(LOG_SRC, "Error fetching gold data", { error: e });
   }
+
+  const [analysis, flows] = await Promise.all([analysisPromise, flowsPromise]);
 
   const currentAnalysis = analysis[0] || null;
 

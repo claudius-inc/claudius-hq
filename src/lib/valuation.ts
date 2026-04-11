@@ -219,6 +219,7 @@ async function fetchShillerCape(): Promise<number | null> {
         "User-Agent":
           "Mozilla/5.0 (compatible; claudius-hq/1.0; valuation strip)",
       },
+      // @ts-expect-error Next.js fetch extension
       next: { revalidate: 86400 }, // 24h — Shiller updates monthly
     });
     if (!res.ok) {
