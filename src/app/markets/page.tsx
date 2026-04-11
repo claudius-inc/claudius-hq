@@ -11,10 +11,7 @@ import { fetchValuationData } from "@/lib/valuation";
 import { fetchThemePerformanceAll } from "@/lib/themes";
 import { fetchMacroData } from "@/lib/fetch-macro-data";
 import { fetchGoldData } from "@/lib/gold";
-import { fetchCongressData } from "@/lib/congress";
-import { fetchInsiderData } from "@/lib/insider";
 import { fetchExpectedReturnsData } from "@/lib/valuation/fetch-expected-returns";
-import { fetchRegimePanelData } from "@/lib/regime-panel";
 
 const GAVEKAL_CACHE_KEY = "gavekal:quadrant:v12";
 const GAVEKAL_CACHE_MAX_AGE = 6 * 60 * 60; // 6 hours
@@ -75,15 +72,12 @@ async function fetchAllInitialData() {
   return Promise.all([
     cachedFetch(CACHE_KEYS.SSR_SENTIMENT, () => fetchSentimentData(), 300),
     cachedFetch(CACHE_KEYS.SSR_BREADTH, () => fetchBreadthData(), 300),
-    cachedFetch(CACHE_KEYS.SSR_REGIME, () => fetchRegimePanelData(), 1800),
     cachedFetch(CACHE_KEYS.SSR_VALUATION, () => fetchValuationData(), 300),
     cachedFetch(CACHE_KEYS.SSR_THEMES, () => fetchThemePerformanceAll(), 300),
     cachedFetch(CACHE_KEYS.SSR_MACRO, () => fetchMacroData(), 3600),
     // Gold: just read from the gold API route cache (populated by /api/gold)
     // No external calls in SSR — client SWR handles freshness
     getCache<unknown>(CACHE_KEYS.GOLD, 120).then((c) => c?.data ?? null),
-    cachedFetch(CACHE_KEYS.SSR_CONGRESS, () => fetchCongressData(), 1800),
-    cachedFetch(CACHE_KEYS.SSR_INSIDER, () => fetchInsiderData(), 300),
     cachedFetch(CACHE_KEYS.SSR_EXPECTED, () => fetchExpectedReturnsData(), 300),
   ]);
 }
@@ -99,13 +93,10 @@ export default async function StocksDashboard() {
   const [
     sentiment,
     breadth,
-    crowding,
     valuation,
     themes,
     macro,
     gold,
-    congress,
-    insider,
     expectedReturns,
   ] = await fetchAllInitialData();
 
@@ -118,19 +109,11 @@ export default async function StocksDashboard() {
       }
       initialSentiment={sentiment}
       initialBreadth={breadth}
-      // Loose type cast: the lib's CrowdingLevel includes "early" which the
-      // frontend's CrowdingData type doesn't list. Runtime-compatible; the
-      // SWR refetch on mount will normalize. Same pattern for macro/congress/insider.
-      initialCrowding={
-        crowding as React.ComponentProps<typeof MarketsClient>["initialCrowding"]
-      }
       initialValuation={valuation}
       initialThemes={themes}
       initialMacro={
         macro as React.ComponentProps<typeof MarketsClient>["initialMacro"]
       }
-      initialCongress={congress}
-      initialInsider={insider}
       initialExpectedReturns={expectedReturns}
       initialGold={gold}
     />
