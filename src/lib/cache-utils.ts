@@ -24,6 +24,23 @@ export const CACHE_KEYS = {
   MARKETS: "markets:momentum",
   STOCK_PRICES: "stocks:prices",
   GAVEKAL: "gavekal:quadrant",
+  SILVER_PRICE: "silver:price",
+  METALS_QUOTES: "metals:quotes",
+  FRED_DFII10: "fred:DFII10",
+  FRED_M2SL: "fred:M2SL",
+  GOLD_HIST: "gold:hist300d",
+  BTC_WMA200: "btc:wma200_history",
+  BTC_SMA200: "btc:sma200",
+  SSR_SENTIMENT: "ssr:sentiment",
+  SSR_BREADTH: "ssr:breadth",
+  SSR_REGIME: "ssr:regime",
+  SSR_VALUATION: "ssr:valuation",
+  SSR_THEMES: "ssr:themes",
+  SSR_MACRO: "ssr:macro",
+  SSR_CONGRESS: "ssr:congress",
+  SSR_INSIDER: "ssr:insider",
+  SSR_EXPECTED: "ssr:expected",
+  SSR_GOLD: "ssr:gold",
 } as const;
 
 /**

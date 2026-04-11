@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 60; // 1 minute
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -19,51 +20,78 @@ interface QuoteResult {
   regularMarketChangePercent?: number;
 }
 
-export async function GET() {
-  try {
-    // Fetch silver and gold futures
-    let silverPrice: number | null = null;
-    let silverChange: number | null = null;
-    let goldPrice: number | null = null;
+async function fetchSilverPriceData(): Promise<SilverPriceResponse> {
+  // Fetch silver and gold futures in parallel
+  const [silverQuote, goldQuote] = await Promise.all([
+    yahooFinance.quote("SI=F").catch(() => null) as Promise<QuoteResult | null>,
+    yahooFinance.quote("GC=F").catch(() => null) as Promise<QuoteResult | null>,
+  ]);
 
-    try {
-      const silverQuote = await yahooFinance.quote("SI=F") as QuoteResult;
-      silverPrice = silverQuote?.regularMarketPrice ?? null;
-      silverChange = silverQuote?.regularMarketChangePercent ?? null;
-    } catch {
-      // Silver quote failed
-    }
+  const silverPrice = silverQuote?.regularMarketPrice ?? null;
+  const silverChange = silverQuote?.regularMarketChangePercent ?? null;
+  const goldPrice = goldQuote?.regularMarketPrice ?? null;
 
-    try {
-      const goldQuote = await yahooFinance.quote("GC=F") as QuoteResult;
-      goldPrice = goldQuote?.regularMarketPrice ?? null;
-    } catch {
-      // Gold quote failed
-    }
-
-    // Calculate gold/silver ratio
-    const goldSilverRatio = silverPrice && goldPrice 
-      ? Math.round((goldPrice / silverPrice) * 10) / 10 
+  const goldSilverRatio =
+    silverPrice && goldPrice
+      ? Math.round((goldPrice / silverPrice) * 10) / 10
       : null;
 
-    const response: SilverPriceResponse = {
-      price: silverPrice,
-      changePercent: silverChange,
-      goldSilverRatio,
-      goldPrice,
-      updatedAt: new Date().toISOString(),
-    };
+  return {
+    price: silverPrice,
+    changePercent: silverChange,
+    goldSilverRatio,
+    goldPrice,
+    updatedAt: new Date().toISOString(),
+  };
+}
 
-    return NextResponse.json(response);
+export async function GET() {
+  try {
+    // Stale-while-revalidate pattern (same as /api/gold)
+    const cached = await getCache<SilverPriceResponse>(
+      CACHE_KEYS.SILVER_PRICE,
+      60,
+    );
+    if (cached && !cached.isStale) {
+      return NextResponse.json({
+        ...cached.data,
+        cached: true,
+        cacheAge: cached.updatedAt,
+      });
+    }
+    if (cached) {
+      // Return stale, refresh in background
+      fetchSilverPriceData()
+        .then((data) => setCache(CACHE_KEYS.SILVER_PRICE, data))
+        .catch((e) =>
+          logger.error("api/silver-price", "Background silver refresh failed", {
+            error: e,
+          }),
+        );
+      return NextResponse.json({
+        ...cached.data,
+        cached: true,
+        cacheAge: cached.updatedAt,
+        isStale: true,
+      });
+    }
+
+    // No cache at all — fetch fresh
+    const data = await fetchSilverPriceData();
+    await setCache(CACHE_KEYS.SILVER_PRICE, data);
+    return NextResponse.json({ ...data, cached: false });
   } catch (error) {
-    console.error("Silver price API error:", error);
-    return NextResponse.json({
-      price: null,
-      changePercent: null,
-      goldSilverRatio: null,
-      goldPrice: null,
-      updatedAt: new Date().toISOString(),
-      error: "Failed to fetch silver price",
-    }, { status: 500 });
+    logger.error("api/silver-price", "Silver price API error", { error });
+    return NextResponse.json(
+      {
+        price: null,
+        changePercent: null,
+        goldSilverRatio: null,
+        goldPrice: null,
+        updatedAt: new Date().toISOString(),
+        error: "Failed to fetch silver price",
+      },
+      { status: 500 },
+    );
   }
 }

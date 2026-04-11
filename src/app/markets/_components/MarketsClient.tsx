@@ -31,6 +31,9 @@ interface GoldLiteResponse {
   dxy?: { price: number } | null;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type GoldData = any;
+
 interface MarketsClientProps {
   /** Server-rendered Gavekal section. Composed by the parent server
    *  component so this client tree can host an SSR'd subtree without
@@ -50,7 +53,6 @@ interface MarketsClientProps {
   initialValuation: unknown;
   initialThemes: unknown;
   initialMacro: MacroResponse | null;
-  initialGoldLite: GoldLiteResponse | null;
   initialCongress: CongressData | null;
   initialInsider: InsiderData | null;
   initialExpectedReturns: ExpectedReturnsResponse | null;
@@ -65,7 +67,6 @@ export function MarketsClient({
   initialValuation,
   initialThemes,
   initialMacro,
-  initialGoldLite,
   initialCongress,
   initialInsider,
   initialExpectedReturns,
@@ -144,11 +145,27 @@ export function MarketsClient({
       fallbackData: initialMacro ?? undefined,
     });
 
-  const { data: goldLiteData, isValidating: validatingGoldLite } =
-    useSWR<GoldLiteResponse>("/api/gold", fetcher, {
+  // Gold data via SWR (seeds from SSR cache)
+  const { data: goldSWRData, isValidating: validatingGold } = useSWR<unknown>(
+    "/api/gold",
+    fetcher,
+    {
       ...ssrHydratedConfig,
-      fallbackData: initialGoldLite ?? undefined,
-    });
+      fallbackData: initialGold ?? undefined,
+    },
+  );
+
+  // Derive goldLite from full gold data instead of separate fetch
+  const goldLiteData = useMemo<GoldLiteResponse | undefined>(() => {
+    const goldData = goldSWRData as GoldData | undefined;
+    if (!goldData) return undefined;
+    return {
+      realYields: goldData.realYields ?? null,
+      dxy: goldData.dxy ?? null,
+    };
+  }, [goldSWRData]);
+
+  const validatingGoldLite = validatingGold;
 
   // Derive macroIndicators from the SWR'd macro response.
   const macroIndicators = macroData?.indicators ?? [];

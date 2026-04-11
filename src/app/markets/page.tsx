@@ -3,14 +3,14 @@ import { MarketsClient } from "./_components/MarketsClient";
 import { GavekalQuadrant } from "./_components/GavekalQuadrant";
 import { GavekalQuadrantClient } from "./_components/GavekalQuadrantClient";
 import { computeGavekalQuadrant, type GavekalData } from "@/lib/gavekal";
-import { getCache, setCache } from "@/lib/market-cache";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
 import { fetchSentimentData } from "@/lib/sentiment";
 import { fetchBreadthData } from "@/lib/breadth";
 import { fetchValuationData } from "@/lib/valuation";
 import { fetchThemePerformanceAll } from "@/lib/themes";
 import { fetchMacroData } from "@/lib/fetch-macro-data";
-import { fetchGoldData, fetchGoldDataLite } from "@/lib/gold";
+import { fetchGoldData } from "@/lib/gold";
 import { fetchCongressData } from "@/lib/congress";
 import { fetchInsiderData } from "@/lib/insider";
 import { fetchExpectedReturnsData } from "@/lib/valuation/fetch-expected-returns";
@@ -42,21 +42,49 @@ async function getGavekalData(): Promise<GavekalData | null> {
   }
 }
 
+/**
+ * Cache-first wrapper for SSR fetches. Returns cached data immediately if
+ * available (even if stale, triggering a background refresh). Only blocks
+ * on the first ever call when there's no cache at all.
+ */
+async function cachedFetch<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttlSeconds: number,
+): Promise<T | null> {
+  const cached = await getCache<T>(key, ttlSeconds);
+  if (cached) {
+    if (cached.isStale) {
+      // Background refresh — don't block SSR
+      fetcher()
+        .then((d) => setCache(key, d))
+        .catch(() => {});
+    }
+    return cached.data;
+  }
+  // No cache at all — fetch and cache
+  const data = await fetcher().catch(() => null);
+  if (data) await setCache(key, data);
+  return data;
+}
+
 async function fetchAllInitialData() {
-  // Each fetch is wrapped in `.catch(() => null)` so a single failure can't
-  // break the whole page render. SWR on the client will retry on mount.
+  // All fetches are cache-first. On warm cache, zero external API calls.
+  // Each fetcher is wrapped in `.catch(() => null)` via cachedFetch so a
+  // single failure can't break the whole page render.
   return Promise.all([
-    fetchSentimentData().catch(() => null),
-    fetchBreadthData().catch(() => null),
-    fetchRegimePanelData().catch(() => null),
-    fetchValuationData().catch(() => null),
-    fetchThemePerformanceAll().catch(() => null),
-    fetchMacroData().catch(() => null),
-    fetchGoldDataLite().catch(() => null),
-    fetchCongressData().catch(() => null),
-    fetchInsiderData().catch(() => null),
-    fetchExpectedReturnsData().catch(() => null),
-    fetchGoldData().catch(() => null),
+    cachedFetch(CACHE_KEYS.SSR_SENTIMENT, () => fetchSentimentData(), 300),
+    cachedFetch(CACHE_KEYS.SSR_BREADTH, () => fetchBreadthData(), 300),
+    cachedFetch(CACHE_KEYS.SSR_REGIME, () => fetchRegimePanelData(), 1800),
+    cachedFetch(CACHE_KEYS.SSR_VALUATION, () => fetchValuationData(), 300),
+    cachedFetch(CACHE_KEYS.SSR_THEMES, () => fetchThemePerformanceAll(), 300),
+    cachedFetch(CACHE_KEYS.SSR_MACRO, () => fetchMacroData(), 3600),
+    // Gold: just read from the gold API route cache (populated by /api/gold)
+    // No external calls in SSR — client SWR handles freshness
+    getCache<unknown>(CACHE_KEYS.GOLD, 120).then((c) => c?.data ?? null),
+    cachedFetch(CACHE_KEYS.SSR_CONGRESS, () => fetchCongressData(), 1800),
+    cachedFetch(CACHE_KEYS.SSR_INSIDER, () => fetchInsiderData(), 300),
+    cachedFetch(CACHE_KEYS.SSR_EXPECTED, () => fetchExpectedReturnsData(), 300),
   ]);
 }
 
@@ -75,11 +103,10 @@ export default async function StocksDashboard() {
     valuation,
     themes,
     macro,
-    goldLite,
+    gold,
     congress,
     insider,
     expectedReturns,
-    gold,
   ] = await fetchAllInitialData();
 
   return (
@@ -102,7 +129,6 @@ export default async function StocksDashboard() {
       initialMacro={
         macro as React.ComponentProps<typeof MarketsClient>["initialMacro"]
       }
-      initialGoldLite={goldLite}
       initialCongress={congress}
       initialInsider={insider}
       initialExpectedReturns={expectedReturns}
