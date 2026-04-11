@@ -31,8 +31,11 @@ interface GoldLiteResponse {
   dxy?: { price: number } | null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type GoldData = any;
+interface GoldData {
+  realYields?: { value: number } | null;
+  dxy?: { price: number } | null;
+  [key: string]: unknown;
+}
 
 interface MarketsClientProps {
   /** Server-rendered Gavekal section. Composed by the parent server
