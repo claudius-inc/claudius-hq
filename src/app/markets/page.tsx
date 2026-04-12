@@ -9,7 +9,6 @@ import { fetchSentimentData } from "@/lib/sentiment";
 import { fetchBreadthData } from "@/lib/breadth";
 import { fetchValuationData } from "@/lib/valuation";
 import { fetchThemePerformanceAll } from "@/lib/themes";
-import { fetchMacroData } from "@/lib/fetch-macro-data";
 import { fetchGoldData } from "@/lib/gold";
 import { fetchExpectedReturnsData } from "@/lib/valuation/fetch-expected-returns";
 
@@ -74,7 +73,6 @@ async function fetchAllInitialData() {
     cachedFetch(CACHE_KEYS.SSR_BREADTH, () => fetchBreadthData(), 300),
     cachedFetch(CACHE_KEYS.SSR_VALUATION, () => fetchValuationData(), 300),
     cachedFetch(CACHE_KEYS.SSR_THEMES, () => fetchThemePerformanceAll(), 300),
-    cachedFetch(CACHE_KEYS.SSR_MACRO, () => fetchMacroData(), 3600),
     // Gold: just read from the gold API route cache (populated by /api/gold)
     // No external calls in SSR — client SWR handles freshness
     getCache<unknown>(CACHE_KEYS.GOLD, 120).then((c) => c?.data ?? null),
@@ -95,7 +93,6 @@ export default async function StocksDashboard() {
     breadth,
     valuation,
     themes,
-    macro,
     gold,
     expectedReturns,
   ] = await fetchAllInitialData();
@@ -111,9 +108,6 @@ export default async function StocksDashboard() {
       initialBreadth={breadth}
       initialValuation={valuation}
       initialThemes={themes}
-      initialMacro={
-        macro as React.ComponentProps<typeof MarketsClient>["initialMacro"]
-      }
       initialExpectedReturns={expectedReturns}
       initialGold={gold}
     />

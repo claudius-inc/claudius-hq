@@ -3,36 +3,17 @@
 import { useState, useEffect, useMemo, type ReactNode } from "react";
 import useSWR, { mutate } from "swr";
 import { PageHero } from "@/components/PageHero";
-import { detectRegime } from "./helpers";
 import { fetcher, ssrHydratedConfig } from "@/lib/swr-config";
 
 import { MarketMood } from "./MarketMood";
 import { HardAssets } from "./HardAssets";
 import { CompactValuationStrip } from "./CompactValuationStrip";
 import { ThemeLeaderboardLite } from "./ThemeLeaderboardLite";
-import { MacroToggle } from "./MacroToggle";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
-  MacroIndicator,
-  RegimeData,
   SentimentData,
   BreadthData,
 } from "./types";
-
-interface MacroResponse {
-  indicators?: MacroIndicator[];
-}
-
-interface GoldLiteResponse {
-  realYields?: { value: number } | null;
-  dxy?: { price: number } | null;
-}
-
-interface GoldData {
-  realYields?: { value: number } | null;
-  dxy?: { price: number } | null;
-  [key: string]: unknown;
-}
 
 interface MarketsClientProps {
   /** Server-rendered Gavekal section. Composed by the parent server
@@ -51,7 +32,6 @@ interface MarketsClientProps {
   // accepts the loose shape and the next refetch normalizes it.
   initialValuation: unknown;
   initialThemes: unknown;
-  initialMacro: MacroResponse | null;
   initialExpectedReturns: ExpectedReturnsResponse | null;
   initialGold: unknown;
 }
@@ -62,7 +42,6 @@ export function MarketsClient({
   initialBreadth,
   initialValuation,
   initialThemes,
-  initialMacro,
   initialExpectedReturns,
   initialGold,
 }: MarketsClientProps) {
@@ -82,7 +61,6 @@ export function MarketsClient({
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         mutate("/api/gold");
-        mutate("/api/macro");
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
@@ -115,14 +93,8 @@ export function MarketsClient({
     },
   );
 
-  const { data: macroData, isValidating: validatingMacro } =
-    useSWR<MacroResponse>("/api/macro", fetcher, {
-      ...ssrHydratedConfig,
-      fallbackData: initialMacro ?? undefined,
-    });
-
   // Gold data via SWR (seeds from SSR cache)
-  const { data: goldSWRData, isValidating: validatingGold } = useSWR<unknown>(
+  useSWR<unknown>(
     "/api/gold",
     fetcher,
     {
@@ -131,47 +103,7 @@ export function MarketsClient({
     },
   );
 
-  // Derive goldLite from full gold data instead of separate fetch
-  const goldLiteData = useMemo<GoldLiteResponse | undefined>(() => {
-    const goldData = goldSWRData as GoldData | undefined;
-    if (!goldData) return undefined;
-    return {
-      realYields: goldData.realYields ?? null,
-      dxy: goldData.dxy ?? null,
-    };
-  }, [goldSWRData]);
-
-  const validatingGoldLite = validatingGold;
-
-  // Derive macroIndicators from the SWR'd macro response.
-  const macroIndicators = macroData?.indicators ?? [];
-
-  // Derive regime detection from macro + goldLite (same logic that used to
-  // live in the old useEffect Promise.all).
-  const _regimeData: RegimeData | null = useMemo(() => {
-    if (!macroData || !goldLiteData) return null;
-    const findIndicator = (id: string) => {
-      const ind = macroData.indicators?.find((i) => i.id === id);
-      return ind?.data?.current ?? null;
-    };
-    const realYield = goldLiteData?.realYields?.value ?? null;
-    const debtToGdp = findIndicator("debt-to-gdp");
-    const deficitToGdp = findIndicator("deficit-to-gdp");
-    const dxy = goldLiteData?.dxy?.price ?? null;
-    const absDeficit = deficitToGdp ? Math.abs(deficitToGdp) : null;
-    const regime = detectRegime({
-      realYield,
-      debtToGdp,
-      deficitToGdp: absDeficit,
-    });
-    regime.indicators.dxy = dxy;
-    return regime;
-  }, [macroData, goldLiteData]);
-  void _regimeData; // currently unused in JSX (was already dead state in the old version)
-
   const moodRefreshing = validatingSentiment || validatingBreadth;
-
-  const macroRefreshing = validatingMacro || validatingGoldLite;
 
   return (
     <>
@@ -226,14 +158,6 @@ export function MarketsClient({
           expandedIds={expandedIds}
           toggleExpanded={toggleExpanded}
           refreshing={moodRefreshing}
-        />
-
-        <MacroToggle
-          macroIndicators={macroIndicators}
-          loading={!macroData}
-          expandedIds={expandedIds}
-          toggleExpanded={toggleExpanded}
-          refreshing={macroRefreshing}
         />
       </div>
     </>
