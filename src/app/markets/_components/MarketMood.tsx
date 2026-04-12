@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Skeleton } from "@/components/Skeleton";
 import { ChevronRight, Gauge } from "lucide-react";
+// Gauge kept for section icon — no composite bar
 import { vixRanges, putCallRanges, breadthRanges, termStructureRanges } from "./constants";
 import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
 import type { SentimentData, BreadthData } from "./types";
@@ -44,46 +45,6 @@ function getRangeColor(label: string) {
   return map[label] || "bg-gray-100 text-gray-700";
 }
 
-/** Compute a 0-100 composite fear/greed score from available data (VIX + Put/Call + A/D only) */
-function computeComposite(
-  sentimentData: SentimentData | null,
-  breadthData: BreadthData | null,
-): { score: number; label: string; color: string } | null {
-  const signals: number[] = [];
-
-  // VIX: 10=extreme greed, 40+=extreme fear. Map to 0-100 (0=fear, 100=greed)
-  if (sentimentData?.vix.value != null) {
-    const vix = sentimentData.vix.value;
-    const greed = Math.max(0, Math.min(100, ((40 - vix) / 30) * 100));
-    signals.push(greed);
-  }
-
-  // Put/Call: <0.5=extreme greed, >1.3=extreme fear. Map inverted.
-  if (sentimentData?.putCall.value != null) {
-    const pc = sentimentData.putCall.value;
-    const greed = Math.max(0, Math.min(100, ((1.3 - pc) / 0.8) * 100));
-    signals.push(greed);
-  }
-
-  // Breadth A/D ratio: <0.5=bearish, >2.0=bullish
-  if (breadthData?.advanceDecline.ratio != null) {
-    const ratio = breadthData.advanceDecline.ratio;
-    const greed = Math.max(0, Math.min(100, ((ratio - 0.5) / 1.5) * 100));
-    signals.push(greed);
-  }
-
-  if (signals.length === 0) return null;
-
-  const avg = Math.round(signals.reduce((a, b) => a + b, 0) / signals.length);
-  const score = Math.max(0, Math.min(100, avg));
-
-  if (score >= 75) return { score, label: "Extreme Greed", color: "text-emerald-700 bg-emerald-100" };
-  if (score >= 55) return { score, label: "Greed", color: "text-emerald-600 bg-emerald-50" };
-  if (score >= 45) return { score, label: "Neutral", color: "text-gray-600 bg-gray-100" };
-  if (score >= 25) return { score, label: "Fear", color: "text-amber-700 bg-amber-100" };
-  return { score, label: "Extreme Fear", color: "text-red-700 bg-red-100" };
-}
-
 function getVixBadge(level: string | null) {
   if (!level) return null;
   const text = level.charAt(0).toUpperCase() + level.slice(1);
@@ -118,48 +79,16 @@ export function MarketMood({
   toggleExpanded,
   refreshing = false,
 }: MarketMoodProps) {
-  const composite = computeComposite(sentimentData, breadthData);
-
   return (
     <div>
       <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
         <span className="flex items-center text-gray-400"><Gauge className="w-3.5 h-3.5" /></span>
         Market Mood
         <RefreshIndicator active={refreshing} />
-        {composite && (
-          <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${composite.color}`}>
-            {composite.score} — {composite.label}
-          </span>
-        )}
       </h3>
 
       <div className="card overflow-hidden !p-0">
-        {/* Composite Fear/Greed bar */}
-        {composite && (
-          <div className="px-3 py-2 border-b border-gray-100">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">Fear / Greed</span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${composite.color}`}>{composite.score}</span>
-            </div>
-            <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all ${
-                  composite.score >= 55 ? "bg-emerald-500" :
-                  composite.score >= 45 ? "bg-gray-400" :
-                  composite.score >= 25 ? "bg-amber-500" :
-                  "bg-red-500"
-                }`}
-                style={{ width: `${composite.score}%` }}
-              />
-            </div>
-            <div className="flex justify-between mt-0.5">
-              <span className="text-[9px] text-gray-400">Extreme Fear</span>
-              <span className="text-[9px] text-gray-400">Extreme Greed</span>
-            </div>
-          </div>
-        )}
-
-        {/* All sections visible — no tabs */}
+        {/* All sections visible — no tabs, no composite bar */}
         <div className="divide-y divide-gray-100">
           {/* ── VOLATILITY ────────────────────────────── */}
           <div className="px-3 py-1 bg-gray-50/60">
