@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { Gem, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 import { GoldDetail } from "./GoldDetail";
 import { BtcDetail } from "./BtcDetail";
@@ -137,7 +137,6 @@ export function HardAssets({
   return (
     <div>
       <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
-        <span className="flex items-center text-gray-400"><Gem className="w-3.5 h-3.5" /></span>
         Commodities
         <RefreshIndicator active={refreshing} />
       </h3>
