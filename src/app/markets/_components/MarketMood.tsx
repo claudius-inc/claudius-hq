@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Skeleton } from "@/components/Skeleton";
 import { ChevronRight, Gauge } from "lucide-react";
 // Gauge kept for section icon — no composite bar
-import { vixRanges, putCallRanges, breadthRanges, termStructureRanges } from "./constants";
+import { vixRanges, breadthRanges, termStructureRanges } from "./constants";
 import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
 import type { SentimentData, BreadthData } from "./types";
 
@@ -31,9 +31,7 @@ function getRangeColor(label: string) {
     "Moderate": "bg-blue-100 text-blue-700",
     "Elevated": "bg-amber-100 text-amber-700",
     "Fear": "bg-red-100 text-red-700",
-    "Greedy": "bg-amber-100 text-amber-700",
     "Neutral": "bg-gray-100 text-gray-700",
-    "Fearful": "bg-red-100 text-red-700",
     "Bearish": "bg-red-100 text-red-700",
     "Bullish": "bg-emerald-100 text-emerald-700",
     "Steep Contango": "bg-emerald-100 text-emerald-700",
@@ -51,15 +49,6 @@ function getVixBadge(level: string | null) {
   const color = level === "low" ? "bg-emerald-100 text-emerald-700"
     : level === "moderate" ? "bg-blue-100 text-blue-700"
     : level === "elevated" ? "bg-amber-100 text-amber-700"
-    : "bg-red-100 text-red-700";
-  return { text, color };
-}
-
-function getPutCallBadge(level: string | null) {
-  if (!level) return null;
-  const text = level.charAt(0).toUpperCase() + level.slice(1);
-  const color = level === "greedy" ? "bg-amber-100 text-amber-700"
-    : level === "neutral" ? "bg-gray-100 text-gray-700"
     : "bg-red-100 text-red-700";
   return { text, color };
 }
@@ -166,44 +155,6 @@ export function MarketMood({
               />
             </ExpandableRow>
           )}
-
-          {/* ── SENTIMENT ────────────────────────────── */}
-          <div className="px-3 py-1 bg-gray-50/60">
-            <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Sentiment</span>
-          </div>
-
-          {/* Put/Call Row */}
-          <ExpandableRow
-            id="mood-putcall"
-            label="Put/Call Ratio"
-            value={sentimentData?.putCall.value?.toFixed(2) ?? null}
-            badge={getPutCallBadge(sentimentData?.putCall.level ?? null)}
-            loading={!sentimentData}
-            expandedIds={expandedIds}
-            toggleExpanded={toggleExpanded}
-          >
-            {sentimentData && (
-              <ExpandedContent
-                description="Ratio of put options to call options traded. A contrarian indicator — extreme readings often precede reversals."
-                currentReading={
-                  sentimentData.putCall.value != null ? (
-                    <p className="text-[10px] text-gray-700 mb-0.5">
-                      <strong>Value:</strong> {sentimentData.putCall.value.toFixed(2)}
-                      <span className="text-gray-400 ml-2">(Source: {sentimentData.putCall.source})</span>
-                    </p>
-                  ) : null
-                }
-                marketImpact={(() => {
-                  const label = getRangeLabel(sentimentData.putCall.value, putCallRanges);
-                  return putCallRanges.find(r => r.label === label)?.marketImpact ?? null;
-                })()}
-                whyItMatters="When everyone is buying puts (high ratio), fear is maximum — often near bottoms. When everyone is buying calls (low ratio), greed dominates — often near tops."
-                ranges={putCallRanges}
-                currentValue={sentimentData.putCall.value}
-                assets={["Options premiums", "S&P 500 (contrarian)", "Market reversals", "Hedging strategies"]}
-              />
-            )}
-          </ExpandableRow>
 
           {/* ── BREADTH ────────────────────────────── */}
           <div className="px-3 py-1 bg-gray-50/60">

@@ -42,7 +42,6 @@ interface AllocationSignalResponse {
 // Compute composite sentiment from VIX + Put/Call + Breadth (0-100 scale, 0=extreme fear, 100=extreme greed)
 function computeSentimentComposite(
   vix: { value: number | null; level: string | null } | null,
-  putCall: { value: number | null; level: string | null } | null,
   breadth: { level: string | null } | null,
 ): { composite: number; label: string; color: string } {
   const scores: number[] = [];
@@ -55,15 +54,6 @@ function computeSentimentComposite(
     else if (vix.value < 25) scores.push(35);
     else if (vix.value < 30) scores.push(20);
     else scores.push(10);
-  }
-
-  // Put/Call: inverted (high P/C = fear = low score)
-  if (putCall?.value != null) {
-    if (putCall.value < 0.5) scores.push(90);
-    else if (putCall.value < 0.65) scores.push(75);
-    else if (putCall.value < 0.85) scores.push(50);
-    else if (putCall.value < 1.0) scores.push(30);
-    else scores.push(15);
   }
 
   // Breadth: direct mapping
@@ -180,7 +170,6 @@ async function fetchAllocationSignal(): Promise<AllocationSignalResponse> {
   // Sentiment composite
   const sentimentComp = computeSentimentComposite(
     sentimentRes?.vix ?? null,
-    sentimentRes?.putCall ?? null,
     breadthRes ?? null,
   );
 

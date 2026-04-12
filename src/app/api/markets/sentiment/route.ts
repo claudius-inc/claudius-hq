@@ -38,7 +38,6 @@ export async function GET(request: NextRequest) {
     logger.error("api/markets/sentiment", "Failed to get sentiment data", { error: e });
     return NextResponse.json({
       vix: { value: null, change: null, changePercent: null, level: null },
-      putCall: { value: null, level: null, source: "error" },
       volatilityContext: null,
       error: String(e),
       updatedAt: new Date().toISOString(),

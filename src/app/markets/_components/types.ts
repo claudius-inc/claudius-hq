@@ -54,11 +54,7 @@ export interface SentimentData {
     changePercent: number | null;
     level: "low" | "moderate" | "elevated" | "fear" | null;
   };
-  putCall: {
-    value: number | null;
-    level: "greedy" | "neutral" | "fearful" | null;
-    source: string;
-  };
+
   volatilityContext?: {
     termStructure: number;
     contango: string;
