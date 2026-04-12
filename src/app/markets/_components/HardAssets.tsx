@@ -142,7 +142,7 @@ export function HardAssets({
         <RefreshIndicator active={refreshing} />
       </h3>
 
-      <div className="card overflow-hidden !p-0 divide-y divide-gray-100 min-h-[148px]">
+      <div className="card overflow-hidden !p-0 divide-y divide-gray-100">
         {/* BTC Row */}
         <button onClick={() => setBtcOpen(true)} className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors group text-left">
           <ChevronRight className="w-3 h-3 text-gray-400 shrink-0" />
