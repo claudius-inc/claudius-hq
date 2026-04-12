@@ -126,8 +126,8 @@ export function MarketsClient({
         </div>
 
         <div className="col-span-full">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-stretch">
-            <div className="lg:col-span-2 h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            <div className="lg:col-span-2">
               <ThemeLeaderboardLite
                 initialData={
                   initialThemes as NonNullable<
@@ -136,7 +136,7 @@ export function MarketsClient({
                 }
               />
             </div>
-            <div className="lg:col-span-1 h-full">
+            <div className="lg:col-span-1">
               <HardAssets
                 expectedReturns={expectedReturnsData ?? null}
                 initialBtc={null}
