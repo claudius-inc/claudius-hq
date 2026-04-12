@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Skeleton } from "@/components/Skeleton";
-import { ChevronRight, Gauge } from "lucide-react";
-// Gauge kept for section icon — no composite bar
+import { ChevronRight } from "lucide-react";
 import { vixRanges, breadthRanges, termStructureRanges } from "./constants";
 import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
 import type { SentimentData, BreadthData } from "./types";
@@ -71,7 +70,6 @@ export function MarketMood({
   return (
     <div>
       <h3 className="text-xs font-semibold text-gray-900 mb-1.5 flex items-center gap-1.5">
-        <span className="flex items-center text-gray-400"><Gauge className="w-3.5 h-3.5" /></span>
         Market Mood
         <RefreshIndicator active={refreshing} />
       </h3>
