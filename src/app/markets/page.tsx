@@ -1,4 +1,9 @@
 import { Suspense } from "react";
+
+// ISR: re-render every hour so Gavekal quadrant stays fresh.
+// Without this, Vercel treats the page as fully static — SSR data
+// (including Gavekal quadrant, sentiment, breadth) only refreshes on deploy.
+export const revalidate = 3600;
 import { MarketsClient } from "./_components/MarketsClient";
 import { GavekalQuadrant } from "./_components/GavekalQuadrant";
 import { GavekalQuadrantClient } from "./_components/GavekalQuadrantClient";

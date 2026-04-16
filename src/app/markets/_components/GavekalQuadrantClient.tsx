@@ -22,6 +22,11 @@ export function GavekalQuadrantClient({
     {
       ...ssrHydratedConfig,
       fallbackData: initialData ?? undefined,
+      // Poll every 6h even without tab focus.
+      // Gavekal ratios use weekly data + 7yr MAs so they change slowly,
+      // but the quadrant can flip (as happened Mar→Apr 2026 when the
+      // dashboard showed Inflationary Bust for 2 weeks due to stale cache).
+      refreshInterval: 6 * 60 * 60 * 1000,
     },
   );
 
