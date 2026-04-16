@@ -1,9 +1,11 @@
 import { Suspense } from "react";
 
-// ISR: re-render every hour so Gavekal quadrant stays fresh.
-// Without this, Vercel treats the page as fully static — SSR data
-// (including Gavekal quadrant, sentiment, breadth) only refreshes on deploy.
-export const revalidate = 3600;
+// Force dynamic SSR on every request. All data is cache-first (reads from
+// Turso, returns instantly) so there's no latency penalty. Without this,
+// Vercel treats the page as fully static and Gavekal quadrant goes stale
+// until next deploy (happened: Inflationary Bust displayed for 2 weeks in
+// Mar 2026 after the signal flipped to Inflationary Boom).
+export const dynamic = "force-dynamic";
 import { MarketsClient } from "./_components/MarketsClient";
 import { GavekalQuadrant } from "./_components/GavekalQuadrant";
 import { GavekalQuadrantClient } from "./_components/GavekalQuadrantClient";
