@@ -463,15 +463,19 @@ interface WeeklyPoint {
   close: number;
 }
 
-function dailyToWeekly(prices: { date: string; close: number }[]): WeeklyPoint[] {
-  const weekMap = new Map<string, { date: string; close: number }>();
+function dailyToWeekly(prices: { date: Date | string; close: number }[]): WeeklyPoint[] {
+  const weekMap = new Map<string, { date: Date | string; close: number }>();
   for (const p of prices) {
-    const wk = toWeekKey(p.date);
+    const wk = toWeekKey(p.date instanceof Date ? p.date.toISOString() : p.date);
     weekMap.set(wk, p); // last trading day per week wins
   }
   return Array.from(weekMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([weekKey, p]) => ({ weekKey, date: p.date, close: p.close }));
+    .map(([weekKey, p]) => ({
+      weekKey,
+      date: p.date instanceof Date ? p.date.toISOString().split("T")[0] : p.date,
+      close: p.close,
+    }));
 }
 
 function apiToWeekly(prices: { date: Date; close: number }[]): WeeklyPoint[] {
