@@ -19,7 +19,7 @@ import { fetchThemePerformanceAll } from "@/lib/themes";
 import { fetchGoldData } from "@/lib/gold";
 import { fetchExpectedReturnsData } from "@/lib/valuation/fetch-expected-returns";
 
-const GAVEKAL_CACHE_KEY = "gavekal:quadrant:v12";
+const GAVEKAL_CACHE_KEY = "gavekal:quadrant:v13";
 const GAVEKAL_CACHE_MAX_AGE = 6 * 60 * 60; // 6 hours
 
 async function getGavekalData(): Promise<GavekalData | null> {

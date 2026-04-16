@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
-import { getCache, setCache } from "@/lib/market-cache";
+import { getCache, setCache, clearCache } from "@/lib/market-cache";
 import { computeGavekalQuadrant, type GavekalData } from "@/lib/gavekal";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60; // Yahoo API fetches for 4 symbols can be slow
 
-// v12: each QUADRANTS entry now carries tileActions (own/avoid/hold per
-// asset class), used by the merged "What to do now" tile-grid layout
-const CACHE_KEY = "gavekal:quadrant:v12";
+// v13: supports ?refresh=1 to force-recompute and bypass stale cache.
+// Also increased maxDuration to 60s to prevent Yahoo API timeouts.
+const CACHE_KEY = "gavekal:quadrant:v13";
 const CACHE_MAX_AGE = 6 * 60 * 60; // 6 hours — ratios move slowly
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
+  const forceRefresh = searchParams.get("refresh") === "1";
   const maWeeks = searchParams.get("maWeeks")
     ? parseInt(searchParams.get("maWeeks")!, 10)
     : undefined;
@@ -26,6 +28,11 @@ export async function GET(request: Request) {
       : CACHE_KEY;
 
   try {
+    // Cache-bust: ?refresh=1 deletes the cached entry and recomputes.
+    if (forceRefresh) {
+      await clearCache(cacheKey).catch(() => {});
+    }
+
     const cached = await getCache<GavekalData>(cacheKey, CACHE_MAX_AGE);
 
     if (cached && !cached.isStale) {
