@@ -494,6 +494,32 @@ async function loadWeeklyPrices(
   // Try DB first
   const dbPrices = await getStoredPrices(symbol, fromDateStr);
   if (dbPrices.length > 52 * Math.max(1, years - 1)) {
+    // DB has deep history, but the last row may be stale (seed runs
+    // infrequently). Overlay the latest 2 weeks from Yahoo so the
+    // quadrant signal reflects current prices, not last-seed prices.
+    try {
+      const recentPrices = await fetchDailyHistoryFromApi(symbol, 1);
+      if (recentPrices.length > 0) {
+        const recentWeeks = dailyToWeekly(recentPrices);
+        const recentMap = new Map(recentWeeks.map((w) => [w.weekKey, w]));
+        const merged = dailyToWeekly(dbPrices).map((w) => {
+          const fresh = recentMap.get(w.weekKey);
+          return fresh ?? w;
+        });
+        // Append any new weeks not in the DB
+        const dbWeekSet = new Set(merged.map((w) => w.weekKey));
+        for (const w of recentWeeks) {
+          if (!dbWeekSet.has(w.weekKey)) merged.push(w);
+        }
+        // Persist the fresh daily prices to DB in background
+        storePrices(symbol, recentPrices).catch((e) =>
+          logger.error(LOG_SRC, `Background store failed for ${symbol}`, { error: e }),
+        );
+        return { prices: merged, source: "db" };
+      }
+    } catch (e) {
+      logger.warn(LOG_SRC, `Yahoo recent fetch failed for ${symbol}, using DB only`, { error: e });
+    }
     return { prices: dailyToWeekly(dbPrices), source: "db" };
   }
 
