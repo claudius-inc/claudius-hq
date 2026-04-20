@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { db, themes, themeStocks } from "@/db";
 import { eq } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
@@ -243,6 +243,7 @@ export async function DELETE(
 
     // Invalidate theme pages
     revalidatePath("/markets/themes");
+    revalidateTag("themes");
     revalidatePath(`/markets/themes/${numericId}`);
     logger.info("api/themes/[id]", `Revalidated /markets/themes and /markets/themes/${numericId} after theme deletion`);
 
