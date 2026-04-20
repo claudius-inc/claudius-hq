@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  Plus,
   Trash2,
 } from "lucide-react";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
@@ -38,6 +39,7 @@ interface ThemeLeaderboardProps {
   onRemoveStock: (themeId: number, ticker: string) => void;
   onAddSuggestedStock: (themeId: number, ticker: string) => void;
   onAddStock: (themeId: number, ticker: string) => void;
+  onAddTheme: () => void;
 }
 
 export function ThemeLeaderboard({
@@ -53,6 +55,7 @@ export function ThemeLeaderboard({
   onRemoveStock,
   onAddSuggestedStock,
   onAddStock,
+  onAddTheme,
 }: ThemeLeaderboardProps) {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -102,7 +105,16 @@ export function ThemeLeaderboard({
             <tr>
               <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500 w-8"></th>
               <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">
-                Theme
+                <div className="flex items-center gap-1.5">
+                  Theme
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onAddTheme(); }}
+                    className="p-1 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-md transition-colors"
+                    title="Add theme"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </th>
               {(["1w", "1m", "3m"] as SortField[]).map((field) => (
                 <th

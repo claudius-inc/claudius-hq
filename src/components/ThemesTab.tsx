@@ -469,18 +469,6 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       )}
 
 
-      {/* Standalone Add Theme button (visible when PageHero is hidden) */}
-      {hideHero && (
-        <div className="flex justify-end">
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors touch-manipulation"
-          >
-            <Plus className="w-4 h-4" />
-            Add Theme
-          </button>
-        </div>
-      )}
       {/* Theme Leaderboard */}
       <ThemeLeaderboard
         themes={themes}
@@ -495,6 +483,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         onRemoveStock={handleRemoveStock}
         onAddSuggestedStock={handleAddSuggestedStock}
         onAddStock={handleAddSuggestedStock}
+        onAddTheme={() => setShowAddModal(true)}
       />
 
       {/* Add Theme Modal */}
