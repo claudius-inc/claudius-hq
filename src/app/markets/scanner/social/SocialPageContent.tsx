@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import useSWR from "swr";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { Skeleton } from "@/components/Skeleton";
 import { FilterBar } from "./_components/FilterBar";
 import { TweetCard } from "./_components/TweetCard";
-import type { TweetData, PriceData, SocialStats as SocialStatsType } from "./types";
+import type { TweetData, PriceData, SocialStats } from "./types";
 
 const fetcher = (url: string) => fetch(url).then((r) => (r.ok ? r.json() : null));
 
@@ -15,19 +15,16 @@ export function SocialPageContent() {
   const [period, setPeriod] = useState<string | null>(null);
   const [tickerFilter, setTickerFilter] = useState<string>("");
 
-  // Fetch tweets
   const { data: tweetsData, mutate: mutateTweets, isLoading: loadingTweets } = useSWR(
     `/api/social/tweets?limit=100${period ? `&period=${period}` : ""}${tickerFilter ? `&ticker=${tickerFilter}` : ""}`,
     fetcher,
     { refreshInterval: 5 * 60 * 1000 }
   );
 
-  // Fetch stats
-  const { data: stats } = useSWR("/api/social/stats", fetcher, {
+  const { data: stats } = useSWR<SocialStats>("/api/social/stats", fetcher, {
     refreshInterval: 5 * 60 * 1000,
   });
 
-  // Fetch prices for all tickers
   const allTickers = tweetsData?.all_tickers || [];
   const { data: pricesData } = useSWR(
     allTickers.length > 0 ? `/api/social/prices?tickers=${allTickers.join(",")}` : null,
@@ -41,8 +38,7 @@ export function SocialPageContent() {
     mutateTweets();
   }, [mutateTweets]);
 
-  // Update engagement counts in real-time from stats
-  const topTickers = (stats as SocialStatsType)?.top_tickers || [];
+  const topTickers = stats?.top_tickers || [];
 
   return (
     <div className="space-y-4">
@@ -93,11 +89,21 @@ export function SocialPageContent() {
       {loadingTweets ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-4 w-48" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-3 w-24" />
+            <div key={i} className="bg-white rounded-xl border border-gray-200 flex">
+              <div className="w-28 sm:w-36 shrink-0 border-r border-gray-100 bg-gray-50/50 p-3 space-y-2">
+                <Skeleton className="h-5 w-14 mx-auto" />
+                <Skeleton className="h-4 w-16 mx-auto" />
+                <Skeleton className="h-9 w-20 mx-auto" />
+              </div>
+              <div className="flex-1 p-3 space-y-2">
+                <Skeleton className="h-3 w-12" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+                <Skeleton className="h-3 w-3/5" />
+                <div className="pt-2 border-t border-gray-100 mt-2">
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              </div>
             </div>
           ))}
         </div>
