@@ -21,9 +21,11 @@ export interface PriceData {
   ticker: string;
   name: string | null;
   current_price: number | null;
+  change_1d: number | null;
   performance_1w: number | null;
   performance_1m: number | null;
   performance_3m: number | null;
+  sparkline: Array<{ date: string; close: number }>;
 }
 
 export interface SocialStats {

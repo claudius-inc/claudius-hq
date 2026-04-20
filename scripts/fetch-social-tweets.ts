@@ -22,7 +22,7 @@ const db = createClient({
 
 // Accounts to monitor
 const ACCOUNTS = [
-  { screenName: "aleabitoreddit", count: 20 },
+  { screenName: "aleabitoreddit", count: 100 },
 ];
 
 // Extract $TICKER from text
