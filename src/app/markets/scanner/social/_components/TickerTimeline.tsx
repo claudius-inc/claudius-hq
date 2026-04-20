@@ -59,6 +59,24 @@ interface TweetDot {
   perfSince: number | null;
 }
 
+function HighlightedText({ text }: { text: string }) {
+  const parts = text.split(/(\$[A-Z]{1,5}[.]?[A-Z]{0,2}\b)/g);
+  return (
+    <span>
+      {parts.map((part, i) => {
+        if (part.startsWith("$")) {
+          return (
+            <span key={i} className="inline font-semibold text-emerald-600">
+              {part}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </span>
+  );
+}
+
 export function TickerTimeline({ ticker, tweets, price, onBack }: TickerTimelineProps) {
   const [selectedTweet, setSelectedTweet] = useState<TweetData | null>(null);
   const [hoveredTweet, setHoveredTweet] = useState<TweetData | null>(null);
@@ -327,7 +345,7 @@ export function TickerTimeline({ ticker, tweets, price, onBack }: TickerTimeline
                 })()}
               </div>
               <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-                {activeTweet.text}
+                <HighlightedText text={activeTweet.text} />
               </p>
               {activeTweet.media_urls.length > 0 && (
                 <span className="inline-flex items-center gap-1 text-xs text-gray-400 mt-1">
@@ -390,8 +408,7 @@ export function TickerTimeline({ ticker, tweets, price, onBack }: TickerTimeline
                 {formatDate(tweet.created_at)}
               </span>
               <p className="text-sm text-gray-600 flex-1 min-w-0 truncate">
-                {tweet.text.slice(0, 80)}
-                {tweet.text.length > 80 && "..."}
+                <HighlightedText text={tweet.text} />
               </p>
               {dot?.perfSince != null && (
                 <span
