@@ -20,6 +20,21 @@ const db = createClient({
   authToken: process.env.TURSO_AUTH_TOKEN!,
 });
 
+// Ensure Twitter credentials are available for child processes
+if (!process.env.TWITTER_AUTH_TOKEN) {
+  const fs = require('fs');
+  const creds = fs.readFileSync('/root/.openclaw/credentials.env', 'utf-8');
+  for (const line of creds.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx < 0) continue;
+    let key = trimmed.slice(0, eqIdx).replace(/^export\s+/, '');
+    const val = trimmed.slice(eqIdx + 1);
+    if (key && !process.env[key]) process.env[key] = val;
+  }
+}
+
 // Accounts to monitor
 const ACCOUNTS = [
   { screenName: "aleabitoreddit", count: 100 },
@@ -47,8 +62,16 @@ async function fetchAndStore() {
 
     try {
       const result = execSync(
-        `twitter user-posts ${account.screenName} -n ${account.count} --json 2>/dev/null`,
-        { encoding: "utf-8", timeout: 30000 }
+        `twitter user-posts ${account.screenName} -n ${account.count} --json`,
+        {
+          encoding: "utf-8",
+          timeout: 30000,
+          env: {
+            ...process.env,
+            TWITTER_AUTH_TOKEN: process.env.TWITTER_AUTH_TOKEN || "",
+            TWITTER_CT0: process.env.TWITTER_CT0 || "",
+          },
+        }
       );
 
       const data = JSON.parse(result);
