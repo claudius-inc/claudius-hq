@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { db, themes, themeStocks, THEME_STOCK_STATUSES } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -47,6 +47,7 @@ export async function POST(
 
     // Invalidate theme pages
     revalidatePath("/markets/themes");
+    revalidateTag("themes");
     revalidatePath(`/markets/themes/${numericId}`);
     logger.info("api/themes/[id]/stocks", `Revalidated theme pages after adding ${upperTicker}`);
 
@@ -117,6 +118,7 @@ export async function PATCH(
 
     // Invalidate theme pages
     revalidatePath("/markets/themes");
+    revalidateTag("themes");
     revalidatePath(`/markets/themes/${numericId}`);
     logger.info("api/themes/[id]/stocks", `Revalidated theme pages after updating ${upperTicker}`);
 

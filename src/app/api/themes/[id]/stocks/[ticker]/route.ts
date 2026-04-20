@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { db, themeStocks } from "@/db";
 import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -35,6 +35,7 @@ export async function DELETE(
 
     // Invalidate theme pages
     revalidatePath("/markets/themes");
+    revalidateTag("themes");
     revalidatePath(`/markets/themes/${numericId}`);
     logger.info("api/themes/[id]/stocks/[ticker]", `Revalidated theme pages after removing ${upperTicker}`);
 
