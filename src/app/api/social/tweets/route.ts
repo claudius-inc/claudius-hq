@@ -65,11 +65,21 @@ export async function GET(request: NextRequest) {
       .from(tweetTickers);
     const totalInDb = countResult?.count || 0;
 
-    return NextResponse.json({
+    // Last synced timestamp
+    const [syncedResult] = await db
+      .select({ lastSynced: sql<string>`max(${tweetTickers.createdAt})` })
+      .from(tweetTickers);
+    const lastSynced = syncedResult?.lastSynced || null;
+
+    const response = NextResponse.json({
       tweets,
       all_tickers: Array.from(tickerSet),
       total_in_db: totalInDb,
+      last_synced: lastSynced,
     });
+
+    response.headers.set("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
+    return response;
   } catch (e) {
     logger.error("api/social/tweets", "Failed to get tweets", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });

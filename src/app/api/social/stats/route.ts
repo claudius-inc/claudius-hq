@@ -49,12 +49,15 @@ export async function GET() {
       .slice(0, 10)
       .map(([ticker, count]) => ({ ticker, count }));
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       total_tweets: totalTweets,
       unique_tickers: tickerCount.size,
       top_tickers: topTickers,
       latest_fetch: latestFetch,
     });
+
+    response.headers.set("Cache-Control", "s-maxage=120, stale-while-revalidate=300");
+    return response;
   } catch (e) {
     logger.error("api/social/stats", "Failed to get stats", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });

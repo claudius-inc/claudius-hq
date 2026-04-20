@@ -11,14 +11,10 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { Sparkline } from "./Sparkline";
+import { Skeleton } from "@/components/Skeleton";
 import type { TweetData, PriceData } from "../types";
 
-interface TweetCardProps {
-  tweet: TweetData;
-  prices: Record<string, PriceData>;
-  tickerFilter: string;
-  onTickerClick: (ticker: string) => void;
-}
+
 
 function formatNumber(n: number): string {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
@@ -92,7 +88,15 @@ function HighlightedText({
   );
 }
 
-export function TweetCard({ tweet, prices, tickerFilter, onTickerClick }: TweetCardProps) {
+interface TweetCardProps {
+  tweet: TweetData;
+  prices: Record<string, PriceData>;
+  priceLoading: boolean;
+  tickerFilter: string;
+  onTickerClick: (ticker: string) => void;
+}
+
+export function TweetCard({ tweet, prices, priceLoading, tickerFilter, onTickerClick }: TweetCardProps) {
   const [expanded, setExpanded] = useState(false);
   const primaryTicker = tweet.tickers[0];
   const price = primaryTicker ? prices[primaryTicker] : null;
@@ -102,6 +106,9 @@ export function TweetCard({ tweet, prices, tickerFilter, onTickerClick }: TweetC
 
   const tweetUrl = `https://x.com/${tweet.screen_name}/status/${tweet.tweet_id}`;
   const isPositive: boolean | null = price?.change_1d != null ? (price.change_1d ?? 0) >= 0 : null;
+
+  const hasPrice = price?.current_price != null;
+  const showPriceSkeleton = priceLoading && !hasPrice;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 transition-colors overflow-hidden">
@@ -116,32 +123,42 @@ export function TweetCard({ tweet, prices, tickerFilter, onTickerClick }: TweetC
             {primaryTicker}
           </Link>
 
-          {/* Current price */}
-          <span className="text-sm font-semibold text-gray-900 mt-0.5">
-            {formatPrice(price?.current_price ?? null)}
-          </span>
+          {showPriceSkeleton ? (
+            <>
+              <Skeleton className="h-4 w-14 mt-1" />
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-9 w-[90px] mt-1" />
+            </>
+          ) : (
+            <>
+              {/* Current price */}
+              <span className="text-sm font-semibold text-gray-900 mt-0.5">
+                {formatPrice(price?.current_price ?? null)}
+              </span>
 
-          {/* 1D change */}
-          {price?.change_1d != null && (
-            <span className={`text-xs font-medium ${getPercentColor(price.change_1d)}`}>
-              {formatPercent(price.change_1d)}
-            </span>
-          )}
+              {/* 1D change */}
+              {price?.change_1d != null && (
+                <span className={`text-xs font-medium ${getPercentColor(price.change_1d)}`}>
+                  {formatPercent(price.change_1d)}
+                </span>
+              )}
 
-          {/* Sparkline */}
-          <Sparkline
-            data={price?.sparkline || []}
-            width={90}
-            height={36}
-            positive={isPositive}
-            className="mt-1"
-          />
+              {/* Sparkline */}
+              <Sparkline
+                data={price?.sparkline || []}
+                width={90}
+                height={36}
+                positive={isPositive}
+                className="mt-1"
+              />
 
-          {/* Company name */}
-          {price?.name && (
-            <span className="text-[10px] text-gray-400 text-center leading-tight line-clamp-2 mt-0.5">
-              {price.name}
-            </span>
+              {/* Company name */}
+              {price?.name && (
+                <span className="text-[10px] text-gray-400 text-center leading-tight line-clamp-2 mt-0.5">
+                  {price.name}
+                </span>
+              )}
+            </>
           )}
         </div>
 
