@@ -754,3 +754,30 @@ export const clarityJournals = sqliteTable("clarity_journals", {
 
 export type ClarityJournal = typeof clarityJournals.$inferSelect;
 export type NewClarityJournal = typeof clarityJournals.$inferInsert;
+
+// ============================================================================
+// Social Alpha - Tweet Tickers
+// ============================================================================
+
+export const tweetTickers = sqliteTable("tweet_tickers", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  tweetId: text("tweet_id").notNull().unique(),
+  author: text("author").notNull().default("aleabitoreddit"),
+  screenName: text("screen_name").notNull().default("aleabitoreddit"),
+  text: text("text").notNull(),
+  tickers: text("tickers").notNull().default("[]"), // JSON array
+  likes: integer("likes").default(0),
+  retweets: integer("retweets").default(0),
+  replies: integer("replies").default(0),
+  bookmarks: integer("bookmarks").default(0),
+  views: integer("views").default(0),
+  createdAt: text("created_at").notNull(), // Tweet timestamp ISO
+  fetchedAt: text("fetched_at").notNull().default(sql`(datetime('now'))`),
+  mediaUrls: text("media_urls").default("[]"), // JSON array
+  isQuote: integer("is_quote", { mode: "boolean" }).default(false),
+  quotedText: text("quoted_text"),
+  quotedTickers: text("quoted_tickers").default("[]"), // JSON array
+});
+
+export type TweetTicker = typeof tweetTickers.$inferSelect;
+export type NewTweetTicker = typeof tweetTickers.$inferInsert;

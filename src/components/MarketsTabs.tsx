@@ -44,6 +44,7 @@ const primaryTabs: PrimaryTab[] = [
       { href: "/markets/scanner/stocks", label: "Stocks" },
       { href: "/markets/scanner/themes", label: "Themes" },
       { href: "/markets/scanner/sectors", label: "Sectors" },
+      { href: "/markets/scanner/social", label: "Social" },
     ],
   },
 ];
