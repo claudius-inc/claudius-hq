@@ -28,6 +28,17 @@ export interface PriceData {
   sparkline: Array<{ date: string; close: number }>;
 }
 
+export interface TweetsResponse {
+  tweets: TweetData[];
+  all_tickers: string[];
+  total_in_db: number;
+  last_synced: string | null;
+}
+
+export interface PricesResponse {
+  prices: Record<string, PriceData>;
+}
+
 export interface SocialStats {
   total_tweets: number;
   unique_tickers: number;

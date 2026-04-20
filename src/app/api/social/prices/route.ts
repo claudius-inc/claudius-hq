@@ -87,7 +87,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const tickersParam = searchParams.get("tickers");
     if (!tickersParam) {
-      return NextResponse.json({ prices: {} });
+      const response = NextResponse.json({ prices: {} });
+      response.headers.set("Cache-Control", "s-maxage=120, stale-while-revalidate=600");
+      return response;
     }
 
     const tickers = tickersParam
@@ -108,7 +110,9 @@ export async function GET(request: NextRequest) {
       prices[r.ticker] = r;
     }
 
-    return NextResponse.json({ prices });
+    const response = NextResponse.json({ prices });
+    response.headers.set("Cache-Control", "s-maxage=120, stale-while-revalidate=600");
+    return response;
   } catch (e) {
     logger.error("api/social/prices", "Failed to get prices", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });

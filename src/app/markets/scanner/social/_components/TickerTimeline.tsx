@@ -10,10 +10,13 @@ import {
 } from "lucide-react";
 import type { TweetData, PriceData } from "../types";
 
+import { Skeleton } from "@/components/Skeleton";
+
 interface TickerTimelineProps {
   ticker: string;
   tweets: TweetData[];
   price: PriceData | undefined;
+  priceLoading: boolean;
   onBack: () => void;
 }
 
@@ -77,11 +80,12 @@ function HighlightedText({ text }: { text: string }) {
   );
 }
 
-export function TickerTimeline({ ticker, tweets, price, onBack }: TickerTimelineProps) {
+export function TickerTimeline({ ticker, tweets, price, priceLoading, onBack }: TickerTimelineProps) {
   const [selectedTweet, setSelectedTweet] = useState<TweetData | null>(null);
   const [hoveredTweet, setHoveredTweet] = useState<TweetData | null>(null);
 
   const sparkData = price?.sparkline || [];
+  const showChartSkeleton = priceLoading && sparkData.length < 2;
   const chartWidth = 700;
   const chartHeight = 200;
   const padding = { top: 20, right: 16, bottom: 30, left: 16 };
@@ -185,8 +189,8 @@ export function TickerTimeline({ ticker, tweets, price, onBack }: TickerTimeline
           )}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-900">
-            {formatPrice(price?.current_price ?? null)}
+          <span className="text-sm font-semibold text-gray-900">
+            {priceLoading && !price?.current_price ? <Skeleton className="h-5 w-16 inline-block" /> : formatPrice(price?.current_price ?? null)}
           </span>
           {price?.change_1d != null && (
             <span
@@ -202,12 +206,41 @@ export function TickerTimeline({ ticker, tweets, price, onBack }: TickerTimeline
       </div>
 
       {/* Chart with tweet dots */}
-      <div className="px-2 sm:px-4" style={{ aspectRatio: `${chartWidth}/${chartHeight}` }}>
-        <svg
-          viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          className="w-full h-full"
-          preserveAspectRatio="xMidYMid meet"
-        >
+      <div className="px-2 sm:px-4 relative" style={{ aspectRatio: `${chartWidth}/${chartHeight}` }}>
+        {showChartSkeleton ? (
+          <svg
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            className="w-full h-full"
+            preserveAspectRatio="xMidYMid meet"
+          >
+            {/* Sine wave placeholder */}
+            <path
+              d={(() => {
+                const points: string[] = [];
+                const w = chartWidth - padding.left - padding.right;
+                const h = chartHeight - padding.top - padding.bottom;
+                const midY = padding.top + h / 2;
+                for (let i = 0; i <= 100; i++) {
+                  const x = padding.left + (i / 100) * w;
+                  const y = midY + Math.sin(i / 100 * Math.PI * 3) * (h * 0.3);
+                  points.push(`${i === 0 ? "M" : "L"} ${x} ${y}`);
+                }
+                return points.join(" ");
+              })()}
+              stroke="#d1d5db"
+              strokeWidth={1.5}
+              fill="none"
+              strokeLinecap="round"
+              opacity={0.4}
+            />
+          </svg>
+        ) : (
+          <svg
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+            className="w-full h-full transition-opacity duration-500"
+            preserveAspectRatio="xMidYMid meet"
+            style={{ opacity: sparkData.length >= 2 ? 1 : 0.4 }}
+          >
           {/* Area fill */}
           <path d={areaPath} fill={lineColor} opacity={0.05} />
 
@@ -321,6 +354,7 @@ export function TickerTimeline({ ticker, tweets, price, onBack }: TickerTimeline
             </>
           )}
         </svg>
+        )}
       </div>
 
       {/* Selected tweet panel */}
