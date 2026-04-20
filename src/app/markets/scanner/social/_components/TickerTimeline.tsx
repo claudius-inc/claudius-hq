@@ -184,10 +184,10 @@ export function TickerTimeline({ ticker, tweets, price, onBack }: TickerTimeline
       </div>
 
       {/* Chart with tweet dots */}
-      <div className="px-2 sm:px-4">
+      <div className="px-2 sm:px-4" style={{ aspectRatio: `${chartWidth}/${chartHeight}` }}>
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          className="w-full h-auto"
+          className="w-full h-full"
           preserveAspectRatio="xMidYMid meet"
         >
           {/* Area fill */}
