@@ -247,11 +247,14 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     }
   };
 
-  // Add suggested stock
+  // Add stock (suggested or manual) — optimistic, no full refresh
   const handleAddSuggestedStock = async (themeId: number, ticker: string) => {
-    setSuggestions(prev => prev.map(s => 
-      s.ticker === ticker ? { ...s, adding: true } : s
-    ));
+    const isSuggestion = suggestions.some(s => s.ticker === ticker);
+    if (isSuggestion) {
+      setSuggestions(prev => prev.map(s => 
+        s.ticker === ticker ? { ...s, adding: true } : s
+      ));
+    }
 
     try {
       const res = await fetch(`/api/themes/${themeId}/stocks`, {
@@ -261,23 +264,91 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       });
 
       if (res.ok) {
-        setSuggestions(prev => prev.filter(s => s.ticker !== ticker));
-        await refreshExpandedTheme(themeId);
-        // Also update lite list
+        // Optimistically add to all state layers — no clearing
+        const newStockPerf: ThemePerformance = {
+          ticker,
+          name: null,
+          performance_1w: null,
+          performance_1m: null,
+          performance_3m: null,
+          current_price: null,
+          target_price: null,
+          status: "watching",
+          notes: null,
+          price_gap_percent: null,
+        };
+
+        if (isSuggestion) {
+          setSuggestions(prev => prev.filter(s => s.ticker !== ticker));
+        }
+
+        // Update expanded row
+        if (expandedData && expandedData.id === themeId) {
+          setExpandedData({
+            ...expandedData,
+            stocks: [...expandedData.stocks, ticker],
+            stock_performances: [
+              ...(expandedData.stock_performances || []),
+              newStockPerf,
+            ],
+          });
+        }
+
+        // Update lite list
         setThemesLite(prev => prev.map(t => 
           t.id === themeId ? { ...t, stocks: [...t.stocks, ticker] } : t
         ));
-        // Clear cached prices so they re-fetch
-        setThemePrices(prev => {
-          const next = new Map(prev);
-          next.delete(themeId);
-          return next;
-        });
+
+        // Fetch just this ticker's price and patch it in
+        fetch(`/api/themes/prices?tickers=${ticker}`)
+          .then(r => r.json())
+          .then(data => {
+            const price = data?.prices?.[ticker];
+            if (!price) return;
+            const updatedPerf: ThemePerformance = {
+              ...newStockPerf,
+              name: price.name ?? null,
+              performance_1w: price.performance_1w,
+              performance_1m: price.performance_1m,
+              performance_3m: price.performance_3m,
+              current_price: price.current_price,
+              crowdingScore: price.crowdingScore,
+              crowdingLevel: price.crowdingLevel,
+            };
+            setExpandedData(prev => {
+              if (!prev || prev.id !== themeId) return prev;
+              return {
+                ...prev,
+                stock_performances: (prev.stock_performances || []).map(s =>
+                  s.ticker === ticker ? updatedPerf : s
+                ),
+              };
+            });
+            // Update themePrices so basket perf recalculates
+            setThemePrices(prev => {
+              const next = new Map(prev);
+              const existing = next.get(themeId);
+              if (existing) {
+                const newPrices = { ...existing.prices, [ticker]: price };
+                next.set(themeId, { ...existing, prices: newPrices });
+              }
+              return next;
+            });
+          })
+          .catch(() => {});
+      } else {
+        if (isSuggestion) {
+          setSuggestions(prev => prev.map(s => 
+            s.ticker === ticker ? { ...s, adding: false } : s
+          ));
+        }
       }
     } catch {
-      setSuggestions(prev => prev.map(s => 
-        s.ticker === ticker ? { ...s, adding: false } : s
-      ));
+      if (isSuggestion) {
+        setSuggestions(prev => prev.map(s => 
+          s.ticker === ticker ? { ...s, adding: false } : s
+        ));
+      }
     }
   };
 
@@ -386,7 +457,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     }
   };
 
-  // Remove stock from theme
+  // Remove stock — optimistic splice, no full refresh
   const handleRemoveStock = async (themeId: number, ticker: string) => {
     if (!confirm(`Remove ${ticker} from theme?`)) return;
 
@@ -394,24 +465,28 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       const res = await fetch(`/api/themes/${themeId}/stocks/${ticker}`, {
         method: "DELETE",
       });
-      if (res.ok && expandedData) {
-        const newStocksList = expandedData.stocks.filter((t) => t !== ticker);
-        const newStockPerfs = expandedData.stock_performances?.filter(
-          (p) => p.ticker !== ticker
-        );
-        setExpandedData({
-          ...expandedData,
-          stocks: newStocksList,
-          stock_performances: newStockPerfs,
-        });
+      if (res.ok) {
+        // Optimistically remove from expanded row
+        if (expandedData && expandedData.id === themeId) {
+          setExpandedData({
+            ...expandedData,
+            stocks: expandedData.stocks.filter(t => t !== ticker),
+            stock_performances: (expandedData.stock_performances || []).filter(p => p.ticker !== ticker),
+          });
+        }
         // Update lite list
         setThemesLite(prev => prev.map(t => 
-          t.id === themeId ? { ...t, stocks: newStocksList } : t
+          t.id === themeId ? { ...t, stocks: t.stocks.filter(s => s !== ticker) } : t
         ));
-        // Clear cached prices
+        // Remove from themePrices basket
         setThemePrices(prev => {
           const next = new Map(prev);
-          next.delete(themeId);
+          const existing = next.get(themeId);
+          if (existing) {
+            const newPrices = { ...existing.prices };
+            delete newPrices[ticker];
+            next.set(themeId, { ...existing, prices: newPrices });
+          }
           return next;
         });
       }
@@ -450,7 +525,18 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       });
 
       if (res.ok) {
-        await refreshExpandedTheme(editingStock.themeId);
+        // Patch in-place instead of full refresh
+        setExpandedData(prev => {
+          if (!prev || prev.id !== editingStock.themeId) return prev;
+          return {
+            ...prev,
+            stock_performances: (prev.stock_performances || []).map(s =>
+              s.ticker === editingStock.ticker
+                ? { ...s, target_price: editingStock.target_price, status: editingStock.status, notes: editingStock.notes }
+                : s
+            ),
+          };
+        });
         setEditingStock(null);
       }
     } catch (e) {
