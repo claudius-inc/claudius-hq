@@ -282,6 +282,18 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   };
 
   // Use theme suggestions
+  const handleToggleSuggestion = (ticker: string) => {
+    const currentStocks = newStocks.split(/[, ,\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+    const upper = ticker.toUpperCase();
+    if (currentStocks.includes(upper)) {
+      const filtered = currentStocks.filter(t => t !== upper);
+      setNewStocks(filtered.join(", "));
+    } else {
+      const combined = [...currentStocks, upper];
+      setNewStocks(combined.join(", "));
+    }
+  };
+
   const handleUseThemeSuggestions = () => {
     if (themeSuggestions.length > 0) {
       const currentStocks = newStocks.split(/[,\s]+/).filter(s => s.trim());
@@ -500,6 +512,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           onDescriptionChange={setNewDescription}
           onStocksChange={setNewStocks}
           onUseSuggestions={handleUseThemeSuggestions}
+          onToggleSuggestion={handleToggleSuggestion}
           onClose={handleCloseAddModal}
           onSubmit={handleAddTheme}
         />

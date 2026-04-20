@@ -13,6 +13,7 @@ interface AddThemeModalProps {
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onStocksChange: (value: string) => void;
+  onToggleSuggestion: (ticker: string) => void;
   onUseSuggestions: () => void;
   onClose: () => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -29,6 +30,7 @@ export function AddThemeModal({
   onNameChange,
   onDescriptionChange,
   onStocksChange,
+  onToggleSuggestion,
   onUseSuggestions,
   onClose,
   onSubmit,
@@ -99,11 +101,20 @@ export function AddThemeModal({
             />
             {themeSuggestions.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1">
-                {themeSuggestions.map((ticker) => (
-                  <span key={ticker} className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded-full border border-emerald-200">
-                    {ticker}
-                  </span>
-                ))}
+                {themeSuggestions.map((ticker) => {
+                  const currentStocks = newStocks.split(/[,\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+                  const isSelected = currentStocks.includes(ticker.toUpperCase());
+                  return (
+                    <button
+                      key={ticker}
+                      type="button"
+                      onClick={() => onToggleSuggestion(ticker)}
+                      className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full border transition-colors ${isSelected ? "bg-emerald-600 text-white border-emerald-600" : "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"}`}
+                    >
+                      {ticker}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
