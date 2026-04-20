@@ -323,7 +323,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         .filter((s) => s.length > 0);
 
       for (const ticker of stockList) {
-        await fetch(`/api/themes/${themeId}/markets`, {
+        await fetch(`/api/themes/${themeId}/stocks`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ticker }),
@@ -379,7 +379,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     if (!confirm(`Remove ${ticker} from theme?`)) return;
 
     try {
-      const res = await fetch(`/api/themes/${themeId}/markets/${ticker}`, {
+      const res = await fetch(`/api/themes/${themeId}/stocks/${ticker}`, {
         method: "DELETE",
       });
       if (res.ok && expandedData) {
@@ -426,7 +426,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
     setEditSubmitting(true);
     try {
-      const res = await fetch(`/api/themes/${editingStock.themeId}/markets`, {
+      const res = await fetch(`/api/themes/${editingStock.themeId}/stocks`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -481,6 +481,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         onEditStock={handleEditStock}
         onRemoveStock={handleRemoveStock}
         onAddSuggestedStock={handleAddSuggestedStock}
+        onAddStock={handleAddSuggestedStock}
       />
 
       {/* Add Theme Modal */}

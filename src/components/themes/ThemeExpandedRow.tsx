@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { X, Edit2, StickyNote } from "lucide-react";
+import { useState } from "react";
+import { X, Edit2, StickyNote, Plus } from "lucide-react";
 import { SkeletonTableRow } from "@/components/Skeleton";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { SuggestedStocks } from "./SuggestedStocks";
@@ -18,6 +19,7 @@ interface ThemeExpandedRowProps {
   onEditStock: (themeId: number, stock: ThemePerformance) => void;
   onRemoveStock: (themeId: number, ticker: string) => void;
   onAddSuggestedStock: (themeId: number, ticker: string) => void;
+  onAddStock: (themeId: number, ticker: string) => void;
 }
 
 export function ThemeExpandedRow({
@@ -29,7 +31,29 @@ export function ThemeExpandedRow({
   onEditStock,
   onRemoveStock,
   onAddSuggestedStock,
+  onAddStock,
 }: ThemeExpandedRowProps) {
+  const [addInput, setAddInput] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const handleAddManual = async () => {
+    const ticker = addInput.trim().toUpperCase();
+    if (!ticker) return;
+    setAdding(true);
+    try {
+      await onAddStock(themeId, ticker);
+      setAddInput("");
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleAddKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleAddManual();
+    }
+  };
   return (
     <tr>
       <td colSpan={7} className="px-0 py-0">
@@ -148,6 +172,35 @@ export function ThemeExpandedRow({
                 </table>
               </div>
               
+              {/* Manual add ticker input */}
+              <div className="px-6 py-3 border-t border-gray-200 bg-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={addInput}
+                      onChange={(e) => setAddInput(e.target.value)}
+                      onKeyDown={handleAddKeyDown}
+                      placeholder="Add ticker (e.g. NVDA)"
+                      disabled={adding}
+                      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent placeholder:text-gray-400 disabled:opacity-50"
+                    />
+                  </div>
+                  <button
+                    onClick={handleAddManual}
+                    disabled={adding || !addInput.trim()}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                  >
+                    {adding ? (
+                      <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Plus className="w-3.5 h-3.5" />
+                    )}
+                    <span className="hidden sm:inline">Add</span>
+                  </button>
+                </div>
+              </div>
+
               <SuggestedStocks
                 themeId={themeId}
                 suggestions={suggestions}

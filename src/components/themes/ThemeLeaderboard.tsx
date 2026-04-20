@@ -37,6 +37,7 @@ interface ThemeLeaderboardProps {
   onEditStock: (themeId: number, stock: ThemePerformance) => void;
   onRemoveStock: (themeId: number, ticker: string) => void;
   onAddSuggestedStock: (themeId: number, ticker: string) => void;
+  onAddStock: (themeId: number, ticker: string) => void;
 }
 
 export function ThemeLeaderboard({
@@ -51,6 +52,7 @@ export function ThemeLeaderboard({
   onEditStock,
   onRemoveStock,
   onAddSuggestedStock,
+  onAddStock,
 }: ThemeLeaderboardProps) {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
@@ -239,6 +241,7 @@ export function ThemeLeaderboard({
                     onEditStock={onEditStock}
                     onRemoveStock={onRemoveStock}
                     onAddSuggestedStock={onAddSuggestedStock}
+                    onAddStock={onAddStock}
                   />
                 )}
               </>
