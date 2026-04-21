@@ -1,11 +1,13 @@
 "use client";
 
 import { X, Sparkles } from "lucide-react";
+import { TagInput } from "./TagInput";
 
 interface AddThemeModalProps {
   newName: string;
   newDescription: string;
   newStocks: string;
+  newTags: string[];
   themeSuggestions: string[];
   loadingThemeSuggestions: boolean;
   submitting: boolean;
@@ -13,6 +15,7 @@ interface AddThemeModalProps {
   onNameChange: (value: string) => void;
   onDescriptionChange: (value: string) => void;
   onStocksChange: (value: string) => void;
+  onTagsChange: (tags: string[]) => void;
   onToggleSuggestion: (ticker: string) => void;
   onUseSuggestions: () => void;
   onClose: () => void;
@@ -23,6 +26,7 @@ export function AddThemeModal({
   newName,
   newDescription,
   newStocks,
+  newTags,
   themeSuggestions,
   loadingThemeSuggestions,
   submitting,
@@ -30,6 +34,7 @@ export function AddThemeModal({
   onNameChange,
   onDescriptionChange,
   onStocksChange,
+  onTagsChange,
   onToggleSuggestion,
   onUseSuggestions,
   onClose,
@@ -76,6 +81,11 @@ export function AddThemeModal({
               placeholder="Brief description"
               className="input w-full"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+            <TagInput tags={newTags} onChange={onTagsChange} placeholder="e.g., china, ev, healthcare" />
           </div>
 
           <div>

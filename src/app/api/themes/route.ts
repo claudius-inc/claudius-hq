@@ -182,6 +182,7 @@ export async function GET(request: NextRequest) {
         id: theme.id,
         name: theme.name,
         description: theme.description || "",
+        tags: (theme.tags as string[]) || [],
         created_at: theme.createdAt || "",
         stocks: tickers,
         performance_1w: calcBasketPerformance(stockPerfs, "performance_1w"),
@@ -218,17 +219,20 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, description } = body;
+    const { name, description, tags } = body;
 
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
     }
+
+    const parsedTags = Array.isArray(tags) ? tags.map((t: string) => String(t).trim().toLowerCase()).filter(Boolean) : [];
 
     const [newTheme] = await db
       .insert(themes)
       .values({
         name: name.trim(),
         description: description?.trim() || "",
+        tags: parsedTags,
       })
       .returning();
 

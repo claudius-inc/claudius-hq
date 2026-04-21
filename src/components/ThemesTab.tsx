@@ -21,6 +21,7 @@ interface ThemeLite {
   id: number;
   name: string;
   description: string;
+  tags: string[];
   created_at: string;
   stocks: string[];
 }
@@ -63,7 +64,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   // If we have full themes, use them; otherwise start with lite
   const [themesLite, setThemesLite] = useState<ThemeLite[]>(
     initialThemesLite || 
-    initialThemes?.map(t => ({ id: t.id, name: t.name, description: t.description, created_at: t.created_at, stocks: t.stocks })) || 
+    initialThemes?.map(t => ({ id: t.id, name: t.name, description: t.description, tags: t.tags || [], created_at: t.created_at, stocks: t.stocks })) || 
     []
   );
   const [themePrices, setThemePrices] = useState<Map<number, ThemePriceData>>(new Map());
@@ -81,6 +82,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   const [newName, setNewName] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newStocks, setNewStocks] = useState("");
+  const [newTags, setNewTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -96,7 +98,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Edit theme modal
-  const [editingTheme, setEditingTheme] = useState<{ id: number; name: string; description: string } | null>(null);
+  const [editingTheme, setEditingTheme] = useState<{ id: number; name: string; description: string; tags: string[] } | null>(null);
 
   // Fetch themes lite if not provided
   const fetchThemesLite = useCallback(async () => {
@@ -397,6 +399,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         body: JSON.stringify({
           name: newName.trim(),
           description: newDescription.trim(),
+          tags: newTags,
         }),
       });
 
@@ -439,6 +442,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     setNewName("");
     setNewDescription("");
     setNewStocks("");
+    setNewTags([]);
     setError(null);
   };
 
@@ -573,19 +577,19 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     }
   };
 
-  const handleSaveThemeEdit = async (themeId: number, name: string, description: string) => {
+  const handleSaveThemeEdit = async (themeId: number, name: string, description: string, tags: string[]) => {
     const res = await fetch(`/api/themes/${themeId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description }),
+      body: JSON.stringify({ name, description, tags }),
     });
     if (!res.ok) throw new Error("Failed to update theme");
 
     setThemesLite(prev => prev.map(t =>
-      t.id === themeId ? { ...t, name, description } : t
+      t.id === themeId ? { ...t, name, description, tags } : t
     ));
     if (expandedData && expandedData.id === themeId) {
-      setExpandedData({ ...expandedData, name, description });
+      setExpandedData({ ...expandedData, name, description, tags });
     }
   };
 
@@ -625,7 +629,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         onAddSuggestedStock={handleAddSuggestedStock}
         onAddStock={handleAddSuggestedStock}
         onAddTheme={() => setShowAddModal(true)}
-        onEditTheme={(themeId, name, description) => setEditingTheme({ id: themeId, name, description })}
+        onEditTheme={(themeId, name, description) => setEditingTheme({ id: themeId, name, description, tags: themesLite.find(t => t.id === themeId)?.tags || [] })}
       />
 
       {/* Add Theme Modal */}
@@ -634,6 +638,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           newName={newName}
           newDescription={newDescription}
           newStocks={newStocks}
+          newTags={newTags}
           themeSuggestions={themeSuggestions}
           loadingThemeSuggestions={loadingThemeSuggestions}
           submitting={submitting}
@@ -641,6 +646,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           onNameChange={setNewName}
           onDescriptionChange={setNewDescription}
           onStocksChange={setNewStocks}
+          onTagsChange={setNewTags}
           onUseSuggestions={handleUseThemeSuggestions}
           onToggleSuggestion={handleToggleSuggestion}
           onClose={handleCloseAddModal}
@@ -666,6 +672,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           themeId={editingTheme.id}
           initialName={editingTheme.name}
           initialDescription={editingTheme.description}
+          initialTags={editingTheme.tags}
           onClose={() => setEditingTheme(null)}
           onSave={handleSaveThemeEdit}
         />
