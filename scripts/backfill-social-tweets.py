@@ -35,8 +35,8 @@ AUTH_TOKEN = CREDS.get('TWITTER_AUTH_TOKEN', '')
 CT0 = CREDS.get('TWITTER_CT0', '')
 
 DB_ENV = load_env('/root/.openclaw/workspace/projects/claudius-hq/.env.local')
-TURSO_URL = DB_ENV.get('TURSO_DATABASE_URL', '')
-TURSO_TOKEN = DB_ENV.get('TURSO_DATABASE_TOKEN', '')
+TURSO_URL = DB_ENV.get('TURSO_DATABASE_URL', '').replace('libsql://', 'https://')
+TURSO_TOKEN = DB_ENV.get('TURSO_AUTH_TOKEN', '') or DB_ENV.get('TURSO_DATABASE_TOKEN', '')
 
 if not AUTH_TOKEN or not CT0:
     print("ERROR: Missing Twitter credentials"); sys.exit(1)
@@ -50,7 +50,7 @@ sys.path.insert(0, SITE_PACKAGES)
 import twitter_cli.client as client_module
 client_module._ABSOLUTE_MAX_COUNT = 10000
 
-from twitter_cli.client import Client
+from twitter_cli.client import TwitterClient
 
 TICKER_RE = re.compile(r'\$([A-Z]{1,5}[.]?[A-Z]{0,2})\b')
 
@@ -66,7 +66,7 @@ def turso_sql(sql, args=None):
     stmt = {"q": sql}
     if args:
         stmt["a"] = args
-    body = json.dumps({"requests": [stmt]}).encode()
+    body = json.dumps({"statements": [stmt]}).encode()
     req = urllib.request.Request(
         TURSO_URL,
         data=body,
@@ -81,7 +81,7 @@ def turso_sql(sql, args=None):
 
 def main():
     print("Creating Twitter client...")
-    client = Client(AUTH_TOKEN, CT0, rate_limit_config={"maxCount": 10000})
+    client = TwitterClient(AUTH_TOKEN, CT0, rate_limit_config={"maxCount": 10000})
 
     print("Fetching user profile for @aleabitoreddit...")
     profile = client.fetch_user("aleabitoreddit")
@@ -191,8 +191,8 @@ def insert_batch(rows):
                 row
             )
             # Check if row was actually inserted
-            resp = result.get('results', [{}])[0].get('response', {})
-            if resp.get('affected_row_count', 0) > 0:
+            resp = result[0]['results']
+            if resp.get('rows_written', 0) > 0:
                 inserted += 1
         except Exception as e:
             print(f"  Warning: insert failed for tweet {row[0]}: {e}")
