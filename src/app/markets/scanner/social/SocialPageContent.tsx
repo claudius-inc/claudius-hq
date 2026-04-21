@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import useSWR from "swr";
-import { RefreshCw, TrendingUp } from "lucide-react";
+import { RefreshCw, TrendingUp, Check } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { Skeleton } from "@/components/Skeleton";
 import { FilterBar } from "./_components/FilterBar";
@@ -84,8 +84,27 @@ export function SocialPageContent() {
     );
   }, [timelineTicker, tweetsData]);
 
-  const handleRefresh = useCallback(() => {
-    mutateTweets();
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<number | null>(null);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleRefresh = useCallback(async () => {
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch("/api/social/sync", { method: "POST" });
+      const data = await res.json();
+      if (data.new_tweets > 0) {
+        setSyncResult(data.new_tweets);
+      }
+    } catch {
+      // Silent fail — still revalidate local data
+    } finally {
+      setSyncing(false);
+      mutateTweets();
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(() => setSyncResult(null), 3000);
+    }
   }, [mutateTweets]);
 
   const handleTickerClick = useCallback((ticker: string) => {
@@ -128,10 +147,18 @@ export function SocialPageContent() {
               )}
               <button
                 onClick={handleRefresh}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
-                title="Refresh"
+                disabled={syncing}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation disabled:opacity-50 relative"
+                title="Sync new tweets"
               >
-                <RefreshCw className="w-4 h-4" />
+                {syncResult !== null ? (
+                  <span className="flex items-center gap-1">
+                    <Check className="w-4 h-4 text-emerald-500" />
+                    <span className="text-[10px] font-medium text-emerald-600">+{syncResult}</span>
+                  </span>
+                ) : (
+                  <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+                )}
               </button>
             </div>
           }
@@ -165,10 +192,18 @@ export function SocialPageContent() {
             )}
             <button
               onClick={handleRefresh}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation"
-              title="Refresh"
+              disabled={syncing}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors touch-manipulation disabled:opacity-50 relative"
+              title="Sync new tweets"
             >
-              <RefreshCw className="w-4 h-4" />
+              {syncResult !== null ? (
+                <span className="flex items-center gap-1">
+                  <Check className="w-4 h-4 text-emerald-500" />
+                  <span className="text-[10px] font-medium text-emerald-600">+{syncResult}</span>
+                </span>
+              ) : (
+                <RefreshCw className={`w-4 h-4 ${syncing ? "animate-spin" : ""}`} />
+              )}
             </button>
           </div>
         }

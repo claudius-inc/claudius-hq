@@ -127,12 +127,6 @@ async function fetchAndStore() {
     }
   }
 
-  // Prune old tweets (> 30 days)
-  await db.execute({
-    sql: "DELETE FROM tweet_tickers WHERE created_at < datetime('now', '-30 days')",
-    args: [],
-  });
-
   console.log(`Done. ${totalNew} new tweets stored.`);
 }
 
