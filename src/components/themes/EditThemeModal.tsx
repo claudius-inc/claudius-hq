@@ -45,8 +45,9 @@ export function EditThemeModal({
     try {
       await onSave(themeId, name.trim(), description.trim(), tags);
       onClose();
-    } catch {
-      // stay open on error
+    } catch (err) {
+      console.error("[EditThemeModal] save error", err);
+      alert(`Save failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setSaving(false);
     }

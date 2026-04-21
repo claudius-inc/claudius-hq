@@ -545,7 +545,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
       if (res.ok) {
         const oldTicker = editingStock.ticker;
-        // Patch in-place instead of full refresh
+        // Patch in-place instead of full refreshh
         setExpandedData(prev => {
           if (!prev || prev.id !== editingStock.themeId) return prev;
           return {
@@ -569,21 +569,30 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           ));
         }
         setEditingStock(null);
+      } else {
+        const err = await res.text();
+        console.error("[EditStock] failed", res.status, err);
+        alert(`Failed to update stock: ${err}`);
       }
     } catch (e) {
-      console.error("Failed to update stock:", e);
+      console.error("[EditStock] network error:", e);
     } finally {
       setEditSubmitting(false);
     }
   };
 
   const handleSaveThemeEdit = async (themeId: number, name: string, description: string, tags: string[]) => {
+    console.log("[EditTheme] saving", { themeId, name, description, tags });
     const res = await fetch(`/api/themes/${themeId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, description, tags }),
     });
-    if (!res.ok) throw new Error("Failed to update theme");
+    if (!res.ok) {
+      const err = await res.text();
+      console.error("[EditTheme] failed", res.status, err);
+      throw new Error(err);
+    }
 
     setThemesLite(prev => prev.map(t =>
       t.id === themeId ? { ...t, name, description, tags } : t
@@ -629,7 +638,11 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         onAddSuggestedStock={handleAddSuggestedStock}
         onAddStock={handleAddSuggestedStock}
         onAddTheme={() => setShowAddModal(true)}
-        onEditTheme={(themeId, name, description) => setEditingTheme({ id: themeId, name, description, tags: themesLite.find(t => t.id === themeId)?.tags || [] })}
+        onEditTheme={(themeId, name, description) => {
+          const theme = themesLite.find(t => t.id === themeId);
+          console.log("[EditTheme] clicked", { themeId, name, description, theme, tags: theme?.tags });
+          setEditingTheme({ id: themeId, name, description, tags: theme?.tags || [] });
+        }}
       />
 
       {/* Add Theme Modal */}
