@@ -8,7 +8,7 @@ import { SkeletonTableRow } from "@/components/Skeleton";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { SuggestedStocks } from "./SuggestedStocks";
 import { SuggestedStock } from "./types";
-import { formatPercent, getPercentColor, formatPrice, getTradingViewUrl, StatusBadge } from "./utils";
+import { formatPercent, getPercentColor, formatLocalPrice, getTradingViewUrl, StatusBadge } from "./utils";
 
 interface ThemeExpandedRowProps {
   themeId: number;
@@ -136,7 +136,7 @@ export function ThemeExpandedRow({
                           </a>
                         </td>
                         <td className="px-4 py-2 text-right text-sm font-medium">
-                          {formatPrice(stock.current_price)}
+                          {formatLocalPrice(stock.ticker, stock.current_price)}
                         </td>
 
                         <td className={`px-4 py-2 text-right text-sm font-medium ${getPercentColor(stock.performance_1w)}`}>

@@ -5,6 +5,8 @@ import useSWR from "swr";
 import { Plus } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import {
   ThemeLeaderboard,
   AddThemeModal,
@@ -84,6 +86,9 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   // Theme name suggestions
   const [themeSuggestions, setThemeSuggestions] = useState<string[]>([]);
   const [loadingThemeSuggestions, setLoadingThemeSuggestions] = useState(false);
+
+  // Confirm dialog
+  const { confirm, dialogProps } = useConfirmDialog();
 
   // Edit stock modal
   const [editingStock, setEditingStock] = useState<EditingStock | null>(null);
@@ -435,7 +440,8 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
   // Delete theme
   const handleDeleteTheme = async (themeId: number, themeName: string) => {
-    if (!confirm(`Delete theme "${themeName}"?`)) return;
+    const ok = await confirm(`Delete "${themeName}"?`, "This will remove the theme and all its stocks. This cannot be undone.", { variant: "danger", confirmLabel: "Delete" });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/themes/${themeId}`, { method: "DELETE" });
@@ -459,7 +465,8 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
   // Remove stock — optimistic splice, no full refresh
   const handleRemoveStock = async (themeId: number, ticker: string) => {
-    if (!confirm(`Remove ${ticker} from theme?`)) return;
+    const ok = await confirm(`Remove ${ticker}?`, `Remove ${ticker} from this theme.`, { variant: "danger", confirmLabel: "Remove" });
+    if (!ok) return;
 
     try {
       const res = await fetch(`/api/themes/${themeId}/stocks/${ticker}`, {
@@ -614,6 +621,8 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           onSubmit={handleSaveStockEdit}
         />
       )}
+
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }

@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { X, Plus, Save, Trash2 } from "lucide-react";
 import { PortfolioHolding } from "@/lib/types";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface JournalEntry {
   id: number;
@@ -40,6 +42,7 @@ export function HoldingJournalModal({ holding, onClose, onEntriesChange }: Holdi
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const { confirm, dialogProps } = useConfirmDialog();
   
   // Form state
   const [thesis, setThesis] = useState("");
@@ -106,7 +109,8 @@ export function HoldingJournalModal({ holding, onClose, onEntriesChange }: Holdi
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Delete this journal entry?")) return;
+    const ok = await confirm("Delete journal entry?", "This action cannot be undone.", { variant: "danger", confirmLabel: "Delete" });
+    if (!ok) return;
     
     try {
       await fetch(`/api/clarity-journal?id=${id}`, { method: "DELETE" });
@@ -334,6 +338,7 @@ export function HoldingJournalModal({ holding, onClose, onEntriesChange }: Holdi
           )}
         </div>
       </div>
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }
