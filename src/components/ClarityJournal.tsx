@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Plus, Trash2, Save, ChevronDown, ChevronRight } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 interface JournalEntry {
   id: number;
@@ -107,6 +109,7 @@ export function ClarityJournal() {
   const [decision, setDecision] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { confirm, dialogProps } = useConfirmDialog();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     context: true,
     thesis: true,
@@ -193,7 +196,8 @@ export function ClarityJournal() {
 
   const handleDelete = async () => {
     if (!selectedId) return;
-    if (!confirm("Delete this journal entry?")) return;
+    const ok = await confirm("Delete journal entry?", "This action cannot be undone.", { variant: "danger", confirmLabel: "Delete" });
+    if (!ok) return;
 
     try {
       await fetch(`/api/clarity-journal?id=${selectedId}`, { method: "DELETE" });
@@ -618,6 +622,7 @@ export function ClarityJournal() {
             )}
           </div>
         </div>
+        <ConfirmDialog {...dialogProps} />
       </div>
     </div>
   );

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Plus, Trash2, Search, Filter, ToggleLeft, ToggleRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -39,6 +41,7 @@ export function UniverseManager() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTicker, setNewTicker] = useState({ ticker: "", market: "US", notes: "" });
   const [saving, setSaving] = useState<string | null>(null);
+  const { confirm, dialogProps } = useConfirmDialog();
 
   const fetchTickers = useCallback(async () => {
     try {
@@ -79,7 +82,8 @@ export function UniverseManager() {
   };
 
   const deleteTicker = async (ticker: string) => {
-    if (!confirm(`Remove ${ticker} from scan list?`)) return;
+    const ok = await confirm(`Remove ${ticker}?`, "Remove this ticker from the scan list.", { variant: "danger", confirmLabel: "Remove" });
+    if (!ok) return;
     
     setSaving(ticker);
     try {
@@ -361,6 +365,7 @@ export function UniverseManager() {
           )}
         </div>
       )}
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }

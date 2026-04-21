@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { EmptyState } from "@/components/EmptyState";
 import {
@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  MoreHorizontal,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -59,6 +60,20 @@ export function ThemeLeaderboard({
 }: ThemeLeaderboardProps) {
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [menuThemeId, setMenuThemeId] = useState<number | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuThemeId) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuThemeId(null);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [menuThemeId]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -229,16 +244,33 @@ export function ThemeLeaderboard({
                     )}
                   </td>
                   <td className="px-3 py-2.5 whitespace-nowrap text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteTheme(theme.id, theme.name);
-                      }}
-                      className="p-2 -m-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg touch-manipulation"
-                      title="Delete theme"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div ref={menuRef} className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuThemeId(menuThemeId === theme.id ? null : theme.id);
+                        }}
+                        className="p-2 -m-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg touch-manipulation"
+                        title="More actions"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      {menuThemeId === theme.id && (
+                        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[140px]">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuThemeId(null);
+                              onDeleteTheme(theme.id, theme.name);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            Delete theme
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </td>
                 </tr>
 
