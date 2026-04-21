@@ -507,6 +507,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     setEditingStock({
       themeId,
       ticker: stock.ticker,
+      new_ticker: stock.ticker,
       target_price: stock.target_price,
       status: stock.status || "watching",
       notes: stock.notes,
@@ -518,6 +519,8 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     e.preventDefault();
     if (!editingStock) return;
 
+    const isRename = editingStock.new_ticker !== editingStock.ticker;
+
     setEditSubmitting(true);
     try {
       const res = await fetch(`/api/themes/${editingStock.themeId}/stocks`, {
@@ -525,6 +528,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ticker: editingStock.ticker,
+          new_ticker: isRename ? editingStock.new_ticker : undefined,
           target_price: editingStock.target_price,
           status: editingStock.status,
           notes: editingStock.notes,
@@ -532,18 +536,30 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       });
 
       if (res.ok) {
+        const oldTicker = editingStock.ticker;
         // Patch in-place instead of full refresh
         setExpandedData(prev => {
           if (!prev || prev.id !== editingStock.themeId) return prev;
           return {
             ...prev,
+            stocks: isRename
+              ? prev.stocks.map(t => t === oldTicker ? editingStock.new_ticker : t)
+              : prev.stocks,
             stock_performances: (prev.stock_performances || []).map(s =>
-              s.ticker === editingStock.ticker
-                ? { ...s, target_price: editingStock.target_price, status: editingStock.status, notes: editingStock.notes }
+              s.ticker === oldTicker
+                ? { ...s, ticker: editingStock.new_ticker, target_price: editingStock.target_price, status: editingStock.status, notes: editingStock.notes }
                 : s
             ),
           };
         });
+        // Update lite list
+        if (isRename) {
+          setThemesLite(prev => prev.map(t =>
+            t.id === editingStock.themeId
+              ? { ...t, stocks: t.stocks.map(s => s === oldTicker ? editingStock.new_ticker : s) }
+              : t
+          ));
+        }
         setEditingStock(null);
       }
     } catch (e) {

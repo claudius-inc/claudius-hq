@@ -9,6 +9,7 @@ export interface SuggestedStock {
 export interface EditingStock {
   themeId: number;
   ticker: string;
+  new_ticker: string;
   target_price: number | null;
   status: ThemeStockStatus;
   notes: string | null;

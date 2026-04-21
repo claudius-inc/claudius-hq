@@ -76,16 +76,30 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { ticker, target_price, status, notes } = body;
+    const { ticker, new_ticker, target_price, status, notes } = body;
 
     if (!ticker || typeof ticker !== "string") {
       return NextResponse.json({ error: "Ticker is required" }, { status: 400 });
     }
 
     const upperTicker = ticker.trim().toUpperCase();
+    const upperNewTicker = new_ticker?.trim().toUpperCase() || null;
 
     // Build update data
     const updateData: Partial<typeof themeStocks.$inferInsert> = {};
+
+    // Handle ticker rename
+    if (upperNewTicker && upperNewTicker !== upperTicker) {
+      // Check new ticker doesn't already exist in this theme
+      const existing = await db
+        .select()
+        .from(themeStocks)
+        .where(and(eq(themeStocks.themeId, numericId), eq(themeStocks.ticker, upperNewTicker)));
+      if (existing.length > 0) {
+        return NextResponse.json({ error: `${upperNewTicker} already exists in this theme` }, { status: 409 });
+      }
+      updateData.ticker = upperNewTicker;
+    }
 
     if (target_price !== undefined) {
       updateData.targetPrice = target_price;
@@ -107,10 +121,11 @@ export async function PATCH(
       .where(and(eq(themeStocks.themeId, numericId), eq(themeStocks.ticker, upperTicker)));
 
     // Check if any rows were affected (Drizzle doesn't return rowsAffected directly)
+    const lookupTicker = upperNewTicker || upperTicker;
     const [updated] = await db
       .select()
       .from(themeStocks)
-      .where(and(eq(themeStocks.themeId, numericId), eq(themeStocks.ticker, upperTicker)));
+      .where(and(eq(themeStocks.themeId, numericId), eq(themeStocks.ticker, lookupTicker)));
 
     if (!updated) {
       return NextResponse.json({ error: "Stock not found in theme" }, { status: 404 });
