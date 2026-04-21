@@ -3,14 +3,16 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
+import { TagInput } from "./TagInput";
 
 interface EditThemeModalProps {
   open: boolean;
   themeId: number;
   initialName: string;
   initialDescription: string;
+  initialTags: string[];
   onClose: () => void;
-  onSave: (id: number, name: string, description: string) => Promise<void>;
+  onSave: (id: number, name: string, description: string, tags: string[]) => Promise<void>;
 }
 
 export function EditThemeModal({
@@ -18,27 +20,30 @@ export function EditThemeModal({
   themeId,
   initialName,
   initialDescription,
+  initialTags,
   onClose,
   onSave,
 }: EditThemeModalProps) {
   const [name, setName] = useState(initialName);
   const [description, setDescription] = useState(initialDescription);
+  const [tags, setTags] = useState<string[]>(initialTags);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (open) {
       setName(initialName);
       setDescription(initialDescription);
+      setTags(initialTags);
       setSaving(false);
     }
-  }, [open, initialName, initialDescription]);
+  }, [open, initialName, initialDescription, initialTags]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
     try {
-      await onSave(themeId, name.trim(), description.trim());
+      await onSave(themeId, name.trim(), description.trim(), tags);
       onClose();
     } catch {
       // stay open on error
@@ -61,6 +66,11 @@ export function EditThemeModal({
             required
             autoFocus
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+          <TagInput tags={tags} onChange={setTags} placeholder="e.g., china, ev, healthcare" />
         </div>
 
         <div>

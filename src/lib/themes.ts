@@ -328,6 +328,7 @@ export async function fetchThemesLite(): Promise<{ themes: ThemeLite[] }> {
     id: theme.id,
     name: theme.name,
     description: theme.description || "",
+    tags: (theme.tags as string[]) || [],
     created_at: theme.createdAt || "",
     stocks: stocksByTheme.get(theme.id) || [],
   }));

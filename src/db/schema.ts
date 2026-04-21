@@ -139,6 +139,7 @@ export const themes = sqliteTable("themes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
   description: text("description").default(""),
+  tags: text("tags", { mode: "json" }).$type<string[]>().default([]),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 

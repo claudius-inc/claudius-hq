@@ -10,6 +10,7 @@ interface ThemeLite {
   id: number;
   name: string;
   description: string;
+  tags: string[];
   created_at: string;
   stocks: string[];
 }

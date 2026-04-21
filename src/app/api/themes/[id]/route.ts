@@ -198,6 +198,7 @@ export async function GET(
       id: theme.id,
       name: theme.name,
       description: theme.description || "",
+      tags: (theme.tags as string[]) || [],
       created_at: theme.createdAt || "",
       stocks: tickers,
       performance_1w: calcBasketPerformance(stockPerfs, "performance_1w"),
@@ -232,14 +233,18 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, description } = body;
+    const { name, description, tags } = body;
 
-    const updateData: Record<string, string | null> = {};
+    const updateData: Record<string, string | null | string[]> = {};
     if (name !== undefined && typeof name === "string" && name.trim()) {
       updateData.name = name.trim();
     }
     if (description !== undefined) {
       updateData.description = typeof description === "string" ? description : null;
+    }
+    if (tags !== undefined) {
+      const parsed = Array.isArray(tags) ? tags.map((t: string) => String(t).trim().toLowerCase()).filter(Boolean) : [];
+      updateData.tags = parsed;
     }
 
     if (Object.keys(updateData).length === 0) {

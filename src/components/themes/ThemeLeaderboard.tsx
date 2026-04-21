@@ -12,6 +12,7 @@ import {
   Plus,
   Edit2,
   Trash2,
+  Tag,
 } from "lucide-react";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { ThemeExpandedRow } from "./ThemeExpandedRow";
@@ -27,7 +28,6 @@ type SortField = "1w" | "1m" | "3m";
 type SortDir = "asc" | "desc";
 
 type ThemeWithLoadingState = ThemeWithPerformance & { _pricesLoading?: boolean };
-
 interface ThemeLeaderboardProps {
   themes: ThemeWithLoadingState[];
   expandedTheme: number | null;
@@ -65,6 +65,26 @@ export function ThemeLeaderboard({
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [menuThemeId, setMenuThemeId] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  // Collect all unique tags
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    themes.forEach((t) => {
+      const tags = (t as { tags?: string[] }).tags;
+      if (Array.isArray(tags)) tags.forEach((tag) => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [themes]);
+
+  // Filter themes by selected tag
+  const filteredThemes = useMemo(() => {
+    if (!tagFilter) return themes;
+    return themes.filter((t) => {
+      const tags = (t as { tags?: string[] }).tags;
+      return Array.isArray(tags) && tags.includes(tagFilter);
+    });
+  }, [themes, tagFilter]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -92,7 +112,7 @@ export function ThemeLeaderboard({
   };
 
   const sortedThemes = useMemo(() => {
-    if (!sortField) return themes;
+    if (!sortField) return filteredThemes;
 
     const key = `performance_${sortField}` as const;
     return [...themes].sort((a, b) => {
@@ -116,7 +136,39 @@ export function ThemeLeaderboard({
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="space-y-3">
+      {/* Tag filter bar */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Tag className="w-3.5 h-3.5 text-gray-400" />
+          <button
+            onClick={() => setTagFilter(null)}
+            className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full border transition-colors ${
+              !tagFilter
+                ? "bg-gray-800 text-white border-gray-800"
+                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+            }`}
+          >
+            All
+          </button>
+          {allTags.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+              className={`inline-flex items-center px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                tagFilter === tag
+                  ? "bg-gray-800 text-white border-gray-800"
+                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+              }`}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Theme table */}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-100">
           <thead className="bg-gray-50">
@@ -172,12 +224,29 @@ export function ThemeLeaderboard({
                       <ChevronRight className="w-4 h-4 text-gray-400" />
                     )}
                   </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
+                  <td className="px-3 py-2.5">
                     <div>
                       <div className="font-semibold text-gray-900">
                         {theme.name}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      {theme.tags && theme.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {theme.tags.map((tag) => (
+                            <button
+                              key={tag}
+                              onClick={(e) => { e.stopPropagation(); setTagFilter(tagFilter === tag ? null : tag); }}
+                              className={`inline-flex items-center px-1.5 py-px text-[10px] rounded border transition-colors ${
+                                tagFilter === tag
+                                  ? "bg-emerald-600 text-white border-emerald-600"
+                                  : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-500 mt-0.5">
                         {theme.stocks.length} stocks
                       </div>
                     </div>
@@ -306,6 +375,7 @@ export function ThemeLeaderboard({
             ))}
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   );
