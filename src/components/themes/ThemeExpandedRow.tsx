@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { X, Edit2, StickyNote, Plus } from "lucide-react";
+import { X, Edit2, StickyNote, Plus, ChevronDown, ChevronUp } from "lucide-react";
 import { SkeletonTableRow } from "@/components/Skeleton";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { SuggestedStocks } from "./SuggestedStocks";
@@ -35,6 +35,32 @@ export function ThemeExpandedRow({
 }: ThemeExpandedRowProps) {
   const [addInput, setAddInput] = useState("");
   const [adding, setAdding] = useState(false);
+  const [sortField, setSortField] = useState<"1w" | "1m" | "3m" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (field: "1w" | "1m" | "3m") => {
+    if (sortField === field) {
+      if (sortDir === "desc") {
+        setSortDir("asc");
+      } else {
+        setSortField(null);
+        setSortDir("desc");
+      }
+    } else {
+      setSortField(field);
+      setSortDir("desc");
+    }
+  };
+
+  const sortedStocks = expandedData?.stock_performances
+    ? [...expandedData.stock_performances].sort((a, b) => {
+        if (!sortField) return 0;
+        const key = `performance_${sortField}` as keyof ThemePerformance;
+        const aVal = (a[key] as number) ?? -999;
+        const bVal = (b[key] as number) ?? -999;
+        return sortDir === "desc" ? bVal - aVal : aVal - bVal;
+      })
+    : [];
 
   const handleAddManual = async () => {
     const ticker = addInput.trim().toUpperCase();
@@ -90,14 +116,28 @@ export function ThemeExpandedRow({
                       <th className="px-4 py-2 text-left font-medium uppercase">Ticker</th>
                       <th className="px-4 py-2 text-center font-medium uppercase w-8"></th>
                       <th className="px-4 py-2 text-right font-medium uppercase">Price</th>
-                      <th className="px-4 py-2 text-right font-medium uppercase">1W</th>
-                      <th className="px-4 py-2 text-right font-medium uppercase">1M</th>
-                      <th className="px-4 py-2 text-right font-medium uppercase">3M</th>
+                      {["1w", "1m", "3m"].map((field) => (
+                        <th
+                          key={field}
+                          className="px-4 py-2 text-right font-medium uppercase cursor-pointer select-none hover:text-gray-700"
+                          onClick={() => handleSort(field as "1w" | "1m" | "3m")}
+                        >
+                          <span className="inline-flex items-center justify-end gap-0.5">
+                            {field.toUpperCase()}
+                            {sortField === field &&
+                              (sortDir === "desc" ? (
+                                <ChevronDown className="w-3 h-3" />
+                              ) : (
+                                <ChevronUp className="w-3 h-3" />
+                              ))}
+                          </span>
+                        </th>
+                      ))}
                       <th className="px-4 py-2 w-20"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {expandedData.stock_performances.map((stock: ThemePerformance) => (
+                    {sortedStocks.map((stock: ThemePerformance) => (
                       <tr key={stock.ticker} className="hover:bg-gray-100">
                         <td className="px-4 py-2 text-center">
                           <StatusBadge status={stock.status || "watching"} />
