@@ -260,6 +260,18 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
   // Add stock (suggested or manual) — optimistic, no full refresh
   const handleAddSuggestedStock = async (themeId: number, ticker: string) => {
+    // Check if already in theme
+    const theme = themesLite.find(t => t.id === themeId);
+    if (theme?.stocks.includes(ticker.toUpperCase())) {
+      alert(`${ticker.toUpperCase()} is already in this theme`);
+      return;
+    }
+    // Also check expanded data if available
+    if (expandedData?.id === themeId && expandedData.stocks?.includes(ticker.toUpperCase())) {
+      alert(`${ticker.toUpperCase()} is already in this theme`);
+      return;
+    }
+
     const isSuggestion = suggestions.some(s => s.ticker === ticker);
     if (isSuggestion) {
       setSuggestions(prev => prev.map(s => 
@@ -412,12 +424,18 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
       const themeId = data.theme.id;
 
+      // Deduplicate tickers
       const stockList = newStocks
         .split(/[,\s]+/)
         .map((s) => s.trim().toUpperCase())
         .filter((s) => s.length > 0);
+      const uniqueStocks = Array.from(new Set(stockList));
+      if (uniqueStocks.length < stockList.length) {
+        setError("Duplicate tickers detected: " + stockList.filter((t, i, a) => a.indexOf(t) !== i).join(", "));
+        return;
+      }
 
-      for (const ticker of stockList) {
+      for (const ticker of uniqueStocks) {
         await fetch(`/api/themes/${themeId}/stocks`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
