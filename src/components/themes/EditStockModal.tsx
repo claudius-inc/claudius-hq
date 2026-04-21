@@ -32,6 +32,20 @@ export function EditStockModal({
 
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ticker</label>
+            <input
+              type="text"
+              value={editingStock.new_ticker}
+              onChange={(e) => onChange({ ...editingStock, new_ticker: e.target.value.trim().toUpperCase() })}
+              placeholder="e.g., NVDA, 600519.SS"
+              className="input w-full font-mono"
+            />
+            {editingStock.new_ticker !== editingStock.ticker && (
+              <p className="text-xs text-amber-600 mt-1">Rename from {editingStock.ticker} to {editingStock.new_ticker}</p>
+            )}
+          </div>
+
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <Select
               value={editingStock.status}
