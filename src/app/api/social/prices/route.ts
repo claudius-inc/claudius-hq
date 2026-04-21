@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { logger } from "@/lib/logger";
+import { normalizeTickerForYahoo } from "@/lib/yahoo-utils";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -21,8 +22,8 @@ async function getPrices(ticker: string) {
     ];
 
     const [quotes, chart1m] = await Promise.all([
-      yahooFinance.quote(ticker).catch(() => null),
-      yahooFinance.chart(ticker, {
+      yahooFinance.quote(normalizeTickerForYahoo(ticker)).catch(() => null),
+      yahooFinance.chart(normalizeTickerForYahoo(ticker), {
         period1: new Date(now.getTime() - 30 * 86400000),
         period2: now,
         interval: "1d",
@@ -40,7 +41,7 @@ async function getPrices(ticker: string) {
     // Performance calculations
     const priceData: Record<string, number | null> = { "1w": null, "1m": null, "3m": null };
     for (const p of periods) {
-      const chart = await yahooFinance.chart(ticker, {
+      const chart = await yahooFinance.chart(normalizeTickerForYahoo(ticker), {
         period1: p.start,
         period2: now,
         interval: "1d",
