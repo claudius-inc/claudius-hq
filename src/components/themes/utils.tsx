@@ -17,21 +17,7 @@ export function formatPrice(price: number | null | undefined): string {
   return `$${price.toFixed(2)}`;
 }
 
-export function getCurrencyForTicker(ticker: string): { symbol: string; decimals: number } {
-  const upper = ticker.toUpperCase();
-  if (upper.endsWith(".SZ") || upper.endsWith(".SH")) return { symbol: "CN\u00a5", decimals: 2 };
-  if (upper.endsWith(".SI")) return { symbol: "S$", decimals: 2 };
-  if (upper.endsWith(".HK")) return { symbol: "HK$", decimals: 2 };
-  if (upper.endsWith(".T")) return { symbol: "JP\u00a5", decimals: 0 };
-  if (upper.endsWith(".KS") || upper.endsWith(".KQ")) return { symbol: "\u20a9", decimals: 0 };
-  return { symbol: "$", decimals: 2 }; // US default
-}
-
-export function formatLocalPrice(ticker: string, price: number | null | undefined): string {
-  if (price === null || price === undefined) return "-";
-  const { symbol, decimals } = getCurrencyForTicker(ticker);
-  return `${symbol}${price.toFixed(decimals)}`;
-}
+export { getCurrencyForTicker, formatLocalPrice } from "@/lib/yahoo-utils";
 
 export function getTradingViewUrl(ticker: string): string {
   if (ticker.includes(".")) {

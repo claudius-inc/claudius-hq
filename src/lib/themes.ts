@@ -3,6 +3,7 @@ import YahooFinance from "yahoo-finance2";
 import { and, eq, gte } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { getCrowdingScores, aggregateCrowdingScores, CrowdingScore } from "@/lib/crowding";
+import { normalizeTickerForYahoo } from "@/lib/yahoo-utils";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -70,7 +71,7 @@ async function backfillTickerHistory(
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - HISTORY_WINDOW_DAYS);
 
-    const chartResult = await yahooFinance.chart(ticker, {
+    const chartResult = await yahooFinance.chart(normalizeTickerForYahoo(ticker), {
       period1: startDate,
       period2: endDate,
       interval: "1d",
@@ -167,7 +168,7 @@ async function fetchLiveQuotes(
   await Promise.all(
     chunks.map(async (chunk) => {
       try {
-        const quotes = (await yahooFinance.quote(chunk)) as
+        const quotes = (await yahooFinance.quote(chunk.map(normalizeTickerForYahoo))) as
           | YahooQuoteShape
           | YahooQuoteShape[];
         const arr = Array.isArray(quotes) ? quotes : [quotes];
@@ -185,7 +186,7 @@ async function fetchLiveQuotes(
         await Promise.all(
           chunk.map(async (t) => {
             try {
-              const q = (await yahooFinance.quote(t)) as
+              const q = (await yahooFinance.quote(normalizeTickerForYahoo(t))) as
                 | YahooQuoteShape
                 | YahooQuoteShape[];
               const single = Array.isArray(q) ? q[0] : q;
@@ -459,7 +460,7 @@ export async function fetchThemePrices(tickers: string[]) {
           getHistoricalPrices(ticker, "1w"),
           getHistoricalPrices(ticker, "1m"),
           getHistoricalPrices(ticker, "3m"),
-          (yahooFinance.quote(ticker) as Promise<{ regularMarketPrice?: number; shortName?: string }>).catch(() => null),
+          (yahooFinance.quote(normalizeTickerForYahoo(ticker)) as Promise<{ regularMarketPrice?: number; shortName?: string }>).catch(() => null),
         ]);
 
         const quoteData = quote as { regularMarketPrice?: number; shortName?: string } | null;
