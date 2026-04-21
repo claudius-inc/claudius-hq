@@ -218,6 +218,52 @@ export async function GET(
   }
 }
 
+// PATCH /api/themes/[id] - Update theme name/description
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+    const numericId = parseInt(id, 10);
+
+    if (isNaN(numericId)) {
+      return NextResponse.json({ error: "Invalid id" }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const { name, description } = body;
+
+    const updateData: Record<string, string | null> = {};
+    if (name !== undefined && typeof name === "string" && name.trim()) {
+      updateData.name = name.trim();
+    }
+    if (description !== undefined) {
+      updateData.description = typeof description === "string" ? description : null;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+    }
+
+    const [existing] = await db.select().from(themes).where(eq(themes.id, numericId));
+    if (!existing) {
+      return NextResponse.json({ error: "Theme not found" }, { status: 404 });
+    }
+
+    await db.update(themes).set(updateData).where(eq(themes.id, numericId));
+
+    revalidatePath("/markets/themes");
+    revalidateTag("themes");
+    logger.info("api/themes/[id]", `Updated theme ${numericId}`);
+
+    return NextResponse.json({ success: true });
+  } catch (e) {
+    logger.error("api/themes/[id]", "Failed to update theme", { error: e });
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
 // DELETE /api/themes/[id] - Delete a theme
 export async function DELETE(
   request: NextRequest,

@@ -13,6 +13,7 @@ import {
   EditStockModal,
   SuggestedStock,
   EditingStock,
+  EditThemeModal,
 } from "./themes";
 
 // Lite theme from DB (no prices)
@@ -93,6 +94,9 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   // Edit stock modal
   const [editingStock, setEditingStock] = useState<EditingStock | null>(null);
   const [editSubmitting, setEditSubmitting] = useState(false);
+
+  // Edit theme modal
+  const [editingTheme, setEditingTheme] = useState<{ id: number; name: string; description: string } | null>(null);
 
   // Fetch themes lite if not provided
   const fetchThemesLite = useCallback(async () => {
@@ -569,6 +573,22 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     }
   };
 
+  const handleSaveThemeEdit = async (themeId: number, name: string, description: string) => {
+    const res = await fetch(`/api/themes/${themeId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, description }),
+    });
+    if (!res.ok) throw new Error("Failed to update theme");
+
+    setThemesLite(prev => prev.map(t =>
+      t.id === themeId ? { ...t, name, description } : t
+    ));
+    if (expandedData && expandedData.id === themeId) {
+      setExpandedData({ ...expandedData, name, description });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -605,6 +625,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         onAddSuggestedStock={handleAddSuggestedStock}
         onAddStock={handleAddSuggestedStock}
         onAddTheme={() => setShowAddModal(true)}
+        onEditTheme={(themeId, name, description) => setEditingTheme({ id: themeId, name, description })}
       />
 
       {/* Add Theme Modal */}
@@ -635,6 +656,18 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           onClose={() => setEditingStock(null)}
           onChange={setEditingStock}
           onSubmit={handleSaveStockEdit}
+        />
+      )}
+
+      {/* Edit Theme Modal */}
+      {editingTheme && (
+        <EditThemeModal
+          open={!!editingTheme}
+          themeId={editingTheme.id}
+          initialName={editingTheme.name}
+          initialDescription={editingTheme.description}
+          onClose={() => setEditingTheme(null)}
+          onSave={handleSaveThemeEdit}
         />
       )}
 

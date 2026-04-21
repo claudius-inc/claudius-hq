@@ -10,6 +10,7 @@ import {
   ChevronUp,
   MoreHorizontal,
   Plus,
+  Edit2,
   Trash2,
 } from "lucide-react";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
@@ -37,6 +38,7 @@ interface ThemeLeaderboardProps {
   onToggleExpand: (themeId: number) => void;
   onDeleteTheme: (themeId: number, themeName: string) => void;
   onEditStock: (themeId: number, stock: ThemePerformance) => void;
+  onEditTheme: (themeId: number, name: string, description: string) => void;
   onRemoveStock: (themeId: number, ticker: string) => void;
   onAddSuggestedStock: (themeId: number, ticker: string) => void;
   onAddStock: (themeId: number, ticker: string) => void;
@@ -53,6 +55,7 @@ export function ThemeLeaderboard({
   onToggleExpand,
   onDeleteTheme,
   onEditStock,
+  onEditTheme,
   onRemoveStock,
   onAddSuggestedStock,
   onAddStock,
@@ -257,6 +260,17 @@ export function ThemeLeaderboard({
                       </button>
                       {menuThemeId === theme.id && (
                         <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[140px]">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuThemeId(null);
+                              onEditTheme(theme.id, theme.name, theme.description);
+                            }}
+                            className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                            Edit theme
+                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
