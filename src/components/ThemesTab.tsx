@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import useSWR from "swr";
 import { Plus } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
@@ -14,7 +14,6 @@ import {
   SuggestedStock,
   EditingStock,
   EditThemeModal,
-  TagPerformanceTab,
   TagHeatmap,
   TagStockResults,
 } from "./themes";
@@ -103,10 +102,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   // Edit theme modal
   const [editingTheme, setEditingTheme] = useState<{ id: number; name: string; description: string; tags: string[] } | null>(null);
 
-  // Tab toggle: "static" | "dynamic"
-  const [activeTab, setActiveTab] = useState<"static" | "dynamic">("static");
-
-  // Stock tags mapping (ticker -> tags) for heatmap filtering
+  // Stock tags mapping (ticker -> tags)
   const [stockTagsMap, setStockTagsMap] = useState<Record<string, string[]>>({});
 
   // Heatmap tag filter
@@ -654,36 +650,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       )}
 
 
-      {/* Tab toggle */}
-      <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 w-fit">
-        <button
-          onClick={() => setActiveTab("static")}
-          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors touch-manipulation ${
-            activeTab === "static"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Static Themes
-        </button>
-        <button
-          onClick={() => setActiveTab("dynamic")}
-          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors touch-manipulation ${
-            activeTab === "dynamic"
-              ? "bg-white text-gray-900 shadow-sm"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          Trending Tags
-        </button>
-      </div>
-
-      {/* Tab content */}
-      {activeTab === "dynamic" ? (
-        <TagPerformanceTab />
-      ) : (
-        <>
-      {/* Tag Heatmap (static themes only) */}
+      {/* Tag Heatmap */}
       <TagHeatmap selectedTag={selectedTag} onTagSelect={setSelectedTag} />
 
       {selectedTag ? (
@@ -758,8 +725,6 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       )}
 
       <ConfirmDialog {...dialogProps} />
-      </>
-      )}
     </div>
   );
 }
