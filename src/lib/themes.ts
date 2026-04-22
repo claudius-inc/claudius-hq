@@ -1,4 +1,4 @@
-import { db, themes, themeStocks, stockPricesDaily, stockTags } from "@/db";
+import { db, themes, themeStocks, stockPricesDaily, rawClient } from "@/db";
 import YahooFinance from "yahoo-finance2";
 import { and, eq, gte } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -316,7 +316,7 @@ export interface ThemeLite {
 export async function fetchThemesLite(): Promise<{ themes: ThemeLite[]; stock_tags: Record<string, string[]> }> {
   const allThemes = await db.select().from(themes).orderBy(themes.name);
   const allStocks = await db.select().from(themeStocks);
-  const allTagRows = await db.select().from(stockTags);
+  const allTagRows = await rawClient.execute("SELECT ticker, tags FROM stock_tags");
 
   const stocksByTheme = new Map<number, string[]>();
   for (const stock of allStocks) {
@@ -327,11 +327,11 @@ export async function fetchThemesLite(): Promise<{ themes: ThemeLite[]; stock_ta
 
   // Build ticker -> tags map
   const stockTagsMap: Record<string, string[]> = {};
-  for (const row of allTagRows) {
+  for (const row of allTagRows.rows) {
     try {
-      stockTagsMap[row.ticker] = JSON.parse(row.tags);
+      stockTagsMap[row.ticker as string] = JSON.parse(row.tags as string);
     } catch {
-      stockTagsMap[row.ticker] = [];
+      stockTagsMap[row.ticker as string] = [];
     }
   }
 
