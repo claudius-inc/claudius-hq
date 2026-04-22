@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, stockTags } from "@/db";
+import { rawClient } from "@/db";
 import YahooFinance from "yahoo-finance2";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -36,6 +36,12 @@ async function getReturn(ticker: string, days: number): Promise<number | null> {
   }
 }
 
+interface QuoteResult {
+  regularMarketPrice?: number;
+  shortName?: string;
+  longName?: string;
+}
+
 // GET /api/tags/stocks?tag=uranium — Get stocks for a tag with their returns
 export async function GET(request: NextRequest) {
   const tag = request.nextUrl.searchParams.get("tag");
@@ -45,14 +51,14 @@ export async function GET(request: NextRequest) {
 
   try {
     // Find all tickers with this tag
-    const rows = await db.select().from(stockTags);
+    const rows = await rawClient.execute("SELECT ticker, tags FROM stock_tags");
     const tickers: string[] = [];
 
-    for (const row of rows) {
+    for (const row of rows.rows) {
       try {
-        const tags: string[] = JSON.parse(row.tags);
+        const tags: string[] = JSON.parse(row.tags as string);
         if (tags.includes(tag)) {
-          tickers.push(row.ticker);
+          tickers.push(row.ticker as string);
         }
       } catch {
         // skip
@@ -63,20 +69,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ stocks: [] });
     }
 
-    // Fetch returns (max 10 concurrent to avoid rate limits)
-    const batchSize = 10;
+    // Fetch returns + quote (batched)
+    const batchSize = 8;
     const stocks = [];
 
     for (let i = 0; i < tickers.length; i += batchSize) {
       const batch = tickers.slice(i, i + batchSize);
       const results = await Promise.all(
         batch.map(async (ticker) => {
-          const [r1w, r1m, r3m] = await Promise.all([
+          const [r1w, r1m, r3m, quote] = await Promise.all([
             getReturn(ticker, 7),
             getReturn(ticker, 30),
             getReturn(ticker, 90),
+            yahooFinance.quote(ticker).catch(() => null),
           ]);
-          return { ticker, return_1w: r1w, return_1m: r1m, return_3m: r3m };
+          const q = quote as QuoteResult | null;
+          return {
+            ticker,
+            name: q?.shortName || q?.longName || null,
+            price: q?.regularMarketPrice ?? null,
+            return_1w: r1w,
+            return_1m: r1m,
+            return_3m: r3m,
+          };
         })
       );
       stocks.push(...results);
