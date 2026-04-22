@@ -4,5 +4,6 @@ export { AddThemeModal } from "./AddThemeModal";
 export { EditThemeModal } from "./EditThemeModal";
 export { EditStockModal } from "./EditStockModal";
 export { SuggestedStocks } from "./SuggestedStocks";
+export { TagPerformanceTab } from "./TagPerformanceTab";
 export * from "./types";
 export * from "./utils";

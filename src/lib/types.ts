@@ -134,6 +134,7 @@ export interface ThemeWithPerformance extends Theme {
     "3m": { ticker: string; value: number } | null;
   };
   stock_performances?: ThemePerformance[];
+  stock_tags?: Record<string, string[]>;
   // Theme-level crowding (average of stocks)
   crowdingScore?: number;
   crowdingLevel?: string;

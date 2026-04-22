@@ -14,6 +14,7 @@ import {
   SuggestedStock,
   EditingStock,
   EditThemeModal,
+  TagPerformanceTab,
 } from "./themes";
 
 // Lite theme from DB (no prices)
@@ -99,6 +100,9 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
   // Edit theme modal
   const [editingTheme, setEditingTheme] = useState<{ id: number; name: string; description: string; tags: string[] } | null>(null);
+
+  // Tab toggle: "static" | "dynamic"
+  const [activeTab, setActiveTab] = useState<"static" | "dynamic">("static");
 
   // Fetch themes lite if not provided
   const fetchThemesLite = useCallback(async () => {
@@ -641,6 +645,35 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       )}
 
 
+      {/* Tab toggle */}
+      <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5 w-fit">
+        <button
+          onClick={() => setActiveTab("static")}
+          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors touch-manipulation ${
+            activeTab === "static"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Static Themes
+        </button>
+        <button
+          onClick={() => setActiveTab("dynamic")}
+          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors touch-manipulation ${
+            activeTab === "dynamic"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Trending Tags
+        </button>
+      </div>
+
+      {/* Tab content */}
+      {activeTab === "dynamic" ? (
+        <TagPerformanceTab />
+      ) : (
+        <>
       {/* Theme Leaderboard */}
       <ThemeLeaderboard
         themes={themes}
@@ -710,6 +743,8 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       )}
 
       <ConfirmDialog {...dialogProps} />
+        </>
+      )}
     </div>
   );
 }

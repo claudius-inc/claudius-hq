@@ -162,6 +162,18 @@ export function ThemeExpandedRow({
                                 {stock.name}
                               </span>
                             )}
+                            {expandedData.stock_tags && expandedData.stock_tags[stock.ticker] && (
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {expandedData.stock_tags[stock.ticker].slice(0, 3).map((tag) => (
+                                  <span key={tag} className="bg-gray-100 text-gray-600 text-[10px] rounded-full px-1.5 py-0.5 leading-tight">
+                                    {tag}
+                                  </span>
+                                ))}
+                                {expandedData.stock_tags[stock.ticker].length > 3 && (
+                                  <span className="text-[10px] text-gray-400">+{expandedData.stock_tags[stock.ticker].length - 3}</span>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-2 text-center">

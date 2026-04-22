@@ -1,0 +1,5 @@
+#!/bin/bash
+cd /root/.openclaw/workspace/projects/claudius-hq
+export TURSO_DATABASE_URL="libsql://claudius-hq-manapixels.aws-ap-northeast-1.turso.io"
+export TURSO_AUTH_TOKEN="eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3Njk5MDQxMjMsImlkIjoiZGQ1ZTcxODMtODM0Mi00NmZhLTk5YTItN2U3OWRmZjJjYjM0IiwicmlkIjoiMGEyZTM1YmYtMDJiZi00ZmYzLTkzNDktYzk0OTgzMDI1OTkzIn0.ztrDyGsVoUGyoBzlng_EbAIAKF_oYuW76pZf8uKOykjSXr5mm7qPHMI0-vGRSmvPR67aDPoomzX4__XRsdBCDA"
+npx tsx scripts/compute-tag-performance.ts
