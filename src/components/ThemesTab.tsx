@@ -16,6 +16,7 @@ import {
   EditThemeModal,
   TagPerformanceTab,
   TagHeatmap,
+  TagStockResults,
 } from "./themes";
 
 // Lite theme from DB (no prices)
@@ -174,16 +175,8 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     } as ThemeWithPerformance & { _pricesLoading?: boolean };
   });
 
-  // Filter themes by selected tag (heatmap)
-  const filteredThemes = useMemo(() => {
-    if (!selectedTag) return themes;
-    return themes.filter((theme) =>
-      theme.stocks.some((ticker) => stockTagsMap[ticker]?.includes(selectedTag))
-    );
-  }, [themes, selectedTag, stockTagsMap]);
-
-  // Sort filtered themes by 1M performance
-  filteredThemes.sort((a, b) => {
+  // Sort themes by 1M performance
+  themes.sort((a, b) => {
     const aHasPrice = a.performance_1m !== null;
     const bHasPrice = b.performance_1m !== null;
     if (aHasPrice && !bHasPrice) return -1;
@@ -692,33 +685,31 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         <>
       {/* Tag Heatmap (static themes only) */}
       <TagHeatmap selectedTag={selectedTag} onTagSelect={setSelectedTag} />
-      {selectedTag && (
-        <p className="text-xs text-gray-500">
-          Showing {filteredThemes.length} theme{filteredThemes.length !== 1 ? "s" : ""} containing stocks tagged <span className="font-semibold text-emerald-600">{selectedTag}</span>
-        </p>
-      )}
 
-      {/* Theme Leaderboard */}
-      <ThemeLeaderboard
-        themes={filteredThemes}
-        expandedTheme={expandedTheme}
-        expandedData={expandedData}
-        loadingExpanded={loadingExpanded}
-        suggestions={suggestions}
-        loadingSuggestions={loadingSuggestions}
-        onToggleExpand={toggleExpand}
-        onDeleteTheme={handleDeleteTheme}
-        onEditStock={handleEditStock}
-        onRemoveStock={handleRemoveStock}
-        onAddSuggestedStock={handleAddSuggestedStock}
-        onAddStock={handleAddSuggestedStock}
-        onAddTheme={() => setShowAddModal(true)}
-        onEditTheme={(themeId, name, description) => {
-          const theme = themesLite.find(t => t.id === themeId);
-          console.log("[EditTheme] clicked", { themeId, name, description, theme, tags: theme?.tags });
-          setEditingTheme({ id: themeId, name, description, tags: theme?.tags || [] });
-        }}
-      />
+      {selectedTag ? (
+        <TagStockResults tag={selectedTag} />
+      ) : (
+        <ThemeLeaderboard
+          themes={themes}
+          expandedTheme={expandedTheme}
+          expandedData={expandedData}
+          loadingExpanded={loadingExpanded}
+          suggestions={suggestions}
+          loadingSuggestions={loadingSuggestions}
+          onToggleExpand={toggleExpand}
+          onDeleteTheme={handleDeleteTheme}
+          onEditStock={handleEditStock}
+          onRemoveStock={handleRemoveStock}
+          onAddSuggestedStock={handleAddSuggestedStock}
+          onAddStock={handleAddSuggestedStock}
+          onAddTheme={() => setShowAddModal(true)}
+          onEditTheme={(themeId, name, description) => {
+            const theme = themesLite.find(t => t.id === themeId);
+            console.log("[EditTheme] clicked", { themeId, name, description, theme, tags: theme?.tags });
+            setEditingTheme({ id: themeId, name, description, tags: theme?.tags || [] });
+          }}
+        />
+      )}
 
       {/* Add Theme Modal */}
       {showAddModal && (
@@ -767,7 +758,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       )}
 
       <ConfirmDialog {...dialogProps} />
-        </>
+      </>
       )}
     </div>
   );
