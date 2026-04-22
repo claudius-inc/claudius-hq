@@ -15,6 +15,9 @@ interface TagHeatmapProps {
   onTagSelect: (tag: string | null) => void;
 }
 
+type Period = "1W" | "1M" | "3M";
+const PERIODS: Period[] = ["1W", "1M", "3M"];
+
 function getHeatBg(value: number, isSelected: boolean): string {
   if (isSelected) {
     return value >= 0
@@ -30,7 +33,7 @@ function getHeatBg(value: number, isSelected: boolean): string {
 }
 
 export function TagHeatmap({ selectedTag, onTagSelect }: TagHeatmapProps) {
-  const [data, setData] = useState<TagPerfRow[] | null>(null);
+  const [periodData, setPeriodData] = useState<Record<Period, TagPerfRow[]>>({ "1W": [], "1M": [], "3M": [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -39,62 +42,83 @@ export function TagHeatmap({ selectedTag, onTagSelect }: TagHeatmapProps) {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d?.periods) return;
-        const rows = (d.periods["1M"] || [])
-          .map((r: any) => ({
-            tag: r.tag,
-            avg_return: r.avg_return,
-            stock_count: r.stock_count,
-          }))
-          .sort((a: TagPerfRow, b: TagPerfRow) => Math.abs(b.avg_return) - Math.abs(a.avg_return));
-        setData(rows);
+        const result: Record<string, TagPerfRow[]> = {};
+        for (const period of PERIODS) {
+          result[period] = (d.periods[period] || [])
+            .map((r: any) => ({
+              tag: r.tag,
+              avg_return: r.avg_return,
+              stock_count: r.stock_count,
+            }))
+            .sort((a: TagPerfRow, b: TagPerfRow) => Math.abs(b.avg_return) - Math.abs(a.avg_return));
+        }
+        setPeriodData(result);
       })
-      .catch(() => setData(null))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
+  const clearBtn = selectedTag ? (
+    <button
+      onClick={() => onTagSelect(null)}
+      className="inline-flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-gray-600 flex-shrink-0 touch-manipulation"
+    >
+      <X className="w-3 h-3" />
+    </button>
+  ) : null;
+
   if (loading) {
     return (
-      <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
-        {Array.from({ length: 16 }).map((_, i) => (
-          <div key={i} className="h-6 w-16 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+      <div className="space-y-1">
+        {PERIODS.map((p) => (
+          <div key={p} className="flex items-center gap-1.5">
+            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">{p}</span>
+            <div className="flex gap-1 overflow-x-auto scrollbar-none">
+              {Array.from({ length: 16 }).map((_, i) => (
+                <div key={i} className="h-6 w-16 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
     );
   }
 
-  if (!data || data.length === 0) return null;
+  const hasData = PERIODS.some((p) => periodData[p]?.length > 0);
+  if (!hasData) return null;
 
   return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider flex-shrink-0">1M</span>
-      <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
-        {data.map((row) => {
-          const isSelected = selectedTag === row.tag;
-          return (
-            <button
-              key={row.tag}
-              onClick={() => onTagSelect(isSelected ? null : row.tag)}
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium whitespace-nowrap flex-shrink-0 transition-all touch-manipulation
-                ${isSelected
-                  ? "ring-1.5 ring-offset-1 ring-emerald-500 " + getHeatBg(row.avg_return, isSelected)
-                  : getHeatBg(row.avg_return, isSelected) + " hover:opacity-80"
-                }`}
-              title={`${row.tag}: ${formatPercent(row.avg_return)} (${row.stock_count} stocks)`}
-            >
-              <span>{row.tag}</span>
-              <span className="font-semibold tabular-nums">{formatPercent(row.avg_return)}</span>
-            </button>
-          );
-        })}
-      </div>
-      {selectedTag && (
-        <button
-          onClick={() => onTagSelect(null)}
-          className="inline-flex items-center gap-0.5 text-[10px] text-gray-400 hover:text-gray-600 flex-shrink-0 touch-manipulation"
-        >
-          <X className="w-3 h-3" />
-        </button>
-      )}
+    <div className="space-y-1">
+      {PERIODS.map((period) => {
+        const rows = periodData[period] || [];
+        if (rows.length === 0) return null;
+        return (
+          <div key={period} className="flex items-center gap-1.5">
+            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">{period}</span>
+            <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
+              {rows.map((row) => {
+                const isSelected = selectedTag === row.tag;
+                return (
+                  <button
+                    key={row.tag}
+                    onClick={() => onTagSelect(isSelected ? null : row.tag)}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium whitespace-nowrap flex-shrink-0 transition-all touch-manipulation
+                      ${isSelected
+                        ? "ring-1.5 ring-offset-1 ring-emerald-500 " + getHeatBg(row.avg_return, isSelected)
+                        : getHeatBg(row.avg_return, isSelected) + " hover:opacity-80"
+                      }`}
+                    title={`${row.tag}: ${formatPercent(row.avg_return)} (${row.stock_count} stocks)`}
+                  >
+                    <span>{row.tag}</span>
+                    <span className="font-semibold tabular-nums">{formatPercent(row.avg_return)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {clearBtn}
+          </div>
+        );
+      })}
     </div>
   );
 }
