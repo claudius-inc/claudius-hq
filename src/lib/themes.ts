@@ -1,4 +1,4 @@
-import { db, themes, themeStocks, stockPricesDaily } from "@/db";
+import { db, themes, themeStocks, stockPricesDaily, stockTags } from "@/db";
 import YahooFinance from "yahoo-finance2";
 import { and, eq, gte } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -313,15 +313,26 @@ export interface ThemeLite {
   stocks: string[];
 }
 
-export async function fetchThemesLite(): Promise<{ themes: ThemeLite[] }> {
+export async function fetchThemesLite(): Promise<{ themes: ThemeLite[]; stock_tags: Record<string, string[]> }> {
   const allThemes = await db.select().from(themes).orderBy(themes.name);
   const allStocks = await db.select().from(themeStocks);
+  const allTagRows = await db.select().from(stockTags);
 
   const stocksByTheme = new Map<number, string[]>();
   for (const stock of allStocks) {
     const existing = stocksByTheme.get(stock.themeId) || [];
     existing.push(stock.ticker);
     stocksByTheme.set(stock.themeId, existing);
+  }
+
+  // Build ticker -> tags map
+  const stockTagsMap: Record<string, string[]> = {};
+  for (const row of allTagRows) {
+    try {
+      stockTagsMap[row.ticker] = JSON.parse(row.tags);
+    } catch {
+      stockTagsMap[row.ticker] = [];
+    }
   }
 
   const themesLite = allThemes.map((theme) => ({
@@ -333,7 +344,7 @@ export async function fetchThemesLite(): Promise<{ themes: ThemeLite[] }> {
     stocks: stocksByTheme.get(theme.id) || [],
   }));
 
-  return { themes: themesLite };
+  return { themes: themesLite, stock_tags: stockTagsMap };
 }
 
 export interface ThemePerformanceRow {
