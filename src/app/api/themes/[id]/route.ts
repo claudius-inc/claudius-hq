@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { db, themes, themeStocks } from "@/db";
+import { db, themes, themeStocks, stockTags } from "@/db";
 import { eq } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
 import { ThemeWithPerformance, ThemePerformance, ThemeStockStatus } from "@/lib/types";
@@ -188,6 +188,23 @@ export async function GET(
 
     const tickers = stocks.map((r) => r.ticker);
 
+    // Fetch tags for all stocks in this theme
+    const stockTagMap: Record<string, string[]> = {};
+    if (tickers.length > 0) {
+      const tagRows = await db
+        .select({ ticker: stockTags.ticker, tags: stockTags.tags })
+        .from(stockTags);
+      for (const row of tagRows) {
+        if (tickers.includes(row.ticker)) {
+          try {
+            stockTagMap[row.ticker] = JSON.parse(row.tags);
+          } catch {
+            stockTagMap[row.ticker] = [];
+          }
+        }
+      }
+    }
+
     // Get stock performances with watchlist data
     const stockPerfs = await getStockPerformances(stocks);
 
@@ -210,6 +227,7 @@ export async function GET(
         "3m": findLeader(stockPerfs, "performance_3m"),
       },
       stock_performances: stockPerfs,
+      stock_tags: stockTagMap,
     };
 
     return NextResponse.json({ theme: themeWithPerformance });

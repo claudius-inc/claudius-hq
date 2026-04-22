@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 // ============================================================================
@@ -154,6 +154,25 @@ export const themeStocks = sqliteTable("theme_stocks", {
   notes: text("notes"),
   addedAt: text("added_at").default(sql`(datetime('now'))`),
 });
+
+export const stockTags = sqliteTable("stock_tags", {
+  ticker: text("ticker").primaryKey(),
+  tags: text("tags").notNull().default("[]"),
+  updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+});
+
+export const tagPerformance = sqliteTable("tag_performance", {
+  tag: text("tag").notNull(),
+  period: text("period").notNull(),
+  avgReturn: real("avg_return").notNull(),
+  medianReturn: real("median_return").notNull(),
+  stockCount: integer("stock_count").notNull(),
+  topStock: text("top_stock"),
+  topStockReturn: real("top_stock_return"),
+  updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.tag, table.period] }),
+}));
 
 // ============================================================================
 // Telegram Bot
