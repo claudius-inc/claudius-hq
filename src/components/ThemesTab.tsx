@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import { Plus } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
@@ -15,6 +15,7 @@ import {
   EditingStock,
   EditThemeModal,
   TagPerformanceTab,
+  TagHeatmap,
 } from "./themes";
 
 // Lite theme from DB (no prices)
@@ -104,6 +105,12 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   // Tab toggle: "static" | "dynamic"
   const [activeTab, setActiveTab] = useState<"static" | "dynamic">("static");
 
+  // Stock tags mapping (ticker -> tags) for heatmap filtering
+  const [stockTagsMap, setStockTagsMap] = useState<Record<string, string[]>>({});
+
+  // Heatmap tag filter
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
   // Fetch themes lite if not provided
   const fetchThemesLite = useCallback(async () => {
     try {
@@ -111,6 +118,9 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       const res = await fetch("/api/themes/lite");
       const data = await res.json();
       setThemesLite(data.themes || []);
+      if (data.stock_tags) {
+        setStockTagsMap(data.stock_tags);
+      }
     } catch (e) {
       console.error("Failed to fetch themes:", e);
     } finally {
@@ -164,14 +174,20 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     } as ThemeWithPerformance & { _pricesLoading?: boolean };
   });
 
-  // Sort by 1M performance (themes with prices first)
-  themes.sort((a, b) => {
-    // Put themes with prices first
+  // Filter themes by selected tag (heatmap)
+  const filteredThemes = useMemo(() => {
+    if (!selectedTag) return themes;
+    return themes.filter((theme) =>
+      theme.stocks.some((ticker) => stockTagsMap[ticker]?.includes(selectedTag))
+    );
+  }, [themes, selectedTag, stockTagsMap]);
+
+  // Sort filtered themes by 1M performance
+  filteredThemes.sort((a, b) => {
     const aHasPrice = a.performance_1m !== null;
     const bHasPrice = b.performance_1m !== null;
     if (aHasPrice && !bHasPrice) return -1;
     if (!aHasPrice && bHasPrice) return 1;
-    // Then sort by performance
     return (b.performance_1m ?? -999) - (a.performance_1m ?? -999);
   });
 
@@ -674,9 +690,17 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         <TagPerformanceTab />
       ) : (
         <>
+      {/* Tag Heatmap (static themes only) */}
+      <TagHeatmap selectedTag={selectedTag} onTagSelect={setSelectedTag} />
+      {selectedTag && (
+        <p className="text-xs text-gray-500">
+          Showing {filteredThemes.length} theme{filteredThemes.length !== 1 ? "s" : ""} containing stocks tagged <span className="font-semibold text-emerald-600">{selectedTag}</span>
+        </p>
+      )}
+
       {/* Theme Leaderboard */}
       <ThemeLeaderboard
-        themes={themes}
+        themes={filteredThemes}
         expandedTheme={expandedTheme}
         expandedData={expandedData}
         loadingExpanded={loadingExpanded}
