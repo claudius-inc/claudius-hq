@@ -107,6 +107,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
   // Heatmap tag filter
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [heatmapReady, setHeatmapReady] = useState(false);
 
   // Fetch themes lite if not provided
   const fetchThemesLite = useCallback(async () => {
@@ -667,7 +668,21 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
 
       {/* Tag Heatmap */}
-      <TagHeatmap selectedTag={selectedTag} onTagSelect={setSelectedTag} />
+      {!heatmapReady && (
+        <div className="space-y-1">
+          {["1W", "1M", "3M"].map((p) => (
+            <div key={p} className="flex items-center gap-1.5">
+              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">{p}</span>
+              <div className="flex gap-1 overflow-hidden">
+                {Array.from({ length: 14 }).map((_, i) => (
+                  <div key={i} className="h-6 w-16 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      <TagHeatmap selectedTag={selectedTag} onTagSelect={setSelectedTag} onReady={() => setHeatmapReady(true)} />
 
       {selectedTag ? (
         <TagStockResults tag={selectedTag} />

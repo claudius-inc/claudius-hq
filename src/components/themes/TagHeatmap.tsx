@@ -13,6 +13,7 @@ interface TagPerfRow {
 interface TagHeatmapProps {
   selectedTag: string | null;
   onTagSelect: (tag: string | null) => void;
+  onReady?: () => void;
 }
 
 type Period = "1W" | "1M" | "3M";
@@ -32,7 +33,7 @@ function getHeatBg(value: number, isSelected: boolean): string {
   return "bg-red-600 text-white";
 }
 
-export function TagHeatmap({ selectedTag, onTagSelect }: TagHeatmapProps) {
+export function TagHeatmap({ selectedTag, onTagSelect, onReady }: TagHeatmapProps) {
   const [periodData, setPeriodData] = useState<Record<Period, TagPerfRow[]>>({ "1W": [], "1M": [], "3M": [] });
   const [loading, setLoading] = useState(true);
 
@@ -53,6 +54,7 @@ export function TagHeatmap({ selectedTag, onTagSelect }: TagHeatmapProps) {
             .sort((a: TagPerfRow, b: TagPerfRow) => Math.abs(b.avg_return) - Math.abs(a.avg_return));
         }
         setPeriodData(result);
+        onReady?.();
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -69,22 +71,7 @@ export function TagHeatmap({ selectedTag, onTagSelect }: TagHeatmapProps) {
 
   const hasData = PERIODS.some((p) => periodData[p]?.length > 0);
 
-  if (loading || !hasData) {
-    return (
-      <div className="space-y-1">
-        {PERIODS.map((p) => (
-          <div key={p} className="flex items-center gap-1.5">
-            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">{p}</span>
-            <div className="flex gap-1 overflow-hidden">
-              {Array.from({ length: 16 }).map((_, i) => (
-                <div key={i} className="h-6 w-16 bg-gray-100 rounded animate-pulse flex-shrink-0" />
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
+  if (!hasData) return null;
 
   return (
     <div className="space-y-1">
