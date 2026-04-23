@@ -21,6 +21,29 @@
       "purpose": "any maskable"
     }
   ],
+  "shortcuts": [
+    {
+      "name": "Themes",
+      "short_name": "Themes",
+      "description": "Stock themes & tag heatmap",
+      "url": "/markets/scanner/themes",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Memoria",
+      "short_name": "Memoria",
+      "description": "Research memory & notes",
+      "url": "/memoria",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Sectors",
+      "short_name": "Sectors",
+      "description": "Sector momentum & analysis",
+      "url": "/markets/scanner/sectors",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ],
   "categories": ["business", "productivity", "finance"],
   "lang": "en",
   "dir": "ltr"
