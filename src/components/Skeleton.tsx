@@ -73,6 +73,20 @@ export function ThemesTableSkeleton() {
 
   return (
     <div className="space-y-6">
+      {/* Tag Heatmap Skeleton */}
+      <div className="space-y-1">
+        {["1W", "1M", "3M"].map((p) => (
+          <div key={p} className="flex items-center gap-1.5">
+            <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">{p}</span>
+            <div className="flex gap-1 overflow-hidden">
+              {Array.from({ length: 14 }).map((_, i) => (
+                <div key={i} className="h-6 w-16 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Table matching ThemeLeaderboard structure */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
