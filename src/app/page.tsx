@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+
+export const dynamic = "force-dynamic";
+
 import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
 import { ProjectCards } from "@/components/ProjectCards";

@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+
+export const dynamic = "force-dynamic";
+
 import { ThemesPageContent } from "@/app/markets/themes/ThemesPageContent";
 
 export const metadata: Metadata = {
