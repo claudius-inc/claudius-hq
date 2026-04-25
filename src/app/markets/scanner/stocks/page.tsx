@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   description: "Stock screening results from automated scanners",
 };
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 async function getLatestScan(): Promise<ParsedScan | null> {
   try {

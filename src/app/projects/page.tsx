@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 // On-demand revalidation via /api/projects
-export const revalidate = false;
+export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage() {
   let projects: Project[] = [];
