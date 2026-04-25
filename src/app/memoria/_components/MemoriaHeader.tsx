@@ -8,9 +8,10 @@ interface Props {
   onSearchChange: (q: string) => void;
   onAddClick: () => void;
   onRandomClick: () => void;
+  total: number;
 }
 
-export function MemoriaHeader({ searchQuery, onSearchChange, onAddClick, onRandomClick }: Props) {
+export function MemoriaHeader({ searchQuery, onSearchChange, onAddClick, onRandomClick, total }: Props) {
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -28,7 +29,7 @@ export function MemoriaHeader({ searchQuery, onSearchChange, onAddClick, onRando
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
-          placeholder="Search entries..."
+          placeholder={`Search ${total} entries...`}
           value={localQuery}
           onChange={(e) => setLocalQuery(e.target.value)}
           className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
