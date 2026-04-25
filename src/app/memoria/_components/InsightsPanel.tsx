@@ -37,7 +37,7 @@ export function InsightsPanel() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<string | null>(null);
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(false);
   const [expandedInsights, setExpandedInsights] = useState<Set<number>>(new Set());
 
   const fetchInsights = useCallback(async () => {

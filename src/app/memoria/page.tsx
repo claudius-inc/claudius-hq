@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { MemoriaHeader } from "./_components/MemoriaHeader";
 import { MemoriaFilters } from "./_components/MemoriaFilters";
 import { MemoriaGrid } from "./_components/MemoriaGrid";
@@ -36,39 +36,83 @@ export interface MemoriaTag {
   createdAt: string | null;
 }
 
+const BATCH_SIZE = 20;
+
 export default function MemoriaPage() {
   const [entries, setEntries] = useState<MemoriaEntry[]>([]);
   const [tags, setTags] = useState<MemoriaTag[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const pageRef = useRef(1);
+  const totalRef = useRef(0);
   const [activeSourceFilter, setActiveSourceFilter] = useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [favouriteFilter, setFavouriteFilter] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRandomModal, setShowRandomModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<MemoriaEntry | null>(null);
 
-  const fetchEntries = useCallback(async () => {
-    setLoading(true);
+  // Read favourite filter from URL on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("favourite") === "true") {
+      setFavouriteFilter(true);
+    }
+  }, []);
+
+  const fetchEntries = useCallback(async (reset = true) => {
+    if (reset) {
+      setLoading(true);
+      pageRef.current = 1;
+      setHasMore(true);
+    } else {
+      setLoadingMore(true);
+    }
+
     try {
-      const params = new URLSearchParams();
-      if (activeSourceFilter) params.set("source_type", activeSourceFilter);
-      if (activeTagFilter) params.set("tag", String(activeTagFilter));
       if (searchQuery) {
         const res = await fetch(`/api/memoria/search?q=${encodeURIComponent(searchQuery)}`);
         const data = await res.json();
         setEntries(data.entries || []);
-        setLoading(false);
+        setHasMore(false);
         return;
       }
+
+      const params = new URLSearchParams();
+      if (activeSourceFilter) params.set("source_type", activeSourceFilter);
+      if (activeTagFilter) params.set("tag", String(activeTagFilter));
+      if (favouriteFilter) params.set("favorite", "1");
+      params.set("per_page", String(BATCH_SIZE));
+      params.set("page", String(pageRef.current));
+
       const res = await fetch(`/api/memoria?${params.toString()}`);
       const data = await res.json();
-      setEntries(data.entries || []);
+      const newEntries = data.entries || [];
+      totalRef.current = data.total ?? 0;
+
+      if (reset) {
+        setEntries(newEntries);
+      } else {
+        setEntries((prev) => [...prev, ...newEntries]);
+      }
+
+      const fetchedSoFar = reset ? newEntries.length : entries.length + newEntries.length;
+      setHasMore(fetchedSoFar < totalRef.current);
     } catch {
-      setEntries([]);
+      if (reset) setEntries([]);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  }, [activeSourceFilter, activeTagFilter, searchQuery]);
+  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, entries.length]);
+
+  // Re-fetch when filters change
+  useEffect(() => {
+    fetchEntries(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter]);
 
   const fetchTags = useCallback(async () => {
     try {
@@ -81,12 +125,28 @@ export default function MemoriaPage() {
   }, []);
 
   useEffect(() => {
-    fetchEntries();
-  }, [fetchEntries]);
-
-  useEffect(() => {
     fetchTags();
   }, [fetchTags]);
+
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore || loading) return;
+    pageRef.current += 1;
+    fetchEntries(false);
+  }, [loadingMore, hasMore, loading, fetchEntries]);
+
+  const handleToggleFavouriteFilter = useCallback(() => {
+    setFavouriteFilter((prev) => {
+      const next = !prev;
+      const url = new URL(window.location.href);
+      if (next) {
+        url.searchParams.set("favourite", "true");
+      } else {
+        url.searchParams.delete("favourite");
+      }
+      window.history.replaceState({}, "", url.toString());
+      return next;
+    });
+  }, []);
 
   const handleToggleFavorite = async (entry: MemoriaEntry) => {
     await fetch(`/api/memoria/${entry.id}`, {
@@ -94,13 +154,21 @@ export default function MemoriaPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_favorite: entry.isFavorite ? 0 : 1 }),
     });
-    fetchEntries();
+    // If favourite filter is active and we un-favourited, remove from list
+    if (favouriteFilter && entry.isFavorite) {
+      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    } else {
+      // Toggle in-place
+      setEntries((prev) =>
+        prev.map((e) => (e.id === entry.id ? { ...e, isFavorite: e.isFavorite ? 0 : 1 } : e))
+      );
+    }
   };
 
   const handleDelete = async (id: number) => {
     await fetch(`/api/memoria/${id}`, { method: "DELETE" });
     setSelectedEntry(null);
-    fetchEntries();
+    setEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
   return (
@@ -117,11 +185,16 @@ export default function MemoriaPage() {
         activeTagFilter={activeTagFilter}
         onTagFilterChange={setActiveTagFilter}
         tags={tags}
+        favouriteFilter={favouriteFilter}
+        onToggleFavouriteFilter={handleToggleFavouriteFilter}
       />
       <InsightsPanel />
       <MemoriaGrid
         entries={entries}
         loading={loading}
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        onLoadMore={loadMore}
         onToggleFavorite={handleToggleFavorite}
         onEntryClick={setSelectedEntry}
       />
@@ -130,7 +203,7 @@ export default function MemoriaPage() {
         onClose={() => setShowAddModal(false)}
         tags={tags}
         onSaved={() => {
-          fetchEntries();
+          fetchEntries(true);
           fetchTags();
         }}
       />
@@ -146,7 +219,7 @@ export default function MemoriaPage() {
           entry={selectedEntry}
           tags={tags}
           onSaved={() => {
-            fetchEntries();
+            fetchEntries(true);
             fetchTags();
             setSelectedEntry(null);
           }}

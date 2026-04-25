@@ -1,5 +1,5 @@
 "use client";
-
+import { Bookmark, BookmarkCheck } from "lucide-react";
 import type { MemoriaTag } from "../page";
 
 const SOURCE_TYPES = [
@@ -19,6 +19,8 @@ interface Props {
   activeTagFilter: number | null;
   onTagFilterChange: (tagId: number | null) => void;
   tags: MemoriaTag[];
+  favouriteFilter: boolean;
+  onToggleFavouriteFilter: () => void;
 }
 
 export function MemoriaFilters({
@@ -27,6 +29,8 @@ export function MemoriaFilters({
   activeTagFilter,
   onTagFilterChange,
   tags,
+  favouriteFilter,
+  onToggleFavouriteFilter,
 }: Props) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
@@ -59,6 +63,17 @@ export function MemoriaFilters({
           ))}
         </select>
       )}
+      <button
+        onClick={onToggleFavouriteFilter}
+        className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border transition-colors ${
+          favouriteFilter
+            ? "bg-yellow-50 text-yellow-700 border-yellow-300"
+            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+        }`}
+      >
+        {favouriteFilter ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+        Favourites
+      </button>
     </div>
   );
 }
