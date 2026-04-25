@@ -178,6 +178,7 @@ export default function MemoriaPage() {
         onSearchChange={setSearchQuery}
         onAddClick={() => setShowAddModal(true)}
         onRandomClick={() => setShowRandomModal(true)}
+        total={totalRef.current}
       />
       <MemoriaFilters
         activeSourceFilter={activeSourceFilter}
