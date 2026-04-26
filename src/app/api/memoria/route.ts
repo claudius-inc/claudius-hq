@@ -5,6 +5,15 @@ import { logger } from "@/lib/logger";
 
 export const revalidate = 3600;
 
+function toCamelCase(row: Record<string, unknown>) {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    result[camelKey] = value;
+  }
+  return result;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
@@ -76,7 +85,7 @@ export async function GET(req: NextRequest) {
           sql: `SELECT t.id, t.name, t.color FROM memoria_tags t INNER JOIN memoria_entry_tags met ON t.id = met.tag_id WHERE met.entry_id = ?`,
           args: [row.id as number],
         });
-        return { ...row, tags: tagsResult.rows };
+        return { ...toCamelCase(row as Record<string, unknown>), tags: tagsResult.rows };
       })
     );
 
