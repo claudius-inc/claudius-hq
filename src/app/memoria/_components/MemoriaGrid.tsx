@@ -1,9 +1,18 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowUpDown } from "lucide-react";
 import type { MemoriaEntry } from "../page";
 import { EntryCard } from "./EntryCard";
+
+export type SortOption = "recent" | "oldest" | "recently_starred" | "longest";
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: "recent", label: "Recent" },
+  { value: "oldest", label: "Oldest" },
+  { value: "recently_starred", label: "Recently Starred" },
+  { value: "longest", label: "Longest" },
+];
 
 interface Props {
   entries: MemoriaEntry[];
@@ -14,9 +23,12 @@ interface Props {
   onToggleFavorite: (entry: MemoriaEntry) => void;
   togglingFavoriteId: number | null;
   onEntryClick: (entry: MemoriaEntry) => void;
+  total: number;
+  sort: SortOption;
+  onSortChange: (sort: SortOption) => void;
 }
 
-export function MemoriaGrid({ entries, loading, loadingMore, hasMore, onLoadMore, onToggleFavorite, togglingFavoriteId, onEntryClick }: Props) {
+export function MemoriaGrid({ entries, loading, loadingMore, hasMore, onLoadMore, onToggleFavorite, togglingFavoriteId, onEntryClick, total, sort, onSortChange }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -57,6 +69,23 @@ export function MemoriaGrid({ entries, loading, loadingMore, hasMore, onLoadMore
 
   return (
     <div>
+      {/* Context line */}
+      <div className="flex items-center justify-between py-2 mb-2">
+        <span className="text-xs text-gray-400">{total} entries</span>
+        <div className="relative flex items-center gap-1.5">
+          <ArrowUpDown size={12} className="text-gray-400" />
+          <select
+            value={sort}
+            onChange={(e) => onSortChange(e.target.value as SortOption)}
+            className="text-xs text-gray-500 bg-transparent border-none focus:outline-none cursor-pointer appearance-none pr-1"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       <div className="columns-1 md:columns-2 lg:columns-3 gap-4 space-y-4">
         {entries.map((entry) => (
           <EntryCard
