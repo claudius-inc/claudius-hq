@@ -5,6 +5,16 @@ import { eq } from "drizzle-orm";
 import { getV2WalletAddress } from "@/lib/virtuals-client";
 
 const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+
+// V2 ACP main contract on Base — pays the seller out of escrow on job
+// completion. Source: @virtuals-protocol/acp-node-v2 ACP_CONTRACT_ADDRESSES[base.id].
+// Filtering inbound USDC by `from === ACP_V2_ESCROW` is what separates real
+// service revenue from topups, swaps, and any other transfers into the wallet.
+const ACP_V2_ESCROW = "0x238E541BfefD82238730D00a2208E5497F1832E0";
+
+// V1 ACP escrow — kept so historical pre-migration revenue stays attributed.
+const ACP_V1_ESCROW = "0xEF4364Fe4487353dF46eb7c811D4FAc78b856c7F";
+
 const CACHE_KEY = "acp_onchain_revenue";
 
 interface BlockscoutTransfer {
@@ -40,9 +50,16 @@ async function fetchOnChainRevenue(): Promise<RevenueData> {
   const wallet = await getV2WalletAddress();
   const items = await fetchTransfersForWallet(wallet);
 
-  // Inbound USDC to the agent wallet on Base is overwhelmingly job revenue.
+  // Real revenue = inbound USDC FROM the ACP escrow contract. Anything else
+  // (topups, swaps, transfers from the owner) is not service income.
+  const escrowAddresses = new Set([
+    ACP_V2_ESCROW.toLowerCase(),
+    ACP_V1_ESCROW.toLowerCase(),
+  ]);
   const acpTransfers = items.filter(
-    (t) => t.token.address_hash.toLowerCase() === USDC_BASE.toLowerCase()
+    (t) =>
+      t.token.address_hash.toLowerCase() === USDC_BASE.toLowerCase() &&
+      escrowAddresses.has(t.from.hash.toLowerCase())
   );
 
   let totalRevenue = 0;
