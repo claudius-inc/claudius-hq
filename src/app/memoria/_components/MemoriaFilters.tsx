@@ -71,47 +71,45 @@ export function MemoriaFilters({
         ))}
       </div>
 
-      {/* Tag chips */}
-      {tags.length > 0 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
-          {tags.map((tag) => {
-            const isActive = activeTagFilter === tag.id;
-            const count = (tag as MemoriaTag & { count?: number }).count;
-            return (
-              <button
-                key={tag.id}
-                onClick={() => onTagFilterChange(isActive ? null : tag.id)}
-                className={`shrink-0 px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                  isActive
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                }`}
-              >
-                {tag.name}{count != null ? ` (${count})` : ""}
-              </button>
-            );
-          })}
-          {titleFilter && (
+      {/* Tag chips + active filter pills */}
+      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        {tags.map((tag) => {
+          const isActive = activeTagFilter === tag.id;
+          const count = (tag as MemoriaTag & { count?: number }).count;
+          return (
             <button
-              onClick={onClearTitleFilter}
-              className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-blue-300 bg-blue-50 text-blue-700"
+              key={tag.id}
+              onClick={() => onTagFilterChange(isActive ? null : tag.id)}
+              className={`shrink-0 px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                isActive
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+              }`}
             >
-              <BookOpen size={10} />
-              <span className="truncate max-w-[120px]">{titleFilter}</span>
-              <X size={10} />
+              {tag.name}{count != null ? ` (${count})` : ""}
             </button>
-          )}
-          {authorFilter && (
-            <button
-              onClick={onClearAuthorFilter}
-              className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-purple-300 bg-purple-50 text-purple-700"
-            >
-              <span className="truncate max-w-[120px]">{authorFilter}</span>
-              <X size={10} />
-            </button>
-          )}
-        </div>
-      )}
+          );
+        })}
+        {titleFilter && (
+          <button
+            onClick={onClearTitleFilter}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-blue-300 bg-blue-50 text-blue-700"
+          >
+            <BookOpen size={10} />
+            <span className="truncate max-w-[120px]">{titleFilter}</span>
+            <X size={10} />
+          </button>
+        )}
+        {authorFilter && (
+          <button
+            onClick={onClearAuthorFilter}
+            className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-purple-300 bg-purple-50 text-purple-700"
+          >
+            <span className="truncate max-w-[120px]">{authorFilter}</span>
+            <X size={10} />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
