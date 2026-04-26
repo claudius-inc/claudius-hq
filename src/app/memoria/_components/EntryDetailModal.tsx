@@ -311,6 +311,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs text-gray-500">Tags</label>
               <button
+                type="button"
                 onClick={handleSuggestTags}
                 disabled={suggestingTags || !content.trim()}
                 className="flex items-center gap-1 text-[10px] text-purple-500 hover:text-purple-700 disabled:opacity-50"
@@ -356,6 +357,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
                 className="flex-1 px-2 py-0.5 text-[10px] border border-gray-200 rounded-full focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
               <button
+                type="button"
                 onClick={handleCreateTag}
                 disabled={!newTagInput.trim()}
                 className="p-0.5 text-gray-400 hover:text-blue-500 disabled:opacity-30"
