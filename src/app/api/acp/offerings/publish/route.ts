@@ -1,106 +1,20 @@
-import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
-import { db } from "@/db";
-import { acpOfferings } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { createOffering } from "@/lib/virtuals-client";
-import { logger } from "@/lib/logger";
+import { NextResponse } from "next/server";
 
-const MAX_OFFERINGS = 20;
+const V2_AGENT_ID = process.env.ACP_V2_AGENT_ID || "019dc9e1-8f53-79db-9f05-5889a0f8ef4a";
+const V2_UI_URL = `https://app.virtuals.io/acp/agents/${V2_AGENT_ID}`;
 
-async function getActiveOfferingsCount(): Promise<number> {
-  const result = await db
-    .select()
-    .from(acpOfferings)
-    .where(eq(acpOfferings.isActive, 1));
-  return result.length;
-}
-
-export async function POST(req: NextRequest) {
-
-  try {
-    const body = await req.json();
-    const { id, name } = body;
-
-    // Find offering
-    let offering;
-    if (id) {
-      const result = await db.select().from(acpOfferings).where(eq(acpOfferings.id, id)).limit(1);
-      offering = result[0];
-    } else if (name) {
-      const result = await db.select().from(acpOfferings).where(eq(acpOfferings.name, name)).limit(1);
-      offering = result[0];
-    }
-
-    if (!offering) {
-      return NextResponse.json({ error: "Offering not found" }, { status: 404 });
-    }
-
-    if (offering.isActive) {
-      return NextResponse.json({ error: "Offering already published" }, { status: 400 });
-    }
-
-    // Check max count
-    const activeCount = await getActiveOfferingsCount();
-    if (activeCount >= MAX_OFFERINGS) {
-      return NextResponse.json({ 
-        error: `Already at max ${MAX_OFFERINGS} offerings. Unpublish one first.` 
-      }, { status: 400 });
-    }
-
-    // Parse requirements if stored as JSON string
-    let requirements: Record<string, unknown> = {};
-    if (offering.requirements) {
-      try {
-        requirements = JSON.parse(offering.requirements);
-      } catch {
-        // Keep empty if invalid JSON
-      }
-    }
-
-    // Call Virtuals API to create offering
-    try {
-      await createOffering({
-        name: offering.name,
-        description: offering.description || "",
-        priceV2: {
-          type: "fixed",
-          value: offering.price || 0,
-        },
-        requiredFunds: offering.requiredFunds === 1,
-        requirement: requirements,
-        deliverable: offering.deliverable || "",
-      });
-      
-      logger.info("acp/publish", `Published offering: ${offering.name}`);
-    } catch (err: unknown) {
-      const error = err as Error;
-      logger.error("acp/publish", `Failed to publish to Virtuals API: ${error.message}`);
-      return NextResponse.json({ 
-        error: `Failed to publish to marketplace: ${error.message}` 
-      }, { status: 500 });
-    }
-
-    // Update DB
-    await db
-      .update(acpOfferings)
-      .set({ 
-        isActive: 1, 
-        listedOnAcp: 1,
-        updatedAt: new Date().toISOString() 
-      })
-      .where(eq(acpOfferings.id, offering.id));
-
-    revalidatePath("/acp");
-    return NextResponse.json({ 
-      success: true, 
-      offering: offering.name,
-      price: offering.price,
-      activeCount: activeCount + 1,
-      maxCount: MAX_OFFERINGS
-    });
-  } catch (error) {
-    logger.error("api/acp/offerings/publish", "Error publishing offering", { error });
-    return NextResponse.json({ error: "Failed to publish offering" }, { status: 500 });
-  }
+// Removed 2026-04-26 after the V2 migration. V2 has no SDK or HTTP route for
+// listing offerings — it's UI-only. The old implementation called the V1
+// `createOffering` against `claw-api.virtuals.io`, which is now a zombie
+// marketplace nobody buys from. Returning 410 to make any stale callers fail
+// loudly instead of silently writing to the dead V1 system.
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: "Gone",
+      message: `Offering publish is UI-only on V2. Manage at ${V2_UI_URL}`,
+      uiUrl: V2_UI_URL,
+    },
+    { status: 410 }
+  );
 }

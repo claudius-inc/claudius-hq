@@ -1,128 +1,68 @@
 /**
- * Virtuals ACP API Client
- * 
- * Calls Virtuals API directly (no VPS dependency).
- * Used by ACP routes running on Vercel.
+ * Virtuals ACP V2 marketplace client.
+ *
+ * Reads from `api.acp.virtuals.io` — no auth required for agent/offering reads.
+ * Writes (offering create/update/hide, profile edits) are UI-only on V2 and not
+ * exposed by this module. The legacy `claw-api.virtuals.io` V1 client was
+ * removed on 2026-04-26 — V1 is a zombie marketplace nobody buys from.
  */
 
-const BASE_URL = "https://claw-api.virtuals.io";
+const V2_BASE_URL = "https://api.acp.virtuals.io";
+const V2_AGENT_ID =
+  process.env.ACP_V2_AGENT_ID || "019dc9e1-8f53-79db-9f05-5889a0f8ef4a";
 
-function getApiKey(): string {
-  const key = process.env.LITE_AGENT_API_KEY;
-  if (!key) {
-    throw new Error("LITE_AGENT_API_KEY environment variable not set");
-  }
-  return key;
+export interface V2Offering {
+  id: string;
+  name: string;
+  description: string;
+  deliverable: string;
+  requirements: Record<string, unknown> | null;
+  slaMinutes: number;
+  priceType: "fixed" | "dynamic";
+  priceValue: number;
+  requiredFunds: boolean;
+  isHidden: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-interface VirtualsRequestOptions {
-  method?: "GET" | "POST" | "DELETE";
-  body?: unknown;
+export interface V2AgentInfo {
+  id: string;
+  name: string;
+  description: string;
+  walletAddress: string;
+  solWalletAddress?: string | null;
+  imageUrl?: string | null;
+  cluster?: string | null;
+  offerings: V2Offering[];
+  chains: Array<{ chainId: number; tokenAddress?: string | null; symbol?: string | null }>;
+  updatedAt: string;
 }
 
-interface VirtualsApiResponse<T> {
-  data: T;
-}
-
-async function virtualsRequest<T>(endpoint: string, options: VirtualsRequestOptions = {}): Promise<T> {
-  const { method = "GET", body } = options;
-  
-  const response = await fetch(`${BASE_URL}${endpoint}`, {
-    method,
-    headers: {
-      "x-api-key": getApiKey(),
-      "Content-Type": "application/json",
-    },
-    body: body ? JSON.stringify(body) : undefined,
+/**
+ * Fetch the live V2 agent record (profile + offerings + wallet). Source of truth.
+ */
+export async function getV2AgentInfo(agentId: string = V2_AGENT_ID): Promise<V2AgentInfo> {
+  const res = await fetch(`${V2_BASE_URL}/agents/${encodeURIComponent(agentId)}`, {
+    cache: "no-store",
   });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Virtuals API error (${response.status}): ${errorText}`);
+  if (!res.ok) {
+    throw new Error(`V2 agent fetch failed (${res.status}): ${await res.text()}`);
   }
-
-  // Virtuals API wraps responses in {data: ...}
-  const json = await response.json() as VirtualsApiResponse<T>;
+  const json = (await res.json()) as { data: V2AgentInfo };
   return json.data;
 }
 
-// Types
-
-export interface AgentInfo {
-  id: number;
-  name: string;
-  walletAddress: string;
-  offerings?: OfferingInfo[];
-}
-
-export interface OfferingInfo {
-  name: string;
-  description: string;
-  price: number;
-  priceType: string;
-}
-
-export interface CreateOfferingInput {
-  name: string;
-  description: string;
-  priceV2: {
-    type: "fixed";
-    value: number;
-  };
-  slaMinutes?: number;
-  requiredFunds?: boolean;
-  requirement?: Record<string, unknown>;
-  deliverable?: string;
-}
-
-export interface JobInfo {
-  id: string;
-  name: string;
-  price: string;
-  client: string;
-  provider: string;
-  deliverable?: string;
-  status: string;
-}
-
-// API Functions
-
 /**
- * Get agent info including wallet address and offerings list
+ * Cached wallet address lookup (60s TTL) to avoid hammering the API on every
+ * request when only the wallet is needed.
  */
-export async function getAgentInfo(): Promise<AgentInfo> {
-  return virtualsRequest<AgentInfo>("/acp/me");
-}
-
-/**
- * Create a new offering on the marketplace
- */
-export async function createOffering(offering: CreateOfferingInput): Promise<{ success: boolean; message?: string }> {
-  return virtualsRequest<{ success: boolean; message?: string }>("/acp/job-offerings", {
-    method: "POST",
-    body: { data: offering },
-  });
-}
-
-/**
- * Delete an offering from the marketplace
- */
-export async function deleteOffering(name: string): Promise<{ success: boolean; message?: string }> {
-  return virtualsRequest<{ success: boolean; message?: string }>(`/acp/job-offerings/${encodeURIComponent(name)}`, {
-    method: "DELETE",
-  });
-}
-
-/**
- * Get job status by ID
- */
-export async function getJobStatus(jobId: string): Promise<JobInfo> {
-  return virtualsRequest<JobInfo>(`/acp/jobs/${encodeURIComponent(jobId)}`);
-}
-
-/**
- * Get topup payment URL
- */
-export async function getTopupUrl(): Promise<{ url: string }> {
-  return virtualsRequest<{ url: string }>("/acp/topup");
+let v2WalletCache: { address: string; ts: number } | null = null;
+export async function getV2WalletAddress(): Promise<string> {
+  if (v2WalletCache && Date.now() - v2WalletCache.ts < 60_000) {
+    return v2WalletCache.address;
+  }
+  const info = await getV2AgentInfo();
+  v2WalletCache = { address: info.walletAddress, ts: Date.now() };
+  return info.walletAddress;
 }

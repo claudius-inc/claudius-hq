@@ -1,12 +1,36 @@
 import { NextResponse } from "next/server";
-import { getAgentInfo } from "@/lib/virtuals-client";
+import { getV2WalletAddress } from "@/lib/virtuals-client";
 import { logger } from "@/lib/logger";
 import { ethers } from "ethers";
 
-// HQ_API_KEY is used internally by virtuals-client for authenticated calls
-
 // Base mainnet RPC (public endpoint, consider using Alchemy/Infura for production)
 const BASE_RPC = "https://mainnet.base.org";
+
+// CoinGecko spot prices (cached briefly to avoid rate limits).
+let priceCache: { ethUsd: number; btcUsd: number; ts: number } | null = null;
+async function getSpotPrices(): Promise<{ ethUsd: number; btcUsd: number }> {
+  if (priceCache && Date.now() - priceCache.ts < 5 * 60_000) {
+    return { ethUsd: priceCache.ethUsd, btcUsd: priceCache.btcUsd };
+  }
+  try {
+    const res = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=ethereum,bitcoin&vs_currencies=usd",
+      { cache: "no-store" }
+    );
+    if (res.ok) {
+      const j = (await res.json()) as { ethereum?: { usd: number }; bitcoin?: { usd: number } };
+      priceCache = {
+        ethUsd: j.ethereum?.usd ?? 2000,
+        btcUsd: j.bitcoin?.usd ?? 60000,
+        ts: Date.now(),
+      };
+      return { ethUsd: priceCache.ethUsd, btcUsd: priceCache.btcUsd };
+    }
+  } catch (err) {
+    logger.warn("wallet", `Spot price fetch failed, using stale or fallback: ${err}`);
+  }
+  return { ethUsd: priceCache?.ethUsd ?? 2000, btcUsd: priceCache?.btcUsd ?? 60000 };
+}
 
 // Common token addresses on Base
 const TOKENS: Record<string, { address: string; decimals: number; name: string }> = {
@@ -43,37 +67,33 @@ interface WalletBalance {
 
 async function getTokenBalances(walletAddress: string): Promise<WalletBalance[]> {
   const provider = new ethers.JsonRpcProvider(BASE_RPC);
+  const { ethUsd, btcUsd } = await getSpotPrices();
   const balances: WalletBalance[] = [];
 
-  // Get ETH balance
   try {
     const ethBalance = await provider.getBalance(walletAddress);
     const ethBalanceNum = parseFloat(ethers.formatEther(ethBalance));
-    // TODO: Fetch real ETH price from an API
-    const ethPrice = 2000; // Placeholder
     balances.push({
       symbol: "ETH",
       name: "Ether",
       balance: ethBalanceNum,
-      priceUsd: ethPrice,
-      valueUsd: ethBalanceNum * ethPrice,
+      priceUsd: ethUsd,
+      valueUsd: ethBalanceNum * ethUsd,
     });
   } catch (err) {
     logger.error("wallet", `Failed to get ETH balance: ${err}`);
   }
 
-  // Get ERC20 token balances
   for (const [symbol, tokenInfo] of Object.entries(TOKENS)) {
     try {
       const contract = new ethers.Contract(tokenInfo.address, ERC20_ABI, provider);
       const balance = await contract.balanceOf(walletAddress);
       const balanceNum = parseFloat(ethers.formatUnits(balance, tokenInfo.decimals));
-      
-      // TODO: Fetch real prices from an API
-      let priceUsd = 1; // Default for stablecoins
-      if (symbol === "WETH") priceUsd = 2000;
-      if (symbol === "cbBTC") priceUsd = 60000;
-      
+
+      let priceUsd = 1; // stablecoin default
+      if (symbol === "WETH") priceUsd = ethUsd;
+      if (symbol === "cbBTC") priceUsd = btcUsd;
+
       balances.push({
         symbol,
         name: tokenInfo.name,
@@ -96,19 +116,9 @@ async function getTokenBalances(walletAddress: string): Promise<WalletBalance[]>
  * No client auth required - server uses HQ_API_KEY internally.
  */
 export async function GET() {
-  // Check for required env var first
-  if (!process.env.LITE_AGENT_API_KEY) {
-    logger.warn("api/acp/wallet", "LITE_AGENT_API_KEY not configured");
-    return NextResponse.json(
-      { error: "Wallet integration not configured", details: "Missing LITE_AGENT_API_KEY" },
-      { status: 503 }
-    );
-  }
-
   try {
-    // Get wallet address from Virtuals API
-    const agentInfo = await getAgentInfo();
-    const walletAddress = agentInfo.walletAddress;
+    // Get wallet address from V2 marketplace (no auth required for reads).
+    const walletAddress = await getV2WalletAddress();
 
     if (!walletAddress) {
       return NextResponse.json(

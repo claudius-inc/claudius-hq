@@ -7,6 +7,7 @@ import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { logger } from "@/lib/logger";
+import { getV2AgentInfo } from "@/lib/virtuals-client";
 
 const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
 const OFFERINGS_DIR = path.join(ACP_DIR, "src/seller/offerings");
@@ -29,15 +30,83 @@ function detectCategory(name: string): string {
   return "fortune";
 }
 
-// GET: Fetch all offerings
+// GET: Fetch all offerings, overlaying live V2 marketplace state on top of the
+// local DB so listed/price/description always reflect what real buyers see.
+// The local DB is treated as cold storage for fields the marketplace doesn't
+// track (jobCount, totalRevenue, doNotRelist, category).
 export async function GET(_req: NextRequest) {
   try {
-    const offerings = await db
+    const dbOfferings = await db
       .select()
       .from(acpOfferings)
       .orderBy(desc(acpOfferings.isActive), desc(acpOfferings.jobCount));
 
-    return NextResponse.json({ offerings });
+    let liveOfferings: Awaited<ReturnType<typeof getV2AgentInfo>>["offerings"] = [];
+    let liveError: string | null = null;
+    try {
+      const agent = await getV2AgentInfo();
+      liveOfferings = agent.offerings;
+    } catch (e) {
+      liveError = (e as Error).message;
+      logger.warn("api/acp/offerings", `V2 marketplace fetch failed: ${liveError}`);
+    }
+
+    const liveByName = new Map(liveOfferings.map((o) => [o.name, o]));
+    const dbByName = new Map(dbOfferings.map((o) => [o.name, o]));
+
+    // Merge: union of names, live wins for listed/price/description.
+    const allNames = new Set<string>([
+      ...Array.from(liveByName.keys()),
+      ...Array.from(dbByName.keys()),
+    ]);
+    const merged = Array.from(allNames).map((name) => {
+      const live = liveByName.get(name);
+      const local = dbByName.get(name);
+      return {
+        // Local-only fields (kept from DB)
+        id: local?.id,
+        category: local?.category,
+        jobCount: local?.jobCount ?? 0,
+        totalRevenue: local?.totalRevenue ?? 0,
+        doNotRelist: local?.doNotRelist ?? 0,
+        handlerPath: local?.handlerPath,
+        // Marketplace fields — live wins, local is fallback
+        name,
+        description: live?.description ?? local?.description ?? "",
+        price: live?.priceValue ?? local?.price ?? 0,
+        listedOnAcp: live ? (live.isHidden ? 0 : 1) : 0,
+        isActive: live ? (live.isHidden ? 0 : 1) : (local?.isActive ?? 0),
+        requirements: live?.requirements
+          ? JSON.stringify(live.requirements)
+          : local?.requirements,
+        deliverable: live?.deliverable ?? local?.deliverable,
+        requiredFunds: live?.requiredFunds ? 1 : (local?.requiredFunds ?? 0),
+        slaMinutes: live?.slaMinutes,
+        liveOnly: !local && !!live,
+        localOnly: !!local && !live,
+      };
+    });
+
+    // Sort: listed-on-marketplace first, then by jobCount, then alpha.
+    merged.sort((a, b) => {
+      if (a.listedOnAcp !== b.listedOnAcp) return b.listedOnAcp - a.listedOnAcp;
+      if (a.jobCount !== b.jobCount) return b.jobCount - a.jobCount;
+      return a.name.localeCompare(b.name);
+    });
+
+    return NextResponse.json({
+      offerings: merged,
+      counts: {
+        liveOnMarketplace: liveOfferings.filter((o) => !o.isHidden).length,
+        hiddenOnMarketplace: liveOfferings.filter((o) => o.isHidden).length,
+        localOnly: merged.filter((o) => o.localOnly).length,
+        liveOnly: merged.filter((o) => o.liveOnly).length,
+        total: merged.length,
+      },
+      source: liveError
+        ? `local DB only (V2 fetch failed: ${liveError})`
+        : "merged: V2 marketplace (live truth) + local DB (revenue/category)",
+    });
   } catch (error) {
     logger.error("api/acp/offerings", "Error fetching offerings", { error });
     return NextResponse.json({ error: "Failed to fetch offerings" }, { status: 500 });

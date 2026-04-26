@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAgentInfo } from "@/lib/virtuals-client";
-import { logger } from "@/lib/logger";
 import { db } from "@/db";
-import { acpOfferings } from "@/db/schema";
-import { sql } from "drizzle-orm";
+import { marketCache } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { getV2AgentInfo, getV2WalletAddress } from "@/lib/virtuals-client";
+import { logger } from "@/lib/logger";
 
-// HQ_API_KEY is used internally by virtuals-client for authenticated calls
+const REVENUE_CACHE_KEY = "acp_onchain_revenue";
 
-// Our provider address
-const MY_ADDRESS = "0x46D4f9f23948fBbeF6b104B0cB571b3F6e551B6F";
-
-// No auth required for read-only job stats
-// Server uses HQ_API_KEY internally for Virtuals API calls
+interface CachedRevenue {
+  totalRevenue: number;
+  jobCount: number;
+  transfers: Array<{ date: string; amount: number; tx: string }>;
+}
 
 interface JobSummary {
   name: string;
@@ -22,69 +22,79 @@ interface JobSummary {
 /**
  * GET /api/acp/jobs
  *
- * Returns job statistics from database.
- * 
- * Note: The Virtuals API only provides job status by ID (GET /acp/jobs/{id}),
- * not a list of all completed jobs. Stats are tracked in our DB when jobs complete.
- * 
+ * Source of truth: cached on-chain transfers (acp_onchain_revenue) for totals,
+ * V2 marketplace for per-offering pricing. Per-offering job counts are inferred
+ * by matching transfer amounts to offering prices — best-effort, not exact, since
+ * the on-chain transfer doesn't carry the offering name.
+ *
  * Query params:
  *   - limit: max number of offerings to return (default: 20)
- *   - role: filter by "provider" or "client" (optional, currently only provider supported)
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get("limit") || "20", 10);
-    const roleFilter = searchParams.get("role");
 
-    // Get agent info for wallet verification (optional, falls back to default)
-    let walletAddress = MY_ADDRESS;
-    if (process.env.LITE_AGENT_API_KEY) {
-      try {
-        const agentInfo = await getAgentInfo();
-        walletAddress = agentInfo.walletAddress || MY_ADDRESS;
-      } catch {
-        // Use default address if API fails
+    const walletAddress = await getV2WalletAddress();
+
+    // Live offerings list (price + name)
+    const agent = await getV2AgentInfo();
+    const offerings = agent.offerings.filter((o) => !o.isHidden);
+
+    // Cached revenue (populated by POST /api/acp/revenue)
+    const cached = await db
+      .select()
+      .from(marketCache)
+      .where(eq(marketCache.key, REVENUE_CACHE_KEY))
+      .get();
+
+    let totalJobs = 0;
+    let totalRevenue = 0;
+    const perOffering = new Map<string, JobSummary>();
+
+    if (cached) {
+      const data = JSON.parse(cached.data) as CachedRevenue;
+      totalJobs = data.jobCount;
+      totalRevenue = data.totalRevenue;
+
+      // Heuristic: match each transfer amount to the closest offering price (within 1c).
+      const priceToOffering = new Map<number, string>();
+      for (const o of offerings) {
+        priceToOffering.set(Math.round(o.priceValue * 100) / 100, o.name);
+      }
+
+      for (const tx of data.transfers) {
+        const amt = Math.round(tx.amount * 100) / 100;
+        const matched = priceToOffering.get(amt);
+        if (!matched) continue;
+        const cur = perOffering.get(matched) || { name: matched, jobCount: 0, totalRevenue: 0 };
+        cur.jobCount += 1;
+        cur.totalRevenue = Math.round((cur.totalRevenue + tx.amount) * 100) / 100;
+        perOffering.set(matched, cur);
       }
     }
 
-    // Get job stats from our database (aggregated per offering)
-    const offerings = await db
-      .select({
-        name: acpOfferings.name,
-        jobCount: acpOfferings.jobCount,
-        totalRevenue: acpOfferings.totalRevenue,
-      })
-      .from(acpOfferings)
-      .where(sql`${acpOfferings.jobCount} > 0`)
-      .orderBy(sql`${acpOfferings.totalRevenue} DESC`)
-      .limit(limit);
+    const jobs = Array.from(perOffering.values())
+      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+      .slice(0, limit);
 
-    const jobs: JobSummary[] = offerings.map((o) => ({
-      name: o.name,
-      jobCount: o.jobCount || 0,
-      totalRevenue: o.totalRevenue || 0,
-    }));
-
-    // Calculate totals
-    const totalJobs = jobs.reduce((sum, j) => sum + j.jobCount, 0);
-    const totalRevenue = jobs.reduce((sum, j) => sum + j.totalRevenue, 0);
-
-    // For now, all tracked jobs are as provider
-    const asProvider = roleFilter === "client" ? 0 : totalJobs;
-    const asClient = roleFilter === "provider" ? 0 : 0; // We don't track client jobs yet
+    const matched = jobs.reduce((s, j) => s + j.jobCount, 0);
+    const unmatched = totalJobs - matched;
 
     return NextResponse.json({
       walletAddress,
-      jobs: jobs,
+      jobs,
       stats: {
         total: jobs.length,
         totalJobs,
-        asProvider,
-        asClient,
+        unmatched, // transfers we couldn't pin to a specific offering by price
+        asProvider: totalJobs,
+        asClient: 0,
         revenueUsdc: totalRevenue,
         spentUsdc: 0,
       },
+      lastUpdated: cached?.updatedAt || null,
+      source: "on-chain transfers via /api/acp/revenue cache, offerings via V2 marketplace",
     });
   } catch (err) {
     const error = err as Error;
