@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Bookmark, BookmarkCheck, BookOpen, ChevronDown, X } from "lucide-react";
 import type { MemoriaTag } from "../page";
 
@@ -42,15 +42,7 @@ function SourceTypeDropdown({
   const activeLabel =
     SOURCE_TYPES.find((st) => st.value === activeSourceFilter)?.label ?? "All";
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  // Dropdown positioned via fixed + backdrop overlay handles close
 
   return (
     <div className="relative shrink-0" ref={ref}>
@@ -67,24 +59,33 @@ function SourceTypeDropdown({
         <ChevronDown size={10} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[140px]">
-          {SOURCE_TYPES.map((st) => (
-            <button
-              key={st.label}
-              type="button"
-              onClick={() => {
-                onSourceFilterChange(st.value);
-                setOpen(false);
-              }}
-              className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
-                activeSourceFilter === st.value
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-600 hover:bg-gray-50"
-              }`}
-            >
-              {st.label}
-            </button>
-          ))}
+        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)}>
+          <div
+            className="absolute bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50 min-w-[140px]"
+            style={{
+              top: ref.current?.getBoundingClientRect().bottom ? ref.current.getBoundingClientRect().bottom + 4 : 0,
+              left: ref.current?.getBoundingClientRect().left ?? 0,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {SOURCE_TYPES.map((st) => (
+              <button
+                key={st.label}
+                type="button"
+                onClick={() => {
+                  onSourceFilterChange(st.value);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                  activeSourceFilter === st.value
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
