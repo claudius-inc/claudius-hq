@@ -12,10 +12,11 @@ interface Props {
   hasMore: boolean;
   onLoadMore: () => void;
   onToggleFavorite: (entry: MemoriaEntry) => void;
+  togglingFavoriteId: number | null;
   onEntryClick: (entry: MemoriaEntry) => void;
 }
 
-export function MemoriaGrid({ entries, loading, loadingMore, hasMore, onLoadMore, onToggleFavorite, onEntryClick }: Props) {
+export function MemoriaGrid({ entries, loading, loadingMore, hasMore, onLoadMore, onToggleFavorite, togglingFavoriteId, onEntryClick }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,6 +63,7 @@ export function MemoriaGrid({ entries, loading, loadingMore, hasMore, onLoadMore
             key={entry.id}
             entry={entry}
             onToggleFavorite={onToggleFavorite}
+            togglingFavoriteId={togglingFavoriteId}
             onClick={onEntryClick}
           />
         ))}
