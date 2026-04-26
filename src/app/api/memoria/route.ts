@@ -3,7 +3,7 @@ import { revalidateTag } from "next/cache";
 import rawClient from "@/lib/db";
 import { logger } from "@/lib/logger";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 function toCamelCase(row: Record<string, unknown>) {
   const result: Record<string, unknown> = {};
