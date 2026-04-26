@@ -7,7 +7,12 @@ import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { logger } from "@/lib/logger";
-import { getV2AgentInfo } from "@/lib/virtuals-client";
+import {
+  getV2AgentInfo,
+  findV2OfferingByName,
+  updateV2Offering,
+  type UpdateV2OfferingBody,
+} from "@/lib/virtuals-client";
 
 const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
 const OFFERINGS_DIR = path.join(ACP_DIR, "src/seller/offerings");
@@ -257,13 +262,46 @@ export async function PATCH(req: NextRequest) {
       updates.doNotRelist = doNotRelist ? 1 : 0;
     }
 
+    // Push marketplace-visible fields to V2. If V2 fails, surface the error to
+    // the user — local-only writes are misleading because the GET overlays live
+    // V2 data on top of the DB.
+    let v2Updated: string[] = [];
+    if (typeof price === "number" || typeof description === "string") {
+      const live = await findV2OfferingByName(name);
+      if (!live) {
+        return NextResponse.json(
+          { error: `Offering '${name}' not found on V2 marketplace` },
+          { status: 404 }
+        );
+      }
+      const v2Body: UpdateV2OfferingBody = {};
+      if (typeof price === "number") v2Body.priceValue = price;
+      if (typeof description === "string") v2Body.description = description;
+      try {
+        await updateV2Offering(live.id, v2Body);
+        v2Updated = Object.keys(v2Body);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error("api/acp/offerings", `V2 update failed for ${name}: ${msg}`);
+        return NextResponse.json(
+          { error: `V2 marketplace update failed: ${msg}` },
+          { status: 502 }
+        );
+      }
+    }
+
     await db
       .update(acpOfferings)
       .set(updates)
       .where(eq(acpOfferings.name, name));
 
     revalidatePath("/acp");
-    return NextResponse.json({ success: true, name, updated: Object.keys(updates) });
+    return NextResponse.json({
+      success: true,
+      name,
+      updated: Object.keys(updates),
+      v2Updated,
+    });
   } catch (error) {
     logger.error("api/acp/offerings", "Error updating offering", { error });
     return NextResponse.json({ error: "Failed to update offering" }, { status: 500 });

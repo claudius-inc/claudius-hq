@@ -1,20 +1,41 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
+import { db } from "@/db";
+import { acpOfferings } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { findV2OfferingByName, updateV2Offering } from "@/lib/virtuals-client";
+import { logger } from "@/lib/logger";
 
-const V2_AGENT_ID = process.env.ACP_V2_AGENT_ID || "019dc9e1-8f53-79db-9f05-5889a0f8ef4a";
-const V2_UI_URL = `https://app.virtuals.io/acp/agents/${V2_AGENT_ID}`;
+// Set isHidden=false on the V2 marketplace offering, mirroring it as
+// isActive=1 in the local DB.
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const name = typeof body?.name === "string" ? body.name.trim() : "";
+    if (!name) {
+      return NextResponse.json({ error: "name is required" }, { status: 400 });
+    }
 
-// Removed 2026-04-26 after the V2 migration. V2 has no SDK or HTTP route for
-// listing offerings — it's UI-only. The old implementation called the V1
-// `createOffering` against `claw-api.virtuals.io`, which is now a zombie
-// marketplace nobody buys from. Returning 410 to make any stale callers fail
-// loudly instead of silently writing to the dead V1 system.
-export async function POST() {
-  return NextResponse.json(
-    {
-      error: "Gone",
-      message: `Offering publish is UI-only on V2. Manage at ${V2_UI_URL}`,
-      uiUrl: V2_UI_URL,
-    },
-    { status: 410 }
-  );
+    const live = await findV2OfferingByName(name);
+    if (!live) {
+      return NextResponse.json(
+        { error: `Offering '${name}' not found on V2 marketplace` },
+        { status: 404 }
+      );
+    }
+
+    const updated = await updateV2Offering(live.id, { isHidden: false });
+
+    await db
+      .update(acpOfferings)
+      .set({ isActive: 1, updatedAt: new Date().toISOString() })
+      .where(eq(acpOfferings.name, name));
+
+    revalidatePath("/acp");
+    return NextResponse.json({ success: true, name, isHidden: updated.isHidden });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error("api/acp/offerings/publish", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
