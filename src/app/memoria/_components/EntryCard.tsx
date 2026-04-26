@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, BookOpen, FileText, Headphones, MessageCircle, Lightbulb, Twitter, Video } from "lucide-react";
+import { Star, BookOpen, FileText, Headphones, MessageCircle, Lightbulb, Twitter, Video, Loader2 } from "lucide-react";
 import type { MemoriaEntry } from "../page";
 import { TagBadge } from "./TagBadge";
 
