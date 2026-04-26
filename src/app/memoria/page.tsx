@@ -256,7 +256,10 @@ export default function MemoriaPage() {
             fetchTags();
             setSelectedEntry(null);
           }}
-          onDelete={handleDelete}
+          onDelete={(id) => {
+            setEntries((prev) => prev.filter((e) => e.id !== id));
+            setSelectedEntry(null);
+          }}
         />
       )}
     </div>

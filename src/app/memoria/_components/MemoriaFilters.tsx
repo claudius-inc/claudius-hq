@@ -71,7 +71,7 @@ export function MemoriaFilters({
         ))}
       </div>
 
-      {/* Tag chips + active filter pills */}
+      {/* Tag chips */}
       <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
         {tags.map((tag) => {
           const isActive = activeTagFilter === tag.id;
@@ -90,26 +90,32 @@ export function MemoriaFilters({
             </button>
           );
         })}
-        {titleFilter && (
-          <button
-            onClick={onClearTitleFilter}
-            className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-blue-300 bg-blue-50 text-blue-700"
-          >
-            <BookOpen size={10} />
-            <span className="truncate max-w-[120px]">{titleFilter}</span>
-            <X size={10} />
-          </button>
-        )}
-        {authorFilter && (
-          <button
-            onClick={onClearAuthorFilter}
-            className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-purple-300 bg-purple-50 text-purple-700"
-          >
-            <span className="truncate max-w-[120px]">{authorFilter}</span>
-            <X size={10} />
-          </button>
-        )}
       </div>
+
+      {/* Active filter pills (always visible) */}
+      {(titleFilter || authorFilter) && (
+        <div className="flex items-center gap-1.5">
+          {titleFilter && (
+            <button
+              onClick={onClearTitleFilter}
+              className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-blue-300 bg-blue-50 text-blue-700"
+            >
+              <BookOpen size={10} />
+              <span className="truncate max-w-[180px]">{titleFilter}</span>
+              <X size={10} />
+            </button>
+          )}
+          {authorFilter && (
+            <button
+              onClick={onClearAuthorFilter}
+              className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-purple-300 bg-purple-50 text-purple-700"
+            >
+              <span className="truncate max-w-[180px]">{authorFilter}</span>
+              <X size={10} />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
