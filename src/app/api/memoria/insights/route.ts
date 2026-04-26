@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { db, memoriaEntries, memoriaInsights } from "@/db";
 import { eq, desc } from "drizzle-orm";
 import { analyzePatterns, analyzeConnections, analyzeDistillation } from "@/lib/gemini";
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
       saved.push(insight);
     }
 
+    revalidateTag('memoria');
     return NextResponse.json({ insights: saved }, { status: 201 });
   } catch (e) {
     logger.error("api/memoria/insights", "Failed to generate insights", { error: e });

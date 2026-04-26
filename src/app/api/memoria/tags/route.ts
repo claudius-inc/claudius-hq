@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import rawClient from "@/lib/db";
 import { logger } from "@/lib/logger";
+
+export const revalidate = 3600;
 
 export async function GET(request: NextRequest) {
   try {
@@ -38,6 +41,7 @@ export async function POST(req: NextRequest) {
       args: [tagId],
     });
 
+    revalidateTag('memoria');
     return NextResponse.json({ tag: tagResult.rows[0] }, { status: 201 });
   } catch (e) {
     logger.error("api/memoria/tags", "Failed to create tag", { error: e });
