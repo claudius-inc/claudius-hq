@@ -46,6 +46,9 @@ export function EditOfferingModal({
 
   if (!isOpen) return null;
 
+  const descLen = description.length;
+  const descOverLimit = descLen > 500;
+
   const handleSave = async () => {
     setSaving(true);
     setError(null);
@@ -54,6 +57,11 @@ export function EditOfferingModal({
       const priceNum = parseFloat(price);
       if (isNaN(priceNum) || priceNum < 0) {
         throw new Error("Invalid price");
+      }
+      if (descOverLimit) {
+        throw new Error(
+          `Description must be ≤500 chars (currently ${descLen}). V2 marketplace will reject.`
+        );
       }
 
       const res = await fetch("/api/acp/offerings", {
@@ -144,16 +152,38 @@ export function EditOfferingModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  Description
+                </label>
+                <span
+                  className={`text-xs font-mono ${
+                    descOverLimit
+                      ? "text-red-600 font-semibold"
+                      : descLen > 450
+                      ? "text-amber-600"
+                      : "text-gray-400"
+                  }`}
+                >
+                  {descLen} / 500
+                </span>
+              </div>
               <textarea
                 rows={4}
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full px-3 py-3 md:py-2 border border-gray-200 rounded-lg text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                className={`w-full px-3 py-3 md:py-2 border rounded-lg text-base md:text-sm focus:outline-none focus:ring-2 resize-none ${
+                  descOverLimit
+                    ? "border-red-300 focus:ring-red-500"
+                    : "border-gray-200 focus:ring-blue-500"
+                }`}
                 placeholder="Describe what this offering does..."
               />
+              {descOverLimit && (
+                <p className="text-xs text-red-600 mt-1">
+                  V2 marketplace rejects descriptions over 500 characters.
+                </p>
+              )}
             </div>
 
             {error && (
@@ -174,8 +204,8 @@ export function EditOfferingModal({
             </button>
             <button
               onClick={handleSave}
-              disabled={saving}
-              className="flex items-center justify-center gap-2 px-4 py-3 md:py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+              disabled={saving || descOverLimit}
+              className="flex items-center justify-center gap-2 px-4 py-3 md:py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {saving ? (
                 <>
