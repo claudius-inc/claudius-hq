@@ -411,7 +411,7 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
           type="button"
           onClick={handleSaveSingle}
           disabled={!content.trim() || saving}
-          className="w-full py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 sticky bottom-0 bg-white border-t border-gray-100 pt-3 mt-2"
+          className="w-full py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 mt-2"
         >
           {saving ? "Saving..." : "Save Entry"}
         </button>
