@@ -1,5 +1,5 @@
 "use client";
-import { Bookmark, BookmarkCheck } from "lucide-react";
+import { Bookmark, BookmarkCheck, BookOpen, X } from "lucide-react";
 import type { MemoriaTag } from "../page";
 
 const SOURCE_TYPES = [
@@ -21,6 +21,10 @@ interface Props {
   tags: MemoriaTag[];
   favouriteFilter: boolean;
   onToggleFavouriteFilter: () => void;
+  titleFilter: string | null;
+  onClearTitleFilter: () => void;
+  authorFilter: string | null;
+  onClearAuthorFilter: () => void;
 }
 
 export function MemoriaFilters({
@@ -31,11 +35,27 @@ export function MemoriaFilters({
   tags,
   favouriteFilter,
   onToggleFavouriteFilter,
+  titleFilter,
+  onClearTitleFilter,
+  authorFilter,
+  onClearAuthorFilter,
 }: Props) {
   return (
     <div className="space-y-2">
-      {/* Source type tab bar + favourites */}
+      {/* Starred + Source type tab bar */}
       <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+        <button
+          onClick={onToggleFavouriteFilter}
+          className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+            favouriteFilter
+              ? "border-yellow-500 text-yellow-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          {favouriteFilter ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+          Starred
+        </button>
+        <div className="w-px h-4 bg-gray-200 shrink-0 mx-1" />
         {SOURCE_TYPES.map((st) => (
           <button
             key={st.label}
@@ -49,18 +69,6 @@ export function MemoriaFilters({
             {st.label}
           </button>
         ))}
-        <div className="w-px h-4 bg-gray-200 shrink-0 mx-1" />
-        <button
-          onClick={onToggleFavouriteFilter}
-          className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
-            favouriteFilter
-              ? "border-yellow-500 text-yellow-700"
-              : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
-        >
-          {favouriteFilter ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
-          Starred
-        </button>
       </div>
 
       {/* Tag chips */}
@@ -83,6 +91,25 @@ export function MemoriaFilters({
               </button>
             );
           })}
+          {titleFilter && (
+            <button
+              onClick={onClearTitleFilter}
+              className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-blue-300 bg-blue-50 text-blue-700"
+            >
+              <BookOpen size={10} />
+              <span className="truncate max-w-[120px]">{titleFilter}</span>
+              <X size={10} />
+            </button>
+          )}
+          {authorFilter && (
+            <button
+              onClick={onClearAuthorFilter}
+              className="shrink-0 flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border border-purple-300 bg-purple-50 text-purple-700"
+            >
+              <span className="truncate max-w-[120px]">{authorFilter}</span>
+              <X size={10} />
+            </button>
+          )}
         </div>
       )}
     </div>

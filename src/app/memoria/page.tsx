@@ -51,6 +51,8 @@ export default function MemoriaPage() {
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [favouriteFilter, setFavouriteFilter] = useState(false);
+  const [titleFilter, setTitleFilter] = useState<string | null>(null);
+  const [authorFilter, setAuthorFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortOption>("recent");
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -87,6 +89,8 @@ export default function MemoriaPage() {
       if (activeSourceFilter) params.set("source_type", activeSourceFilter);
       if (activeTagFilter) params.set("tag", String(activeTagFilter));
       if (favouriteFilter) params.set("favorite", "1");
+      if (titleFilter) params.set("source_title", titleFilter);
+      if (authorFilter) params.set("source_author", authorFilter);
       params.set("sort", sort);
       params.set("per_page", String(BATCH_SIZE));
       params.set("page", String(pageRef.current));
@@ -110,13 +114,13 @@ export default function MemoriaPage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, sort, entries.length]);
+  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, titleFilter, authorFilter, sort, entries.length]);
 
   // Re-fetch when filters change
   useEffect(() => {
     fetchEntries(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, sort]);
+  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, titleFilter, authorFilter, sort]);
 
   const fetchTags = useCallback(async () => {
     try {
@@ -150,6 +154,14 @@ export default function MemoriaPage() {
       window.history.replaceState({}, "", url.toString());
       return next;
     });
+  }, []);
+
+  const handleFilterByTitle = useCallback((title: string) => {
+    setTitleFilter((prev) => prev === title ? null : title);
+  }, []);
+
+  const handleFilterByAuthor = useCallback((author: string) => {
+    setAuthorFilter((prev) => prev === author ? null : author);
   }, []);
 
   const handleToggleFavorite = async (entry: MemoriaEntry) => {
@@ -197,6 +209,10 @@ export default function MemoriaPage() {
         tags={tags}
         favouriteFilter={favouriteFilter}
         onToggleFavouriteFilter={handleToggleFavouriteFilter}
+        titleFilter={titleFilter}
+        onClearTitleFilter={() => setTitleFilter(null)}
+        authorFilter={authorFilter}
+        onClearAuthorFilter={() => setAuthorFilter(null)}
       />
       <InsightsPanel />
       <MemoriaGrid
@@ -208,6 +224,8 @@ export default function MemoriaPage() {
         onToggleFavorite={handleToggleFavorite}
         togglingFavoriteId={togglingFavoriteId}
         onEntryClick={setSelectedEntry}
+        onFilterByTitle={handleFilterByTitle}
+        onFilterByAuthor={handleFilterByAuthor}
         total={totalRef.current}
         sort={sort}
         onSortChange={setSort}

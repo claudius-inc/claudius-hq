@@ -8,6 +8,8 @@ export async function GET(req: NextRequest) {
     const sourceType = url.searchParams.get("source_type");
     const tagId = url.searchParams.get("tag");
     const favorite = url.searchParams.get("favorite");
+    const sourceTitle = url.searchParams.get("source_title");
+    const sourceAuthor = url.searchParams.get("source_author");
     const sort = url.searchParams.get("sort") || "recent";
     const page = parseInt(url.searchParams.get("page") || "1", 10);
     const perPage = parseInt(url.searchParams.get("per_page") || "50", 10);
@@ -22,6 +24,14 @@ export async function GET(req: NextRequest) {
     }
     if (favorite === "1") {
       conditions.push(`is_favorite = 1`);
+    }
+    if (sourceTitle) {
+      params.push(sourceTitle);
+      conditions.push(`me.source_title = ?`);
+    }
+    if (sourceAuthor) {
+      params.push(sourceAuthor);
+      conditions.push(`me.source_author = ?`);
     }
 
     // Tag filter via join
