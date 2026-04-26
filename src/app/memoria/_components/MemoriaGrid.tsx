@@ -23,12 +23,14 @@ interface Props {
   onToggleFavorite: (entry: MemoriaEntry) => void;
   togglingFavoriteId: number | null;
   onEntryClick: (entry: MemoriaEntry) => void;
+  onFilterByTitle: (title: string) => void;
+  onFilterByAuthor: (author: string) => void;
   total: number;
   sort: SortOption;
   onSortChange: (sort: SortOption) => void;
 }
 
-export function MemoriaGrid({ entries, loading, loadingMore, hasMore, onLoadMore, onToggleFavorite, togglingFavoriteId, onEntryClick, total, sort, onSortChange }: Props) {
+export function MemoriaGrid({ entries, loading, loadingMore, hasMore, onLoadMore, onToggleFavorite, togglingFavoriteId, onEntryClick, onFilterByTitle, onFilterByAuthor, total, sort, onSortChange }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,6 +96,8 @@ export function MemoriaGrid({ entries, loading, loadingMore, hasMore, onLoadMore
             onToggleFavorite={onToggleFavorite}
             togglingFavoriteId={togglingFavoriteId}
             onClick={onEntryClick}
+            onFilterByTitle={onFilterByTitle}
+            onFilterByAuthor={onFilterByAuthor}
           />
         ))}
       </div>

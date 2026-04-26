@@ -20,9 +20,11 @@ interface Props {
   onToggleFavorite: (entry: MemoriaEntry) => void;
   togglingFavoriteId: number | null;
   onClick: (entry: MemoriaEntry) => void;
+  onFilterByTitle: (title: string) => void;
+  onFilterByAuthor: (author: string) => void;
 }
 
-export function EntryCard({ entry, onToggleFavorite, togglingFavoriteId, onClick }: Props) {
+export function EntryCard({ entry, onToggleFavorite, togglingFavoriteId, onClick, onFilterByTitle, onFilterByAuthor }: Props) {
   const [expanded, setExpanded] = useState(false);
   const isLong = entry.content.length > 200;
 
@@ -33,13 +35,22 @@ export function EntryCard({ entry, onToggleFavorite, togglingFavoriteId, onClick
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+        <div className="flex items-center gap-1.5 text-xs text-gray-500 min-w-0">
           {SOURCE_ICONS[entry.sourceType] || <FileText size={14} />}
-          <span className="capitalize">{entry.sourceType}</span>
+          <span className="capitalize shrink-0">{entry.sourceType}</span>
           {entry.sourceTitle && (
             <>
-              <span className="text-gray-300">·</span>
-              <span className="truncate max-w-[150px]">{entry.sourceTitle}</span>
+              <span className="text-gray-300 shrink-0">·</span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onFilterByTitle(entry.sourceTitle!);
+                }}
+                className="truncate max-w-[150px] text-blue-600 hover:text-blue-800 hover:underline"
+                title={`Filter by: ${entry.sourceTitle}`}
+              >
+                {entry.sourceTitle}
+              </button>
             </>
           )}
         </div>
@@ -48,7 +59,7 @@ export function EntryCard({ entry, onToggleFavorite, togglingFavoriteId, onClick
             e.stopPropagation();
             onToggleFavorite(entry);
           }}
-          className="p-1 hover:bg-gray-100 rounded"
+          className="p-1 hover:bg-gray-100 rounded shrink-0"
         >
           {togglingFavoriteId === entry.id ? (
             <Loader2 size={14} className="animate-spin text-yellow-400" />
@@ -83,7 +94,19 @@ export function EntryCard({ entry, onToggleFavorite, togglingFavoriteId, onClick
 
       {/* Author */}
       {entry.sourceAuthor && (
-        <div className="text-xs text-gray-400 mt-2">— {entry.sourceAuthor}</div>
+        <div className="text-xs text-gray-400 mt-2">
+          —{" "}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onFilterByAuthor(entry.sourceAuthor!);
+            }}
+            className="text-blue-600 hover:text-blue-800 hover:underline"
+            title={`Filter by: ${entry.sourceAuthor}`}
+          >
+            {entry.sourceAuthor}
+          </button>
+        </div>
       )}
 
       {/* Note */}
