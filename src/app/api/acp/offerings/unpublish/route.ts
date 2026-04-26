@@ -1,90 +1,16 @@
-import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
-import { db } from "@/db";
-import { acpOfferings } from "@/db/schema";
-import { eq } from "drizzle-orm";
-import { deleteOffering } from "@/lib/virtuals-client";
-import { logger } from "@/lib/logger";
+import { NextResponse } from "next/server";
 
-/**
- * POST /api/acp/offerings/unpublish
- * 
- * Unpublishes an offering from the ACP marketplace:
- * 1. Calls Virtuals API to delete offering
- * 2. Updates isActive = 0 in DB
- * 3. Logs decision
- * 
- * Body: { id: number } or { name: string }
- */
-export async function POST(req: NextRequest) {
+const V2_AGENT_ID = process.env.ACP_V2_AGENT_ID || "019dc9e1-8f53-79db-9f05-5889a0f8ef4a";
+const V2_UI_URL = `https://app.virtuals.io/acp/agents/${V2_AGENT_ID}`;
 
-  try {
-    const body = await req.json();
-    const { id, name } = body;
-
-    if (!id && !name) {
-      return NextResponse.json(
-        { error: "Either id or name required" },
-        { status: 400 }
-      );
-    }
-
-    // Fetch the offering from DB
-    const offerings = await db
-      .select()
-      .from(acpOfferings)
-      .where(id ? eq(acpOfferings.id, id) : eq(acpOfferings.name, name))
-      .limit(1);
-
-    if (offerings.length === 0) {
-      return NextResponse.json({ error: "Offering not found" }, { status: 404 });
-    }
-
-    const offering = offerings[0];
-    const offeringName = offering.handlerPath || offering.name;
-
-    // Call Virtuals API to delete offering
-    try {
-      await deleteOffering(offeringName);
-      logger.info("acp/unpublish", `Deleted offering from Virtuals: ${offeringName}`);
-    } catch (err) {
-      const error = err as Error;
-      const errorMessage = error.message || String(err);
-      
-      // Check if it's "not listed" error - that's actually okay
-      if (errorMessage.includes("not listed") || errorMessage.includes("Not listed") || errorMessage.includes("404")) {
-        logger.info("acp/unpublish", "Offering was not listed, marking as inactive anyway");
-      } else {
-        logger.error("acp/unpublish", `Failed to delete from Virtuals API: ${errorMessage}`);
-        return NextResponse.json(
-          { error: "Failed to unpublish from marketplace", details: errorMessage },
-          { status: 500 }
-        );
-      }
-    }
-
-    // Update isActive and set doNotRelist to prevent auto-relist
-    await db
-      .update(acpOfferings)
-      .set({
-        isActive: 0,
-        listedOnAcp: 0,
-        doNotRelist: 1, // Prevent automation from re-listing this offering
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(acpOfferings.id, offering.id));
-
-    revalidatePath("/acp");
-    return NextResponse.json({
-      success: true,
-      offering: offering.name,
-      message: "Unpublished successfully",
-    });
-  } catch (error) {
-    logger.error("api/acp/offerings/unpublish", "Error unpublishing offering", { error });
-    return NextResponse.json(
-      { error: "Failed to unpublish offering" },
-      { status: 500 }
-    );
-  }
+// Removed 2026-04-26 — see publish/route.ts for the explanation.
+export async function POST() {
+  return NextResponse.json(
+    {
+      error: "Gone",
+      message: `Offering unpublish (hide) is UI-only on V2. Manage at ${V2_UI_URL}`,
+      uiUrl: V2_UI_URL,
+    },
+    { status: 410 }
+  );
 }
