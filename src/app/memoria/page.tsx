@@ -8,6 +8,7 @@ import { AddEntryModal } from "./_components/AddEntryModal";
 import { RandomModal } from "./_components/RandomModal";
 import { EntryDetailModal } from "./_components/EntryDetailModal";
 import { InsightsPanel } from "./_components/InsightsPanel";
+import { QAPanel } from "./_components/QAPanel";
 
 export interface MemoriaEntry {
   id: number;
@@ -215,6 +216,10 @@ export default function MemoriaPage() {
         onClearAuthorFilter={() => setAuthorFilter(null)}
       />
       <InsightsPanel />
+      <QAPanel onCitationClick={(entryId) => {
+        const entry = entries.find((e) => e.id === entryId);
+        if (entry) setSelectedEntry(entry);
+      }} />
       <MemoriaGrid
         entries={entries}
         loading={loading}
