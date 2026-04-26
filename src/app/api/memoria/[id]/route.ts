@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { db, memoriaEntries, memoriaEntryTags, memoriaTags } from "@/db";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -64,6 +65,7 @@ export async function PATCH(
     const [result] = await db.select().from(memoriaEntries).where(eq(memoriaEntries.id, id));
     if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+    revalidateTag('memoria');
     return NextResponse.json({ entry: result });
   } catch (e) {
     logger.error("api/memoria", "Failed to update entry", { error: e });
@@ -83,6 +85,7 @@ export async function DELETE(
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await db.delete(memoriaEntries).where(eq(memoriaEntries.id, id));
+    revalidateTag('memoria');
     return NextResponse.json({ ok: true });
   } catch (e) {
     logger.error("api/memoria", "Failed to delete entry", { error: e });

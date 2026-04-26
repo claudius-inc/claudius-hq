@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { db, memoriaTags } from "@/db";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
@@ -15,6 +16,7 @@ export async function DELETE(
     if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await db.delete(memoriaTags).where(eq(memoriaTags.id, id));
+    revalidateTag('memoria');
     return NextResponse.json({ ok: true });
   } catch (e) {
     logger.error("api/memoria/tags", "Failed to delete tag", { error: e });
