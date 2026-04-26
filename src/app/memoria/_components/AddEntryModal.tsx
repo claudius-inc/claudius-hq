@@ -310,7 +310,7 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
 
       {/* Tab-specific content */}
       {tab === "single" && (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
           <div>
             <label className="text-xs text-gray-500 block mb-1">Content *</label>
             <textarea
@@ -360,6 +360,7 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
                 {tags.map((tag) => (
                   <button
                     key={tag.id}
+                    type="button"
                     onClick={() =>
                       setSelectedTagIds((prev) =>
                         prev.includes(tag.id)
@@ -385,6 +386,7 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
                       e.preventDefault();
+                      e.stopPropagation();
                       handleCreateTag();
                     }
                   }}
@@ -393,7 +395,7 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
                 />
                 <button
                   type="button"
-                  onClick={handleCreateTag}
+                  onClick={(e) => { e.preventDefault(); handleCreateTag(); }}
                   disabled={!newTagInput.trim()}
                   className="p-0.5 text-gray-400 hover:text-blue-500 disabled:opacity-30"
                 >
@@ -402,14 +404,17 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
               </div>
             </div>
           )}
-          <button
-            onClick={handleSaveSingle}
-            disabled={!content.trim() || saving}
-            className="w-full py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save Entry"}
-          </button>
         </div>
+      )}
+      {tab === "single" && (
+        <button
+          type="button"
+          onClick={handleSaveSingle}
+          disabled={!content.trim() || saving}
+          className="w-full py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 sticky bottom-0 bg-white border-t border-gray-100 pt-3 mt-2"
+        >
+          {saving ? "Saving..." : "Save Entry"}
+        </button>
       )}
 
       {tab === "bulk" && (

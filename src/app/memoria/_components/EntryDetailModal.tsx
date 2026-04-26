@@ -204,6 +204,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
           )}
           <div className="flex gap-2 pt-2 border-t border-gray-100">
             <button
+              type="button"
               onClick={() => setEditing(true)}
               className="flex-1 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
@@ -211,6 +212,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
             </button>
             {confirmDelete ? (
               <button
+                type="button"
                 onClick={() => onDelete(entry.id)}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700"
               >
@@ -218,6 +220,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
               </button>
             ) : (
               <button
+                type="button"
                 onClick={() => setConfirmDelete(true)}
                 className="flex items-center gap-1 px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
               >
@@ -233,7 +236,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
 
   return (
     <Modal open={open} onClose={onClose} title="Edit Entry">
-      <div className="space-y-3">
+      <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Content</label>
           <textarea
@@ -325,6 +328,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
               {tags.map((tag) => (
                 <button
                   key={tag.id}
+                  type="button"
                   onClick={() =>
                     setSelectedTagIds((prev) =>
                       prev.includes(tag.id)
@@ -350,6 +354,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
+                    e.stopPropagation();
                     handleCreateTag();
                   }
                 }}
@@ -358,7 +363,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
               />
               <button
                 type="button"
-                onClick={handleCreateTag}
+                onClick={(e) => { e.preventDefault(); handleCreateTag(); }}
                 disabled={!newTagInput.trim()}
                 className="p-0.5 text-gray-400 hover:text-blue-500 disabled:opacity-30"
               >
@@ -367,21 +372,23 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
             </div>
           </div>
         )}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setEditing(false)}
-            className="flex-1 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex-1 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
+      </div>
+      <div className="flex gap-2 pt-3 mt-2 border-t border-gray-100">
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          className="flex-1 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
       </div>
     </Modal>
   );
