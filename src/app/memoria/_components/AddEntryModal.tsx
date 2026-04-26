@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { BulkReviewStep } from "./BulkReviewStep";
+import { Sparkles, Plus, X, Loader2 } from "lucide-react";
 import type { MemoriaTag } from "../page";
 
 const SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video"];
@@ -38,6 +39,8 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
   const [sourceLocation, setSourceLocation] = useState("");
   const [myNote, setMyNote] = useState("");
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [newTagInput, setNewTagInput] = useState("");
+  const [suggestingTags, setSuggestingTags] = useState(false);
 
   // Bulk fields
   const [bulkText, setBulkText] = useState("");
@@ -55,6 +58,8 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
     setSourceLocation("");
     setMyNote("");
     setSelectedTagIds([]);
+    setNewTagInput("");
+    setSuggestingTags(false);
     setBulkText("");
     setImageBase64(null);
     setImageName("");
@@ -168,6 +173,56 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
       handleClose();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleCreateTag = async () => {
+    const name = newTagInput.trim().toLowerCase();
+    if (!name) return;
+    try {
+      const res = await fetch("/api/memoria/tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (data.tag) {
+        setSelectedTagIds((prev) => [...prev, data.tag.id]);
+        setNewTagInput("");
+        onSaved(); // refresh tags list
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSuggestTags = async () => {
+    if (!content.trim() && !bulkText.trim()) return;
+    setSuggestingTags(true);
+    try {
+      const res = await fetch("/api/memoria/suggest-tags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: content || bulkText,
+          source_type: sourceType,
+          source_title: sourceTitle || undefined,
+          source_author: sourceAuthor || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.suggested_tags) {
+        const newIds = data.suggested_tags.map((t: { id: number }) => t.id);
+        setSelectedTagIds((prev) => {
+          const merged = new Set([...prev, ...newIds]);
+          return Array.from(merged);
+        });
+        if (data.suggested_tags.some((t: { isNew: boolean }) => t.isNew)) {
+          onSaved(); // refresh tags list if new tags were created
+        }
+      }
+    } finally {
+      setSuggestingTags(false);
     }
   };
 
@@ -288,7 +343,18 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
           </div>
           {tags.length > 0 && (
             <div>
-              <label className="text-xs text-gray-500 block mb-1">Tags</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs text-gray-500">Tags</label>
+                <button
+                  onClick={handleSuggestTags}
+                  disabled={suggestingTags || !content.trim()}
+                  className="flex items-center gap-1 text-[10px] text-purple-500 hover:text-purple-700 disabled:opacity-50"
+                  title="Auto-suggest tags with AI"
+                >
+                  {suggestingTags ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+                  {suggestingTags ? "Suggesting..." : "Suggest"}
+                </button>
+              </div>
               <div className="flex flex-wrap gap-1">
                 {tags.map((tag) => (
                   <button
@@ -309,6 +375,28 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
                     {tag.name}
                   </button>
                 ))}
+              </div>
+              <div className="flex items-center gap-1 mt-1.5">
+                <input
+                  type="text"
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateTag();
+                    }
+                  }}
+                  placeholder="New tag..."
+                  className="flex-1 px-2 py-0.5 text-[10px] border border-gray-200 rounded-full focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <button
+                  onClick={handleCreateTag}
+                  disabled={!newTagInput.trim()}
+                  className="p-0.5 text-gray-400 hover:text-blue-500 disabled:opacity-30"
+                >
+                  <Plus size={12} />
+                </button>
               </div>
             </div>
           )}
