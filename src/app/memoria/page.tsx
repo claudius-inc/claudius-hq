@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { MemoriaHeader } from "./_components/MemoriaHeader";
 import { MemoriaFilters } from "./_components/MemoriaFilters";
-import { MemoriaGrid } from "./_components/MemoriaGrid";
+import { MemoriaGrid, SortOption } from "./_components/MemoriaGrid";
 import { AddEntryModal } from "./_components/AddEntryModal";
 import { RandomModal } from "./_components/RandomModal";
 import { EntryDetailModal } from "./_components/EntryDetailModal";
@@ -34,6 +34,7 @@ export interface MemoriaTag {
   name: string;
   color: string | null;
   createdAt: string | null;
+  count?: number;
 }
 
 const BATCH_SIZE = 20;
@@ -50,6 +51,7 @@ export default function MemoriaPage() {
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [favouriteFilter, setFavouriteFilter] = useState(false);
+  const [sort, setSort] = useState<SortOption>("recent");
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRandomModal, setShowRandomModal] = useState(false);
@@ -85,6 +87,7 @@ export default function MemoriaPage() {
       if (activeSourceFilter) params.set("source_type", activeSourceFilter);
       if (activeTagFilter) params.set("tag", String(activeTagFilter));
       if (favouriteFilter) params.set("favorite", "1");
+      params.set("sort", sort);
       params.set("per_page", String(BATCH_SIZE));
       params.set("page", String(pageRef.current));
 
@@ -107,13 +110,13 @@ export default function MemoriaPage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, entries.length]);
+  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, sort, entries.length]);
 
   // Re-fetch when filters change
   useEffect(() => {
     fetchEntries(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter]);
+  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, sort]);
 
   const fetchTags = useCallback(async () => {
     try {
@@ -205,6 +208,9 @@ export default function MemoriaPage() {
         onToggleFavorite={handleToggleFavorite}
         togglingFavoriteId={togglingFavoriteId}
         onEntryClick={setSelectedEntry}
+        total={totalRef.current}
+        sort={sort}
+        onSortChange={setSort}
       />
       <AddEntryModal
         open={showAddModal}

@@ -37,10 +37,10 @@ export function MemoriaHeader({ searchQuery, onSearchChange, onAddClick, onRando
       </div>
       <button
         onClick={onRandomClick}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
+        className="p-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500"
+        title="Random entry"
       >
         <Shuffle size={14} />
-        Random
       </button>
       <button
         onClick={onAddClick}

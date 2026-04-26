@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, memoriaTags } from "@/db";
-import { asc } from "drizzle-orm";
+import rawClient from "@/lib/db";
 import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   try {
-    const tags = await db.select().from(memoriaTags).orderBy(asc(memoriaTags.name));
-    return NextResponse.json({ tags });
+    const result = await rawClient.execute({
+      sql: `SELECT t.id, t.name, t.color, t.created_at, COUNT(met.entry_id) as count
+            FROM memoria_tags t
+            LEFT JOIN memoria_entry_tags met ON t.id = met.tag_id
+            GROUP BY t.id, t.name, t.color, t.created_at
+            ORDER BY t.name ASC`,
+      args: [],
+    });
+    return NextResponse.json({ tags: result.rows });
   } catch (e) {
     logger.error("api/memoria/tags", "Failed to list tags", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -21,12 +27,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "name is required" }, { status: 400 });
     }
 
-    const [tag] = await db
-      .insert(memoriaTags)
-      .values({ name: name.toLowerCase().trim(), color: color || null })
-      .returning();
+    const result = await rawClient.execute({
+      sql: `INSERT INTO memoria_tags (name, color) VALUES (?, ?)`,
+      args: [name.toLowerCase().trim(), color || null],
+    });
 
-    return NextResponse.json({ tag }, { status: 201 });
+    const tagId = Number(result.lastInsertRowid);
+    const tagResult = await rawClient.execute({
+      sql: `SELECT * FROM memoria_tags WHERE id = ?`,
+      args: [tagId],
+    });
+
+    return NextResponse.json({ tag: tagResult.rows[0] }, { status: 201 });
   } catch (e) {
     logger.error("api/memoria/tags", "Failed to create tag", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });

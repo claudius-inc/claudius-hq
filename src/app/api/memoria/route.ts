@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, memoriaEntries, memoriaEntryTags, memoriaTags } from "@/db";
-import { desc, eq, and, like, or, sql, inArray } from "drizzle-orm";
+import rawClient from "@/lib/db";
 import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
@@ -9,56 +8,73 @@ export async function GET(req: NextRequest) {
     const sourceType = url.searchParams.get("source_type");
     const tagId = url.searchParams.get("tag");
     const favorite = url.searchParams.get("favorite");
+    const sort = url.searchParams.get("sort") || "recent";
     const page = parseInt(url.searchParams.get("page") || "1", 10);
     const perPage = parseInt(url.searchParams.get("per_page") || "50", 10);
     const offset = (page - 1) * perPage;
 
-    const conditions = [];
-    if (sourceType) conditions.push(eq(memoriaEntries.sourceType, sourceType));
-    if (favorite === "1") conditions.push(eq(memoriaEntries.isFavorite, 1));
-    conditions.push(eq(memoriaEntries.isArchived, 0));
+    const conditions = ["is_archived = 0"];
+    const params: (string | number)[] = [];
 
-    let entryIds: number[] | null = null;
-    if (tagId) {
-      const tagged = await db
-        .select({ entryId: memoriaEntryTags.entryId })
-        .from(memoriaEntryTags)
-        .where(eq(memoriaEntryTags.tagId, parseInt(tagId, 10)));
-      entryIds = tagged.map((t) => t.entryId);
-      if (entryIds.length === 0) {
-        return NextResponse.json({ entries: [], total: 0 });
-      }
-      conditions.push(inArray(memoriaEntries.id, entryIds));
+    if (sourceType) {
+      params.push(sourceType);
+      conditions.push(`source_type = ?`);
+    }
+    if (favorite === "1") {
+      conditions.push(`is_favorite = 1`);
     }
 
-    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    // Tag filter via join
+    let tagJoin = "";
+    if (tagId) {
+      tagJoin = ` INNER JOIN memoria_entry_tags met ON me.id = met.entry_id`;
+      conditions.push(`met.tag_id = ?`);
+      params.push(parseInt(tagId, 10));
+    }
 
-    const entries = await db
-      .select()
-      .from(memoriaEntries)
-      .where(where)
-      .orderBy(desc(memoriaEntries.createdAt))
-      .limit(perPage)
-      .offset(offset);
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    // Order by
+    let orderBy: string;
+    switch (sort) {
+      case "oldest":
+        orderBy = "me.created_at ASC";
+        break;
+      case "recently_starred":
+        orderBy = "me.is_favorite DESC, me.updated_at DESC";
+        break;
+      case "longest":
+        orderBy = "LENGTH(me.content) DESC";
+        break;
+      default:
+        orderBy = "me.created_at DESC";
+    }
+
+    // Fetch entries
+    const entriesResult = await rawClient.execute({
+      sql: `SELECT me.* FROM memoria_entries me${tagJoin} ${where} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+      args: [...params, perPage, offset],
+    });
 
     // Fetch tags for each entry
-    const enriched = await Promise.all(
-      entries.map(async (entry) => {
-        const tags = await db
-          .select({ id: memoriaTags.id, name: memoriaTags.name, color: memoriaTags.color })
-          .from(memoriaEntryTags)
-          .innerJoin(memoriaTags, eq(memoriaEntryTags.tagId, memoriaTags.id))
-          .where(eq(memoriaEntryTags.entryId, entry.id));
-        return { ...entry, tags };
+    const entries = await Promise.all(
+      entriesResult.rows.map(async (row) => {
+        const tagsResult = await rawClient.execute({
+          sql: `SELECT t.id, t.name, t.color FROM memoria_tags t INNER JOIN memoria_entry_tags met ON t.id = met.tag_id WHERE met.entry_id = ?`,
+          args: [row.id as number],
+        });
+        return { ...row, tags: tagsResult.rows };
       })
     );
 
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(memoriaEntries)
-      .where(where);
+    // Count
+    const countResult = await rawClient.execute({
+      sql: `SELECT COUNT(*) as cnt FROM memoria_entries me${tagJoin} ${where}`,
+      args: params,
+    });
+    const total = (countResult.rows[0]?.cnt as number) ?? 0;
 
-    return NextResponse.json({ entries: enriched, total: count });
+    return NextResponse.json({ entries, total });
   } catch (e) {
     logger.error("api/memoria", "Failed to list entries", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });
@@ -74,27 +90,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "content and source_type are required" }, { status: 400 });
     }
 
-    const [entry] = await db
-      .insert(memoriaEntries)
-      .values({
-        content,
-        sourceType: source_type,
-        sourceTitle: source_title || null,
-        sourceAuthor: source_author || null,
-        sourceUrl: source_url || null,
-        sourceLocation: source_location || null,
-        myNote: my_note || null,
-        capturedAt: captured_at || null,
-      })
-      .returning();
+    const result = await rawClient.execute({
+      sql: `INSERT INTO memoria_entries (content, source_type, source_title, source_author, source_url, source_location, my_note, captured_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [content, source_type, source_title || null, source_author || null, source_url || null, source_location || null, my_note || null, captured_at || null],
+    });
+
+    const entryId = Number(result.lastInsertRowid);
 
     if (tag_ids && Array.isArray(tag_ids) && tag_ids.length > 0) {
-      await db.insert(memoriaEntryTags).values(
-        tag_ids.map((tagId: number) => ({ entryId: entry.id, tagId }))
-      );
+      for (const tagId of tag_ids) {
+        await rawClient.execute({
+          sql: `INSERT INTO memoria_entry_tags (entry_id, tag_id) VALUES (?, ?)`,
+          args: [entryId, tagId],
+        });
+      }
     }
 
-    return NextResponse.json({ entry }, { status: 201 });
+    const entryResult = await rawClient.execute({
+      sql: `SELECT * FROM memoria_entries WHERE id = ?`,
+      args: [entryId],
+    });
+
+    return NextResponse.json({ entry: entryResult.rows[0] }, { status: 201 });
   } catch (e) {
     logger.error("api/memoria", "Failed to create entry", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });

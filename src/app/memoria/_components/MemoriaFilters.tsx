@@ -33,47 +33,58 @@ export function MemoriaFilters({
   onToggleFavouriteFilter,
 }: Props) {
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      <div className="flex items-center gap-1 flex-wrap">
+    <div className="space-y-2">
+      {/* Source type tab bar + favourites */}
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
         {SOURCE_TYPES.map((st) => (
           <button
             key={st.label}
             onClick={() => onSourceFilterChange(st.value)}
-            className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+            className={`shrink-0 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
               activeSourceFilter === st.value
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
             {st.label}
           </button>
         ))}
-      </div>
-      {tags.length > 0 && (
-        <select
-          value={activeTagFilter ?? ""}
-          onChange={(e) => onTagFilterChange(e.target.value ? parseInt(e.target.value, 10) : null)}
-          className="px-2 py-1 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="w-px h-4 bg-gray-200 shrink-0 mx-1" />
+        <button
+          onClick={onToggleFavouriteFilter}
+          className={`shrink-0 flex items-center gap-1 px-3 py-1.5 text-xs font-medium border-b-2 transition-colors ${
+            favouriteFilter
+              ? "border-yellow-500 text-yellow-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
         >
-          <option value="">All tags</option>
-          {tags.map((tag) => (
-            <option key={tag.id} value={tag.id}>
-              {tag.name}
-            </option>
-          ))}
-        </select>
+          {favouriteFilter ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
+          Starred
+        </button>
+      </div>
+
+      {/* Tag chips */}
+      {tags.length > 0 && (
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          {tags.map((tag) => {
+            const isActive = activeTagFilter === tag.id;
+            const count = (tag as MemoriaTag & { count?: number }).count;
+            return (
+              <button
+                key={tag.id}
+                onClick={() => onTagFilterChange(isActive ? null : tag.id)}
+                className={`shrink-0 px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                  isActive
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                }`}
+              >
+                {tag.name}{count != null ? ` (${count})` : ""}
+              </button>
+            );
+          })}
+        </div>
       )}
-      <button
-        onClick={onToggleFavouriteFilter}
-        className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-full border transition-colors ${
-          favouriteFilter
-            ? "bg-yellow-50 text-yellow-700 border-yellow-300"
-            : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-        }`}
-      >
-        {favouriteFilter ? <BookmarkCheck size={12} /> : <Bookmark size={12} />}
-        Favourites
-      </button>
     </div>
   );
 }
