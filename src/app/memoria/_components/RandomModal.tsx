@@ -2,16 +2,17 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Star, Shuffle } from "lucide-react";
+import { Star, Shuffle, Loader2 } from "lucide-react";
 import type { MemoriaEntry } from "../page";
 
 interface Props {
   open: boolean;
   onClose: () => void;
   onToggleFavorite: (entry: MemoriaEntry) => void;
+  togglingFavoriteId: number | null;
 }
 
-export function RandomModal({ open, onClose, onToggleFavorite }: Props) {
+export function RandomModal({ open, onClose, onToggleFavorite, togglingFavoriteId }: Props) {
   const [entry, setEntry] = useState<MemoriaEntry | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -65,11 +66,15 @@ export function RandomModal({ open, onClose, onToggleFavorite }: Props) {
               onClick={() => onToggleFavorite(entry)}
               className="flex items-center gap-1 px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50"
             >
-              <Star
-                size={12}
-                className={entry.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}
-              />
-              {entry.isFavorite ? "Favorited" : "Favorite"}
+              {togglingFavoriteId === entry.id ? (
+                <Loader2 size={12} className="animate-spin text-yellow-400" />
+              ) : (
+                <Star
+                  size={12}
+                  className={entry.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}
+                />
+              )}
+              {togglingFavoriteId === entry.id ? "Saving..." : entry.isFavorite ? "Favorited" : "Favorite"}
             </button>
             <button
               onClick={fetchRandom}

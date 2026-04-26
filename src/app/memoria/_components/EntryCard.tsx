@@ -18,10 +18,11 @@ const SOURCE_ICONS: Record<string, React.ReactNode> = {
 interface Props {
   entry: MemoriaEntry;
   onToggleFavorite: (entry: MemoriaEntry) => void;
+  togglingFavoriteId: number | null;
   onClick: (entry: MemoriaEntry) => void;
 }
 
-export function EntryCard({ entry, onToggleFavorite, onClick }: Props) {
+export function EntryCard({ entry, onToggleFavorite, togglingFavoriteId, onClick }: Props) {
   const [expanded, setExpanded] = useState(false);
   const isLong = entry.content.length > 200;
 
@@ -49,10 +50,14 @@ export function EntryCard({ entry, onToggleFavorite, onClick }: Props) {
           }}
           className="p-1 hover:bg-gray-100 rounded"
         >
-          <Star
-            size={14}
-            className={entry.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}
-          />
+          {togglingFavoriteId === entry.id ? (
+            <Loader2 size={14} className="animate-spin text-yellow-400" />
+          ) : (
+            <Star
+              size={14}
+              className={entry.isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-300"}
+            />
+          )}
         </button>
       </div>
 

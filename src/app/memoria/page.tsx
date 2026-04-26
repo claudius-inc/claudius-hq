@@ -50,6 +50,7 @@ export default function MemoriaPage() {
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [favouriteFilter, setFavouriteFilter] = useState(false);
+  const [togglingFavoriteId, setTogglingFavoriteId] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRandomModal, setShowRandomModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<MemoriaEntry | null>(null);
@@ -149,19 +150,24 @@ export default function MemoriaPage() {
   }, []);
 
   const handleToggleFavorite = async (entry: MemoriaEntry) => {
-    await fetch(`/api/memoria/${entry.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_favorite: entry.isFavorite ? 0 : 1 }),
-    });
-    // If favourite filter is active and we un-favourited, remove from list
-    if (favouriteFilter && entry.isFavorite) {
-      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
-    } else {
-      // Toggle in-place
-      setEntries((prev) =>
-        prev.map((e) => (e.id === entry.id ? { ...e, isFavorite: e.isFavorite ? 0 : 1 } : e))
-      );
+    setTogglingFavoriteId(entry.id);
+    try {
+      await fetch(`/api/memoria/${entry.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_favorite: entry.isFavorite ? 0 : 1 }),
+      });
+      // If favourite filter is active and we un-favourited, remove from list
+      if (favouriteFilter && entry.isFavorite) {
+        setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+      } else {
+        // Toggle in-place
+        setEntries((prev) =>
+          prev.map((e) => (e.id === entry.id ? { ...e, isFavorite: e.isFavorite ? 0 : 1 } : e))
+        );
+      }
+    } finally {
+      setTogglingFavoriteId(null);
     }
   };
 
@@ -197,6 +203,7 @@ export default function MemoriaPage() {
         hasMore={hasMore}
         onLoadMore={loadMore}
         onToggleFavorite={handleToggleFavorite}
+        togglingFavoriteId={togglingFavoriteId}
         onEntryClick={setSelectedEntry}
       />
       <AddEntryModal
@@ -212,6 +219,7 @@ export default function MemoriaPage() {
         open={showRandomModal}
         onClose={() => setShowRandomModal(false)}
         onToggleFavorite={handleToggleFavorite}
+        togglingFavoriteId={togglingFavoriteId}
       />
       {selectedEntry && (
         <EntryDetailModal
