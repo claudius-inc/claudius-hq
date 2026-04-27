@@ -148,6 +148,7 @@ interface AlchemyTraceResult {
   type: string;
   decoded?: { methodName?: string };
   logs?: RawLog[];
+  calls?: AlchemyTraceResult[];
   output?: string;
   error?: string;
   reverted?: { message?: string };
@@ -161,6 +162,22 @@ interface AlchemySimulationResponse {
     logs?: RawLog[];
   };
   error?: { code: number; message: string };
+}
+
+/**
+ * Recursively collect logs from a call tree. Alchemy's
+ * `alchemy_simulateExecution` returns logs attached to individual call
+ * frames (`result.calls[].logs`), and may also surface a flattened list at
+ * `result.logs`. We walk both to be safe.
+ */
+function collectLogs(calls: AlchemyTraceResult[] | undefined): RawLog[] {
+  if (!calls || calls.length === 0) return [];
+  const out: RawLog[] = [];
+  for (const c of calls) {
+    if (c.logs && c.logs.length) out.push(...c.logs);
+    if (c.calls && c.calls.length) out.push(...collectLogs(c.calls));
+  }
+  return out;
 }
 
 /**
@@ -192,7 +209,19 @@ async function alchemySimulate(
     if (!res.ok) return null;
     const json = (await res.json()) as AlchemySimulationResponse;
     if (json.error || !json.result) return null;
-    const logs = json.result.logs || [];
+    // Alchemy returns logs at result.logs in some shapes and nested in
+    // result.calls[].logs in others. Merge + dedupe (by index order).
+    const topLogs = json.result.logs || [];
+    const nestedLogs = collectLogs(json.result.calls);
+    const seen = new Set<string>();
+    const logs: RawLog[] = [];
+    for (const l of [...topLogs, ...nestedLogs]) {
+      if (!l || !l.topics) continue;
+      const key = `${l.address}|${l.topics.join(",")}|${l.data}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      logs.push(l);
+    }
     return { logs, gasUsed: BigInt(0) };
   } catch {
     return null;
