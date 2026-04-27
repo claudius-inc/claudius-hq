@@ -118,17 +118,10 @@ async function tryDecodeLog(
           signature: parsed.fragment.format("sighash"),
           args: describeArgs(parsed.args, parsed.fragment),
         };
-      } else {
-        logger.warn("tx-simulate", `parseLog returned null for ${log.address} topic ${log.topics[0]}`);
       }
-    } catch (err) {
-      logger.warn(
-        "tx-simulate",
-        `parseLog threw for ${log.address} topic ${log.topics[0]}: ${(err as Error).message}`
-      );
+    } catch {
+      // fall through to 4byte
     }
-  } else {
-    logger.warn("tx-simulate", `no verified ABI for ${log.address} on chain ${chainId}`);
   }
   if (!topics[0]) return null;
   const sig = await lookup4ByteEvent(topics[0]);
@@ -209,23 +202,15 @@ function collectLogs(calls: AlchemyTraceResult[] | undefined): RawLog[] {
 async function alchemySimulate(
   chainId: number,
   callObj: Record<string, string>,
-  blockTag: string,
-  debug: boolean = false
-): Promise<{ logs: RawLog[]; gasUsed: bigint; raw?: unknown; debugTrace?: unknown } | null> {
+  blockTag: string
+): Promise<{ logs: RawLog[]; gasUsed: bigint } | null> {
   const key = process.env.ALCHEMY_API_KEY;
-  if (!key) {
-    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { skip: "no ALCHEMY_API_KEY" } };
-    return null;
-  }
+  if (!key) return null;
   const c = getChain(chainId);
-  if (!c.alchemySubdomain) {
-    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { skip: `no alchemySubdomain for chain ${chainId}` } };
-    return null;
-  }
+  if (!c.alchemySubdomain) return null;
   const url = `https://${c.alchemySubdomain}.g.alchemy.com/v2/${key}`;
-  let res: Response;
   try {
-    res = await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -236,42 +221,32 @@ async function alchemySimulate(
       }),
       cache: "no-store",
     });
+    if (!res.ok) {
+      logger.warn("tx-simulate", `Alchemy HTTP ${res.status} on chain ${chainId}`);
+      return null;
+    }
+    const json = (await res.json()) as AlchemySimulationResponse;
+    if (json.error) {
+      logger.warn("tx-simulate", `Alchemy JSON-RPC error: ${json.error.message}`);
+      return null;
+    }
+    if (!json.result) return null;
+    const topLogs = json.result.logs || [];
+    const nestedLogs = collectLogs(json.result.calls);
+    const seen = new Set<string>();
+    const logs: RawLog[] = [];
+    for (const l of [...topLogs, ...nestedLogs]) {
+      if (!l || !l.topics) continue;
+      const key = `${l.address}|${l.topics.join(",")}|${l.data}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      logs.push(l);
+    }
+    return { logs, gasUsed: BigInt(0) };
   } catch (err) {
-    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { fetchError: String(err) } };
+    logger.warn("tx-simulate", `Alchemy fetch failed: ${(err as Error).message}`);
     return null;
   }
-  if (!res.ok) {
-    const text = await res.text().catch(() => "<unreadable>");
-    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { httpStatus: res.status, body: text.slice(0, 500) } };
-    return null;
-  }
-  let json: AlchemySimulationResponse;
-  try {
-    json = (await res.json()) as AlchemySimulationResponse;
-  } catch (err) {
-    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { parseError: String(err) } };
-    return null;
-  }
-  if (json.error) {
-    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { jsonRpcError: json.error } };
-    return null;
-  }
-  if (!json.result) {
-    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { noResult: true, raw: json } };
-    return null;
-  }
-  const topLogs = json.result.logs || [];
-  const nestedLogs = collectLogs(json.result.calls);
-  const seen = new Set<string>();
-  const logs: RawLog[] = [];
-  for (const l of [...topLogs, ...nestedLogs]) {
-    if (!l || !l.topics) continue;
-    const key = `${l.address}|${l.topics.join(",")}|${l.data}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    logs.push(l);
-  }
-  return { logs, gasUsed: BigInt(0), raw: debug ? json.result : undefined };
 }
 
 export async function POST(req: NextRequest) {
@@ -349,34 +324,22 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. (optional) Alchemy simulation for events + traces
-  const debug = req.nextUrl.searchParams.get("_debug") === "1";
   let events: DecodedEvent[] = [];
   let alchemyUsed = false;
-  let alchemyRaw: unknown;
-  let alchemyDebug: unknown;
-  let alchemyLogCount = 0;
   if (success) {
-    const alch = await alchemySimulate(parsed.chainId, callObj, parsed.blockTag, debug);
+    const alch = await alchemySimulate(parsed.chainId, callObj, parsed.blockTag);
     if (alch) {
-      alchemyLogCount = alch.logs.length;
-      if (debug) {
-        alchemyRaw = alch.raw;
-        alchemyDebug = alch.debugTrace;
-      }
-      // Only mark "used" if we actually got a real result (no debugTrace skip).
-      if (!alch.debugTrace) {
-        alchemyUsed = true;
-        const decodedEvents = await Promise.all(
-          alch.logs.map((l) =>
-            tryDecodeLog(parsed.chainId, {
-              address: l.address,
-              topics: l.topics,
-              data: l.data,
-            })
-          )
-        );
-        events = decodedEvents.filter((e): e is DecodedEvent => e !== null);
-      }
+      alchemyUsed = true;
+      const decodedEvents = await Promise.all(
+        alch.logs.map((l) =>
+          tryDecodeLog(parsed.chainId, {
+            address: l.address,
+            topics: l.topics,
+            data: l.data,
+          })
+        )
+      );
+      events = decodedEvents.filter((e): e is DecodedEvent => e !== null);
     }
   }
 
@@ -402,6 +365,5 @@ export async function POST(req: NextRequest) {
       ? "Full simulation via Alchemy."
       : "Verdict via eth_call. Set ALCHEMY_API_KEY for traced events.",
     durationMs: Date.now() - startedAt,
-    ...(debug ? { _debug: { alchemyLogCount, alchemyDebug, alchemyRaw } } : {}),
   });
 }
