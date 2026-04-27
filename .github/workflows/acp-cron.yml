@@ -53,16 +53,6 @@ jobs:
     if: github.event.schedule == '*/15 * * * *' || github.event.inputs.job == 'status-check' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     steps:
-      - name: Print CRON_SECRET sha256 (debug — to verify match with Vercel)
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
-        run: |
-          # Hash with no trailing newline (printf vs echo); compare to /api/cron/env-debug.
-          HASH=$(printf "%s" "$CRON_SECRET" | sha256sum | cut -d' ' -f1)
-          echo "::notice::sha256(github_actions_CRON_SECRET, no-newline)=$HASH"
-          HASH_NL=$(printf "%s\n" "$CRON_SECRET" | sha256sum | cut -d' ' -f1)
-          echo "::notice::sha256(github_actions_CRON_SECRET, with-newline)=$HASH_NL"
-          echo "length=${#CRON_SECRET}"
       - name: Hit /api/cron/acp-status-check
         env:
           HQ_BASE_URL: ${{ secrets.HQ_BASE_URL || 'https://claudiusinc.com' }}
