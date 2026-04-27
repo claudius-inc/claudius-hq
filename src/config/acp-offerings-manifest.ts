@@ -28,11 +28,11 @@ export const ACP_OFFERING_MANIFEST = Object.freeze([
   // Analysis (mid frequency) — agent decision support
   "portfolio_risk_metrics",
   "token_alpha_report",
-  "whale_tracker_base",
   "dex_arbitrage",
-  "alt_picks_scan",
-  // Agent-meta (KYA before transacting)
-  "agent_score",
+  // Whitespace primitives (zero/weak competitors per 2026-04-27 research)
+  "tx_simulate", // pre-flight EVM tx → revertReason / gasUsed / events
+  "abi_decode", // calldata + log decoding for executor + scout fleets
+  "url_reader", // URL → clean structured markdown for content pipelines
 ] as const);
 
 export type ManifestOffering = typeof ACP_OFFERING_MANIFEST[number];
