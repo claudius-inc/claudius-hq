@@ -14,8 +14,8 @@ on:
     - cron: '5 * * * *'
     # status-check — every 15 min, alerts if agent hidden / SSE dropped / overflow
     - cron: '*/15 * * * *'
-    # revenue-sync — every 6 hours, refreshes on-chain revenue cache
-    - cron: '10 */6 * * *'
+    # revenue-sync — hourly, refreshes on-chain revenue cache
+    - cron: '10 * * * *'
   workflow_dispatch:
     inputs:
       job:
@@ -73,7 +73,7 @@ jobs:
           fi
 
   revenue-sync:
-    if: github.event.schedule == '10 */6 * * *' || github.event.inputs.job == 'revenue-sync' || github.event.inputs.job == 'all'
+    if: github.event.schedule == '10 * * * *' || github.event.inputs.job == 'revenue-sync' || github.event.inputs.job == 'all'
     runs-on: ubuntu-latest
     steps:
       - name: Hit /api/cron/acp-revenue-sync
