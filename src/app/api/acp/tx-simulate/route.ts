@@ -102,10 +102,17 @@ async function tryDecodeLog(
           signature: parsed.fragment.format("sighash"),
           args: describeArgs(parsed.args, parsed.fragment),
         };
+      } else {
+        logger.warn("tx-simulate", `parseLog returned null for ${log.address} topic ${log.topics[0]}`);
       }
-    } catch {
-      // fall through
+    } catch (err) {
+      logger.warn(
+        "tx-simulate",
+        `parseLog threw for ${log.address} topic ${log.topics[0]}: ${(err as Error).message}`
+      );
     }
+  } else {
+    logger.warn("tx-simulate", `no verified ABI for ${log.address} on chain ${chainId}`);
   }
   if (!log.topics[0]) return null;
   const sig = await lookup4ByteEvent(log.topics[0]);
