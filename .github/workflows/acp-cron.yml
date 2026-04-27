@@ -1,0 +1,93 @@
+name: ACP Cron Jobs
+
+# Vercel Hobby plan only allows daily cron, so we trigger the cron-style API
+# routes from GitHub Actions instead. The endpoints themselves live at
+# src/app/api/cron/* and authenticate via the CRON_SECRET shared secret.
+#
+# Required repo secrets:
+#   HQ_BASE_URL  — e.g. https://claudiusinc.com (defaults to claudiusinc.com)
+#   CRON_SECRET  — same value set in Vercel env
+
+on:
+  schedule:
+    # offering-sweep — hourly, hides any V2 offering not in the manifest
+    - cron: '5 * * * *'
+    # status-check — every 15 min, alerts if agent hidden / SSE dropped / overflow
+    - cron: '*/15 * * * *'
+    # revenue-sync — every 6 hours, refreshes on-chain revenue cache
+    - cron: '10 */6 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which cron job to run'
+        required: true
+        type: choice
+        options:
+          - offering-sweep
+          - status-check
+          - revenue-sync
+          - all
+
+jobs:
+  offering-sweep:
+    if: github.event.schedule == '5 * * * *' || github.event.inputs.job == 'offering-sweep' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /api/cron/acp-offering-sweep
+        env:
+          HQ_BASE_URL: ${{ secrets.HQ_BASE_URL || 'https://claudiusinc.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$HQ_BASE_URL/api/cron/acp-offering-sweep" \
+            | tee /tmp/out.json
+          {
+            echo "## offering-sweep"
+            echo '```json'
+            cat /tmp/out.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  status-check:
+    if: github.event.schedule == '*/15 * * * *' || github.event.inputs.job == 'status-check' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /api/cron/acp-status-check
+        env:
+          HQ_BASE_URL: ${{ secrets.HQ_BASE_URL || 'https://claudiusinc.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$HQ_BASE_URL/api/cron/acp-status-check" \
+            | tee /tmp/out.json
+          {
+            echo "## status-check"
+            echo '```json'
+            cat /tmp/out.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if grep -q '"ok":false' /tmp/out.json; then
+            echo "::warning::ACP status check returned warnings"
+          fi
+
+  revenue-sync:
+    if: github.event.schedule == '10 */6 * * *' || github.event.inputs.job == 'revenue-sync' || github.event.inputs.job == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /api/cron/acp-revenue-sync
+        env:
+          HQ_BASE_URL: ${{ secrets.HQ_BASE_URL || 'https://claudiusinc.com' }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail --silent --show-error --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$HQ_BASE_URL/api/cron/acp-revenue-sync" \
+            | tee /tmp/out.json
+          {
+            echo "## revenue-sync"
+            echo '```json'
+            cat /tmp/out.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,6 +1,20 @@
 import { config } from 'dotenv';
 config({ path: '.env.local' });
 
+// This script POSTs a hardcoded list of offerings to the HQ API. It bypasses
+// the offering-manifest in spirit: the HQ POST handler will now reject any
+// name not in src/config/acp-offerings-manifest.ts, but this script is itself
+// a vector for relisting. Refuse to run unless explicitly allowed.
+if (!process.env.ALLOW_LEGACY_OFFERING_FIX) {
+  console.error(
+    "Refusing to run: this script bulk-syncs a hardcoded offerings list. " +
+      "Edit src/config/acp-offerings-manifest.ts directly instead. " +
+      "If you genuinely need this, set ALLOW_LEGACY_OFFERING_FIX=1 — the HQ " +
+      "API will still reject any name not in the manifest.",
+  );
+  process.exit(1);
+}
+
 const HQ_API = 'https://claudiusinc.com/api/acp';
 const API_KEY = process.env.HQ_API_KEY;
 

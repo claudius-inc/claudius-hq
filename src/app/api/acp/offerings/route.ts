@@ -13,6 +13,13 @@ import {
   updateV2Offering,
   type UpdateV2OfferingBody,
 } from "@/lib/virtuals-client";
+import { assertAllowedOffering } from "@/config/acp-offerings-manifest";
+import {
+  BulkSyncBodySchema,
+  CreateOfferingBodySchema,
+  PatchOfferingBodySchema,
+  formatZodError,
+} from "@/lib/acp-schemas";
 
 const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
 const OFFERINGS_DIR = path.join(ACP_DIR, "src/seller/offerings");
@@ -157,13 +164,25 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
-    // Check if this is a bulk sync (legacy mode)
     if (Array.isArray(body.offerings)) {
-      return handleBulkSync(body as BulkSyncBody);
+      const parsed = BulkSyncBodySchema.safeParse(body);
+      if (!parsed.success) {
+        return NextResponse.json(
+          { error: `Invalid body: ${formatZodError(parsed.error)}` },
+          { status: 400 }
+        );
+      }
+      return handleBulkSync(parsed.data as BulkSyncBody);
     }
 
-    // Otherwise, it's a create/update single offering
-    return handleCreateOffering(body as CreateOfferingBody);
+    const parsed = CreateOfferingBodySchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: `Invalid body: ${formatZodError(parsed.error)}` },
+        { status: 400 }
+      );
+    }
+    return handleCreateOffering(parsed.data as CreateOfferingBody);
   } catch (error) {
     logger.error("api/acp/offerings", "Error processing request", { error });
     return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
@@ -175,6 +194,15 @@ async function handleBulkSync(body: BulkSyncBody) {
 
   if (!Array.isArray(offerings)) {
     return NextResponse.json({ error: "offerings array required" }, { status: 400 });
+  }
+
+  // Manifest guard: fail the whole batch if any name is not allowed.
+  for (const o of offerings) {
+    try {
+      assertAllowedOffering(o.name, "POST /api/acp/offerings (bulk)");
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 403 });
+    }
   }
 
   // Upsert each offering
@@ -230,12 +258,15 @@ async function handleBulkSync(body: BulkSyncBody) {
  */
 export async function PATCH(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { name, listedOnAcp, price, description, isActive, jobCount, totalRevenue, doNotRelist, category } = body;
-
-    if (!name) {
-      return NextResponse.json({ error: "name is required" }, { status: 400 });
+    const raw = await req.json();
+    const parsed = PatchOfferingBodySchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: `Invalid body: ${formatZodError(parsed.error)}` },
+        { status: 400 }
+      );
     }
+    const { name, listedOnAcp, price, description, isActive, jobCount, totalRevenue, doNotRelist, category } = parsed.data;
 
     const existing = await db
       .select()
@@ -316,6 +347,12 @@ async function handleCreateOffering(body: CreateOfferingBody) {
       { error: "name and price are required" },
       { status: 400 }
     );
+  }
+
+  try {
+    assertAllowedOffering(name, "POST /api/acp/offerings (create)");
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 403 });
   }
 
   // Check if offering already exists
