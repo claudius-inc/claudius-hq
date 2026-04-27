@@ -9,6 +9,8 @@
  * lookups across all supported chains via api.etherscan.io/v2.
  */
 
+import { logger } from "@/lib/logger";
+
 export interface ChainConfig {
   chainId: number;
   name: string;
@@ -107,27 +109,129 @@ export function getRpcUrl(chainId: number): string {
 
 const ETHERSCAN_V2 = "https://api.etherscan.io/v2/api";
 
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+interface SourceCodeEntry {
+  ABI: string;
+  Implementation: string;
+  Proxy: string;
+  ContractName: string;
+}
+
+interface EtherscanResponse<T> {
+  status: string;
+  message: string;
+  result: T;
+}
+
+async function fetchSourceCode(
+  chainId: number,
+  address: string,
+  key: string
+): Promise<SourceCodeEntry | null> {
+  const url = `${ETHERSCAN_V2}?chainid=${chainId}&module=contract&action=getsourcecode&address=${address}&apikey=${key}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    logger.warn(
+      "evm-chains",
+      `Etherscan v2 getsourcecode HTTP ${res.status} for ${address} on chain ${chainId}`
+    );
+    return null;
+  }
+  const json = (await res.json()) as EtherscanResponse<SourceCodeEntry[] | string>;
+  if (json.status !== "1" || !Array.isArray(json.result) || json.result.length === 0) {
+    logger.warn("evm-chains", `Etherscan v2 getsourcecode not-ok for ${address} on chain ${chainId}`, {
+      status: json.status,
+      message: json.message,
+      result: typeof json.result === "string" ? json.result : undefined,
+    });
+    return null;
+  }
+  return json.result[0];
+}
+
 /**
  * Fetch the verified ABI for a contract from Etherscan v2 (unified across
  * chains). Returns null if not verified or no API key set.
+ *
+ * Handles proxies: when the contract is a proxy, fetches the implementation's
+ * ABI and merges it with the proxy's own ABI so calldata to either layer
+ * decodes correctly. Without this, common tokens like Base USDC (a proxy)
+ * fail to resolve named parameters and fall through to the 4byte directory.
  */
 export async function fetchVerifiedAbi(
   chainId: number,
   address: string
 ): Promise<string | null> {
   const key = process.env.ETHERSCAN_API_KEY;
-  if (!key) return null;
+  if (!key) {
+    logger.warn("evm-chains", "ETHERSCAN_API_KEY not set; verified ABI lookup disabled");
+    return null;
+  }
   const c = getChain(chainId);
   if (!c.etherscanV2) return null;
-  const url = `${ETHERSCAN_V2}?chainid=${chainId}&module=contract&action=getabi&address=${address}&apikey=${key}`;
+
   try {
-    const res = await fetch(url, { cache: "no-store" });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { status: string; result: string };
-    if (json.status !== "1") return null;
-    return json.result;
-  } catch {
+    const entry = await fetchSourceCode(chainId, address, key);
+    if (!entry) return null;
+    const proxyAbi = entry.ABI && entry.ABI !== "Contract source code not verified" ? entry.ABI : null;
+
+    let implAbi: string | null = null;
+    if (
+      entry.Proxy === "1" &&
+      entry.Implementation &&
+      entry.Implementation.toLowerCase() !== ZERO_ADDRESS &&
+      entry.Implementation.toLowerCase() !== address.toLowerCase()
+    ) {
+      const implEntry = await fetchSourceCode(chainId, entry.Implementation, key);
+      if (
+        implEntry &&
+        implEntry.ABI &&
+        implEntry.ABI !== "Contract source code not verified"
+      ) {
+        implAbi = implEntry.ABI;
+      } else {
+        logger.warn(
+          "evm-chains",
+          `Proxy ${address} on chain ${chainId} points to ${entry.Implementation} but implementation ABI not verified`
+        );
+      }
+    }
+
+    if (!proxyAbi && !implAbi) return null;
+    if (proxyAbi && !implAbi) return proxyAbi;
+    if (implAbi && !proxyAbi) return implAbi;
+    return mergeAbis(proxyAbi as string, implAbi as string);
+  } catch (err) {
+    logger.warn(
+      "evm-chains",
+      `Etherscan v2 lookup failed for ${address} on chain ${chainId}: ${(err as Error).message}`
+    );
     return null;
+  }
+}
+
+/**
+ * Merge two JSON ABI strings, deduplicating fragments by their canonical key
+ * (type + name + input types). Implementation fragments win over proxy
+ * fragments on collision.
+ */
+function mergeAbis(proxyAbi: string, implAbi: string): string {
+  try {
+    const proxy = JSON.parse(proxyAbi) as Array<Record<string, unknown>>;
+    const impl = JSON.parse(implAbi) as Array<Record<string, unknown>>;
+    const seen = new Map<string, Record<string, unknown>>();
+    const keyOf = (f: Record<string, unknown>) => {
+      const inputs = Array.isArray(f.inputs) ? f.inputs : [];
+      const types = (inputs as Array<{ type?: string }>).map((i) => i.type ?? "").join(",");
+      return `${f.type ?? ""}:${f.name ?? ""}:${types}`;
+    };
+    for (const f of proxy) seen.set(keyOf(f), f);
+    for (const f of impl) seen.set(keyOf(f), f); // impl overrides
+    return JSON.stringify(Array.from(seen.values()));
+  } catch {
+    // If either side won't parse, prefer impl (which has the user-facing fns)
+    return implAbi;
   }
 }
 
