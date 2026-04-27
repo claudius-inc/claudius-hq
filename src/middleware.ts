@@ -27,6 +27,15 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Cron endpoints: triggered by GitHub Actions (Vercel Hobby caps cron at
+  // daily). The routes themselves enforce auth via x-vercel-cron header or
+  // Bearer ${CRON_SECRET}; passing them through middleware avoids a
+  // double-auth requirement that would force GH Actions to also know
+  // HQ_API_KEY.
+  if (pathname.startsWith("/api/cron/")) {
+    return NextResponse.next();
+  }
+
   // Health endpoint: public for monitoring/uptime checks
   if (pathname === "/api/health") {
     return NextResponse.next();
