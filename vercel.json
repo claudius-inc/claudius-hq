@@ -1,3 +1,0 @@
-{
-  "_comment": "ACP cron jobs run from GitHub Actions (.github/workflows/acp-cron.yml) because Vercel Hobby caps cron at once-per-day. The /api/cron/* routes still work as on-demand endpoints authenticated via CRON_SECRET."
-}
