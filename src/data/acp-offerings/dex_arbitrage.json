@@ -1,0 +1,81 @@
+{
+  "name": "dex_arbitrage",
+  "description": "Base Arbitrage Scanner — Real-time cross-DEX profit detection (Uniswap/Curve/Odos/KyberSwap). Spreads >0.5%, execution paths, net gas costs, time windows. For: arbitrage bots, MEV searchers, liquidation agents, treasury managers. Returns: profit %, recommended route, execution window. 1000+ tokens, <500ms delivery ($0.05).",
+  "priceValue": 0.05,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {
+    "type": "object",
+    "properties": {
+      "token": {
+        "type": "string",
+        "description": "Optional token filter (BTC, ETH, SOL, etc). Omit to scan all monitored pairs."
+      },
+      "minSpread": {
+        "type": "number",
+        "maximum": 50,
+        "minimum": 0,
+        "description": "Minimum spread % to include in results. Default 0.5."
+      }
+    },
+    "additionalProperties": false
+  },
+  "deliverable": {
+    "type": "object",
+    "required": [
+      "chain",
+      "scannedAt",
+      "opportunities"
+    ],
+    "properties": {
+      "chain": {
+        "type": "string",
+        "description": "Currently 'base' only"
+      },
+      "scanned": {
+        "type": "integer",
+        "description": "Number of token pairs scanned"
+      },
+      "scannedAt": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "opportunities": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "ts": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "toDex": {
+              "type": "string"
+            },
+            "token": {
+              "type": "string"
+            },
+            "gasUSD": {
+              "type": "number"
+            },
+            "netUSD": {
+              "type": "number",
+              "description": "Expected profit after gas"
+            },
+            "fromDex": {
+              "type": "string"
+            },
+            "sizeUSD": {
+              "type": "number",
+              "description": "Recommended trade size, USD"
+            },
+            "spreadPct": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    }
+  },
+  "requiredFunds": false
+}

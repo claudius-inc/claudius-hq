@@ -1,0 +1,71 @@
+{
+  "name": "fear_greed",
+  "description": "Crypto Fear & Greed Index PRO — The definitive FGI source. Real-time 0-100 + 1Y percentile (where vs last 365d) + momentum + cycle phase + DCA signals + 'last time at this level' context + BTC correlation. Thresholds: <20 STRONG_BUY (capitulation), <35 BUY (accumulation), 45-55 HOLD, >70 REDUCE, >80 STRONG_REDUCE (euphoria). For: DCA bots, swing traders, rebalancers, risk managers, options. JSON, sub-second. Keywords: FGI, sentiment, contrarian, capitulation, FOMO.",
+  "priceValue": 0.06,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {
+    "type": "object",
+    "properties": {
+      "lookback": {
+        "enum": [
+          7,
+          30,
+          365
+        ],
+        "type": "integer",
+        "description": "Optional lookback window in days. Valid values: 7, 30, 365. Default 7."
+      }
+    },
+    "additionalProperties": false
+  },
+  "deliverable": {
+    "type": "object",
+    "required": [
+      "value",
+      "classification",
+      "signal",
+      "ts"
+    ],
+    "properties": {
+      "ts": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "value": {
+        "type": "integer",
+        "description": "Current FGI 0-100"
+      },
+      "signal": {
+        "enum": [
+          "STRONG_BUY",
+          "BUY",
+          "NEUTRAL",
+          "REDUCE",
+          "STRONG_REDUCE"
+        ],
+        "type": "string",
+        "description": "Actionable verdict: <20 STRONG_BUY, 20-40 BUY, 40-60 NEUTRAL, 60-80 REDUCE, >80 STRONG_REDUCE"
+      },
+      "momentum7d": {
+        "type": "integer",
+        "description": "Change vs 7d ago, in raw FGI points"
+      },
+      "percentile1y": {
+        "type": "number",
+        "description": "Where the current value sits vs the last 365d"
+      },
+      "classification": {
+        "enum": [
+          "EXTREME_FEAR",
+          "FEAR",
+          "NEUTRAL",
+          "GREED",
+          "EXTREME_GREED"
+        ],
+        "type": "string"
+      }
+    }
+  },
+  "requiredFunds": false
+}

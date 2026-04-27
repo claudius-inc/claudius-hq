@@ -1,0 +1,21 @@
+{
+  "name": "live_price",
+  "description": "Live Price Oracle — Multi-source price feed (CoinGecko + Yahoo Finance) for 10,000+ assets: crypto, stocks, commodities, forex. Returns: current price + 24h/7d/30d % + market cap + volume + supply. Cross-validates feeds, fallback on primary failure. For: trading bots, arbitrage, portfolio trackers (NAV), DCA, swap routers, liquidation hunters, MEV, market makers, lending (LTV). Discovery tier for high-volume agents. <100ms ($0.01). Keywords: oracle, price feed, real-time, NAV.",
+  "priceValue": 0.01,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {
+    "type": "object",
+    "required": [
+      "symbol"
+    ],
+    "properties": {
+      "symbol": {
+        "type": "string",
+        "description": "Asset symbol (BTC, ETH, AAPL, XAU)"
+      }
+    }
+  },
+  "deliverable": "\"JSON: { symbol, priceUsd, change24h, change7d, marketCap, volume24h, source, timestamp }\"",
+  "requiredFunds": false
+}

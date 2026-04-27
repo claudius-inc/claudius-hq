@@ -1,0 +1,111 @@
+{
+  "name": "portfolio_risk_metrics",
+  "description": "Portfolio Risk Metrics — Real-time risk quantification for trading/rebalancing agents. Metrics: Beta, Volatility, VaR (95%/99%), Max Drawdown, Sharpe/Sortino Ratio + risk rating (LOW/HIGH/EXTREME). Inputs: holdings (tickers + weights). Outputs: JSON risk scores + actionable guidance. Supports 10K+ assets (crypto/stocks). For: trading bots (risk gates), portfolio rebalancers (concentration alerts), risk managers (position sizing), DCA agents. <10s ($0.08).",
+  "priceValue": 0.08,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {
+    "type": "object",
+    "required": [
+      "holdings"
+    ],
+    "properties": {
+      "period": {
+        "type": "integer",
+        "maximum": 730,
+        "minimum": 30,
+        "description": "Optional lookback in days. Default 365."
+      },
+      "holdings": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "ticker"
+          ],
+          "properties": {
+            "ticker": {
+              "type": "string",
+              "description": "Asset ticker. Crypto (BTC, ETH, SOL, ...) or equity (AAPL, NVDA, ...)."
+            },
+            "weight": {
+              "type": "number",
+              "maximum": 1,
+              "minimum": 0,
+              "description": "Optional portfolio weight 0..1. If omitted across holdings, equal-weighted is assumed."
+            }
+          }
+        },
+        "maxItems": 50,
+        "minItems": 1,
+        "description": "Portfolio holdings with weights summing to 1.0 (or unweighted to use equal-weight default)."
+      }
+    },
+    "additionalProperties": false
+  },
+  "deliverable": {
+    "type": "object",
+    "required": [
+      "asOf",
+      "weighted"
+    ],
+    "properties": {
+      "asOf": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "weighted": {
+        "type": "object",
+        "properties": {
+          "beta": {
+            "type": "number",
+            "description": "vs SPY (or BTC for crypto-only)"
+          },
+          "var95Pct": {
+            "type": "number",
+            "description": "1-day Value-at-Risk @95% confidence, %"
+          },
+          "var99Pct": {
+            "type": "number"
+          },
+          "sharpeRatio": {
+            "type": "number"
+          },
+          "volatilityPct": {
+            "type": "number",
+            "description": "Annualized stdev of returns, %"
+          },
+          "maxDrawdownPct": {
+            "type": "number"
+          }
+        },
+        "description": "Portfolio-level metrics weighted across holdings"
+      },
+      "perHolding": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "beta": {
+              "type": "number"
+            },
+            "ticker": {
+              "type": "string"
+            },
+            "volPct": {
+              "type": "number"
+            },
+            "weight": {
+              "type": "number"
+            },
+            "contribution": {
+              "type": "number",
+              "description": "Contribution to portfolio volatility, %"
+            }
+          }
+        }
+      }
+    }
+  },
+  "requiredFunds": false
+}

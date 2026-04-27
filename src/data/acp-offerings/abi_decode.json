@@ -1,0 +1,129 @@
+{
+  "name": "abi_decode",
+  "description": "abi_decode — Decode any EVM tx or event log into named function args + event fields. Submit txHash, or {contract+data}, or {contract+log}. Returns JSON with function name, signature, typed args, decoded events. Verified ABI via Etherscan v2 (eth, base, arb, op, poly, bsc) + 4byte fallback. For executor agents reading tx history and scouts inspecting wallets. Deterministic, no LLM. <2s, $0.02. Keywords: abi, decode, calldata, event log, evm, 4byte.",
+  "priceValue": 0.02,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {},
+  "deliverable": {
+    "type": "object",
+    "required": [
+      "chainId",
+      "events",
+      "unknown"
+    ],
+    "properties": {
+      "tx": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "gasUsed": {
+            "type": "string"
+          },
+          "blockNumber": {
+            "type": "integer"
+          }
+        },
+        "description": "Tx metadata (only when txHash mode was used)"
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "args": {
+              "type": "array"
+            },
+            "name": {
+              "type": "string"
+            },
+            "contract": {
+              "type": "string"
+            },
+            "signature": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "One entry per decoded event log"
+      },
+      "chainId": {
+        "type": "integer"
+      },
+      "unknown": {
+        "type": "object",
+        "properties": {
+          "topics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Event topics that couldn't be resolved"
+          },
+          "selectors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "4-byte selectors that 4byte+verifiedABI couldn't resolve"
+          }
+        }
+      },
+      "function": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "value": {}
+              }
+            }
+          },
+          "name": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string",
+            "description": "Canonical sighash, e.g. 'transfer(address,uint256)'"
+          }
+        },
+        "description": "Decoded calldata, or null if no data was supplied / not decodable."
+      },
+      "chainName": {
+        "type": "string"
+      },
+      "durationMs": {
+        "type": "integer"
+      }
+    }
+  },
+  "requiredFunds": false
+}

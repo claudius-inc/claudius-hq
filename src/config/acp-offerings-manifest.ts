@@ -64,6 +64,34 @@ export function isAllowedOffering(name: string): boolean {
 }
 
 /**
+ * Load the bundled V2 offering metadata for a manifest entry. Files live at
+ * src/data/acp-offerings/<name>.json and are snapshotted from live V2 state
+ * via scripts/_snapshot-v2-metadata.ts (see commit history). This is the
+ * source of truth used by the dashboard's relist flow when the V2 record
+ * was deleted by the sweep cron.
+ */
+export interface V2OfferingMetadata {
+  name: string;
+  description: string;
+  priceValue: number;
+  priceType: "fixed" | "percentage";
+  slaMinutes: number;
+  requirements: Record<string, unknown> | string;
+  deliverable: Record<string, unknown> | string;
+  requiredFunds: boolean;
+}
+
+export async function loadOfferingMetadata(name: string): Promise<V2OfferingMetadata | null> {
+  if (!isAllowedOffering(name)) return null;
+  try {
+    const mod = await import(`@/data/acp-offerings/${name}.json`);
+    return (mod.default ?? mod) as V2OfferingMetadata;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Throws unless `name` is in the manifest. In dry-run mode logs and returns.
  * Use at every code path that creates or republishes an ACP offering.
  */

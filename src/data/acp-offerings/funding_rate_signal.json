@@ -1,0 +1,73 @@
+{
+  "name": "funding_rate_signal",
+  "description": "Funding Rate Signal — Perpetual leverage positioning intelligence. Returns: 8h funding rate (%), annualized rate, market bias (LONG/SHORT/NEUTRAL), squeeze risk (0-100). Detects: reversal risk, carry trade opportunities, liquidation cascades, leverage extremes. BTC/ETH/SOL/alts. For: trading bots (reversal), carry trade bots, liquidation hunters, DCA, hedging, risk managers, contrarian bots. Pairs with btc_signal, fear_greed. <500ms. Keywords: funding rate, leverage, liquidation, carry trade.",
+  "priceValue": 0.06,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {
+    "type": "object",
+    "required": [
+      "symbol"
+    ],
+    "properties": {
+      "venue": {
+        "enum": [
+          "binance",
+          "bybit",
+          "aggregate"
+        ],
+        "type": "string",
+        "description": "Optional venue filter. Default: aggregate (cross-venue mean)."
+      },
+      "symbol": {
+        "type": "string",
+        "description": "Perpetual token symbol. Valid values: BTC, ETH, SOL, HYPE, BNB, XRP, DOGE, etc."
+      }
+    },
+    "additionalProperties": false
+  },
+  "deliverable": {
+    "type": "object",
+    "required": [
+      "symbol",
+      "rate8h",
+      "annualized",
+      "signal",
+      "ts"
+    ],
+    "properties": {
+      "ts": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "venue": {
+        "type": "string"
+      },
+      "rate8h": {
+        "type": "number",
+        "description": "Current 8h funding rate as decimal (e.g. 0.0001 = 0.01%)"
+      },
+      "signal": {
+        "enum": [
+          "LONG_CROWDED",
+          "SHORT_CROWDED",
+          "BALANCED",
+          "CARRY_OPPORTUNITY"
+        ],
+        "type": "string"
+      },
+      "symbol": {
+        "type": "string"
+      },
+      "annualized": {
+        "type": "number",
+        "description": "Annualized rate as decimal (rate8h * 3 * 365)"
+      },
+      "squeezeRisk": {
+        "type": "integer",
+        "description": "0-100; >70 = imminent liquidation risk one-side"
+      }
+    }
+  },
+  "requiredFunds": false
+}

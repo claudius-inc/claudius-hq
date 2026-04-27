@@ -1,0 +1,95 @@
+{
+  "name": "tx_simulate",
+  "description": "tx_simulate — Pre-flight any EVM transaction before broadcast. Submit chainId + from + to + data + value; receive PROCEED/REVERT verdict, revertReason, gasUsed, gasLimit (+20% buffer), and decoded events. Pre-trade sanity gate for executor and trading agents submitting swaps/perps. Supports Ethereum, Base, Arbitrum, Optimism, Polygon, BSC. <2s, $0.05. Keywords: simulate, pre-trade, dry run, eth_call, gas estimate, revert, swap, executor.",
+  "priceValue": 0.05,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {},
+  "deliverable": {
+    "type": "object",
+    "required": [
+      "success",
+      "gasUsed",
+      "gasLimit",
+      "eventsAvailable"
+    ],
+    "properties": {
+      "notes": {
+        "type": "string"
+      },
+      "events": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "args": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "value": {}
+                }
+              }
+            },
+            "name": {
+              "type": "string"
+            },
+            "contract": {
+              "type": "string"
+            },
+            "signature": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Decoded events from Alchemy trace. Empty if Alchemy not used or tx emits no events."
+      },
+      "chainId": {
+        "type": "integer"
+      },
+      "gasUsed": {
+        "type": "string",
+        "description": "Estimated gas used (decimal string)"
+      },
+      "success": {
+        "type": "boolean",
+        "description": "true = simulation succeeded; false = revert"
+      },
+      "gasLimit": {
+        "type": "string",
+        "description": "Recommended gas limit = gasUsed * 1.20"
+      },
+      "chainName": {
+        "type": "string"
+      },
+      "durationMs": {
+        "type": "integer"
+      },
+      "returnValue": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Hex-encoded return data from eth_call"
+      },
+      "revertReason": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Decoded Error(string) reason on revert"
+      },
+      "eventsAvailable": {
+        "type": "boolean",
+        "description": "true when Alchemy trace ran; false = verdict-only"
+      }
+    }
+  },
+  "requiredFunds": false
+}
