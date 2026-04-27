@@ -31,14 +31,17 @@ interface Plan {
 
 // Plans for the 7 EXISTING manifest entries. The NEW 3 need offering-create
 // first; not handled here.
+//
+// NOTE: V2 enforces slaMinutes >= 5 as a hard floor (verified via 400
+// response: "slaMinutes must not be less than 5"). The competitor-research
+// framing of SLA as a sub-5-min discoverability lever was wrong; everyone
+// at slaMinutes=5 is at the floor. Plans below leave SLA at 5 unchanged.
 const PLANS: Plan[] = [
   {
     name: "live_price",
-    slaMinutes: 1,
   },
   {
     name: "fear_greed",
-    slaMinutes: 1,
     requirements: {
       type: "object",
       additionalProperties: false,
@@ -72,7 +75,6 @@ const PLANS: Plan[] = [
   },
   {
     name: "funding_rate_signal",
-    slaMinutes: 2,
     requirements: {
       type: "object",
       required: ["symbol"],
@@ -108,11 +110,9 @@ const PLANS: Plan[] = [
   },
   {
     name: "token_safety_quick",
-    slaMinutes: 2,
   },
   {
     name: "portfolio_risk_metrics",
-    slaMinutes: 5,
     deliverable: {
       type: "object",
       properties: {
@@ -148,7 +148,6 @@ const PLANS: Plan[] = [
   },
   {
     name: "token_alpha_report",
-    slaMinutes: 5,
     deliverable: {
       type: "object",
       properties: {
@@ -184,7 +183,6 @@ const PLANS: Plan[] = [
   },
   {
     name: "dex_arbitrage",
-    slaMinutes: 1,
     deliverable: {
       type: "object",
       properties: {
