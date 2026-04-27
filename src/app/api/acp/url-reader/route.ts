@@ -6,10 +6,14 @@
  * Built for content/research agent pipelines that need a primitive "give me
  * the article body" call.
  *
- * Strategy: server-side fetch → jsdom DOM → @mozilla/readability article
+ * Strategy: server-side fetch → linkedom DOM → @mozilla/readability article
  * extract → turndown to markdown. JS-rendered SPAs are NOT supported in this
  * v1 (we'd need a headless browser); the deliverable returns
  * `wasReadable: false` if Readability couldn't extract a meaningful article.
+ *
+ * `linkedom` is used instead of `jsdom` because jsdom pulls native deps
+ * (canvas) that fail to bundle on Vercel's serverless runtime. linkedom is
+ * pure-JS, ~10x smaller, and Readability-compatible.
  *
  * Safety:
  *   - Blocks fetches against private IP ranges (SSRF).
@@ -19,7 +23,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { JSDOM } from "jsdom";
+import { parseHTML } from "linkedom";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { logger } from "@/lib/logger";
@@ -177,10 +181,11 @@ export async function POST(req: NextRequest) {
 
   let extract: ExtractResult;
   try {
-    const dom = new JSDOM(body, { url: parsed.url });
-    const doc = dom.window.document;
-    const meta = extractMeta(doc);
-    const reader = new Readability(doc.cloneNode(true) as Document);
+    const { document: doc } = parseHTML(body);
+    const meta = extractMeta(doc as unknown as Document);
+    // Readability mutates the document; parse a separate copy for safety
+    const { document: readDoc } = parseHTML(body);
+    const reader = new Readability(readDoc as unknown as Document);
     const article = reader.parse();
     if (article && article.content && (article.textContent?.length ?? 0) > 200) {
       extract = {
@@ -235,8 +240,7 @@ export async function POST(req: NextRequest) {
   let links: Array<{ href: string; text: string }> = [];
   if (parsed.includeLinks) {
     try {
-      const dom = new JSDOM(extract.contentHtml, { url: parsed.url });
-      const doc = dom.window.document;
+      const { document: doc } = parseHTML(extract.contentHtml);
       const seen = new Set<string>();
       doc.querySelectorAll("a[href]").forEach((a: Element) => {
         const href = a.getAttribute("href") || "";
