@@ -187,8 +187,9 @@ function collectLogs(calls: AlchemyTraceResult[] | undefined): RawLog[] {
 async function alchemySimulate(
   chainId: number,
   callObj: Record<string, string>,
-  blockTag: string
-): Promise<{ logs: RawLog[]; gasUsed: bigint } | null> {
+  blockTag: string,
+  debug: boolean = false
+): Promise<{ logs: RawLog[]; gasUsed: bigint; raw?: unknown } | null> {
   const key = process.env.ALCHEMY_API_KEY;
   if (!key) return null;
   const c = getChain(chainId);
@@ -209,8 +210,6 @@ async function alchemySimulate(
     if (!res.ok) return null;
     const json = (await res.json()) as AlchemySimulationResponse;
     if (json.error || !json.result) return null;
-    // Alchemy returns logs at result.logs in some shapes and nested in
-    // result.calls[].logs in others. Merge + dedupe (by index order).
     const topLogs = json.result.logs || [];
     const nestedLogs = collectLogs(json.result.calls);
     const seen = new Set<string>();
@@ -222,7 +221,7 @@ async function alchemySimulate(
       seen.add(key);
       logs.push(l);
     }
-    return { logs, gasUsed: BigInt(0) };
+    return { logs, gasUsed: BigInt(0), raw: debug ? json.result : undefined };
   } catch {
     return null;
   }
@@ -303,12 +302,17 @@ export async function POST(req: NextRequest) {
   }
 
   // 3. (optional) Alchemy simulation for events + traces
+  const debug = req.nextUrl.searchParams.get("_debug") === "1";
   let events: DecodedEvent[] = [];
   let alchemyUsed = false;
+  let alchemyRaw: unknown;
+  let alchemyLogCount = 0;
   if (success) {
-    const alch = await alchemySimulate(parsed.chainId, callObj, parsed.blockTag);
+    const alch = await alchemySimulate(parsed.chainId, callObj, parsed.blockTag, debug);
     if (alch) {
       alchemyUsed = true;
+      alchemyLogCount = alch.logs.length;
+      if (debug) alchemyRaw = alch.raw;
       const decodedEvents = await Promise.all(
         alch.logs.map((l) =>
           tryDecodeLog(parsed.chainId, {
@@ -344,5 +348,6 @@ export async function POST(req: NextRequest) {
       ? "Full simulation via Alchemy."
       : "Verdict via eth_call. Set ALCHEMY_API_KEY for traced events.",
     durationMs: Date.now() - startedAt,
+    ...(debug ? { _debug: { alchemyLogCount, alchemyRaw } } : {}),
   });
 }
