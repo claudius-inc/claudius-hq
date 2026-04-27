@@ -86,15 +86,31 @@ interface RawLog {
   data: string;
 }
 
+/**
+ * Pad a topic to 32 bytes (66 chars incl. 0x). Alchemy's
+ * alchemy_simulateExecution returns indexed topics with leading zeros
+ * stripped (e.g. an address shows as `0xa1bd...` rather than
+ * `0x000...a1bd...`). Standard EVM logs always pad to 32 bytes; ethers'
+ * parseLog throws on the compact form. We renormalize before decoding.
+ */
+function normalizeTopic(t: string): string {
+  if (!t.startsWith("0x")) return t;
+  if (t.length === 66) return t;
+  if (t.length > 66) return t; // unexpected — leave alone
+  const hex = t.slice(2);
+  return "0x" + hex.padStart(64, "0");
+}
+
 async function tryDecodeLog(
   chainId: number,
   log: RawLog
 ): Promise<DecodedEvent | null> {
+  const topics = log.topics.map(normalizeTopic);
   const abiJson = await fetchVerifiedAbi(chainId, log.address);
   if (abiJson) {
     try {
       const iface = new ethers.Interface(abiJson);
-      const parsed = iface.parseLog({ topics: log.topics, data: log.data });
+      const parsed = iface.parseLog({ topics, data: log.data });
       if (parsed) {
         return {
           contract: log.address,
@@ -114,12 +130,11 @@ async function tryDecodeLog(
   } else {
     logger.warn("tx-simulate", `no verified ABI for ${log.address} on chain ${chainId}`);
   }
-  if (!log.topics[0]) return null;
-  const sig = await lookup4ByteEvent(log.topics[0]);
+  if (!topics[0]) return null;
+  const sig = await lookup4ByteEvent(topics[0]);
   if (!sig) return null;
   try {
     const fragment = ethers.EventFragment.from(`event ${sig}`);
-    const indexed = fragment.inputs.filter((p) => p.indexed);
     const nonIndexed = fragment.inputs.filter((p) => !p.indexed);
     const decodedNonIndexed = ethers.AbiCoder.defaultAbiCoder().decode(
       nonIndexed.map((p) => p.type),
@@ -131,7 +146,7 @@ async function tryDecodeLog(
     for (const p of fragment.inputs) {
       const name = p.name || `arg${args.length}`;
       if (p.indexed) {
-        args.push({ name, type: p.type, value: log.topics[1 + idx++] });
+        args.push({ name, type: p.type, value: topics[1 + idx++] });
       } else {
         args.push({
           name,
