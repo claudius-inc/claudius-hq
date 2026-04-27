@@ -189,14 +189,21 @@ async function alchemySimulate(
   callObj: Record<string, string>,
   blockTag: string,
   debug: boolean = false
-): Promise<{ logs: RawLog[]; gasUsed: bigint; raw?: unknown } | null> {
+): Promise<{ logs: RawLog[]; gasUsed: bigint; raw?: unknown; debugTrace?: unknown } | null> {
   const key = process.env.ALCHEMY_API_KEY;
-  if (!key) return null;
+  if (!key) {
+    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { skip: "no ALCHEMY_API_KEY" } };
+    return null;
+  }
   const c = getChain(chainId);
-  if (!c.alchemySubdomain) return null;
+  if (!c.alchemySubdomain) {
+    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { skip: `no alchemySubdomain for chain ${chainId}` } };
+    return null;
+  }
   const url = `https://${c.alchemySubdomain}.g.alchemy.com/v2/${key}`;
+  let res: Response;
   try {
-    const res = await fetch(url, {
+    res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -207,24 +214,42 @@ async function alchemySimulate(
       }),
       cache: "no-store",
     });
-    if (!res.ok) return null;
-    const json = (await res.json()) as AlchemySimulationResponse;
-    if (json.error || !json.result) return null;
-    const topLogs = json.result.logs || [];
-    const nestedLogs = collectLogs(json.result.calls);
-    const seen = new Set<string>();
-    const logs: RawLog[] = [];
-    for (const l of [...topLogs, ...nestedLogs]) {
-      if (!l || !l.topics) continue;
-      const key = `${l.address}|${l.topics.join(",")}|${l.data}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      logs.push(l);
-    }
-    return { logs, gasUsed: BigInt(0), raw: debug ? json.result : undefined };
-  } catch {
+  } catch (err) {
+    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { fetchError: String(err) } };
     return null;
   }
+  if (!res.ok) {
+    const text = await res.text().catch(() => "<unreadable>");
+    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { httpStatus: res.status, body: text.slice(0, 500) } };
+    return null;
+  }
+  let json: AlchemySimulationResponse;
+  try {
+    json = (await res.json()) as AlchemySimulationResponse;
+  } catch (err) {
+    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { parseError: String(err) } };
+    return null;
+  }
+  if (json.error) {
+    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { jsonRpcError: json.error } };
+    return null;
+  }
+  if (!json.result) {
+    if (debug) return { logs: [], gasUsed: BigInt(0), debugTrace: { noResult: true, raw: json } };
+    return null;
+  }
+  const topLogs = json.result.logs || [];
+  const nestedLogs = collectLogs(json.result.calls);
+  const seen = new Set<string>();
+  const logs: RawLog[] = [];
+  for (const l of [...topLogs, ...nestedLogs]) {
+    if (!l || !l.topics) continue;
+    const key = `${l.address}|${l.topics.join(",")}|${l.data}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    logs.push(l);
+  }
+  return { logs, gasUsed: BigInt(0), raw: debug ? json.result : undefined };
 }
 
 export async function POST(req: NextRequest) {
@@ -306,23 +331,30 @@ export async function POST(req: NextRequest) {
   let events: DecodedEvent[] = [];
   let alchemyUsed = false;
   let alchemyRaw: unknown;
+  let alchemyDebug: unknown;
   let alchemyLogCount = 0;
   if (success) {
     const alch = await alchemySimulate(parsed.chainId, callObj, parsed.blockTag, debug);
     if (alch) {
-      alchemyUsed = true;
       alchemyLogCount = alch.logs.length;
-      if (debug) alchemyRaw = alch.raw;
-      const decodedEvents = await Promise.all(
-        alch.logs.map((l) =>
-          tryDecodeLog(parsed.chainId, {
-            address: l.address,
-            topics: l.topics,
-            data: l.data,
-          })
-        )
-      );
-      events = decodedEvents.filter((e): e is DecodedEvent => e !== null);
+      if (debug) {
+        alchemyRaw = alch.raw;
+        alchemyDebug = alch.debugTrace;
+      }
+      // Only mark "used" if we actually got a real result (no debugTrace skip).
+      if (!alch.debugTrace) {
+        alchemyUsed = true;
+        const decodedEvents = await Promise.all(
+          alch.logs.map((l) =>
+            tryDecodeLog(parsed.chainId, {
+              address: l.address,
+              topics: l.topics,
+              data: l.data,
+            })
+          )
+        );
+        events = decodedEvents.filter((e): e is DecodedEvent => e !== null);
+      }
     }
   }
 
@@ -348,6 +380,6 @@ export async function POST(req: NextRequest) {
       ? "Full simulation via Alchemy."
       : "Verdict via eth_call. Set ALCHEMY_API_KEY for traced events.",
     durationMs: Date.now() - startedAt,
-    ...(debug ? { _debug: { alchemyLogCount, alchemyRaw } } : {}),
+    ...(debug ? { _debug: { alchemyLogCount, alchemyDebug, alchemyRaw } } : {}),
   });
 }
