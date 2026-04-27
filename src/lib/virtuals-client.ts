@@ -8,6 +8,7 @@
  */
 
 import { v2AuthenticatedFetch } from "@/lib/v2-auth";
+import { assertAllowedOffering } from "@/config/acp-offerings-manifest";
 
 const V2_BASE_URL = "https://api.acp.virtuals.io";
 const V2_AGENT_ID =
@@ -100,12 +101,20 @@ export async function findV2OfferingByName(
 
 /**
  * Update an offering on the V2 marketplace. Authenticated PUT.
+ *
+ * If the update would unhide an offering not in the manifest, this throws.
+ * Hiding (`isHidden: true`) is always allowed — the sweep cron uses it to
+ * enforce the manifest.
  */
 export async function updateV2Offering(
   offeringId: string,
   body: UpdateV2OfferingBody,
   agentId: string = V2_AGENT_ID
 ): Promise<V2Offering> {
+  if (body.isHidden === false || body.name) {
+    const target = await fetchOfferingForGuard(offeringId, agentId, body.name);
+    if (target) assertAllowedOffering(target, `updateV2Offering(${offeringId})`);
+  }
   const res = await v2AuthenticatedFetch(
     `/agents/${encodeURIComponent(agentId)}/offerings/${encodeURIComponent(offeringId)}`,
     {
@@ -118,4 +127,18 @@ export async function updateV2Offering(
   }
   const json = (await res.json()) as { data: V2Offering };
   return json.data;
+}
+
+async function fetchOfferingForGuard(
+  offeringId: string,
+  agentId: string,
+  bodyName?: string
+): Promise<string | null> {
+  if (bodyName) return bodyName;
+  try {
+    const agent = await getV2AgentInfo(agentId);
+    return agent.offerings.find((o) => o.id === offeringId)?.name ?? null;
+  } catch {
+    return null;
+  }
 }

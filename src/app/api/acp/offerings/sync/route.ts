@@ -13,6 +13,8 @@ import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
+import { assertAllowedOffering } from "@/config/acp-offerings-manifest";
+import { SyncBodySchema, formatZodError } from "@/lib/acp-schemas";
 
 const API_KEY = process.env.HQ_API_KEY;
 
@@ -39,15 +41,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
-    const { offerings } = body as { offerings: OfferingSync[] };
-
-    if (!offerings || !Array.isArray(offerings)) {
+    const raw = await req.json();
+    const parsed = SyncBodySchema.safeParse(raw);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "offerings array required" },
+        { error: `Invalid body: ${formatZodError(parsed.error)}` },
         { status: 400 }
       );
     }
+    const { offerings } = parsed.data as { offerings: OfferingSync[] };
 
     const results: { name: string; action: string }[] = [];
 
@@ -58,6 +60,17 @@ export async function POST(req: NextRequest) {
         .from(acpOfferings)
         .where(eq(acpOfferings.name, offering.name))
         .limit(1);
+
+      // Manifest guard for NEW offerings only — existing rows can still be
+      // updated (revenue/jobCount sync paths) regardless of manifest state.
+      if (existing.length === 0) {
+        try {
+          assertAllowedOffering(offering.name, "POST /api/acp/offerings/sync");
+        } catch (e) {
+          results.push({ name: offering.name, action: `rejected: ${(e as Error).message}` });
+          continue;
+        }
+      }
 
       if (existing.length > 0) {
         // Update existing

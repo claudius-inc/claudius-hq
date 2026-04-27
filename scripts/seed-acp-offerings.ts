@@ -17,8 +17,22 @@ import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";
 import { eq } from "drizzle-orm";
 import * as schema from "../src/db/schema";
+import { isAllowedOffering } from "../src/config/acp-offerings-manifest";
 
 config({ path: ".env.local" });
+
+// Manifest guard: this script reads from a directory tree of offering.json
+// files and inserts whatever it finds. That is exactly the relisting vector
+// the manifest exists to block. Run in dry-run mode unless explicitly allowed.
+if (!process.env.ALLOW_LEGACY_OFFERING_SEED) {
+  console.error(
+    "Refusing to run: this script bulk-creates offerings from a filesystem " +
+      "tree, bypassing src/config/acp-offerings-manifest.ts. " +
+      "If you genuinely need it, set ALLOW_LEGACY_OFFERING_SEED=1 — entries " +
+      "not in the manifest will still be skipped.",
+  );
+  process.exit(1);
+}
 
 const OFFERINGS_DIR = "/root/.openclaw/workspace/skills/acp/src/seller/offerings";
 
@@ -66,6 +80,12 @@ async function main() {
     try {
       const data: OfferingJson = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
       const name = data.name;
+
+      if (!isAllowedOffering(name)) {
+        console.log(`  ⏭  ${name}: not in manifest, skipping`);
+        skipped++;
+        continue;
+      }
 
       // Check if offering exists in DB
       const existing = await db
