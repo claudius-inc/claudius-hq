@@ -129,6 +129,58 @@ export async function updateV2Offering(
   return json.data;
 }
 
+/**
+ * Hard-delete an offering on V2. Irreversible — the offering UUID and any
+ * associated history go away. Used by the sweep cron and the purge script.
+ */
+export async function deleteV2Offering(
+  offeringId: string,
+  agentId: string = V2_AGENT_ID
+): Promise<void> {
+  const res = await v2AuthenticatedFetch(
+    `/agents/${encodeURIComponent(agentId)}/offerings/${encodeURIComponent(offeringId)}`,
+    { method: "DELETE" }
+  );
+  if (!res.ok) {
+    throw new Error(`V2 offering delete failed (${res.status}): ${await res.text()}`);
+  }
+}
+
+export interface CreateV2OfferingBody {
+  name: string;
+  description: string;
+  priceValue: number;
+  priceType: "fixed" | "percentage";
+  slaMinutes: number;
+  requirements: Record<string, unknown> | string;
+  deliverable: Record<string, unknown> | string;
+  requiredFunds: boolean;
+}
+
+/**
+ * Create an offering on V2. Manifest-guarded — throws if `name` isn't in the
+ * manifest. Used by the relist path (when the dashboard's publish toggle
+ * fires for a manifest offering whose V2 record was deleted by the sweep).
+ */
+export async function createV2Offering(
+  body: CreateV2OfferingBody,
+  agentId: string = V2_AGENT_ID
+): Promise<V2Offering> {
+  assertAllowedOffering(body.name, "createV2Offering");
+  const res = await v2AuthenticatedFetch(
+    `/agents/${encodeURIComponent(agentId)}/offerings`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  );
+  if (!res.ok) {
+    throw new Error(`V2 offering create failed (${res.status}): ${await res.text()}`);
+  }
+  const json = (await res.json()) as { data: V2Offering };
+  return json.data;
+}
+
 async function fetchOfferingForGuard(
   offeringId: string,
   agentId: string,

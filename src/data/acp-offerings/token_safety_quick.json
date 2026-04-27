@@ -1,0 +1,21 @@
+{
+  "name": "token_safety_quick",
+  "description": "Pre-trade rug check <1s. SAFE/CAUTION/DANGER verdict + risk score (0-100) + 3 factors. Checks: liquidity, holders, contract. Pairs with: token_alpha_report (deep dive), whale_tracker_base. Input: symbol or address. Cheapest safety gate ($0.01). Keywords: rug check, token safety, pre-trade, risk score, contract analysis.",
+  "priceValue": 0.01,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {
+    "type": "object",
+    "required": [
+      "token"
+    ],
+    "properties": {
+      "token": {
+        "type": "string",
+        "description": "Token symbol or 0x address"
+      }
+    }
+  },
+  "deliverable": "\"JSON: { verdict: SAFE|CAUTION|DANGER, riskScore: 0-100, factors: [{type, severity, detail}] }\"",
+  "requiredFunds": false
+}

@@ -3,9 +3,16 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { findV2OfferingByName, updateV2Offering } from "@/lib/virtuals-client";
+import {
+  findV2OfferingByName,
+  updateV2Offering,
+  createV2Offering,
+} from "@/lib/virtuals-client";
 import { logger } from "@/lib/logger";
-import { assertAllowedOffering } from "@/config/acp-offerings-manifest";
+import {
+  assertAllowedOffering,
+  loadOfferingMetadata,
+} from "@/config/acp-offerings-manifest";
 import { PublishBodySchema, formatZodError } from "@/lib/acp-schemas";
 
 // Set isHidden=false on the V2 marketplace offering, mirroring it as
@@ -35,15 +42,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: (e as Error).message }, { status: 403 });
     }
 
+    // Two paths:
+    //  1. V2 record exists  → unhide it (PUT isHidden:false)
+    //  2. V2 record missing → create it from bundled manifest metadata
+    //     (covers the case where the sweep cron deleted the offering)
     const live = await findV2OfferingByName(name);
-    if (!live) {
-      return NextResponse.json(
-        { error: `Offering '${name}' not found on V2 marketplace` },
-        { status: 404 }
-      );
+    let updated;
+    let action: "unhide" | "create";
+    if (live) {
+      updated = await updateV2Offering(live.id, { isHidden: false });
+      action = "unhide";
+    } else {
+      const meta = await loadOfferingMetadata(name);
+      if (!meta) {
+        return NextResponse.json(
+          {
+            error: `Offering '${name}' not found on V2 and no bundled metadata at src/data/acp-offerings/${name}.json`,
+          },
+          { status: 404 }
+        );
+      }
+      updated = await createV2Offering(meta);
+      action = "create";
     }
-
-    const updated = await updateV2Offering(live.id, { isHidden: false });
 
     let dbSyncError: string | null = null;
     try {
@@ -57,8 +78,9 @@ export async function POST(req: NextRequest) {
     }
 
     revalidatePath("/acp");
-    logger.info("api/acp/offerings/publish", "Published offering", {
+    logger.info("api/acp/offerings/publish", `Published offering (${action})`, {
       name,
+      action,
       isHidden: updated.isHidden,
       durationMs: Date.now() - startedAt,
       dbSyncError,
@@ -66,6 +88,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       name,
+      action,
       isHidden: updated.isHidden,
       dbSyncError,
     });

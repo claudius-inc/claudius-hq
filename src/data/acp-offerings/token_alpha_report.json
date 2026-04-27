@@ -1,0 +1,123 @@
+{
+  "name": "token_alpha_report",
+  "description": "Token Alpha Report — Multi-timeframe technical analysis (4h/1d/1w) + volume profile + support/resistance + BTC/ETH correlation. Returns: BUY/SELL/HOLD + confidence (0-100) + R1/R2/R3 targets + narrative thesis. Supports 500+ tokens. For: swing bots, scalpers, DCA agents, meme/AI specialists. <2s ($0.20).",
+  "priceValue": 0.2,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {
+    "type": "object",
+    "required": [
+      "token"
+    ],
+    "properties": {
+      "token": {
+        "type": "string",
+        "description": "Token symbol to analyze. Valid: BTC, ETH, SOL, PEPE, VIRTUAL, AIXBT, FET, LLAMA, plus 500+ others."
+      },
+      "timeframe": {
+        "enum": [
+          "4h",
+          "1d",
+          "1w"
+        ],
+        "type": "string",
+        "description": "Analysis timeframe. Default 1d."
+      }
+    },
+    "additionalProperties": false
+  },
+  "deliverable": {
+    "type": "object",
+    "required": [
+      "token",
+      "asOf",
+      "signal",
+      "confidence"
+    ],
+    "properties": {
+      "asOf": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "token": {
+        "type": "string"
+      },
+      "levels": {
+        "type": "object",
+        "properties": {
+          "support": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "S1, S2, S3"
+          },
+          "resistance": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "description": "R1, R2, R3"
+          }
+        }
+      },
+      "signal": {
+        "enum": [
+          "STRONG_BUY",
+          "BUY",
+          "NEUTRAL",
+          "SELL",
+          "STRONG_SELL"
+        ],
+        "type": "string"
+      },
+      "narrative": {
+        "type": "string",
+        "description": "Short prose summary of the setup"
+      },
+      "timeframe": {
+        "enum": [
+          "4h",
+          "1d",
+          "1w"
+        ],
+        "type": "string"
+      },
+      "btcCorr30d": {
+        "type": "number"
+      },
+      "confidence": {
+        "type": "integer",
+        "description": "0-100"
+      },
+      "ethCorr30d": {
+        "type": "number"
+      },
+      "indicators": {
+        "type": "object",
+        "properties": {
+          "rsi": {
+            "type": "number"
+          },
+          "trend": {
+            "enum": [
+              "UP",
+              "DOWN",
+              "SIDEWAYS"
+            ],
+            "type": "string"
+          },
+          "macdSignal": {
+            "enum": [
+              "BULL",
+              "BEAR",
+              "NEUTRAL"
+            ],
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "requiredFunds": false
+}

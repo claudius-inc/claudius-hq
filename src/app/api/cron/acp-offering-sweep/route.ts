@@ -21,7 +21,7 @@ import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { getV2AgentInfo, updateV2Offering } from "@/lib/virtuals-client";
+import { getV2AgentInfo, getV2AgentId, deleteV2Offering } from "@/lib/virtuals-client";
 import {
   isAllowedOffering,
   getManifestMode,
@@ -55,9 +55,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 502 });
   }
 
-  const violators = agent.offerings.filter(
-    (o) => !o.isHidden && !isAllowedOffering(o.name)
-  );
+  // Sweep targets: anything on V2 (live OR hidden) that isn't in the manifest.
+  // We hard-delete via DELETE /agents/{id}/offerings/{id} so the seller
+  // dashboard at app.virtuals.io stays clean. Manifest entries that the
+  // user has manually toggled off (isHidden=true) are NOT swept — those are
+  // legitimate "paused but kept" state.
+  const violators = agent.offerings.filter((o) => !isAllowedOffering(o.name));
+  const agentId = getV2AgentId();
 
   const swept: string[] = [];
   const failed: { name: string; error: string }[] = [];
@@ -65,24 +69,24 @@ export async function GET(req: NextRequest) {
   if (mode === "enforce") {
     for (const v of violators) {
       try {
-        await updateV2Offering(v.id, { isHidden: true });
+        await deleteV2Offering(v.id, agentId);
         await db
           .update(acpOfferings)
-          .set({ isActive: 0, updatedAt: new Date().toISOString() })
+          .set({ isActive: 0, listedOnAcp: 0, updatedAt: new Date().toISOString() })
           .where(eq(acpOfferings.name, v.name));
         swept.push(v.name);
-        logger.warn("acp-offering-sweep", `Hid out-of-manifest offering: ${v.name}`);
+        logger.warn("acp-offering-sweep", `Deleted out-of-manifest offering: ${v.name}`);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         failed.push({ name: v.name, error: msg });
-        logger.error("acp-offering-sweep", `Failed to hide ${v.name}: ${msg}`);
+        logger.error("acp-offering-sweep", `Failed to delete ${v.name}: ${msg}`);
       }
     }
   } else {
     for (const v of violators) {
       logger.info(
         "acp-offering-sweep",
-        `[dry-run] would hide: ${v.name} (id=${v.id})`
+        `[dry-run] would delete: ${v.name} (id=${v.id})`
       );
     }
   }

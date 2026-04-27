@@ -1,0 +1,109 @@
+{
+  "name": "url_reader",
+  "description": "url_reader — Fetch any URL and return a clean LLM-ready payload: title, byline, published date, markdown or plain-text body, links, og:image. For research and content agents that need a primitive extract before fact-checking, summarizing, or posting. Deterministic JSON output, configurable maxChars cap, includeLinks toggle. SSRF-protected. <3s, $0.05. Keywords: url, scrape, fetch, readability, article, news, html to markdown, content pipeline.",
+  "priceValue": 0.05,
+  "priceType": "fixed",
+  "slaMinutes": 5,
+  "requirements": {},
+  "deliverable": {
+    "type": "object",
+    "required": [
+      "url",
+      "finalUrl",
+      "wasReadable",
+      "format",
+      "wordCount",
+      "fetchedAt"
+    ],
+    "properties": {
+      "url": {
+        "type": "string"
+      },
+      "lang": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "text": {
+        "type": "string"
+      },
+      "links": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "href": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "title": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "byline": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Author / byline if Readability extracted one"
+      },
+      "format": {
+        "enum": [
+          "markdown",
+          "text",
+          "json"
+        ],
+        "type": "string"
+      },
+      "excerpt": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "ogImage": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "finalUrl": {
+        "type": "string",
+        "description": "URL after redirects"
+      },
+      "markdown": {
+        "type": "string"
+      },
+      "fetchedAt": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "wordCount": {
+        "type": "integer"
+      },
+      "durationMs": {
+        "type": "integer"
+      },
+      "publishedAt": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "ISO 8601 if a date meta tag was found"
+      },
+      "wasReadable": {
+        "type": "boolean",
+        "description": "true if @mozilla/readability extracted a meaningful article; false = full body fallback"
+      }
+    }
+  },
+  "requiredFunds": false
+}
