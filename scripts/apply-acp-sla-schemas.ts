@@ -113,6 +113,41 @@ const PLANS: Plan[] = [
   },
   {
     name: "portfolio_risk_metrics",
+    requirements: {
+      type: "object",
+      required: ["holdings"],
+      additionalProperties: false,
+      properties: {
+        holdings: {
+          type: "array",
+          minItems: 1,
+          maxItems: 50,
+          description: "Portfolio holdings with weights summing to 1.0 (or unweighted to use equal-weight default).",
+          items: {
+            type: "object",
+            required: ["ticker"],
+            properties: {
+              ticker: {
+                type: "string",
+                description: "Asset ticker. Crypto (BTC, ETH, SOL, ...) or equity (AAPL, NVDA, ...).",
+              },
+              weight: {
+                type: "number",
+                minimum: 0,
+                maximum: 1,
+                description: "Optional portfolio weight 0..1. If omitted across holdings, equal-weighted is assumed.",
+              },
+            },
+          },
+        },
+        period: {
+          type: "integer",
+          minimum: 30,
+          maximum: 730,
+          description: "Optional lookback in days. Default 365.",
+        },
+      },
+    },
     deliverable: {
       type: "object",
       properties: {
@@ -148,6 +183,22 @@ const PLANS: Plan[] = [
   },
   {
     name: "token_alpha_report",
+    requirements: {
+      type: "object",
+      required: ["token"],
+      additionalProperties: false,
+      properties: {
+        token: {
+          type: "string",
+          description: "Token symbol to analyze. Valid: BTC, ETH, SOL, PEPE, VIRTUAL, AIXBT, FET, LLAMA, plus 500+ others.",
+        },
+        timeframe: {
+          type: "string",
+          enum: ["4h", "1d", "1w"],
+          description: "Analysis timeframe. Default 1d.",
+        },
+      },
+    },
     deliverable: {
       type: "object",
       properties: {
@@ -182,7 +233,165 @@ const PLANS: Plan[] = [
     },
   },
   {
+    name: "tx_simulate",
+    deliverable: {
+      type: "object",
+      properties: {
+        chainId: { type: "integer" },
+        chainName: { type: "string" },
+        success: { type: "boolean", description: "true = simulation succeeded; false = revert" },
+        revertReason: { type: ["string", "null"], description: "Decoded Error(string) reason on revert" },
+        returnValue: { type: ["string", "null"], description: "Hex-encoded return data from eth_call" },
+        gasUsed: { type: "string", description: "Estimated gas used (decimal string)" },
+        gasLimit: { type: "string", description: "Recommended gas limit = gasUsed * 1.20" },
+        events: {
+          type: "array",
+          description: "Decoded events from Alchemy trace. Empty if Alchemy not used or tx emits no events.",
+          items: {
+            type: "object",
+            properties: {
+              contract: { type: "string" },
+              name: { type: "string" },
+              signature: { type: "string" },
+              args: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    type: { type: "string" },
+                    value: {},
+                  },
+                },
+              },
+            },
+          },
+        },
+        eventsAvailable: { type: "boolean", description: "true when Alchemy trace ran; false = verdict-only" },
+        notes: { type: "string" },
+        durationMs: { type: "integer" },
+      },
+      required: ["success", "gasUsed", "gasLimit", "eventsAvailable"],
+    },
+  },
+  {
+    name: "abi_decode",
+    deliverable: {
+      type: "object",
+      properties: {
+        chainId: { type: "integer" },
+        chainName: { type: "string" },
+        function: {
+          type: ["object", "null"],
+          description: "Decoded calldata, or null if no data was supplied / not decodable.",
+          properties: {
+            name: { type: "string" },
+            signature: { type: "string", description: "Canonical sighash, e.g. 'transfer(address,uint256)'" },
+            args: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  type: { type: "string" },
+                  value: {},
+                },
+              },
+            },
+          },
+        },
+        events: {
+          type: "array",
+          description: "One entry per decoded event log",
+          items: {
+            type: "object",
+            properties: {
+              contract: { type: "string" },
+              name: { type: "string" },
+              signature: { type: "string" },
+              args: { type: "array" },
+            },
+          },
+        },
+        unknown: {
+          type: "object",
+          properties: {
+            selectors: { type: "array", items: { type: "string" }, description: "4-byte selectors that 4byte+verifiedABI couldn't resolve" },
+            topics: { type: "array", items: { type: "string" }, description: "Event topics that couldn't be resolved" },
+          },
+        },
+        tx: {
+          type: ["object", "null"],
+          description: "Tx metadata (only when txHash mode was used)",
+          properties: {
+            blockNumber: { type: "integer" },
+            from: { type: "string" },
+            to: { type: ["string", "null"] },
+            value: { type: "string" },
+            gasUsed: { type: "string" },
+            status: { type: "integer" },
+          },
+        },
+        durationMs: { type: "integer" },
+      },
+      required: ["chainId", "events", "unknown"],
+    },
+  },
+  {
+    name: "url_reader",
+    deliverable: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        finalUrl: { type: "string", description: "URL after redirects" },
+        title: { type: ["string", "null"] },
+        byline: { type: ["string", "null"], description: "Author / byline if Readability extracted one" },
+        publishedAt: { type: ["string", "null"], description: "ISO 8601 if a date meta tag was found" },
+        lang: { type: ["string", "null"] },
+        ogImage: { type: ["string", "null"] },
+        excerpt: { type: ["string", "null"] },
+        wasReadable: {
+          type: "boolean",
+          description: "true if @mozilla/readability extracted a meaningful article; false = full body fallback",
+        },
+        format: { type: "string", enum: ["markdown", "text", "json"] },
+        markdown: { type: "string" },
+        text: { type: "string" },
+        wordCount: { type: "integer" },
+        links: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              href: { type: "string" },
+              text: { type: "string" },
+            },
+          },
+        },
+        fetchedAt: { type: "string", format: "date-time" },
+        durationMs: { type: "integer" },
+      },
+      required: ["url", "finalUrl", "wasReadable", "format", "wordCount", "fetchedAt"],
+    },
+  },
+  {
     name: "dex_arbitrage",
+    requirements: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        token: {
+          type: "string",
+          description: "Optional token filter (BTC, ETH, SOL, etc). Omit to scan all monitored pairs.",
+        },
+        minSpread: {
+          type: "number",
+          minimum: 0,
+          maximum: 50,
+          description: "Minimum spread % to include in results. Default 0.5.",
+        },
+      },
+    },
     deliverable: {
       type: "object",
       properties: {
