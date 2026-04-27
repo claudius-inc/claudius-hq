@@ -73,6 +73,15 @@ export const CHAINS: Record<number, ChainConfig> = {
     etherscanV2: true,
     nativeSymbol: "BNB",
   },
+  999: {
+    chainId: 999,
+    name: "Hyperliquid (HyperEVM)",
+    shortName: "hl",
+    rpcPublic: "https://rpc.hyperliquid.xyz/evm",
+    // Alchemy does not host HyperEVM as of 2026-04. Public RPC only.
+    etherscanV2: true, // chain id 999 is in the Etherscan v2 unified registry
+    nativeSymbol: "HYPE",
+  },
 };
 
 export const SUPPORTED_CHAIN_IDS = Object.keys(CHAINS).map(Number);
