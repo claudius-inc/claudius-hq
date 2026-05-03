@@ -67,15 +67,26 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
   const newRows: NewWatchlistScore[] = [];
   let okCount = 0, partialCount = 0, failedCount = 0;
 
+  const CONCURRENCY = 8;
+  type Fetched = Awaited<ReturnType<typeof buildScoringInputs>>;
+  const fetchedByTicker = new Map<string, Fetched | null>();
+
+  for (let i = 0; i < tickers.length; i += CONCURRENCY) {
+    const batch = tickers.slice(i, i + CONCURRENCY);
+    const results = await Promise.all(
+      batch.map((t) =>
+        buildScoringInputs(t).catch((err) => {
+          logger.warn("watchlist", `Fetch failed for ${t}`, { error: String(err) });
+          return null;
+        }),
+      ),
+    );
+    batch.forEach((t, j) => fetchedByTicker.set(t, results[j]));
+  }
+
   for (const ticker of tickers) {
     const themeIds = themesByTicker.get(ticker) ?? [];
-    let fetched: Awaited<ReturnType<typeof buildScoringInputs>> = null;
-
-    try {
-      fetched = await buildScoringInputs(ticker);
-    } catch (err) {
-      logger.warn("watchlist", `Fetch failed for ${ticker}`, { error: String(err) });
-    }
+    const fetched = fetchedByTicker.get(ticker) ?? null;
 
     const quality = classifyQuality(fetched?.inputs ?? null);
     const momentum = fetched ? scoreMomentum(fetched.inputs) : null;
