@@ -15,7 +15,7 @@ import { sql } from "drizzle-orm";
 import { buildScoringInputs } from "@/lib/scanner/watchlist-fetcher";
 import { scoreMomentum, scoreTechnical } from "@/lib/scanner/watchlist";
 import type { ScoringInputs } from "@/lib/scanner/watchlist";
-import type { NewWatchlistScore } from "@/db/schema";
+import type { NewWatchlistScore, WatchlistMarket } from "@/db/schema";
 
 export interface ComputeResult {
   tickersProcessed: number;
@@ -25,11 +25,13 @@ export interface ComputeResult {
   allFailed: boolean;
 }
 
-function detectMarket(ticker: string): "US" | "SGX" | "HK" | "JP" {
+function detectMarket(ticker: string): WatchlistMarket {
   const t = ticker.toUpperCase();
   if (t.endsWith(".SI")) return "SGX";
   if (t.endsWith(".HK")) return "HK";
   if (t.endsWith(".T")) return "JP";
+  if (t.endsWith(".KS") || t.endsWith(".KQ")) return "KS";
+  if (t.endsWith(".SZ") || t.endsWith(".SS")) return "CN";
   return "US";
 }
 

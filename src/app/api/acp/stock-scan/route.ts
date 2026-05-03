@@ -8,7 +8,7 @@ const requestSchema = z
   .object({
     market: z.string().toUpperCase().optional()
       .transform((v) => v ?? "ALL")
-      .pipe(z.enum(["US", "SGX", "HK", "JP", "ALL"])),
+      .pipe(z.enum(["US", "SGX", "HK", "JP", "KS", "CN", "ALL"])),
     min_momentum: z.number().min(0).max(100).default(0),
     limit: z.number().min(1).max(100).default(50),
   })
@@ -104,7 +104,7 @@ export async function GET(_req: NextRequest) {
     description: "Returns the Claudius watchlist of theme-tracked tickers with momentum and technical scores.",
     version: "3.0",
     params: {
-      market: "US | SGX | HK | JP | ALL (default: ALL)",
+      market: "US | SGX | HK | JP | KS | CN | ALL (default: ALL)",
       min_momentum: "Minimum momentum score 0-100 (default: 0)",
       limit: "Max results, 1-100 (default: 50)",
     },

@@ -340,7 +340,7 @@ export type NewStockScan = typeof stockScans.$inferInsert;
 // Watchlist Scores
 // ============================================================================
 
-export const WATCHLIST_MARKETS = ["US", "SGX", "HK", "JP"] as const;
+export const WATCHLIST_MARKETS = ["US", "SGX", "HK", "JP", "KS", "CN"] as const;
 export type WatchlistMarket = (typeof WATCHLIST_MARKETS)[number];
 
 export const WATCHLIST_DATA_QUALITY = ["ok", "partial", "failed"] as const;

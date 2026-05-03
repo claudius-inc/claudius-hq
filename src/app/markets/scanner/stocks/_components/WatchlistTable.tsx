@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 export type WatchlistRow = {
   ticker: string;
   name: string;
-  market: "US" | "SGX" | "HK" | "JP";
+  market: "US" | "SGX" | "HK" | "JP" | "KS" | "CN";
   price: number | null;
   momentumScore: number | null;
   technicalScore: number | null;
@@ -26,7 +26,7 @@ type SortKey =
 type SortDir = "asc" | "desc";
 
 interface Filters {
-  markets: Set<"US" | "SGX" | "HK" | "JP">;
+  markets: Set<"US" | "SGX" | "HK" | "JP" | "KS" | "CN">;
   momentumTier: "all" | "ge40" | "ge70";
   positive1wOnly: boolean;
   themeIds: Set<number>;
@@ -190,10 +190,10 @@ function FilterBar({
   setFilters: (f: Filters) => void;
   themeNames: ThemeNameMap;
 }) {
-  const markets: ("US" | "SGX" | "HK" | "JP")[] = ["US", "SGX", "HK", "JP"];
+  const markets: ("US" | "SGX" | "HK" | "JP" | "KS" | "CN")[] = ["US", "SGX", "HK", "JP", "KS", "CN"];
   const themeEntries = Object.entries(themeNames);
 
-  const toggleMarket = (m: "US" | "SGX" | "HK" | "JP") => {
+  const toggleMarket = (m: "US" | "SGX" | "HK" | "JP" | "KS" | "CN") => {
     const next = new Set(filters.markets);
     if (next.has(m)) next.delete(m); else next.add(m);
     setFilters({ ...filters, markets: next });
