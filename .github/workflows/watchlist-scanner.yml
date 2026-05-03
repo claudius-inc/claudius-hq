@@ -1,17 +1,15 @@
-name: Stock Scanner
+name: Watchlist Scanner
 
 on:
-  workflow_dispatch:
-    inputs:
-      markets:
-        description: 'Markets to scan (comma-separated: US,SGX,HK,JP,CN)'
-        required: false
-        default: 'US,SGX,HK,JP,CN'
+  schedule:
+    # Hourly at :05 on weekdays (UTC). Markets that are closed produce no-op refreshes.
+    - cron: '5 * * * 1-5'
+  workflow_dispatch: {}
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
@@ -26,14 +24,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run scanner
-        run: npx tsx scripts/run-scanner.ts
+      - name: Run watchlist scanner
+        run: npx tsx scripts/run-watchlist-scanner.ts
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          SCAN_MARKETS: ${{ github.event.inputs.markets || 'US,SGX,HK,JP,CN' }}
 
-      - name: Revalidate cache
+      - name: Revalidate page cache
         if: success()
         run: |
           curl -X POST "https://hq.claudiusinc.com/api/scanner/revalidate" \
@@ -44,6 +41,5 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## Scanner Results" >> $GITHUB_STEP_SUMMARY
+          echo "## Watchlist Scanner" >> $GITHUB_STEP_SUMMARY
           echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "- Markets: ${{ github.event.inputs.markets || 'US,SGX,HK,JP,CN' }}" >> $GITHUB_STEP_SUMMARY
