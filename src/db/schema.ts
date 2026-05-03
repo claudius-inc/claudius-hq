@@ -337,6 +337,34 @@ export type StockScan = typeof stockScans.$inferSelect;
 export type NewStockScan = typeof stockScans.$inferInsert;
 
 // ============================================================================
+// Watchlist Scores
+// ============================================================================
+
+export const WATCHLIST_MARKETS = ["US", "SGX", "HK", "JP"] as const;
+export type WatchlistMarket = (typeof WATCHLIST_MARKETS)[number];
+
+export const WATCHLIST_DATA_QUALITY = ["ok", "partial", "failed"] as const;
+export type WatchlistDataQuality = (typeof WATCHLIST_DATA_QUALITY)[number];
+
+export const watchlistScores = sqliteTable("watchlist_scores", {
+  ticker: text("ticker").primaryKey(),
+  name: text("name").notNull(),
+  market: text("market").$type<WatchlistMarket>().notNull(),
+  price: real("price"),
+  momentumScore: real("momentum_score"),
+  technicalScore: real("technical_score"),
+  priceChange1w: real("price_change_1w"),
+  priceChange1m: real("price_change_1m"),
+  priceChange3m: real("price_change_3m"),
+  themeIds: text("theme_ids").notNull(), // JSON array
+  dataQuality: text("data_quality").$type<WatchlistDataQuality>().notNull(),
+  computedAt: text("computed_at").notNull(),
+});
+
+export type WatchlistScore = typeof watchlistScores.$inferSelect;
+export type NewWatchlistScore = typeof watchlistScores.$inferInsert;
+
+// ============================================================================
 // Scanner Universe - Tickers to scan
 // ============================================================================
 
