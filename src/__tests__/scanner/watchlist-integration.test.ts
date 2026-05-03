@@ -35,7 +35,7 @@ vi.mock("@/lib/scanner/watchlist-fetcher", () => ({
   buildScoringInputs: vi.fn(),
 }));
 
-import { computeWatchlistScores } from "@/lib/scanner/watchlist";
+import { computeWatchlistScores } from "@/lib/scanner/watchlist-orchestrator";
 import { buildScoringInputs } from "@/lib/scanner/watchlist-fetcher";
 
 const okFetch = (ticker: string) => ({

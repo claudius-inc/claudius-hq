@@ -6,7 +6,7 @@ import { fetchHistoricalData } from "@/lib/scanner/yahoo-fetcher";
 import { normalizeTickerForYahoo } from "@/lib/yahoo-utils";
 import { logger } from "@/lib/logger";
 import type { ScoringInputs } from "@/lib/scanner/watchlist";
-import { computeIndicators } from "@/lib/scanner/watchlist";
+import { computeIndicators } from "@/lib/scanner/watchlist-indicators";
 
 // Use a lighter Yahoo quote for name + 52w + currentPrice instead of
 // fetchEnhancedMetrics (which also fetches institutional data we don't need).
@@ -77,7 +77,7 @@ export async function buildScoringInputs(ticker: string): Promise<FetchedTicker 
   }
 
   const indicators = computeIndicators(bars);
-  const closes = bars.map((b) => b.close);
+  const closes = bars.map((b) => b.close).filter((c): c is number => c != null);
   const { pc1w, pc1m, pc3m } = computePriceChanges(closes);
 
   const price = indicators.price ?? null;

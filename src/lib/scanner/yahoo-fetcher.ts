@@ -74,7 +74,7 @@ export async function fetchHistoricalData(
   try {
     const endDate = new Date();
     const startDate = new Date();
-    startDate.setFullYear(startDate.getFullYear() - 1);
+    startDate.setMonth(startDate.getMonth() - 14);
 
     const result = await yahooFinance.historical(ticker, {
       period1: startDate,
