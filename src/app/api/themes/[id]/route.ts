@@ -24,22 +24,77 @@ interface StockDbRow {
   notes: string | null;
 }
 
-// Get historical prices for a ticker
-async function getHistoricalPrices(
-  ticker: string,
-  period: "1w" | "1m" | "3m"
-): Promise<{ start: number | null; end: number | null }> {
+interface QuoteResult {
+  symbol?: string;
+  regularMarketPrice?: number;
+  shortName?: string;
+  longName?: string;
+}
+
+// Batch fetch quotes for multiple tickers
+async function fetchBatchQuotes(tickers: string[]): Promise<Map<string, QuoteResult>> {
+  const result = new Map<string, QuoteResult>();
+  if (tickers.length === 0) return result;
+
+  const CHUNK = 20;
+  const chunks: string[][] = [];
+  for (let i = 0; i < tickers.length; i += CHUNK) {
+    chunks.push(tickers.slice(i, i + CHUNK));
+  }
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const quotes = (await yahooFinance.quote(chunk)) as QuoteResult | QuoteResult[];
+        const arr = Array.isArray(quotes) ? quotes : [quotes];
+
+        // Build a lookup map for this chunk
+        const tickerMap = new Map<string, string>();
+        for (const t of chunk) {
+          tickerMap.set(t.toUpperCase(), t);
+        }
+
+        for (const q of arr) {
+          if (q?.symbol) {
+            const symbolUpper = q.symbol.toUpperCase();
+            let originalTicker = tickerMap.get(symbolUpper);
+
+            // Store under original ticker if found
+            if (originalTicker) {
+              result.set(originalTicker, q);
+            }
+            // Also store under returned symbol as fallback
+            result.set(q.symbol, q);
+          }
+        }
+      } catch (e) {
+        logger.warn("api/themes/[id]", "Batch quote failed, falling back per-ticker", {
+          error: e,
+          chunkSize: chunk.length,
+        });
+        await Promise.all(
+          chunk.map(async (t) => {
+            try {
+              const q = (await yahooFinance.quote(t)) as QuoteResult;
+              if (q) result.set(t, q);
+            } catch {
+              /* skip */
+            }
+          }),
+        );
+      }
+    }),
+  );
+
+  return result;
+}
+
+// Fetch 90 days of historical data (enough for all periods)
+async function fetchHistorical(ticker: string): Promise<HistoricalRow[]> {
   try {
     const endDate = new Date();
     const startDate = new Date();
-
-    if (period === "1w") {
-      startDate.setDate(startDate.getDate() - 7);
-    } else if (period === "1m") {
-      startDate.setMonth(startDate.getMonth() - 1);
-    } else {
-      startDate.setMonth(startDate.getMonth() - 3);
-    }
+    startDate.setDate(startDate.getDate() - 95); // 95 days for 3m + buffer
 
     const chartResult = await yahooFinance.chart(ticker, {
       period1: startDate,
@@ -48,49 +103,62 @@ async function getHistoricalPrices(
     });
     const result = chartResult.quotes as HistoricalRow[];
 
-    if (!result || result.length === 0) {
-      return { start: null, end: null };
-    }
-
-    const rows = result;
-    return {
-      start: rows[0]?.close ?? null,
-      end: rows[rows.length - 1]?.close ?? null,
-    };
+    if (!result || result.length === 0) return [];
+    return result.filter((r) => r.close != null && r.close > 0);
   } catch {
-    return { start: null, end: null };
+    return [];
   }
 }
 
-// Calculate performance percentage
-function calcPerformance(start: number | null, end: number | null): number | null {
-  if (start === null || end === null || start === 0) return null;
+// Calculate performance from historical data
+function calcPerformance(rows: HistoricalRow[], daysAgo: number): number | null {
+  if (rows.length < 2) return null;
+
+  const targetDate = new Date(Date.now() - daysAgo * 86400000);
+  const targetDateStr = targetDate.toISOString().split("T")[0];
+
+  // Find the row at or before target date
+  let startIdx = -1;
+  for (let i = 0; i < rows.length; i++) {
+    const rowDateStr = rows[i].date.toISOString().split("T")[0];
+    if (rowDateStr <= targetDateStr) {
+      startIdx = i;
+    } else {
+      break;
+    }
+  }
+
+  if (startIdx === -1) startIdx = 0;
+
+  const start = rows[startIdx]?.close;
+  const end = rows[rows.length - 1]?.close;
+
+  if (start == null || end == null || start === 0) return null;
   return ((end - start) / start) * 100;
 }
 
-// Quote result type
-interface QuoteResult {
-  regularMarketPrice?: number;
-  shortName?: string;
-  longName?: string;
-}
-
 // Get all stock performances for a theme with watchlist data
-async function getStockPerformances(stockRows: StockDbRow[]): Promise<ThemePerformance[]> {
-  return Promise.all(
-    stockRows.map(async (row) => {
-      const { ticker, targetPrice, status, notes } = row;
-      try {
-        const [prices1w, prices1m, prices3m, quote] = await Promise.all([
-          getHistoricalPrices(ticker, "1w"),
-          getHistoricalPrices(ticker, "1m"),
-          getHistoricalPrices(ticker, "3m"),
-          (yahooFinance.quote(ticker) as Promise<QuoteResult>).catch(() => null),
-        ]);
+async function getStockPerformances(
+  stockRows: StockDbRow[],
+  quoteMap: Map<string, QuoteResult>,
+): Promise<ThemePerformance[]> {
+  // Fetch historical data in parallel with concurrency limit
+  const CONCURRENCY = 8;
+  let cursor = 0;
+  const results: Map<string, ThemePerformance> = new Map();
 
-        const quoteData = quote as QuoteResult | null;
-        const currentPrice = quoteData?.regularMarketPrice ?? null;
-        const companyName = quoteData?.shortName || quoteData?.longName || null;
+  const worker = async () => {
+    while (cursor < stockRows.length) {
+      const idx = cursor++;
+      const row = stockRows[idx];
+      const { ticker, targetPrice, status, notes } = row;
+
+      try {
+        const quote = quoteMap.get(ticker);
+        const historical = await fetchHistorical(ticker);
+
+        const currentPrice = quote?.regularMarketPrice ?? null;
+        const companyName = quote?.shortName || quote?.longName || null;
 
         // Calculate price gap to target
         let priceGapPercent: number | null = null;
@@ -98,20 +166,20 @@ async function getStockPerformances(stockRows: StockDbRow[]): Promise<ThemePerfo
           priceGapPercent = ((currentPrice - targetPrice) / targetPrice) * 100;
         }
 
-        return {
+        results.set(ticker, {
           ticker,
           name: companyName,
-          performance_1w: calcPerformance(prices1w.start, prices1w.end),
-          performance_1m: calcPerformance(prices1m.start, prices1m.end),
-          performance_3m: calcPerformance(prices3m.start, prices3m.end),
+          performance_1w: calcPerformance(historical, 7),
+          performance_1m: calcPerformance(historical, 30),
+          performance_3m: calcPerformance(historical, 90),
           current_price: currentPrice,
           target_price: targetPrice,
           status: ((status as ThemeStockStatus) || "watching") as ThemeStockStatus,
           notes,
           price_gap_percent: priceGapPercent,
-        };
+        });
       } catch {
-        return {
+        results.set(ticker, {
           ticker,
           name: null,
           performance_1w: null,
@@ -122,10 +190,14 @@ async function getStockPerformances(stockRows: StockDbRow[]): Promise<ThemePerfo
           status: ((status as ThemeStockStatus) || "watching") as ThemeStockStatus,
           notes,
           price_gap_percent: null,
-        };
+        });
       }
-    })
-  );
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, stockRows.length) }, worker));
+
+  return stockRows.map((row) => results.get(row.ticker)!);
 }
 
 // Calculate theme basket performance (equal-weighted average)
@@ -136,7 +208,7 @@ function calcBasketPerformance(
   const validPerfs = stockPerfs
     .map((s) => s[period])
     .filter((p): p is number => p !== null);
-  
+
   if (validPerfs.length === 0) return null;
   return validPerfs.reduce((sum, p) => sum + p, 0) / validPerfs.length;
 }
@@ -205,8 +277,11 @@ export async function GET(
       }
     }
 
+    // Batch fetch all quotes first
+    const quoteMap = await fetchBatchQuotes(tickers);
+
     // Get stock performances with watchlist data
-    const stockPerfs = await getStockPerformances(stocks);
+    const stockPerfs = await getStockPerformances(stocks, quoteMap);
 
     // Sort by 1M performance
     stockPerfs.sort((a, b) => (b.performance_1m ?? -999) - (a.performance_1m ?? -999));

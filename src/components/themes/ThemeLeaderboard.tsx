@@ -61,7 +61,7 @@ export function ThemeLeaderboard({
   onAddStock,
   onAddTheme,
 }: ThemeLeaderboardProps) {
-  const [sortField, setSortField] = useState<SortField | null>(null);
+  const [sortField, setSortField] = useState<SortField | null>("1w");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [menuThemeId, setMenuThemeId] = useState<number | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
