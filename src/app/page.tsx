@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
-import { ProjectCards } from "@/components/ProjectCards";
+import { ProjectCards } from "@/app/_components/ProjectCards";
 import { Nav } from "@/components/Nav";
 import { EmptyState } from "@/components/EmptyState";
 import Link from "next/link";

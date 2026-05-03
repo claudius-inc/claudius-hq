@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { ThemeWithPerformance } from "@/lib/types";
 import { PageHero } from "@/components/PageHero";
-import { ThemesTab } from "@/components/ThemesTab";
+import { ThemesTab } from "./_components/ThemesTab";
 import { ThemesTableSkeleton } from "@/components/Skeleton";
 
 interface ThemeLite {

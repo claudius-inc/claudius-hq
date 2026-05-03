@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
-import { ActionPlanCard } from "@/components/ActionPlanCard";
+import { ActionPlanCard } from "./_components/ActionPlanCard";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import db from "@/lib/db";
 import { Project } from "@/lib/types";
-import { ProjectFilters } from "@/components/ProjectFilters";
+import { ProjectFilters } from "./_components/ProjectFilters";
 import { EmptyState } from "@/components/EmptyState";
 import { PageHero } from "@/components/PageHero";
 import { Rocket } from "lucide-react";

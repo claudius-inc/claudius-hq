@@ -5,7 +5,7 @@ import useSWR from "swr";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
-import { formatPercent, getPercentColor } from "@/components/themes/utils";
+import { formatPercent, getPercentColor } from "../themes/_components/themes/utils";
 import { fetcher, ssrHydratedConfig } from "@/lib/swr-config";
 
 interface ThemeRow {

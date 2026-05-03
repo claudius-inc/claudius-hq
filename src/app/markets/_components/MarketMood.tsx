@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Skeleton } from "@/components/Skeleton";
 import { ChevronRight } from "lucide-react";
-import { vixRanges, breadthRanges, termStructureRanges } from "./constants";
+import { vixRanges, breadthRanges, termStructureRanges } from "../_lib/constants";
 import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
-import type { SentimentData, BreadthData } from "./types";
+import type { SentimentData, BreadthData } from "../_lib/types";
 
 interface MarketMoodProps {
   sentimentData: SentimentData | null;

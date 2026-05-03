@@ -1,4 +1,4 @@
-import { ProjectSidebar, ProjectMobileTOC } from "@/components/ProjectSidebar";
+import { ProjectSidebar, ProjectMobileTOC } from "./_components/ProjectSidebar";
 import db, { ensureDB } from "@/lib/db";
 import { Project } from "@/lib/types";
 import { notFound } from "next/navigation";

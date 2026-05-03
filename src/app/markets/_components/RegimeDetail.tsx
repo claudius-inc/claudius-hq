@@ -10,7 +10,7 @@ import {
   Globe,
   Scale,
 } from "lucide-react";
-import type { RegimeData, MacroIndicator } from "./types";
+import type { RegimeData, MacroIndicator } from "../_lib/types";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 
 interface RegimeDetailProps {

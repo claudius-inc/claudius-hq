@@ -1,5 +1,5 @@
 import { Nav } from "@/components/Nav";
-import { AcpNav } from "@/components/acp";
+import { AcpNav } from "./_components";
 
 export default function AcpLayout({
   children,

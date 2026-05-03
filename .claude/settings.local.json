@@ -32,7 +32,11 @@
       "Bash(ls tailwind.config.*)",
       "Bash(npx eslint:*)",
       "Read(//tmp/**)",
-      "Bash(echo \"EXIT=$?\")"
+      "Bash(echo \"EXIT=$?\")",
+      "Bash(cp -r \"C:/Users/zheny/Downloads/Dev/claudius-hq/src/components/global-markets/\"* \"C:/Users/zheny/Downloads/Dev/claudius-hq/src/app/markets/scanner/sectors/_components/global-markets/\")",
+      "Bash(cp -r \"C:/Users/zheny/Downloads/Dev/claudius-hq/src/components/sectors/\"* \"C:/Users/zheny/Downloads/Dev/claudius-hq/src/app/markets/scanner/sectors/_components/sectors/\")",
+      "Bash(cp \"C:/Users/zheny/Downloads/Dev/claudius-hq/src/components/global-markets/\"*.ts \"C:/Users/zheny/Downloads/Dev/claudius-hq/src/app/markets/scanner/sectors/_components/global-markets/\")",
+      "Bash(cp \"C:/Users/zheny/Downloads/Dev/claudius-hq/src/components/sectors/\"*.ts \"C:/Users/zheny/Downloads/Dev/claudius-hq/src/app/markets/scanner/sectors/_components/sectors/\")"
     ]
   }
 }

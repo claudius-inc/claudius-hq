@@ -1,10 +1,10 @@
 import { Skeleton } from "@/components/Skeleton";
 import { ChevronRight } from "lucide-react";
-import { categoryOrder, categoryLabels, categoryIcons } from "./constants";
-import { getStatusColor, getTrendArrow, formatIndicatorVal } from "./helpers";
+import { categoryOrder, categoryLabels, categoryIcons } from "../_lib/constants";
+import { getStatusColor, getTrendArrow, formatIndicatorVal } from "../_lib/helpers";
 import { IndicatorDetails } from "./IndicatorDetails";
 import { MACRO_INDICATORS } from "@/lib/macro-indicators";
-import type { MacroIndicator } from "./types";
+import type { MacroIndicator } from "../_lib/types";
 
 interface IndicatorsProps {
   macroIndicators: MacroIndicator[];

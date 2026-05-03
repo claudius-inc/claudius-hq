@@ -29,7 +29,7 @@ import type {
   GavekalRegimePoint,
   GavekalXleData,
   PortfolioAllocation,
-} from "./types";
+} from "../_lib/types";
 
 interface GavekalQuadrantProps {
   data: GavekalData | null;

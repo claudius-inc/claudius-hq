@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { acpOfferings, marketCache } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
 import { PageHero } from "@/components/PageHero";
-import { AcpOfferingsManagement } from "@/components/acp/AcpOfferingsManagement";
+import { AcpOfferingsManagement } from "./_components/AcpOfferingsManagement";
 import { getV2AgentInfo } from "@/lib/virtuals-client";
 
 // On-demand revalidation when offerings change
