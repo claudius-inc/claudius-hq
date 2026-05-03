@@ -31,6 +31,7 @@ export interface ScoringInputs {
 
 // ---------- Momentum ----------
 
+// Momentum: 12-1M return, weight 40. Tiers: ≥30%→40, ≥15%→28, ≥0%→16, ≥-10%→8, else 0.
 function score12mEx1m(r: number | null): number {
   if (r === null) return 0;
   if (r >= 0.30) return 40;
@@ -40,17 +41,20 @@ function score12mEx1m(r: number | null): number {
   return 0;
 }
 
+// Momentum: 52w range position, weight 25. Scaled (price-low) / (high-low) to 0–25.
 function score52wPosition(price: number | null, hi: number | null, lo: number | null): number {
   if (price === null || hi === null || lo === null || hi <= lo) return 0;
   const pos = Math.min(1, Math.max(0, (price - lo) / (hi - lo)));
   return Math.round(pos * 25);
 }
 
+// Momentum: Trend persistence, weight 20. % of 60d closes > 20-day SMA, scaled 0–20.
 function scoreTrendPersistence(pct: number | null): number {
   if (pct === null) return 0;
   return Math.round(Math.min(1, Math.max(0, pct)) * 20);
 }
 
+// Momentum: Distance above 200-day SMA, weight 15. (price-SMA200)/SMA200 capped at +50%, maps 0–15.
 function scoreDistAbove200(price: number | null, sma200: number | null): number {
   if (price === null || sma200 === null || sma200 === 0) return 0;
   const dist = (price - sma200) / sma200;
@@ -70,6 +74,7 @@ export function scoreMomentum(i: ScoringInputs): number {
 
 // ---------- Technical ----------
 
+// Technical: MA stack, weight 30. Tiers: 3 ordered (price > SMA20 > SMA50 > SMA200)→30, 2→20, 1→10, 0→0.
 function scoreMaStack(p: number | null, s20: number | null, s50: number | null, s200: number | null): number {
   if (p === null || s20 === null || s50 === null || s200 === null) return 0;
   const pairs = [p > s20, s20 > s50, s50 > s200];
@@ -80,6 +85,7 @@ function scoreMaStack(p: number | null, s20: number | null, s50: number | null, 
   return 0;
 }
 
+// Technical: RSI(14), weight 25. Tiers: 50–70→25, 40–50 or 70–75→18, 30–40 or 75–80→10, else 0.
 function scoreRsi(rsi: number | null): number {
   if (rsi === null) return 0;
   if (rsi >= 50 && rsi <= 70) return 25;
@@ -88,6 +94,7 @@ function scoreRsi(rsi: number | null): number {
   return 0;
 }
 
+// Technical: MACD, weight 20. Tiers: line > signal & line > 0→20, line > signal→12, line > 0→6, else 0.
 function scoreMacd(line: number | null, signal: number | null): number {
   if (line === null || signal === null) return 0;
   if (line > signal && line > 0) return 20;
@@ -96,6 +103,7 @@ function scoreMacd(line: number | null, signal: number | null): number {
   return 0;
 }
 
+// Technical: Volume trend, weight 15. (avg20d/avg60d - 1). Tiers: ≥+30%→15, ≥+10%→10, ≥0→6, else 0.
 function scoreVolumeTrend(v20: number | null, v60: number | null): number {
   if (v20 === null || v60 === null || v60 === 0) return 0;
   const change = v20 / v60 - 1;
@@ -105,6 +113,7 @@ function scoreVolumeTrend(v20: number | null, v60: number | null): number {
   return 0;
 }
 
+// Technical: ADX(14), weight 10. Tiers: ≥40→10, ≥25→7, ≥15→3, <15→0.
 function scoreAdx(adx: number | null): number {
   if (adx === null) return 0;
   if (adx >= 40) return 10;
