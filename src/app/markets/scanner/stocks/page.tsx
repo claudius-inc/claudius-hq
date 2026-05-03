@@ -76,9 +76,7 @@ export default async function ScannerStocksPage() {
         badge={<WatchlistMethodologyModal />}
         actionSlot={lastComputedAt ? <ScanAge date={lastComputedAt} /> : undefined}
       />
-      <div className="px-4 sm:px-6 lg:px-8 py-4">
-        <WatchlistTable rows={rows} themeNames={themeNames} />
-      </div>
+      <WatchlistTable rows={rows} themeNames={themeNames} />
     </>
   );
 }
