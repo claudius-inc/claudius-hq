@@ -1,16 +1,16 @@
 /**
  * Yahoo data fetcher for watchlist scoring. Separated from watchlist.ts so
  * the orchestrator can be tested without mocking the entire Yahoo + indicator stack.
+ *
+ * Fetches its own historical bars (rather than reusing yahoo-fetcher.fetchHistoricalData)
+ * because the latter uses the deprecated default export of yahoo-finance2 which throws
+ * "Call `new YahooFinance()` first." at runtime.
  */
-import { fetchHistoricalData } from "@/lib/scanner/yahoo-fetcher";
 import { normalizeTickerForYahoo } from "@/lib/yahoo-utils";
 import { logger } from "@/lib/logger";
 import type { ScoringInputs } from "@/lib/scanner/watchlist";
 import { computeIndicators } from "@/lib/scanner/watchlist-indicators";
-
-// Use a lighter Yahoo quote for name + 52w + currentPrice instead of
-// fetchEnhancedMetrics (which also fetches institutional data we don't need).
-// Must use `new YahooFinance()` — the default export's quoteSummary is deprecated/never.
+import type { OHLCV } from "@/lib/scanner/indicators";
 import YahooFinance from "yahoo-finance2";
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -60,12 +60,38 @@ function computePriceChanges(closes: number[]): {
   return { pc1w, pc1m, pc3m };
 }
 
+async function fetchBars(yahooTicker: string): Promise<OHLCV[] | null> {
+  // 14 months back: covers >253 trading days needed for return12mEx1m.
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - 14);
+  try {
+    const raw = await yahooFinance.chart(yahooTicker, {
+      period1: startDate,
+      period2: new Date(),
+      interval: "1d",
+    });
+    const quotes = raw?.quotes ?? [];
+    return quotes
+      .filter((q) => q.close != null && q.high != null && q.low != null && q.open != null)
+      .map((q) => ({
+        date: q.date as Date,
+        open: q.open as number,
+        high: q.high as number,
+        low: q.low as number,
+        close: q.close as number,
+        volume: (q.volume ?? 0) as number,
+      }));
+  } catch {
+    return null;
+  }
+}
+
 export async function buildScoringInputs(ticker: string): Promise<FetchedTicker | null> {
   const yahooTicker = normalizeTickerForYahoo(ticker);
 
   // Fetch raw bars + lightweight quote data in parallel
   const [bars, quoteSummary] = await Promise.all([
-    fetchHistoricalData(yahooTicker).catch(() => null),
+    fetchBars(yahooTicker),
     yahooFinance
       .quoteSummary(yahooTicker, { modules: ["summaryDetail", "price"] })
       .catch(() => null) as Promise<YahooQuoteSummaryResult | null>,
