@@ -20,9 +20,13 @@ export type WatchlistRow = {
 export type ThemeNameMap = Record<number, string>;
 
 type SortKey =
-  | "momentumScore" | "technicalScore"
-  | "priceChange1w" | "priceChange1m" | "priceChange3m"
-  | "ticker" | "name";
+  | "momentumScore"
+  | "technicalScore"
+  | "priceChange1w"
+  | "priceChange1m"
+  | "priceChange3m"
+  | "ticker"
+  | "name";
 
 type SortDir = "asc" | "desc";
 
@@ -50,11 +54,17 @@ export function WatchlistTable({
   });
 
   const filtered = useMemo(() => filterRows(rows, filters), [rows, filters]);
-  const sorted = useMemo(() => sortRows(filtered, sortKey, sortDir), [filtered, sortKey, sortDir]);
+  const sorted = useMemo(
+    () => sortRows(filtered, sortKey, sortDir),
+    [filtered, sortKey, sortDir],
+  );
 
   const onHeader = (key: SortKey) => {
     if (sortKey === key) setSortDir(sortDir === "asc" ? "desc" : "asc");
-    else { setSortKey(key); setSortDir("desc"); }
+    else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
   };
 
   if (rows.length === 0) {
@@ -62,7 +72,10 @@ export function WatchlistTable({
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-8 text-center text-gray-500 text-sm">
           No tickers tracked yet. Add stocks to your themes on the{" "}
-          <a href="/markets/scanner/themes" className="text-blue-600 underline">Themes</a> page.
+          <a href="/markets/scanner/themes" className="text-blue-600 underline">
+            Themes
+          </a>{" "}
+          page.
         </div>
       </div>
     );
@@ -70,20 +83,66 @@ export function WatchlistTable({
 
   return (
     <div className="space-y-4">
-      <FilterBar filters={filters} setFilters={setFilters} themeNames={themeNames} />
+      <FilterBar
+        filters={filters}
+        setFilters={setFilters}
+        themeNames={themeNames}
+      />
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-100">
             <thead className="bg-gray-50">
               <tr>
-                <Th label="Ticker"    active={sortKey === "ticker"}         dir={sortDir} onClick={() => onHeader("ticker")} />
-                <Th label="Name"      active={sortKey === "name"}           dir={sortDir} onClick={() => onHeader("name")} />
-                <Th label="Momentum"  active={sortKey === "momentumScore"}  dir={sortDir} onClick={() => onHeader("momentumScore")} align="right" />
-                <Th label="1W Δ"      active={sortKey === "priceChange1w"}  dir={sortDir} onClick={() => onHeader("priceChange1w")} align="right" />
-                <Th label="1M Δ"      active={sortKey === "priceChange1m"}  dir={sortDir} onClick={() => onHeader("priceChange1m")} align="right" />
-                <Th label="3M Δ"      active={sortKey === "priceChange3m"}  dir={sortDir} onClick={() => onHeader("priceChange3m")} align="right" />
-                <Th label="Technical" active={sortKey === "technicalScore"} dir={sortDir} onClick={() => onHeader("technicalScore")} align="right" />
-                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">Themes</th>
+                <Th
+                  label="Ticker"
+                  active={sortKey === "ticker"}
+                  dir={sortDir}
+                  onClick={() => onHeader("ticker")}
+                />
+                <Th
+                  label="Name"
+                  active={sortKey === "name"}
+                  dir={sortDir}
+                  onClick={() => onHeader("name")}
+                />
+                <Th
+                  label="Momentum"
+                  active={sortKey === "momentumScore"}
+                  dir={sortDir}
+                  onClick={() => onHeader("momentumScore")}
+                  align="right"
+                />
+                <Th
+                  label="1W Δ"
+                  active={sortKey === "priceChange1w"}
+                  dir={sortDir}
+                  onClick={() => onHeader("priceChange1w")}
+                  align="right"
+                />
+                <Th
+                  label="1M Δ"
+                  active={sortKey === "priceChange1m"}
+                  dir={sortDir}
+                  onClick={() => onHeader("priceChange1m")}
+                  align="right"
+                />
+                <Th
+                  label="3M Δ"
+                  active={sortKey === "priceChange3m"}
+                  dir={sortDir}
+                  onClick={() => onHeader("priceChange3m")}
+                  align="right"
+                />
+                <Th
+                  label="Technical"
+                  active={sortKey === "technicalScore"}
+                  dir={sortDir}
+                  onClick={() => onHeader("technicalScore")}
+                  align="right"
+                />
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">
+                  Themes
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -101,27 +160,51 @@ export function WatchlistTable({
   );
 }
 
-function Th({ label, active, dir, onClick, align }: { label: string; active: boolean; dir: SortDir; onClick: () => void; align?: "left" | "right" }) {
+function Th({
+  label,
+  active,
+  dir,
+  onClick,
+  align,
+}: {
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
+  align?: "left" | "right";
+}) {
   const alignClass = align === "right" ? "text-right" : "text-left";
   return (
     <th
       className={`px-3 py-2.5 ${alignClass} text-xs font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700`}
       onClick={onClick}
     >
-      <span className={`inline-flex items-center gap-0.5 ${align === "right" ? "justify-end" : ""}`}>
+      <span
+        className={`inline-flex items-center gap-0.5 ${align === "right" ? "justify-end" : ""}`}
+      >
         {label}
         {active ? (
-          dir === "desc" ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />
+          dir === "desc" ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronUp className="w-3 h-3" />
+          )
         ) : null}
       </span>
     </th>
   );
 }
 
-function Row({ row, themeNames }: { row: WatchlistRow; themeNames: ThemeNameMap }) {
+function Row({
+  row,
+  themeNames,
+}: {
+  row: WatchlistRow;
+  themeNames: ThemeNameMap;
+}) {
   const failed = row.dataQuality === "failed";
   return (
-    <tr className={`hover:bg-gray-50 ${failed ? "opacity-60" : ""}`}>
+    <tr className={`hover:bg-gray-50 text-sm ${failed ? "opacity-60" : ""}`}>
       <td className="px-3 py-2.5 whitespace-nowrap font-mono">
         {failed && (
           <span
@@ -131,16 +214,34 @@ function Row({ row, themeNames }: { row: WatchlistRow; themeNames: ThemeNameMap 
         )}
         {row.ticker}
       </td>
-      <td className="px-3 py-2.5 whitespace-nowrap max-w-[18rem] truncate" title={row.name}>{row.name}</td>
-      <td className="px-3 py-2.5 whitespace-nowrap text-right"><ScoreBadge value={row.momentumScore} /></td>
-      <td className="px-3 py-2.5 whitespace-nowrap text-right"><Delta value={row.priceChange1w} /></td>
-      <td className="px-3 py-2.5 whitespace-nowrap text-right"><Delta value={row.priceChange1m} /></td>
-      <td className="px-3 py-2.5 whitespace-nowrap text-right"><Delta value={row.priceChange3m} /></td>
-      <td className="px-3 py-2.5 whitespace-nowrap text-right"><ScoreBadge value={row.technicalScore} /></td>
+      <td
+        className="px-3 py-2.5 whitespace-nowrap max-w-[18rem] truncate"
+        title={row.name}
+      >
+        {row.name}
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-right">
+        <ScoreBadge value={row.momentumScore} />
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-right">
+        <Delta value={row.priceChange1w} />
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-right">
+        <Delta value={row.priceChange1m} />
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-right">
+        <Delta value={row.priceChange3m} />
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-right">
+        <ScoreBadge value={row.technicalScore} />
+      </td>
       <td className="px-3 py-2.5 whitespace-nowrap">
         <div className="flex flex-wrap gap-1">
           {row.themeIds.map((id) => (
-            <span key={id} className="inline-flex items-center px-1.5 py-px text-[10px] rounded border bg-gray-50 text-gray-500 border-gray-200">
+            <span
+              key={id}
+              className="inline-flex items-center px-1.5 py-px text-[10px] rounded border bg-gray-50 text-gray-500 border-gray-200"
+            >
               {themeNames[id] ?? `#${id}`}
             </span>
           ))}
@@ -154,17 +255,28 @@ function ScoreBadge({ value }: { value: number | null }) {
   if (value === null) return <span className="text-gray-400">—</span>;
   const v = Math.round(value);
   const cls =
-    v >= 70 ? "bg-emerald-100 text-emerald-700" :
-    v >= 40 ? "bg-amber-100 text-amber-700" :
-              "bg-gray-100 text-gray-600";
-  return <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${cls}`}>{v}</span>;
+    v >= 70
+      ? "bg-emerald-100 text-emerald-700"
+      : v >= 40
+        ? "bg-amber-100 text-amber-700"
+        : "bg-gray-100 text-gray-600";
+  return (
+    <span className={`px-1.5 py-0.5 rounded text-xs font-semibold ${cls}`}>
+      {v}
+    </span>
+  );
 }
 
 function Delta({ value }: { value: number | null }) {
   if (value === null) return <span className="text-gray-400">—</span>;
   const cls = value >= 0 ? "text-emerald-600" : "text-red-600";
   const sign = value >= 0 ? "+" : "";
-  return <span className={cls}>{sign}{value.toFixed(1)}%</span>;
+  return (
+    <span className={cls}>
+      {sign}
+      {value.toFixed(1)}%
+    </span>
+  );
 }
 
 function filterRows(rows: WatchlistRow[], f: Filters): WatchlistRow[] {
@@ -173,63 +285,100 @@ function filterRows(rows: WatchlistRow[], f: Filters): WatchlistRow[] {
     if (f.momentumTier === "ge40" && (r.momentumScore ?? -1) < 40) return false;
     if (f.momentumTier === "ge70" && (r.momentumScore ?? -1) < 70) return false;
     if (f.positive1wOnly && !((r.priceChange1w ?? 0) > 0)) return false;
-    if (f.themeIds.size > 0 && !r.themeIds.some((id) => f.themeIds.has(id))) return false;
+    if (f.themeIds.size > 0 && !r.themeIds.some((id) => f.themeIds.has(id)))
+      return false;
     return true;
   });
 }
 
-function sortRows(rows: WatchlistRow[], key: SortKey, dir: SortDir): WatchlistRow[] {
+function sortRows(
+  rows: WatchlistRow[],
+  key: SortKey,
+  dir: SortDir,
+): WatchlistRow[] {
   const mul = dir === "desc" ? -1 : 1;
   const out = [...rows];
   out.sort((a, b) => {
-    const av = a[key as keyof WatchlistRow] as number | string | null | undefined;
-    const bv = b[key as keyof WatchlistRow] as number | string | null | undefined;
-    if (av === null || av === undefined) return 1;     // nulls always last
+    const av = a[key as keyof WatchlistRow] as
+      | number
+      | string
+      | null
+      | undefined;
+    const bv = b[key as keyof WatchlistRow] as
+      | number
+      | string
+      | null
+      | undefined;
+    if (av === null || av === undefined) return 1; // nulls always last
     if (bv === null || bv === undefined) return -1;
-    if (typeof av === "number" && typeof bv === "number") return (av - bv) * mul;
+    if (typeof av === "number" && typeof bv === "number")
+      return (av - bv) * mul;
     return String(av).localeCompare(String(bv)) * mul;
   });
   return out;
 }
 
 function FilterBar({
-  filters, setFilters, themeNames,
+  filters,
+  setFilters,
+  themeNames,
 }: {
   filters: Filters;
   setFilters: (f: Filters) => void;
   themeNames: ThemeNameMap;
 }) {
-  const markets: ("US" | "SGX" | "HK" | "JP" | "KS" | "CN")[] = ["US", "SGX", "HK", "JP", "KS", "CN"];
+  const markets: ("US" | "SGX" | "HK" | "JP" | "KS" | "CN")[] = [
+    "US",
+    "SGX",
+    "HK",
+    "JP",
+    "KS",
+    "CN",
+  ];
   const themeEntries = Object.entries(themeNames);
 
   const toggleMarket = (m: "US" | "SGX" | "HK" | "JP" | "KS" | "CN") => {
     const next = new Set(filters.markets);
-    if (next.has(m)) next.delete(m); else next.add(m);
+    if (next.has(m)) next.delete(m);
+    else next.add(m);
     setFilters({ ...filters, markets: next });
   };
   const toggleTheme = (id: number) => {
     const next = new Set(filters.themeIds);
-    if (next.has(id)) next.delete(id); else next.add(id);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
     setFilters({ ...filters, themeIds: next });
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-xs">
+    <div className="flex flex-wrap items-center gap-1.5 text-sm">
       <span className="text-gray-500">Market:</span>
       {markets.map((m) => (
-        <Chip key={m} active={filters.markets.has(m)} onClick={() => toggleMarket(m)}>{m}</Chip>
+        <Chip
+          key={m}
+          active={filters.markets.has(m)}
+          onClick={() => toggleMarket(m)}
+        >
+          {m}
+        </Chip>
       ))}
 
       <span className="text-gray-500 ml-2">Momentum:</span>
       {(["all", "ge40", "ge70"] as const).map((t) => (
-        <Chip key={t} active={filters.momentumTier === t} onClick={() => setFilters({ ...filters, momentumTier: t })}>
+        <Chip
+          key={t}
+          active={filters.momentumTier === t}
+          onClick={() => setFilters({ ...filters, momentumTier: t })}
+        >
           {t === "all" ? "All" : t === "ge40" ? "≥40" : "≥70"}
         </Chip>
       ))}
 
       <Chip
         active={filters.positive1wOnly}
-        onClick={() => setFilters({ ...filters, positive1wOnly: !filters.positive1wOnly })}
+        onClick={() =>
+          setFilters({ ...filters, positive1wOnly: !filters.positive1wOnly })
+        }
       >
         1W positive
       </Chip>
@@ -252,11 +401,19 @@ function FilterBar({
   );
 }
 
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       onClick={onClick}
-      className={`inline-flex items-center px-2 py-px text-[10px] rounded border transition-colors ${
+      className={`inline-flex items-center px-2 py-0.5 text-[11px] rounded border transition-colors ${
         active
           ? "bg-gray-800 text-white border-gray-800"
           : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
