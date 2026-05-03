@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { db, watchlistScores, themes } from "@/db";
 import { desc } from "drizzle-orm";
 import { PageHero } from "@/components/PageHero";
-import { RefreshButton } from "../_components/RefreshButton";
 import { ScanAge } from "../_components/ScanAge";
 import { WatchlistMethodologyModal } from "./_components/WatchlistMethodologyModal";
 import {
@@ -75,12 +74,7 @@ export default async function ScannerStocksPage() {
       <PageHero
         title="Stocks Watchlist"
         badge={<WatchlistMethodologyModal />}
-        actionSlot={
-          <div className="flex items-center sm:flex-col sm:items-end gap-2">
-            <RefreshButton />
-            {lastComputedAt && <ScanAge date={lastComputedAt} />}
-          </div>
-        }
+        actionSlot={lastComputedAt ? <ScanAge date={lastComputedAt} /> : undefined}
       />
       <div className="px-4 sm:px-6 lg:px-8 py-4">
         <WatchlistTable rows={rows} themeNames={themeNames} />

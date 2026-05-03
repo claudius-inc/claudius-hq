@@ -26,8 +26,7 @@ export function WatchlistMethodologyModal() {
         <div className="space-y-4 text-sm">
           <p className="text-gray-600">
             Scores are computed for every ticker tracked in any theme. The list
-            refreshes hourly on weekdays via GitHub Actions and on demand via the
-            Refresh button.
+            refreshes hourly on weekdays via GitHub Actions.
           </p>
 
           <section>
