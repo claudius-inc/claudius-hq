@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import useSWR from "swr";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { PageHero } from "@/components/PageHero";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
@@ -30,16 +29,19 @@ interface ThemeLite {
 
 // Price data from /api/themes/prices
 interface ThemePriceData {
-  prices: Record<string, {
-    ticker: string;
-    name: string | null;
-    performance_1w: number | null;
-    performance_1m: number | null;
-    performance_3m: number | null;
-    current_price: number | null;
-    crowdingScore?: number;
-    crowdingLevel?: string;
-  }>;
+  prices: Record<
+    string,
+    {
+      ticker: string;
+      name: string | null;
+      performance_1w: number | null;
+      performance_1m: number | null;
+      performance_3m: number | null;
+      current_price: number | null;
+      crowdingScore?: number;
+      crowdingLevel?: string;
+    }
+  >;
   basket: {
     performance_1w: number | null;
     performance_1m: number | null;
@@ -54,31 +56,43 @@ interface ThemePriceData {
   };
 }
 
-const fetcher = (url: string) => fetch(url).then((r) => r.ok ? r.json() : null);
-
 interface ThemesTabProps {
   initialThemes?: ThemeWithPerformance[];
   initialThemesLite?: ThemeLite[];
   hideHero?: boolean;
 }
 
-export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }: ThemesTabProps) {
+export function ThemesTab({
+  initialThemes,
+  initialThemesLite,
+  hideHero = false,
+}: ThemesTabProps) {
   // If we have full themes, use them; otherwise start with lite
   const [themesLite, setThemesLite] = useState<ThemeLite[]>(
-    initialThemesLite || 
-    initialThemes?.map(t => ({ id: t.id, name: t.name, description: t.description, tags: t.tags || [], created_at: t.created_at, stocks: t.stocks })) || 
-    []
+    initialThemesLite ||
+      initialThemes?.map((t) => ({
+        id: t.id,
+        name: t.name,
+        description: t.description,
+        tags: t.tags || [],
+        created_at: t.created_at,
+        stocks: t.stocks,
+      })) ||
+      [],
   );
-  const [themePrices, setThemePrices] = useState<Map<number, ThemePriceData>>(new Map());
-  const [loading, setLoading] = useState(!initialThemes && !initialThemesLite);
+  const [themePrices, setThemePrices] = useState<Map<number, ThemePriceData>>(
+    new Map(),
+  );
   const [expandedTheme, setExpandedTheme] = useState<number | null>(null);
-  const [expandedData, setExpandedData] = useState<ThemeWithPerformance | null>(null);
+  const [expandedData, setExpandedData] = useState<ThemeWithPerformance | null>(
+    null,
+  );
   const [loadingExpanded, setLoadingExpanded] = useState(false);
-  
+
   // Suggested stocks
   const [suggestions, setSuggestions] = useState<SuggestedStock[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
-  
+
   // Add theme modal
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState("");
@@ -87,7 +101,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   const [newTags, setNewTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Theme name suggestions
   const [themeSuggestions, setThemeSuggestions] = useState<string[]>([]);
   const [loadingThemeSuggestions, setLoadingThemeSuggestions] = useState(false);
@@ -100,51 +114,32 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   const [editSubmitting, setEditSubmitting] = useState(false);
 
   // Edit theme modal
-  const [editingTheme, setEditingTheme] = useState<{ id: number; name: string; description: string; tags: string[] } | null>(null);
-
-  // Stock tags mapping (ticker -> tags)
-  const [stockTagsMap, setStockTagsMap] = useState<Record<string, string[]>>({});
+  const [editingTheme, setEditingTheme] = useState<{
+    id: number;
+    name: string;
+    description: string;
+    tags: string[];
+  } | null>(null);
 
   // Heatmap tag filter
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [heatmapReady, setHeatmapReady] = useState(false);
 
-  // Fetch themes lite if not provided
-  const fetchThemesLite = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/themes/lite");
-      const data = await res.json();
-      setThemesLite(data.themes || []);
-      if (data.stock_tags) {
-        setStockTagsMap(data.stock_tags);
-      }
-    } catch (e) {
-      console.error("Failed to fetch themes:", e);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!initialThemes && !initialThemesLite) {
-      fetchThemesLite();
-    }
-  }, [fetchThemesLite, initialThemes, initialThemesLite]);
-
   // Progressively fetch prices for each theme
   useEffect(() => {
     if (themesLite.length === 0) return;
-    
+
     // Fetch prices for themes that don't have them yet
     themesLite.forEach(async (theme) => {
       if (themePrices.has(theme.id) || theme.stocks.length === 0) return;
-      
+
       try {
-        const res = await fetch(`/api/themes/prices?tickers=${theme.stocks.join(",")}`);
+        const res = await fetch(
+          `/api/themes/prices?tickers=${theme.stocks.join(",")}`,
+        );
         if (res.ok) {
           const data: ThemePriceData = await res.json();
-          setThemePrices(prev => new Map(prev).set(theme.id, data));
+          setThemePrices((prev) => new Map(prev).set(theme.id, data));
         }
       } catch (e) {
         console.error(`Failed to fetch prices for theme ${theme.id}:`, e);
@@ -164,7 +159,11 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       performance_1w: priceData?.basket.performance_1w ?? null,
       performance_1m: priceData?.basket.performance_1m ?? null,
       performance_3m: priceData?.basket.performance_3m ?? null,
-      leaders: priceData?.basket.leaders ?? { "1w": null, "1m": null, "3m": null },
+      leaders: priceData?.basket.leaders ?? {
+        "1w": null,
+        "1m": null,
+        "3m": null,
+      },
       crowdingScore: priceData?.basket.crowdingScore,
       crowdingLevel: priceData?.basket.crowdingLevel,
       // Mark if prices are still loading
@@ -172,14 +171,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     } as ThemeWithPerformance & { _pricesLoading?: boolean };
   });
 
-  // Sort themes by 1M performance
-  themes.sort((a, b) => {
-    const aHasPrice = a.performance_1m !== null;
-    const bHasPrice = b.performance_1m !== null;
-    if (aHasPrice && !bHasPrice) return -1;
-    if (!aHasPrice && bHasPrice) return 1;
-    return (b.performance_1m ?? -999) - (a.performance_1m ?? -999);
-  });
+  // Note: Sorting is handled by ThemeLeaderboard component
 
   // Theme name suggestions
   useEffect(() => {
@@ -191,7 +183,9 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     const timer = setTimeout(async () => {
       setLoadingThemeSuggestions(true);
       try {
-        const res = await fetch(`/api/themes/suggestions?name=${encodeURIComponent(newName)}`);
+        const res = await fetch(
+          `/api/themes/suggestions?name=${encodeURIComponent(newName)}`,
+        );
         const data = await res.json();
         if (data.matched && data.suggestions) {
           setThemeSuggestions(data.suggestions);
@@ -214,10 +208,12 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   // Fetch suggestions for expanded theme
   const fetchSuggestions = async (tickers: string[]) => {
     if (tickers.length === 0) return;
-    
+
     setLoadingSuggestions(true);
     try {
-      const res = await fetch(`/api/themes/suggestions?tickers=${tickers.join(",")}`);
+      const res = await fetch(
+        `/api/themes/suggestions?tickers=${tickers.join(",")}`,
+      );
       const data = await res.json();
       if (data.suggestions) {
         setSuggestions(data.suggestions.map((t: string) => ({ ticker: t })));
@@ -246,7 +242,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       const res = await fetch(`/api/themes/${themeId}`);
       const data = await res.json();
       setExpandedData(data.theme);
-      
+
       if (data.theme?.stocks?.length > 0) {
         fetchSuggestions(data.theme.stocks);
       }
@@ -271,22 +267,25 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
   // Add stock (suggested or manual) — optimistic, no full refresh
   const handleAddSuggestedStock = async (themeId: number, ticker: string) => {
     // Check if already in theme
-    const theme = themesLite.find(t => t.id === themeId);
+    const theme = themesLite.find((t) => t.id === themeId);
     if (theme?.stocks.includes(ticker.toUpperCase())) {
       alert(`${ticker.toUpperCase()} is already in this theme`);
       return;
     }
     // Also check expanded data if available
-    if (expandedData?.id === themeId && expandedData.stocks?.includes(ticker.toUpperCase())) {
+    if (
+      expandedData?.id === themeId &&
+      expandedData.stocks?.includes(ticker.toUpperCase())
+    ) {
       alert(`${ticker.toUpperCase()} is already in this theme`);
       return;
     }
 
-    const isSuggestion = suggestions.some(s => s.ticker === ticker);
+    const isSuggestion = suggestions.some((s) => s.ticker === ticker);
     if (isSuggestion) {
-      setSuggestions(prev => prev.map(s => 
-        s.ticker === ticker ? { ...s, adding: true } : s
-      ));
+      setSuggestions((prev) =>
+        prev.map((s) => (s.ticker === ticker ? { ...s, adding: true } : s)),
+      );
     }
 
     try {
@@ -312,7 +311,7 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         };
 
         if (isSuggestion) {
-          setSuggestions(prev => prev.filter(s => s.ticker !== ticker));
+          setSuggestions((prev) => prev.filter((s) => s.ticker !== ticker));
         }
 
         // Update expanded row
@@ -328,14 +327,16 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         }
 
         // Update lite list
-        setThemesLite(prev => prev.map(t => 
-          t.id === themeId ? { ...t, stocks: [...t.stocks, ticker] } : t
-        ));
+        setThemesLite((prev) =>
+          prev.map((t) =>
+            t.id === themeId ? { ...t, stocks: [...t.stocks, ticker] } : t,
+          ),
+        );
 
         // Fetch just this ticker's price and patch it in
         fetch(`/api/themes/prices?tickers=${ticker}`)
-          .then(r => r.json())
-          .then(data => {
+          .then((r) => r.json())
+          .then((data) => {
             const price = data?.prices?.[ticker];
             if (!price) return;
             const updatedPerf: ThemePerformance = {
@@ -348,17 +349,17 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
               crowdingScore: price.crowdingScore,
               crowdingLevel: price.crowdingLevel,
             };
-            setExpandedData(prev => {
+            setExpandedData((prev) => {
               if (!prev || prev.id !== themeId) return prev;
               return {
                 ...prev,
-                stock_performances: (prev.stock_performances || []).map(s =>
-                  s.ticker === ticker ? updatedPerf : s
+                stock_performances: (prev.stock_performances || []).map((s) =>
+                  s.ticker === ticker ? updatedPerf : s,
                 ),
               };
             });
             // Update themePrices so basket perf recalculates
-            setThemePrices(prev => {
+            setThemePrices((prev) => {
               const next = new Map(prev);
               const existing = next.get(themeId);
               if (existing) {
@@ -371,26 +372,31 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           .catch(() => {});
       } else {
         if (isSuggestion) {
-          setSuggestions(prev => prev.map(s => 
-            s.ticker === ticker ? { ...s, adding: false } : s
-          ));
+          setSuggestions((prev) =>
+            prev.map((s) =>
+              s.ticker === ticker ? { ...s, adding: false } : s,
+            ),
+          );
         }
       }
     } catch {
       if (isSuggestion) {
-        setSuggestions(prev => prev.map(s => 
-          s.ticker === ticker ? { ...s, adding: false } : s
-        ));
+        setSuggestions((prev) =>
+          prev.map((s) => (s.ticker === ticker ? { ...s, adding: false } : s)),
+        );
       }
     }
   };
 
   // Use theme suggestions
   const handleToggleSuggestion = (ticker: string) => {
-    const currentStocks = newStocks.split(/[, ,\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
+    const currentStocks = newStocks
+      .split(/[, ,\s]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter(Boolean);
     const upper = ticker.toUpperCase();
     if (currentStocks.includes(upper)) {
-      const filtered = currentStocks.filter(t => t !== upper);
+      const filtered = currentStocks.filter((t) => t !== upper);
       setNewStocks(filtered.join(", "));
     } else {
       const combined = [...currentStocks, upper];
@@ -400,8 +406,10 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
   const handleUseThemeSuggestions = () => {
     if (themeSuggestions.length > 0) {
-      const currentStocks = newStocks.split(/[,\s]+/).filter(s => s.trim());
-      const combined = Array.from(new Set([...currentStocks, ...themeSuggestions]));
+      const currentStocks = newStocks.split(/[,\s]+/).filter((s) => s.trim());
+      const combined = Array.from(
+        new Set([...currentStocks, ...themeSuggestions]),
+      );
       setNewStocks(combined.join(", "));
     }
   };
@@ -441,7 +449,10 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         .filter((s) => s.length > 0);
       const uniqueStocks = Array.from(new Set(stockList));
       if (uniqueStocks.length < stockList.length) {
-        setError("Duplicate tickers detected: " + stockList.filter((t, i, a) => a.indexOf(t) !== i).join(", "));
+        setError(
+          "Duplicate tickers detected: " +
+            stockList.filter((t, i, a) => a.indexOf(t) !== i).join(", "),
+        );
         return;
       }
 
@@ -454,7 +465,9 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       }
 
       // Refresh lite themes
-      await fetchThemesLite();
+      const liteRes = await fetch("/api/themes/lite");
+      const liteData = await liteRes.json();
+      setThemesLite(liteData.themes || []);
       handleCloseAddModal();
     } catch {
       setError("Network error");
@@ -476,14 +489,18 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
   // Delete theme
   const handleDeleteTheme = async (themeId: number, themeName: string) => {
-    const ok = await confirm(`Delete "${themeName}"?`, "This will remove the theme and all its stocks. This cannot be undone.", { variant: "danger", confirmLabel: "Delete" });
+    const ok = await confirm(
+      `Delete "${themeName}"?`,
+      "This will remove the theme and all its stocks. This cannot be undone.",
+      { variant: "danger", confirmLabel: "Delete" },
+    );
     if (!ok) return;
 
     try {
       const res = await fetch(`/api/themes/${themeId}`, { method: "DELETE" });
       if (res.ok) {
-        setThemesLite(prev => prev.filter((t) => t.id !== themeId));
-        setThemePrices(prev => {
+        setThemesLite((prev) => prev.filter((t) => t.id !== themeId));
+        setThemePrices((prev) => {
           const next = new Map(prev);
           next.delete(themeId);
           return next;
@@ -501,7 +518,11 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
 
   // Remove stock — optimistic splice, no full refresh
   const handleRemoveStock = async (themeId: number, ticker: string) => {
-    const ok = await confirm(`Remove ${ticker}?`, `Remove ${ticker} from this theme.`, { variant: "danger", confirmLabel: "Remove" });
+    const ok = await confirm(
+      `Remove ${ticker}?`,
+      `Remove ${ticker} from this theme.`,
+      { variant: "danger", confirmLabel: "Remove" },
+    );
     if (!ok) return;
 
     try {
@@ -513,16 +534,22 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
         if (expandedData && expandedData.id === themeId) {
           setExpandedData({
             ...expandedData,
-            stocks: expandedData.stocks.filter(t => t !== ticker),
-            stock_performances: (expandedData.stock_performances || []).filter(p => p.ticker !== ticker),
+            stocks: expandedData.stocks.filter((t) => t !== ticker),
+            stock_performances: (expandedData.stock_performances || []).filter(
+              (p) => p.ticker !== ticker,
+            ),
           });
         }
         // Update lite list
-        setThemesLite(prev => prev.map(t => 
-          t.id === themeId ? { ...t, stocks: t.stocks.filter(s => s !== ticker) } : t
-        ));
+        setThemesLite((prev) =>
+          prev.map((t) =>
+            t.id === themeId
+              ? { ...t, stocks: t.stocks.filter((s) => s !== ticker) }
+              : t,
+          ),
+        );
         // Remove from themePrices basket
-        setThemePrices(prev => {
+        setThemePrices((prev) => {
           const next = new Map(prev);
           const existing = next.get(themeId);
           if (existing) {
@@ -574,27 +601,42 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       if (res.ok) {
         const oldTicker = editingStock.ticker;
         // Patch in-place instead of full refreshh
-        setExpandedData(prev => {
+        setExpandedData((prev) => {
           if (!prev || prev.id !== editingStock.themeId) return prev;
           return {
             ...prev,
             stocks: isRename
-              ? prev.stocks.map(t => t === oldTicker ? editingStock.new_ticker : t)
+              ? prev.stocks.map((t) =>
+                  t === oldTicker ? editingStock.new_ticker : t,
+                )
               : prev.stocks,
-            stock_performances: (prev.stock_performances || []).map(s =>
+            stock_performances: (prev.stock_performances || []).map((s) =>
               s.ticker === oldTicker
-                ? { ...s, ticker: editingStock.new_ticker, target_price: editingStock.target_price, status: editingStock.status, notes: editingStock.notes }
-                : s
+                ? {
+                    ...s,
+                    ticker: editingStock.new_ticker,
+                    target_price: editingStock.target_price,
+                    status: editingStock.status,
+                    notes: editingStock.notes,
+                  }
+                : s,
             ),
           };
         });
         // Update lite list
         if (isRename) {
-          setThemesLite(prev => prev.map(t =>
-            t.id === editingStock.themeId
-              ? { ...t, stocks: t.stocks.map(s => s === oldTicker ? editingStock.new_ticker : s) }
-              : t
-          ));
+          setThemesLite((prev) =>
+            prev.map((t) =>
+              t.id === editingStock.themeId
+                ? {
+                    ...t,
+                    stocks: t.stocks.map((s) =>
+                      s === oldTicker ? editingStock.new_ticker : s,
+                    ),
+                  }
+                : t,
+            ),
+          );
         }
         setEditingStock(null);
       } else {
@@ -609,7 +651,12 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
     }
   };
 
-  const handleSaveThemeEdit = async (themeId: number, name: string, description: string, tags: string[]) => {
+  const handleSaveThemeEdit = async (
+    themeId: number,
+    name: string,
+    description: string,
+    tags: string[],
+  ) => {
     console.log("[EditTheme] saving", { themeId, name, description, tags });
     const res = await fetch(`/api/themes/${themeId}`, {
       method: "PATCH",
@@ -622,37 +669,15 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
       throw new Error(err);
     }
 
-    setThemesLite(prev => prev.map(t =>
-      t.id === themeId ? { ...t, name, description, tags } : t
-    ));
+    setThemesLite((prev) =>
+      prev.map((t) =>
+        t.id === themeId ? { ...t, name, description, tags } : t,
+      ),
+    );
     if (expandedData && expandedData.id === themeId) {
       setExpandedData({ ...expandedData, name, description, tags });
     }
   };
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <div className="space-y-1">
-          {["1W", "1M", "3M"].map((p) => (
-            <div key={p} className="flex items-center gap-1.5">
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">{p}</span>
-              <div className="flex gap-1 overflow-hidden">
-                {Array.from({ length: 14 }).map((_, i) => (
-                  <div key={i} className="h-6 w-16 bg-gray-100 rounded animate-pulse flex-shrink-0" />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white border border-gray-200 rounded-xl h-14 animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -661,28 +686,41 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           title="Investment Themes"
           subtitle="Track thematic baskets and their performance"
           actions={[
-            { label: "Add Theme", onClick: () => setShowAddModal(true), icon: <Plus className="w-4 h-4" />, variant: "primary" },
+            {
+              label: "Add Theme",
+              onClick: () => setShowAddModal(true),
+              icon: <Plus className="w-4 h-4" />,
+              variant: "primary",
+            },
           ]}
         />
       )}
-
 
       {/* Tag Heatmap */}
       {!heatmapReady && (
         <div className="space-y-1">
           {["1W", "1M", "3M"].map((p) => (
             <div key={p} className="flex items-center gap-1.5">
-              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">{p}</span>
-              <div className="flex gap-1 overflow-hidden">
+              <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">
+                {p}
+              </span>
+              <div className="flex gap-1 overflow-hidden flex-1">
                 {Array.from({ length: 14 }).map((_, i) => (
-                  <div key={i} className="h-6 w-16 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+                  <div
+                    key={i}
+                    className="h-6 bg-gray-100 rounded animate-pulse flex-1 min-w-0"
+                  />
                 ))}
               </div>
             </div>
           ))}
         </div>
       )}
-      <TagHeatmap selectedTag={selectedTag} onTagSelect={setSelectedTag} onReady={() => setHeatmapReady(true)} />
+      <TagHeatmap
+        selectedTag={selectedTag}
+        onTagSelect={setSelectedTag}
+        onReady={() => setHeatmapReady(true)}
+      />
 
       {selectedTag ? (
         <TagStockResults tag={selectedTag} />
@@ -702,9 +740,20 @@ export function ThemesTab({ initialThemes, initialThemesLite, hideHero = false }
           onAddStock={handleAddSuggestedStock}
           onAddTheme={() => setShowAddModal(true)}
           onEditTheme={(themeId, name, description) => {
-            const theme = themesLite.find(t => t.id === themeId);
-            console.log("[EditTheme] clicked", { themeId, name, description, theme, tags: theme?.tags });
-            setEditingTheme({ id: themeId, name, description, tags: theme?.tags || [] });
+            const theme = themesLite.find((t) => t.id === themeId);
+            console.log("[EditTheme] clicked", {
+              themeId,
+              name,
+              description,
+              theme,
+              tags: theme?.tags,
+            });
+            setEditingTheme({
+              id: themeId,
+              name,
+              description,
+              tags: theme?.tags || [],
+            });
           }}
         />
       )}

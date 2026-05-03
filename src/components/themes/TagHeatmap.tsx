@@ -51,7 +51,7 @@ export function TagHeatmap({ selectedTag, onTagSelect, onReady }: TagHeatmapProp
               avg_return: r.avg_return,
               stock_count: r.stock_count,
             }))
-            .sort((a: TagPerfRow, b: TagPerfRow) => Math.abs(b.avg_return) - Math.abs(a.avg_return));
+            .sort((a: TagPerfRow, b: TagPerfRow) => b.avg_return - a.avg_return);
         }
         setPeriodData(result);
         onReady?.();
@@ -74,14 +74,14 @@ export function TagHeatmap({ selectedTag, onTagSelect, onReady }: TagHeatmapProp
   if (!hasData) return null;
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1 w-full">
       {PERIODS.map((period) => {
         const rows = periodData[period] || [];
         if (rows.length === 0) return null;
         return (
           <div key={period} className="flex items-center gap-1.5">
             <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">{period}</span>
-            <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none">
+            <div className="flex gap-1 overflow-x-auto pb-0.5 scrollbar-none flex-1 min-w-0 max-w-full">
               {rows.map((row) => {
                 const isSelected = selectedTag === row.tag;
                 return (

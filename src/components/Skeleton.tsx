@@ -78,9 +78,9 @@ export function ThemesTableSkeleton() {
         {["1W", "1M", "3M"].map((p) => (
           <div key={p} className="flex items-center gap-1.5">
             <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider w-6 flex-shrink-0">{p}</span>
-            <div className="flex gap-1 overflow-hidden">
+            <div className="flex gap-1 overflow-hidden flex-1">
               {Array.from({ length: 14 }).map((_, i) => (
-                <div key={i} className="h-6 w-16 bg-gray-100 rounded animate-pulse flex-shrink-0" />
+                <div key={i} className="h-6 bg-gray-100 rounded animate-pulse flex-1 min-w-0" />
               ))}
             </div>
           </div>
@@ -98,8 +98,8 @@ export function ThemesTableSkeleton() {
                 <th className={`${thBase} text-right`}>1W</th>
                 <th className={`${thBase} text-right`}>1M</th>
                 <th className={`${thBase} text-right`}>3M</th>
-                <th className={`${thBase} text-left`}>Leader</th>
-                <th className={`${thBase} w-12`}></th>
+                <th className={`${thBase} text-center`}>Crowd</th>
+                <th className={`${thBase} text-right w-12`}></th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -109,25 +109,27 @@ export function ThemesTableSkeleton() {
                     <Skeleton className="h-4 w-4" />
                   </td>
                   <td className="px-3 py-2.5">
-                    <Skeleton className="h-4 w-32 mb-1" />
-                    <Skeleton className="h-3 w-14" />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <Skeleton className="h-4 w-12 ml-auto" />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <Skeleton className="h-4 w-12 ml-auto" />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <Skeleton className="h-4 w-12 ml-auto" />
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <Skeleton className="h-4 w-10" />
-                      <Skeleton className="h-3 w-10" />
+                    <div className="flex flex-col gap-1">
+                      <Skeleton className="h-4 w-28" />
+                      <div className="flex gap-1">
+                        <Skeleton className="h-3 w-10 rounded-full" />
+                        <Skeleton className="h-3 w-12 rounded-full" />
+                      </div>
+                      <Skeleton className="h-3 w-12 mt-0.5" />
                     </div>
                   </td>
-                  <td className="px-3 py-2.5">
+                  {["1W", "1M", "3M"].map((period) => (
+                    <td key={period} className="px-3 py-2.5">
+                      <div className="flex flex-col items-end gap-1">
+                        <Skeleton className="h-4 w-12" />
+                        <Skeleton className="h-3 w-16" />
+                      </div>
+                    </td>
+                  ))}
+                  <td className="px-3 py-2.5 text-center">
+                    <Skeleton className="h-5 w-8 mx-auto rounded-full" />
+                  </td>
+                  <td className="px-3 py-2.5 text-right">
                     <Skeleton className="h-4 w-4 ml-auto" />
                   </td>
                 </tr>

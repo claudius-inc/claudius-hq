@@ -150,12 +150,18 @@ interface PerfTriple {
 interface YahooQuoteShape {
   symbol?: string;
   regularMarketPrice?: number;
+  shortName?: string;
+}
+
+interface QuoteResult {
+  price: number;
+  name: string | null;
 }
 
 async function fetchLiveQuotes(
   tickers: string[],
-): Promise<Map<string, number>> {
-  const result = new Map<string, number>();
+): Promise<Map<string, QuoteResult>> {
+  const result = new Map<string, QuoteResult>();
   if (tickers.length === 0) return result;
 
   const CHUNK = 20;
@@ -172,9 +178,45 @@ async function fetchLiveQuotes(
           | YahooQuoteShape
           | YahooQuoteShape[];
         const arr = Array.isArray(quotes) ? quotes : [quotes];
+
+        // Build a lookup map for this chunk
+        const normalizedMap = new Map<string, string>();
+        chunk.forEach((t) => {
+          const normalized = normalizeTickerForYahoo(t);
+          normalizedMap.set(normalized, t);
+          // Also map uppercase version
+          normalizedMap.set(normalized.toUpperCase(), t);
+          // Also map the original ticker
+          normalizedMap.set(t.toUpperCase(), t);
+        });
+
         for (const q of arr) {
           if (q?.symbol && q.regularMarketPrice != null) {
-            result.set(q.symbol, q.regularMarketPrice);
+            // Try to find matching original ticker by returned symbol
+            const symbolUpper = q.symbol.toUpperCase();
+            let originalTicker = normalizedMap.get(symbolUpper);
+
+            // If no direct match, try fuzzy matching
+            if (!originalTicker) {
+              normalizedMap.forEach((orig, norm) => {
+                if (norm === symbolUpper || orig.toUpperCase() === symbolUpper) {
+                  originalTicker = orig;
+                }
+              });
+            }
+
+            // Store under the original ticker if we found a match
+            if (originalTicker) {
+              result.set(originalTicker, {
+                price: q.regularMarketPrice,
+                name: q.shortName ?? null,
+              });
+            }
+            // Also store under the returned symbol as fallback
+            result.set(q.symbol, {
+              price: q.regularMarketPrice,
+              name: q.shortName ?? null,
+            });
           }
         }
       } catch (e) {
@@ -191,7 +233,10 @@ async function fetchLiveQuotes(
                 | YahooQuoteShape[];
               const single = Array.isArray(q) ? q[0] : q;
               if (single?.regularMarketPrice != null) {
-                result.set(t, single.regularMarketPrice);
+                result.set(t, {
+                  price: single.regularMarketPrice,
+                  name: single.shortName ?? null,
+                });
               }
             } catch {
               /* skip — null perf for this ticker */
@@ -403,9 +448,10 @@ export async function fetchThemePerformanceAll(): Promise<ThemePerformanceRespon
       try {
         // DB read + live quote drives the comparison. Backfill (1 chart() call)
         // only fires the first time we see this ticker.
+        const quote = liveQuoteMap.get(ticker);
         perfMap.set(
           ticker,
-          await getTickerPerformance(ticker, liveQuoteMap.get(ticker)),
+          await getTickerPerformance(ticker, quote?.price),
         );
       } catch (e) {
         logger.warn(LOG_SRC, `Failed to fetch prices for ${ticker}`, {
@@ -463,28 +509,81 @@ export async function fetchThemePerformanceAll(): Promise<ThemePerformanceRespon
 export async function fetchThemePrices(tickers: string[]) {
   const limitedTickers = tickers.slice(0, 20);
 
-  const crowdingMap = await getCrowdingScores(limitedTickers);
+  // Batch all Yahoo calls: quotes + crowding
+  const [liveQuoteMap, crowdingMap] = await Promise.all([
+    fetchLiveQuotes(limitedTickers),
+    getCrowdingScores(limitedTickers),
+  ]);
+
+  // Fetch chart data for all tickers (95 days covers all periods)
+  // This is more reliable than relying on DB which might be missing data
+  const chartDataMap = new Map<string, DailyPoint[]>();
+
+  await Promise.all(
+    limitedTickers.map(async (ticker) => {
+      try {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - 95);
+
+        const chartResult = await yahooFinance.chart(normalizeTickerForYahoo(ticker), {
+          period1: startDate,
+          period2: endDate,
+          interval: "1d",
+        });
+        const quotes = (chartResult.quotes || []) as HistoricalRow[];
+        const points = quotes
+          .filter((q) => q.close != null && q.close > 0)
+          .map((q) => ({
+            date: q.date.toISOString().split("T")[0],
+            close: q.close,
+          }));
+
+        if (points.length > 0) {
+          chartDataMap.set(ticker, points);
+        }
+      } catch (e) {
+        logger.warn(LOG_SRC, `Chart fetch failed for ${ticker}`, { error: e });
+      }
+    })
+  );
 
   const results = await Promise.all(
     limitedTickers.map(async (ticker) => {
       try {
-        const [prices1w, prices1m, prices3m, quote] = await Promise.all([
-          getHistoricalPrices(ticker, "1w"),
-          getHistoricalPrices(ticker, "1m"),
-          getHistoricalPrices(ticker, "3m"),
-          (yahooFinance.quote(normalizeTickerForYahoo(ticker)) as Promise<{ regularMarketPrice?: number; shortName?: string }>).catch(() => null),
-        ]);
-
-        const quoteData = quote as { regularMarketPrice?: number; shortName?: string } | null;
+        const quote = liveQuoteMap.get(ticker);
         const crowding = crowdingMap.get(ticker);
+        const chartData = chartDataMap.get(ticker);
+
+        // Calculate performance from chart data if available
+        let perf1w: number | null = null;
+        let perf1m: number | null = null;
+        let perf3m: number | null = null;
+
+        if (chartData && chartData.length >= 2) {
+          const now = new Date();
+
+          const target1w = new Date(now.getTime() - 7 * 86400000);
+          const target1m = new Date(now.getTime() - 30 * 86400000);
+          const target3m = new Date(now.getTime() - 90 * 86400000);
+
+          const start1w = closeAtOrBefore(chartData, target1w);
+          const start1m = closeAtOrBefore(chartData, target1m);
+          const start3m = closeAtOrBefore(chartData, target3m);
+          const end = chartData[chartData.length - 1].close;
+
+          perf1w = calcPerformance(start1w, end);
+          perf1m = calcPerformance(start1m, end);
+          perf3m = calcPerformance(start3m, end);
+        }
 
         return {
           ticker,
-          name: quoteData?.shortName ?? null,
-          performance_1w: calcPerformance(prices1w.start, prices1w.end),
-          performance_1m: calcPerformance(prices1m.start, prices1m.end),
-          performance_3m: calcPerformance(prices3m.start, prices3m.end),
-          current_price: quoteData?.regularMarketPrice ?? null,
+          name: quote?.name ?? null,
+          performance_1w: perf1w,
+          performance_1m: perf1m,
+          performance_3m: perf3m,
+          current_price: quote?.price ?? null,
           crowdingScore: crowding?.score,
           crowdingLevel: crowding?.level,
         };
