@@ -1,92 +1,51 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { RefreshCw, Loader2 } from "lucide-react";
 import { useToast } from "@/components/ui/Toast";
 
-interface LastRun {
-  id: number;
-  status: string;
-  conclusion: string | null;
-  createdAt: string;
-  updatedAt: string;
-  htmlUrl: string;
-}
-
 export function RefreshButton() {
   const [loading, setLoading] = useState(false);
-  const [lastRun, setLastRun] = useState<LastRun | null>(null);
+  const router = useRouter();
   const { toast } = useToast();
 
-  const fetchStatus = async () => {
-    try {
-      const res = await fetch("/api/scanner/trigger");
-      const data = await res.json();
-      if (data.lastRun) {
-        setLastRun(data.lastRun);
-      }
-    } catch (error) {
-      console.error("Failed to fetch status:", error);
-    }
-  };
-
-  useEffect(() => {
-    fetchStatus();
-    // Poll every 30s if a run is in progress
-    const interval = setInterval(() => {
-      if (lastRun?.status === "in_progress" || lastRun?.status === "queued") {
-        fetchStatus();
-      }
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [lastRun?.status]);
-
-  const triggerRefresh = async () => {
+  const onClick = async () => {
     setLoading(true);
-
     try {
-      const res = await fetch("/api/scanner/trigger", {
+      const res = await fetch("/api/markets/scanner/watchlist/refresh-proxy", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ markets: "US,SGX,HK,JP" }),
       });
-
       const data = await res.json();
-
       if (data.success) {
-        toast("Scanner started! Results in ~15 min.", "success");
-        // Refresh status after a short delay
-        setTimeout(fetchStatus, 3000);
+        toast(`Refreshed ${data.tickersProcessed} tickers`, "success");
+        router.refresh();
+      } else if (res.status === 503) {
+        toast("Yahoo data unavailable; showing previous values", "error");
+      } else if (res.status === 401) {
+        toast("Sign in required", "error");
       } else {
-        toast(data.error || "Failed to trigger scanner", "error");
+        toast(data.error || "Refresh failed", "error");
       }
-    } catch (error) {
-      toast("Failed to trigger scanner", "error");
-      console.error(error);
+    } catch (err) {
+      toast("Refresh failed", "error");
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  const isRunning = lastRun?.status === "in_progress" || lastRun?.status === "queued";
-  const isDisabled = loading || isRunning;
-
   return (
     <button
-      onClick={triggerRefresh}
-      disabled={isDisabled}
+      onClick={onClick}
+      disabled={loading}
       className="flex items-center justify-center gap-1.5 px-2 sm:px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors min-w-[36px]"
-      title={isRunning ? "Scanner running..." : loading ? "Starting..." : "Refresh scanner data"}
+      title={loading ? "Refreshing..." : "Refresh watchlist"}
     >
-      {isRunning ? (
-        <>
-          <RefreshCw size={14} className="animate-spin" />
-          <span className="hidden sm:inline">Running</span>
-        </>
-      ) : loading ? (
+      {loading ? (
         <>
           <Loader2 size={14} className="animate-spin" />
-          <span className="hidden sm:inline">Starting...</span>
+          <span className="hidden sm:inline">Refreshing</span>
         </>
       ) : (
         <>
