@@ -3,8 +3,8 @@ import { Suspense } from "react";
 import db, { ensureDB } from "@/lib/db";
 import { StockReport } from "@/lib/types";
 import { PageHero } from "@/components/PageHero";
-import { ResearchForm } from "@/components/ResearchForm";
-import { ResearchContent } from "@/components/ResearchContent";
+import { ResearchForm } from "./_components/ResearchForm";
+import { ResearchContent } from "./_components/ResearchContent";
 import { Skeleton } from "@/components/Skeleton";
 import type { ResearchJob } from "@/db/schema";
 

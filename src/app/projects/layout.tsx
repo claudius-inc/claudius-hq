@@ -1,5 +1,5 @@
 import { Nav } from "@/components/Nav";
-import { ProjectsTabs } from "@/components/ProjectsTabs";
+import { ProjectsTabs } from "./_components/ProjectsTabs";
 
 export default function ProjectsLayout({
   children,

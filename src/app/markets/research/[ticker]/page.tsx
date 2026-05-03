@@ -3,11 +3,11 @@ import db, { ensureDB } from "@/lib/db";
 import { StockReport } from "@/lib/types";
 import Link from "next/link";
 import { marked } from "marked";
-import { ReportTOC } from "@/components/ReportTOC";
-import { ReportActions } from "@/components/ReportActions";
-import { ReadingProgressBar } from "@/components/ReadingProgressBar";
+import { ReportTOC } from "./_components/ReportTOC";
+import { ReportActions } from "./_components/ReportActions";
+import { ReadingProgressBar } from "./_components/ReadingProgressBar";
 import { AlertTriangle } from "lucide-react";
-import { GenerateReportButton } from "@/components/GenerateReportButton";
+import { GenerateReportButton } from "./_components/GenerateReportButton";
 
 // On-demand revalidation via /api/stocks/reports - reports are static once generated
 export const revalidate = false;

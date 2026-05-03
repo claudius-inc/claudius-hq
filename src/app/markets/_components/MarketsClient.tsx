@@ -13,7 +13,7 @@ import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import type {
   SentimentData,
   BreadthData,
-} from "./types";
+} from "../_lib/types";
 
 interface MarketsClientProps {
   /** Server-rendered Gavekal section. Composed by the parent server

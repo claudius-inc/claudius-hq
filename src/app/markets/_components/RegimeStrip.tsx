@@ -8,8 +8,8 @@ import {
   debtToGdpRanges,
   deficitToGdpRanges,
   erpRanges,
-} from "./constants";
-import type { RegimeData } from "./types";
+} from "../_lib/constants";
+import type { RegimeData } from "../_lib/types";
 import type { ExpectedReturnsResponse, SignalAlignment } from "@/lib/valuation/types";
 
 interface RegimeStripProps {

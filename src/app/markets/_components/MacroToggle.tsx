@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown, TrendingUp } from "lucide-react";
 import { Indicators } from "./Indicators";
 import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
-import type { MacroIndicator } from "./types";
+import type { MacroIndicator } from "../_lib/types";
 
 interface MacroToggleProps {
   macroIndicators: MacroIndicator[];

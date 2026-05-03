@@ -1,5 +1,5 @@
-import type { MacroIndicator } from "./types";
-import { getStatusColor } from "./helpers";
+import type { MacroIndicator } from "../_lib/types";
+import { getStatusColor } from "../_lib/helpers";
 
 export function IndicatorDetails({ indicator }: { indicator: MacroIndicator }) {
   return (

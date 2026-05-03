@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { PortfolioHolding, PortfolioReport } from "@/lib/types";
 import { PageHero } from "@/components/PageHero";
-import { PortfolioTab } from "@/components/PortfolioTab";
-import { ClarityJournal } from "@/components/ClarityJournal";
+import { PortfolioTab } from "./_components/PortfolioTab";
+import { ClarityJournal } from "./_components/ClarityJournal";
 import { PortfolioSkeleton } from "@/components/Skeleton";
 
 type TabId = "clarity" | "holdings";

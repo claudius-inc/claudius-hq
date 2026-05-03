@@ -1,5 +1,5 @@
 import { Nav } from "@/components/Nav";
-import { MarketsTabs } from "@/components/MarketsTabs";
+import { MarketsTabs } from "./_components/MarketsTabs";
 
 export default function MarketsLayout({
   children,

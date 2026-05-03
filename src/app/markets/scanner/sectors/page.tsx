@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { GlobalMarkets } from "@/components/GlobalMarkets";
+import { GlobalMarkets } from "./_components/GlobalMarkets";
 
 export const metadata: Metadata = {
   title: "Scanner – Sectors | Markets",

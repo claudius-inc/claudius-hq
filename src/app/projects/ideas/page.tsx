@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import db, { ensureDB } from "@/lib/db";
 import { Idea } from "@/lib/types";
-import { IdeasPipeline } from "@/components/IdeasPipeline";
-import { IdeaForm } from "@/components/IdeaForm";
+import { IdeasPipeline } from "./_components/IdeasPipeline";
+import { IdeaForm } from "./_components/IdeaForm";
 import { PageHero } from "@/components/PageHero";
 
 export const metadata: Metadata = {
