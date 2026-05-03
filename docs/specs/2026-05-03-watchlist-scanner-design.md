@@ -13,8 +13,8 @@ The current `/markets/scanner/stocks` page surfaces a 5-market universe scan tha
 ## Goals
 
 - Show every ticker present in any theme (deduped), with momentum and technical scoring that adds signal beyond raw price deltas.
-- Refresh hourly during market hours via GitHub Actions; allow on-demand refresh from the page.
-- Keep the compute path single-sourced (one library used by both the cron and the on-demand button).
+- Refresh hourly on weekdays via GitHub Actions.
+- Keep the compute path single-sourced (one library used by the cron).
 - Rewire the paid ACP offering at `/api/acp/stock-scan` to serve the new (slimmer) shape.
 - Drop the dead universe-scan pipeline.
 
@@ -83,29 +83,22 @@ src/lib/scanner/watchlist.ts
 
 Pure scoring functions are unit-tested with fixed inputs; the orchestration function is integration-tested against a small fake DB / mocked Yahoo client.
 
-### Two callers, one library
+### Single caller: scheduled GitHub Action
 
-1. **Scheduled (GitHub Actions)** — `.github/workflows/watchlist-scanner.yml` runs `scripts/run-watchlist-scanner.ts` which calls `computeWatchlistScores()`. Cron: every hour at :05 on Mon–Fri (UTC). This is intentionally market-agnostic: each ticker's row simply reflects the latest data Yahoo serves at fetch time, which is whatever last close + intraday print is current for that exchange. We do not gate the run on per-market hours — running while a market is closed just produces a refresh that is identical to the previous one (cheap, idempotent). After a successful write, posts to `/api/scanner/revalidate` to bust the page cache.
+`.github/workflows/watchlist-scanner.yml` runs `scripts/run-watchlist-scanner.ts`
+which calls `computeWatchlistScores()`. Cron: every hour at :05 on Mon–Fri (UTC).
+After successful write, posts to `/api/scanner/revalidate` to bust the page cache.
 
-2. **On-demand (Refresh button)** — `POST /api/markets/scanner/watchlist/refresh` calls the same `computeWatchlistScores()` in-process, returns the new rows in the response. The button shows a spinner, then `router.refresh()` re-renders the server component with the updated data. Auth: same bearer-key check pattern used by `/api/scanner/revalidate` (no anonymous triggers).
-
-The serverless route is the failure-tolerant path: it has a 60s budget. With a small watchlist (initial expectation: <100 tickers) this is comfortable. If the watchlist grows past the budget, the button degrades to triggering the GH Action via `workflow_dispatch` (handled with a try/timeout fallback inside the API route).
+No on-demand browser-initiated refresh path. The compute is too slow
+(~150s for ~500 tickers via Yahoo) to fit Vercel Hobby's 60s serverless cap,
+and the data cadence (momentum/technical scoring) doesn't justify the cost
+of moving it onto a worker provider. If a user needs an off-cycle refresh,
+they can `gh workflow run watchlist-scanner.yml` from the CLI.
 
 ### Data flow
 
 ```
-theme_stocks ──┐
-               ▼
-         computeWatchlistScores()
-               │
-               ▼
-         Yahoo (batched)
-               │
-               ▼
-       upsert watchlist_scores
-               │
-               ▼
-   /markets/scanner/stocks (server component reads DB)
+theme_stocks → computeWatchlistScores() → Yahoo (batched) → upsert watchlist_scores → /markets/scanner/stocks (server component reads DB)
 ```
 
 ---
@@ -153,7 +146,7 @@ One row per ticker. Each refresh is an upsert, so the table size equals the watc
 
 1. Reads all rows from `watchlist_scores` ordered by `momentum_score DESC NULLS LAST`.
 2. Reads `themes` (id → name) for badge labels.
-3. Reads the max `computed_at` to display "as of X ago" next to the existing `RefreshButton`.
+3. Reads the max `computed_at` to display "as of X ago" via the `ScanAge` component.
 4. Renders the new `<WatchlistTable>` client component with the rows.
 
 Replaces use of `MethodologyModal` with a new `WatchlistMethodologyModal` describing the new score formulas (the old one describes the now-deleted unified scan).
@@ -186,10 +179,6 @@ New file `src/app/markets/scanner/stocks/_components/WatchlistTable.tsx`. Client
 - Rows with `data_quality = 'failed'` render with a red dot and dashed-out scores.
 - Rows with `data_quality = 'partial'` render scores at normal opacity but with a small ⓘ tooltip listing missing inputs.
 - Empty state (no theme stocks tracked yet): message linking to `/markets/scanner/themes`.
-
-### RefreshButton wiring
-
-The existing `RefreshButton` component is repointed at `POST /api/markets/scanner/watchlist/refresh`. On success, `router.refresh()` revalidates the server-rendered table.
 
 ---
 
@@ -257,6 +246,9 @@ The `GET /api/acp/stock-scan` self-description handler is updated to describe th
 | `src/app/markets/scanner/_components/ScannerResults.tsx` and types it owns | Replaced by `WatchlistTable`. |
 | `src/app/markets/scanner/_components/MethodologyModal.tsx` | Replaced by `WatchlistMethodologyModal`. |
 | Table `stock_scans` | Migration drops it. |
+| `src/app/markets/scanner/_components/RefreshButton.tsx` | On-demand path removed. Transient — created and deleted within this PR. |
+| `src/app/api/markets/scanner/watchlist/refresh-proxy/route.ts` | On-demand path removed. Transient — created and deleted within this PR. |
+| `src/app/api/markets/scanner/watchlist/refresh/route.ts` | On-demand path removed. Transient — created and deleted within this PR. |
 
 The Yahoo fetcher (`yahoo-fetcher.ts`) and `enhanced-metrics.ts` are kept — they are reused by the sectors page and by the new watchlist library.
 
@@ -265,7 +257,7 @@ The Yahoo fetcher (`yahoo-fetcher.ts`) and `enhanced-metrics.ts` are kept — th
 ## Migration & rollout
 
 1. **PR 1 (this spec):** schema migration adds `watchlist_scores`, drops `stock_scans`. Build the shared library, the GH Action, the API route, the new page UI, the ACP rewrite. Old workflow disabled in the same PR (set `on:` to manual-only) so the cron stops immediately on merge.
-2. **First run after merge:** trigger `watchlist-scanner.yml` manually. Verify rows appear. Smoke-test the page, the Refresh button, and the ACP endpoint.
+2. **First run after merge:** trigger `watchlist-scanner.yml` manually. Verify rows appear. Smoke-test the page and the ACP endpoint.
 3. **Cleanup PR (follow-up):** delete the files listed under "What gets deleted" once the new system has been live for 24h with no rollback.
 
 Splitting the cleanup into a follow-up PR keeps the rollback path simple: revert PR 1 if anything goes sideways and the universe scanner code is still on disk.
@@ -281,7 +273,6 @@ Splitting the cleanup into a follow-up PR keeps the rollback path simple: revert
 - Ticker exists in `theme_stocks` but Yahoo doesn't recognize it → `data_quality = 'failed'`, name falls back to ticker.
 - 1Y of history not available (newly listed stock) → 12-1M factor = 0; `data_quality = 'partial'`.
 - Theme membership changes between runs → `theme_ids` in `watchlist_scores` is replaced wholesale on each refresh; deletes happen in the same transaction.
-- Refresh button concurrent presses → API route is idempotent (replaces rows); two simultaneous runs cost 2x Yahoo calls but produce a consistent result.
 - ACP caller sends old `enhanced=true` field → schema validation ignores it; response is the new slim shape regardless. (Breaking change is documented in the GET self-description.)
 
 ### Unit tests
@@ -293,7 +284,6 @@ Splitting the cleanup into a follow-up PR keeps the rollback path simple: revert
 ### Integration tests
 
 - `computeWatchlistScores()` against a fake DB seeded with 3 themes / 5 tickers, with a mocked Yahoo client returning canned bars. Asserts: correct rows written, correct theme_ids, correct data_quality values for the failed-fetch ticker.
-- `/api/markets/scanner/watchlist/refresh` route handler — invokes the lib, returns expected shape, requires auth header.
 
 ---
 
@@ -303,3 +293,4 @@ Splitting the cleanup into a follow-up PR keeps the rollback path simple: revert
 - Score history (sparkline column). Schema-friendly to add (`watchlist_score_history` table with daily snapshots).
 - Per-ticker detail page. Out of scope; revisit when the table feels too dense.
 - ACP pricing under the new (simpler) offering. Out of scope for engineering; flag to user before merge.
+- On-demand refresh path. Deferred. Right answer is probably an Inngest/QStash worker or a tiny Fly.io background process. Hourly cron is sufficient for now.
