@@ -108,6 +108,7 @@ export interface EnhancedStockMetrics {
   };
   
   // Price momentum
+  priceChange1w: number | null;
   priceChange1m: number | null;
   priceChange3m: number | null;
   priceChange6m: number | null;
@@ -274,11 +275,13 @@ export async function fetchEnhancedMetrics(
       .map((h) => ({ date: h.date, price: h.close as number }));
     
     const priceNow = currentPrice;
+    const price1w = findPriceAtOffset(prices, 5);
     const price1m = findPriceAtOffset(prices, 22);
     const price3m = findPriceAtOffset(prices, 66);
     const price6m = findPriceAtOffset(prices, 132);
     const priceYTD = findPriceAtYearStart(prices);
-    
+
+    const priceChange1w = price1w ? ((priceNow - price1w) / price1w) * 100 : null;
     const priceChange1m = price1m ? ((priceNow - price1m) / price1m) * 100 : null;
     const priceChange3m = price3m ? ((priceNow - price3m) / price3m) * 100 : null;
     const priceChange6m = price6m ? ((priceNow - price6m) / price6m) * 100 : null;
@@ -336,6 +339,7 @@ export async function fetchEnhancedMetrics(
       shortPercentFloat: shortPercentFloat !== null ? Math.round(shortPercentFloat * 10) / 10 : null,
       analystRating,
       relativeStrength,
+      priceChange1w: priceChange1w !== null ? Math.round(priceChange1w * 100) / 100 : null,
       priceChange1m: priceChange1m !== null ? Math.round(priceChange1m * 100) / 100 : null,
       priceChange3m: priceChange3m !== null ? Math.round(priceChange3m * 100) / 100 : null,
       priceChange6m: priceChange6m !== null ? Math.round(priceChange6m * 100) / 100 : null,
