@@ -9,7 +9,8 @@
  * Journal of Accounting Research, 38, 1-41.
  */
 
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 // ============================================================================
 // Types

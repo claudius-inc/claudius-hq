@@ -21,7 +21,8 @@
  * - Sloan, R. G. (1996). "Do stock prices fully reflect information in accruals and cash flows about future earnings?"
  */
 
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 // ============================================================================
 // Types

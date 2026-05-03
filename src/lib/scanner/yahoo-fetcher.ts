@@ -3,7 +3,8 @@
  * Fetches OHLCV data and calculates technical indicators.
  */
 
-import yahooFinance from "yahoo-finance2";
+import YahooFinance from "yahoo-finance2";
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 import {
   OHLCV,
   calculateATH,
