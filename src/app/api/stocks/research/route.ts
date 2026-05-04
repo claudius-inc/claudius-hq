@@ -65,14 +65,15 @@ export async function POST(request: NextRequest) {
 
     logger.info("api/stocks/research", `Research queued: ${cleanTicker}`, { jobId });
 
-    // Job is now queued. OpenClaw cron polls for pending jobs and spawns sub-agents.
-    // No direct gateway call needed — polling is more reliable.
+    // NOTE: Research jobs are processed by the OpenClaw research processor.
+    // If no processor is running, jobs will remain in "pending" indefinitely.
+    // Run: cd /root/.openclaw/workspace/skills/sun-tzu-research && npx tsx bin/generate.ts --ticker=TICKER
 
     return NextResponse.json({
       jobId,
       ticker: cleanTicker,
       status: "pending",
-      message: "Research queued. Typically starts within 2 minutes.",
+      message: "Research queued. Report generation is processed by automated agents — check back in 5-10 minutes.",
     });
   } catch (error) {
     logger.error("api/stocks/research", "Research API error", { error });
