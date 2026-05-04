@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
         change_1w: r.priceChange1w,
         change_1m: r.priceChange1m,
         change_3m: r.priceChange3m,
+        description: r.description,
         themes: themeIds.map((id) => themeNameById.get(id) ?? `#${id}`),
         data_quality: r.dataQuality,
       };

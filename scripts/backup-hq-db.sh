@@ -10,24 +10,20 @@ cd /root/.openclaw/workspace/projects/claudius-hq
 export TURSO_DATABASE_URL="libsql://claudius-hq-manapixels.aws-ap-northeast-1.turso.io"
 export TURSO_AUTH_TOKEN="eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3Njk5MDQxMjMsImlkIjoiZGQ1ZTcxODMtODM0Mi00NmZhLTk5YTItN2U3OWRmZjJjYjM0IiwicmlkIjoiMGEyZTM1YmYtMDJiZi00ZmYzLTkzNDktYzk0OTgzMDI1OTkzIn0.ztrDyGsVoUGyoBzlng_EbAIAKF_oYuW76pZf8uKOykjSXr5mm7qPHMI0-vGRSmvPR67aDPoomzX4__XRsdBCDA"
 
-BACKUP_DIR="/root/.openclaw/workspace/backups"
 REPO_DIR="/root/.openclaw/workspace/backups/hq-db-backups"
 DATE=$(date -u +%Y-%m-%d)
 FILE="hq-${DATE}.sql"
 
-# Ensure dirs exist
-mkdir -p "$BACKUP_DIR"
+# Ensure dir exists
 mkdir -p "$REPO_DIR"
 
-# Run the dump (excludes large regeneratable tables)
+# Run the dump directly into the repo (excludes large regeneratable tables)
 echo "[$(date -u)] Starting backup..."
-NODE_OPTIONS="--max-old-space-size=256" node dump-db.mjs "$BACKUP_DIR/$FILE"
+NODE_OPTIONS="--max-old-space-size=256" node dump-db.mjs "$REPO_DIR/$FILE"
 
-SIZE=$(du -h "$BACKUP_DIR/$FILE" | cut -f1)
+SIZE=$(du -h "$REPO_DIR/$FILE" | cut -f1)
 echo "[$(date -u)] Dump complete: $FILE ($SIZE)"
 
-# Copy to repo and push
-cp "$BACKUP_DIR/$FILE" "$REPO_DIR/$FILE"
 cd "$REPO_DIR"
 
 if [ ! -d ".git" ]; then
@@ -40,7 +36,7 @@ git add "$FILE"
 git commit -m "backup: $DATE" || true
 git branch -M main 2>/dev/null; git push origin main 2>&1
 
-# Clean up local files older than 30 days
-find "$BACKUP_DIR" -name "hq-*.sql" -mtime +30 -delete
+# Clean up backups older than 30 days
+find "$REPO_DIR" -name "hq-*.sql" -mtime +30 -delete
 
 echo "[$(date -u)] Backup pushed to GitHub."

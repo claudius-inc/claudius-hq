@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Newspaper } from "lucide-react";
 
 export type WatchlistRow = {
   ticker: string;
@@ -15,6 +15,7 @@ export type WatchlistRow = {
   priceChange3m: number | null;
   themeIds: number[];
   dataQuality: "ok" | "partial" | "failed";
+  description?: string | null;
 };
 
 export type ThemeNameMap = Record<number, string>;
@@ -143,6 +144,9 @@ export function WatchlistTable({
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">
                   Themes
                 </th>
+                <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">
+                  News
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -246,6 +250,9 @@ function Row({
             </span>
           ))}
         </div>
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap">
+        <NewsButton ticker={row.ticker} description={row.description} />
       </td>
     </tr>
   );
@@ -396,6 +403,76 @@ function FilterBar({
             </Chip>
           ))}
         </>
+      )}
+    </div>
+  );
+}
+
+function NewsButton({ ticker, description }: { ticker: string; description?: string | null }) {
+  const [open, setOpen] = useState(false);
+  const [news, setNews] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchNews = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/stocks/news?ticker=${encodeURIComponent(ticker)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNews(data.headlines ?? []);
+      } else {
+        setNews([]);
+      }
+    } catch {
+      setNews([]);
+    }
+    setLoading(false);
+  };
+
+  const handleToggle = () => {
+    if (!open) {
+      fetchNews();
+    }
+    setOpen(!open);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={handleToggle}
+        className="inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors"
+        title={description ?? `Latest news for ${ticker}`}
+      >
+        <Newspaper className="w-3 h-3" />
+        News
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 right-0 w-72 bg-white rounded-lg shadow-xl border border-gray-200 p-3 text-xs">
+          {description && (
+            <div className="mb-2 pb-2 border-b border-gray-100 text-gray-500 italic">
+              {description}
+            </div>
+          )}
+          {loading ? (
+            <div className="text-gray-400 py-2">Loading news…</div>
+          ) : news.length > 0 ? (
+            <ul className="space-y-1.5">
+              {news.map((h, i) => (
+                <li key={i} className="text-gray-700 leading-snug hover:text-blue-600 cursor-pointer">
+                  • {h}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-gray-400 py-2">No recent news found.</div>
+          )}
+          <button
+            onClick={() => setOpen(false)}
+            className="mt-2 text-[10px] text-gray-400 hover:text-gray-600"
+          >
+            Close
+          </button>
+        </div>
       )}
     </div>
   );

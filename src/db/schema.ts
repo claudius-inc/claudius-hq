@@ -357,6 +357,7 @@ export const watchlistScores = sqliteTable("watchlist_scores", {
   priceChange1m: real("price_change_1m"),
   priceChange3m: real("price_change_3m"),
   themeIds: text("theme_ids").notNull(), // JSON array
+  description: text("description"),
   dataQuality: text("data_quality").$type<WatchlistDataQuality>().notNull(),
   computedAt: text("computed_at").notNull(),
 });

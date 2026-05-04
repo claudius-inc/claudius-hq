@@ -49,6 +49,7 @@ async function loadData(): Promise<{
     priceChange3m: r.priceChange3m,
     themeIds: safeParseThemeIds(r.themeIds),
     dataQuality: r.dataQuality as WatchlistRow["dataQuality"],
+    description: r.description,
   }));
 
   const themeNames: ThemeNameMap = Object.fromEntries(
