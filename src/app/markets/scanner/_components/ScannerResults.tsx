@@ -240,7 +240,7 @@ function StockRow({
         </span>
 
         <Link
-          href={`/markets/research/${stock.ticker}`}
+          href={`/markets/ticker/${stock.ticker}`}
           className="w-16 font-mono font-medium text-gray-900 hover:text-emerald-600 transition-colors"
           onClick={(e) => e.stopPropagation()}
         >

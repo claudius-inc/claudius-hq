@@ -4,6 +4,7 @@ import { desc } from "drizzle-orm";
 import { PageHero } from "@/components/PageHero";
 import { ScanAge } from "../_components/ScanAge";
 import { WatchlistMethodologyModal } from "./_components/WatchlistMethodologyModal";
+import { AddTickerButton } from "./_components/AddTickerButton";
 import {
   WatchlistTable,
   type WatchlistRow,
@@ -76,7 +77,12 @@ export default async function ScannerStocksPage() {
       <PageHero
         title="Stocks Watchlist"
         badge={<WatchlistMethodologyModal />}
-        actionSlot={lastComputedAt ? <ScanAge date={lastComputedAt} /> : undefined}
+        actionSlot={
+          <div className="flex items-center gap-3">
+            {lastComputedAt && <ScanAge date={lastComputedAt} />}
+            <AddTickerButton />
+          </div>
+        }
       />
       <WatchlistTable rows={rows} themeNames={themeNames} />
     </>

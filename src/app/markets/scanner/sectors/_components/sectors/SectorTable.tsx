@@ -144,7 +144,7 @@ export function SectorTable({ sectors }: SectorTableProps) {
                 </td>
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1">
-                    <Link href={`/markets/research/${s.ticker}`} className="p-1 text-gray-400 hover:text-emerald-600 inline-block" title="View research">
+                    <Link href={`/markets/ticker/${s.ticker}`} className="p-1 text-gray-400 hover:text-emerald-600 inline-block" title="View ticker details">
                       <FileText className="w-4 h-4" />
                     </Link>
                     <a href={getHoldingsUrl(s.ticker)} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-400 hover:text-blue-600 inline-block" title="View ETF holdings">

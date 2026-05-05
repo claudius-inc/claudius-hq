@@ -124,6 +124,7 @@ export function revalidateResearch(slug?: string): void {
   
   if (slug) {
     revalidatePath(`/markets/research/${slug}`);
+    revalidatePath(`/markets/ticker/${slug}`);
   }
 }
 

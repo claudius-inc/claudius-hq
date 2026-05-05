@@ -276,7 +276,7 @@ export function ThemeLeaderboard({
                             {leader && (
                               <div className="flex items-center justify-end gap-1 mt-0.5">
                                 <Link
-                                  href={`/markets/research/${leader.ticker}`}
+                                  href={`/markets/ticker/${leader.ticker}`}
                                   className="text-[11px] text-gray-400 hover:text-gray-500 font-medium"
                                   onClick={(e) => e.stopPropagation()}
                                 >

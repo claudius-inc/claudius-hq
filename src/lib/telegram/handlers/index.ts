@@ -166,7 +166,7 @@ export async function handleResearch(ticker: string): Promise<{ text: string; re
     .limit(1);
 
   if (report) {
-    const url = `https://www.claudiusinc.com/markets/research/${upperTicker}`;
+    const url = `https://www.claudiusinc.com/markets/ticker/${upperTicker}`;
     return {
       text: `📚 <b>Research: ${upperTicker}</b>\n\n${report.title || "Sun Tzu Report"}\n\n${url}`,
       reportId: report.id,

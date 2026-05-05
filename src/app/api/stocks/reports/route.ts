@@ -140,6 +140,7 @@ export async function POST(req: NextRequest) {
     // Purge ISR cache
     revalidatePath("/markets/research");
     revalidatePath(`/markets/research/${finalSlug}`);
+    revalidatePath(`/markets/ticker/${finalSlug}`);
 
     return NextResponse.json({ report: newReport }, { status: 201 });
   } catch (e) {
@@ -210,6 +211,7 @@ export async function PATCH(req: NextRequest) {
     revalidatePath("/markets/research");
     if (slug) {
       revalidatePath(`/markets/research/${slug}`);
+      revalidatePath(`/markets/ticker/${slug}`);
     }
 
     return NextResponse.json({ success: true, id: reportId });

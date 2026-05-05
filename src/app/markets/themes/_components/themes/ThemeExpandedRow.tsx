@@ -146,7 +146,7 @@ export function ThemeExpandedRow({
                           <div className="flex flex-col">
                             <div className="flex items-center gap-1">
                               <Link
-                                href={`/markets/research/${stock.ticker}`}
+                                href={`/markets/ticker/${stock.ticker}`}
                                 className="text-emerald-600 hover:text-emerald-700 font-semibold"
                               >
                                 {stock.ticker}

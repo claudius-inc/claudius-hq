@@ -117,7 +117,7 @@ export function TweetCard({ tweet, prices, priceLoading, tickerFilter, onTickerC
         <div className="w-28 sm:w-36 shrink-0 border-r border-gray-100 flex flex-col justify-center items-center py-3 px-2 gap-1 bg-gray-50/50">
           {/* Ticker badge */}
           <Link
-            href={`/markets/research/${primaryTicker}`}
+            href={`/markets/ticker/${primaryTicker}`}
             className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md border border-emerald-200 hover:bg-emerald-100 transition-colors"
           >
             {primaryTicker}
@@ -209,7 +209,7 @@ export function TweetCard({ tweet, prices, priceLoading, tickerFilter, onTickerC
               {tweet.tickers.slice(1).map((t) => (
                 <Link
                   key={t}
-                  href={`/markets/research/${t}`}
+                  href={`/markets/ticker/${t}`}
                   className="inline-flex items-center px-1.5 py-0.5 text-[10px] text-gray-500 bg-gray-100 rounded border border-gray-200 hover:border-gray-300 hover:text-gray-700 transition-colors"
                 >
                   {t}

@@ -147,7 +147,7 @@ export function GlobalMarketsTable({ markets }: GlobalMarketsTableProps) {
                 </td>
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center gap-1">
-                    <Link href={`/markets/research/${m.ticker}`} className="p-1 text-gray-400 hover:text-emerald-600 inline-block" title="View research">
+                    <Link href={`/markets/ticker/${m.ticker}`} className="p-1 text-gray-400 hover:text-emerald-600 inline-block" title="View ticker details">
                       <FileText className="w-4 h-4" />
                     </Link>
                     <a href={getInfoUrl(m.ticker)} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-400 hover:text-gray-600 inline-block" title="View ETF details">

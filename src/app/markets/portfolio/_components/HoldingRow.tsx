@@ -65,7 +65,7 @@ export function HoldingRow({
           />
         ) : (
           <Link
-            href={`/markets/research/${holding.ticker}`}
+            href={`/markets/ticker/${holding.ticker}`}
             className="text-emerald-600 hover:text-emerald-700 font-semibold"
           >
             {holding.ticker}

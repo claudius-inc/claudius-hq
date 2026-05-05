@@ -172,7 +172,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
                 return (
                   <Link
                     key={ticker}
-                    href={`/markets/research/${encodeURIComponent(latestReport.ticker)}`}
+                    href={`/markets/ticker/${encodeURIComponent(latestReport.ticker)}`}
                     className="card-hover"
                   >
                     <div className="flex items-start justify-between">
@@ -213,7 +213,7 @@ export function StockFilters({ reports }: StockFiltersProps) {
               {thematicReports.map((report) => (
                 <Link
                   key={report.id}
-                  href={`/markets/research/${encodeURIComponent(report.ticker)}?report=${report.id}`}
+                  href={`/markets/ticker/${encodeURIComponent(report.ticker)}?report=${report.id}`}
                   className="card-hover"
                 >
                   <div className="flex items-center gap-2 mb-2">

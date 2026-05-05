@@ -76,7 +76,7 @@ export function TagStockResults({ tag }: TagStockResultsProps) {
               <tr key={stock.ticker} className="hover:bg-gray-50">
                 <td className="px-4 py-2.5">
                   <a
-                    href={`/markets/research/${stock.ticker}`}
+                    href={`/markets/ticker/${stock.ticker}`}
                     className="text-sm font-medium text-emerald-600 hover:text-emerald-700"
                   >
                     {stock.ticker}

@@ -95,7 +95,7 @@ export function ReportActions({ olderReports, currentReportId, ticker, content, 
                   return (
                     <Link
                       key={r.id}
-                      href={`/markets/research/${r.ticker}?report=${r.id}`}
+                      href={`/markets/ticker/${r.ticker}?report=${r.id}`}
                       className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       onClick={() => setOpen(false)}
                     >

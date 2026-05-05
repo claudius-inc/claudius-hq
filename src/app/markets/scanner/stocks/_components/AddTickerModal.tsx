@@ -1,0 +1,423 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Modal } from "@/components/ui/Modal";
+import { useToast } from "@/components/ui/Toast";
+import { TagComboBox, type ComboOption } from "./TagComboBox";
+
+interface AddTickerModalProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+interface LookupResult {
+  ticker: string;
+  normalized: string;
+  market: string;
+  name: string | null;
+  sector: string | null;
+  exchange: string | null;
+  price: number | null;
+  quoteType: string | null;
+}
+
+interface ThemeRow {
+  id: number;
+  name: string;
+}
+
+const MARKETS = ["US", "SGX", "HK", "JP", "CN"] as const;
+
+export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const [tickerInput, setTickerInput] = useState("");
+  const [market, setMarket] = useState<string>("");
+  const [name, setName] = useState("");
+  const [sector, setSector] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const [tags, setTags] = useState<string[]>([]);
+  const [themeIds, setThemeIds] = useState<string[]>([]); // string IDs of selected existing themes
+  const [pendingNewThemes, setPendingNewThemes] = useState<string[]>([]); // names of themes that will be created
+
+  const [allThemes, setAllThemes] = useState<ThemeRow[]>([]);
+  const [lookup, setLookup] = useState<LookupResult | null>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const lookupDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const reset = useCallback(() => {
+    setTickerInput("");
+    setMarket("");
+    setName("");
+    setSector("");
+    setNotes("");
+    setTags([]);
+    setThemeIds([]);
+    setPendingNewThemes([]);
+    setLookup(null);
+    setLookupLoading(false);
+    setLookupError(null);
+    setSubmitError(null);
+  }, []);
+
+  useEffect(() => {
+    if (!open) reset();
+  }, [open, reset]);
+
+  // Load themes once when modal opens.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/themes");
+        if (!res.ok) return;
+        const data = (await res.json()) as { themes?: ThemeRow[] };
+        if (!cancelled && Array.isArray(data.themes)) {
+          setAllThemes(data.themes.map((t) => ({ id: t.id, name: t.name })));
+        }
+      } catch {
+        // ignore
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  // Debounced ticker lookup whenever tickerInput / explicit market changes.
+  useEffect(() => {
+    const trimmed = tickerInput.trim();
+    setLookupError(null);
+    if (!trimmed) {
+      setLookup(null);
+      return;
+    }
+    if (lookupDebounceRef.current) clearTimeout(lookupDebounceRef.current);
+    lookupDebounceRef.current = setTimeout(async () => {
+      setLookupLoading(true);
+      try {
+        const params = new URLSearchParams({ ticker: trimmed });
+        if (market) params.set("market", market);
+        const res = await fetch(`/api/tickers/lookup?${params}`);
+        const data = (await res.json()) as LookupResult & { error?: string };
+        if (!res.ok) {
+          setLookupError(data.error || "Ticker not found");
+          setLookup(null);
+        } else {
+          setLookup(data);
+          setLookupError(null);
+          // Auto-fill if user hasn't typed values manually.
+          if (!market && data.market) setMarket(data.market);
+          if (!name && data.name) setName(data.name);
+          if (!sector && data.sector) setSector(data.sector);
+        }
+      } catch (e) {
+        setLookupError(String(e));
+        setLookup(null);
+      } finally {
+        setLookupLoading(false);
+      }
+    }, 400);
+    return () => {
+      if (lookupDebounceRef.current) clearTimeout(lookupDebounceRef.current);
+    };
+    // We intentionally exclude name/sector from deps — those are user-editable
+    // post-autofill and shouldn't re-trigger lookup.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tickerInput, market]);
+
+  // Tag autocomplete loader.
+  const loadTagOptions = useCallback(
+    async (query: string): Promise<ComboOption[]> => {
+      const params = new URLSearchParams({ limit: "30" });
+      if (query) params.set("q", query);
+      try {
+        const res = await fetch(`/api/tags?${params}`);
+        if (!res.ok) return [];
+        const data = (await res.json()) as {
+          tags?: { name: string; count: number }[];
+        };
+        return (data.tags || []).map((t) => ({
+          value: t.name,
+          label: t.name,
+          hint: `${t.count}`,
+        }));
+      } catch {
+        return [];
+      }
+    },
+    [],
+  );
+
+  // Theme autocomplete from already-loaded list (client-side filter).
+  const loadThemeOptions = useCallback(
+    async (query: string): Promise<ComboOption[]> => {
+      const q = query.toLowerCase();
+      return allThemes
+        .filter((t) => t.name.toLowerCase().includes(q))
+        .map((t) => ({ value: String(t.id), label: t.name }));
+    },
+    [allThemes],
+  );
+
+  const tagLabels = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const t of tags) out[t] = t;
+    return out;
+  }, [tags]);
+
+  const themeLabels = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const t of allThemes) out[String(t.id)] = t.name;
+    for (const n of pendingNewThemes) out[`new:${n}`] = `${n} (new)`;
+    return out;
+  }, [allThemes, pendingNewThemes]);
+
+  const themeSelectionForCombo = useMemo(
+    () => [...themeIds, ...pendingNewThemes.map((n) => `new:${n}`)],
+    [themeIds, pendingNewThemes],
+  );
+
+  const onThemesChange = (next: string[]) => {
+    const ids = next.filter((v) => !v.startsWith("new:"));
+    const news = next
+      .filter((v) => v.startsWith("new:"))
+      .map((v) => v.slice(4));
+    setThemeIds(ids);
+    setPendingNewThemes(news);
+  };
+
+  const onCreateTheme = (query: string) => {
+    if (!query.trim()) return;
+    const exists = allThemes.some(
+      (t) => t.name.toLowerCase() === query.toLowerCase(),
+    );
+    if (exists) return;
+    if (pendingNewThemes.includes(query)) return;
+    setPendingNewThemes((prev) => [...prev, query]);
+  };
+
+  const onCreateTag = (query: string) => {
+    const tag = query.trim().toLowerCase();
+    if (!tag || tags.includes(tag)) return;
+    setTags((prev) => [...prev, tag]);
+  };
+
+  const canSubmit =
+    !!lookup && !submitting && tickerInput.trim().length > 0 && !lookupLoading;
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit || !lookup) return;
+    setSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      const body = {
+        ticker: tickerInput.trim(),
+        market: market || lookup.market,
+        name: name.trim() || undefined,
+        sector: sector.trim() || undefined,
+        notes: notes.trim() || undefined,
+        tags,
+        themeIds: themeIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)),
+        newThemes: pendingNewThemes.map((nm) => ({ name: nm })),
+      };
+
+      const res = await fetch("/api/tickers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as {
+        ticker?: string;
+        created?: boolean;
+        error?: string;
+      };
+
+      if (!res.ok) {
+        setSubmitError(data.error || "Failed to add ticker");
+        toast(data.error || "Failed to add ticker", "error");
+        return;
+      }
+
+      toast(
+        data.created
+          ? `Added ${data.ticker} — will appear in watchlist after next scan`
+          : `Updated ${data.ticker}`,
+        "success",
+      );
+      router.refresh();
+      onClose();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSubmitError(msg);
+      toast(msg, "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal open={open} onClose={onClose} title="Add Ticker" size="md">
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Ticker
+          </label>
+          <input
+            type="text"
+            value={tickerInput}
+            onChange={(e) => setTickerInput(e.target.value.toUpperCase())}
+            placeholder="e.g. NVDA, 0700, D05"
+            autoFocus
+            className="input w-full font-mono"
+            required
+          />
+          <div className="mt-1 min-h-[1.25rem] text-xs">
+            {lookupLoading && (
+              <span className="text-gray-500 inline-flex items-center gap-1">
+                <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                Looking up…
+              </span>
+            )}
+            {lookupError && !lookupLoading && (
+              <span className="text-red-600">{lookupError}</span>
+            )}
+            {lookup && !lookupLoading && !lookupError && (
+              <span className="text-emerald-600">
+                ✓ {lookup.normalized}
+                {lookup.exchange ? ` · ${lookup.exchange}` : ""}
+                {lookup.price != null ? ` · $${lookup.price.toFixed(2)}` : ""}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Market
+            </label>
+            <select
+              value={market}
+              onChange={(e) => setMarket(e.target.value)}
+              className="input w-full"
+            >
+              <option value="">Auto-detect</option>
+              {MARKETS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Sector (optional)
+            </label>
+            <input
+              type="text"
+              value={sector}
+              onChange={(e) => setSector(e.target.value)}
+              placeholder="e.g. Technology"
+              className="input w-full"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Name (optional)
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Auto-filled from quote"
+            className="input w-full"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Tags
+          </label>
+          <TagComboBox
+            selected={tags}
+            onChange={setTags}
+            loadOptions={loadTagOptions}
+            onCreate={onCreateTag}
+            labels={tagLabels}
+            placeholder="Search or create tags…"
+            lowerCase
+            ariaLabel="Tags"
+          />
+          <p className="text-xs text-gray-400 mt-1">
+            Reuse existing tags where possible. Tags are saved to{" "}
+            <code className="text-[11px]">stock_tags</code>.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Themes
+          </label>
+          <TagComboBox
+            selected={themeSelectionForCombo}
+            onChange={onThemesChange}
+            loadOptions={loadThemeOptions}
+            onCreate={onCreateTheme}
+            labels={themeLabels}
+            placeholder="Search or create themes…"
+            ariaLabel="Themes"
+          />
+          {pendingNewThemes.length > 0 && (
+            <p className="text-xs text-amber-600 mt-1">
+              Will create {pendingNewThemes.length} new theme
+              {pendingNewThemes.length === 1 ? "" : "s"} on submit.
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Notes (optional)
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder="Why is this on the watchlist?"
+            className="input w-full resize-none"
+          />
+        </div>
+
+        {submitError && (
+          <p className="text-sm text-red-600">{submitError}</p>
+        )}
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button type="button" onClick={onClose} className="btn-secondary">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="btn-primary"
+          >
+            {submitting ? "Adding…" : "Add ticker"}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

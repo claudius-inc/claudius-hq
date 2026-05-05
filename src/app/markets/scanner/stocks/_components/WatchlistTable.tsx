@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { ChevronDown, ChevronUp, Info, Newspaper } from "lucide-react";
 
 export type WatchlistRow = {
@@ -222,7 +223,12 @@ function Row({
             className="inline-block w-1.5 h-1.5 rounded-full bg-gray-400 mr-1.5 align-middle"
           />
         )}
-        {row.ticker}
+        <Link
+          href={`/markets/ticker/${row.ticker}`}
+          className="text-emerald-600 hover:text-emerald-700 transition-colors"
+        >
+          {row.ticker}
+        </Link>
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap max-w-[22rem]">
         <div className="flex items-center gap-1.5">
