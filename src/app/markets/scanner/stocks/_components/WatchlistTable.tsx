@@ -102,6 +102,7 @@ export function WatchlistTable({
                   active={sortKey === "ticker"}
                   dir={sortDir}
                   onClick={() => onHeader("ticker")}
+                  sticky
                 />
                 <Th
                   label="Name"
@@ -177,17 +178,22 @@ function Th({
   dir,
   onClick,
   align,
+  sticky,
 }: {
   label: string;
   active: boolean;
   dir: SortDir;
   onClick: () => void;
   align?: "left" | "right";
+  sticky?: boolean;
 }) {
   const alignClass = align === "right" ? "text-right" : "text-left";
+  const stickyClass = sticky
+    ? "sticky left-0 z-20 bg-gray-50 border-r border-gray-200"
+    : "";
   return (
     <th
-      className={`px-3 py-2.5 ${alignClass} text-xs font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700`}
+      className={`px-3 py-2.5 ${alignClass} ${stickyClass} text-xs font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700`}
       onClick={onClick}
     >
       <span
@@ -215,8 +221,8 @@ function Row({
 }) {
   const failed = row.dataQuality === "failed";
   return (
-    <tr className={`hover:bg-gray-50 text-sm ${failed ? "opacity-60" : ""}`}>
-      <td className="px-3 py-2.5 whitespace-nowrap font-mono">
+    <tr className={`group hover:bg-gray-50 text-sm ${failed ? "opacity-60" : ""}`}>
+      <td className="px-3 py-2.5 whitespace-nowrap font-mono sticky left-0 z-10 bg-white group-hover:bg-gray-50 max-sm:max-w-[88px] max-sm:overflow-hidden border-r border-gray-100">
         {failed && (
           <span
             title="Fetch failed"
@@ -225,7 +231,8 @@ function Row({
         )}
         <Link
           href={`/markets/ticker/${row.ticker}`}
-          className="text-emerald-600 hover:text-emerald-700 transition-colors"
+          title={row.ticker}
+          className="text-emerald-600 hover:text-emerald-700 transition-colors max-sm:inline-block max-sm:max-w-[60px] max-sm:overflow-hidden max-sm:text-ellipsis max-sm:align-middle"
         >
           {row.ticker}
         </Link>
