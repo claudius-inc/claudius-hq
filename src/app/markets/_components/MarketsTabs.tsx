@@ -55,7 +55,7 @@ export function MarketsTabs() {
   const pathname = usePathname();
 
   return (
-    <div className="bg-white/90 backdrop-blur-sm border-b border-gray-200">
+    <div className="sticky top-12 z-40 bg-white/90 backdrop-blur-sm border-b border-gray-200">
       <div className="max-w-6xl mx-auto px-4">
         <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
           <nav className="flex items-end space-x-4 min-w-max">

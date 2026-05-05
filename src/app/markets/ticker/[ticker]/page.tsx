@@ -221,7 +221,7 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
 
   return (
     <>
-      <div className="sticky top-12 z-30 bg-gray-50 border-b border-gray-200 md:border-b-0 -mx-4 px-4">
+      <div className="sticky top-[88px] z-30 bg-gray-50 border-b border-gray-200 md:border-b-0 -mx-4 px-4">
         <div className="max-w-6xl mx-auto py-2 md:py-3">
           <div className="flex items-center gap-2 text-sm text-gray-400">
             <Link
