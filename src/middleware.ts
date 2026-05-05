@@ -80,7 +80,13 @@ export function middleware(request: NextRequest) {
   // All other pages: check session cookie
   const session = request.cookies.get("hq_session");
   if (session?.value !== SESSION_VALUE) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const loginUrl = new URL("/login", request.url);
+    // Preserve where the user was trying to go so we can send them back
+    // post-login. Skip for trivial cases (root, login itself).
+    if (pathname !== "/" && pathname !== "/login") {
+      loginUrl.searchParams.set("from", pathname + request.nextUrl.search);
+    }
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();

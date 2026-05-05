@@ -3,6 +3,22 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Only allow same-origin relative paths. Rejects protocol-relative (`//evil`),
+// absolute URLs, backslash tricks, and malformed encodings — preventing the
+// `?from=` param from being weaponized as an open-redirect.
+function safeFrom(from: string | null): string {
+  if (!from) return "/";
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(from);
+  } catch {
+    return "/";
+  }
+  if (!decoded.startsWith("/")) return "/";
+  if (decoded.startsWith("//") || decoded.startsWith("/\\")) return "/";
+  return decoded;
+}
+
 export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -21,7 +37,11 @@ export default function LoginPage() {
     });
 
     if (res.ok) {
-      router.push("/");
+      const fromParam =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("from")
+          : null;
+      router.push(safeFrom(fromParam));
       router.refresh();
     } else {
       setError("Invalid password");
