@@ -127,13 +127,22 @@ export function MarketsClient({
 
         <div className="col-span-full">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-1">
               <ThemeLeaderboardLite
                 initialData={
                   initialThemes as NonNullable<
                     React.ComponentProps<typeof ThemeLeaderboardLite>
                   >["initialData"]
                 }
+              />
+            </div>
+            <div className="lg:col-span-1">
+              <MarketMood
+                sentimentData={sentimentData ?? null}
+                breadthData={breadthData ?? null}
+                expandedIds={expandedIds}
+                toggleExpanded={toggleExpanded}
+                refreshing={moodRefreshing}
               />
             </div>
             <div className="lg:col-span-1">
@@ -151,14 +160,6 @@ export function MarketsClient({
             </div>
           </div>
         </div>
-
-        <MarketMood
-          sentimentData={sentimentData ?? null}
-          breadthData={breadthData ?? null}
-          expandedIds={expandedIds}
-          toggleExpanded={toggleExpanded}
-          refreshing={moodRefreshing}
-        />
       </div>
     </>
   );
