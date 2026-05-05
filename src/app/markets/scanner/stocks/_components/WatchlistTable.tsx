@@ -434,9 +434,14 @@ function InfoHover({ content }: { content: string }) {
     <div ref={ref} className="relative inline-flex" onMouseEnter={show} onMouseLeave={hide}>
       <Info className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500 transition-colors cursor-default flex-shrink-0" />
       {open && (
-        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-gray-900 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-lg pointer-events-none">
+        <div className="fixed z-[9999] bg-gray-900 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl pointer-events-none max-w-[280px] break-words whitespace-normal"
+          style={{
+            bottom: `calc(100% - ${ref.current?.getBoundingClientRect().top ?? 0}px + 48)`,
+            left: Math.max(8, (ref.current?.getBoundingClientRect().left ?? 0) - 80),
+          }}
+        >
           {content}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+          <div className="absolute top-full left-6 border-4 border-transparent border-t-gray-900" />
         </div>
       )}
     </div>
@@ -450,7 +455,7 @@ function NewsHover({ ticker }: { ticker: string }) {
   const [loading, setLoading] = useState(false);
 
   const fetchNews = useCallback(async () => {
-    if (news !== null) return; // already fetched
+    if (news !== null) return;
     setLoading(true);
     try {
       const res = await fetch(`/api/stocks/news?ticker=${encodeURIComponent(ticker)}`);
@@ -471,24 +476,31 @@ function NewsHover({ ticker }: { ticker: string }) {
     fetchNews();
   };
 
+  const rect = ref.current?.getBoundingClientRect();
+
   return (
     <div ref={ref} className="relative inline-flex" onMouseEnter={handleEnter} onMouseLeave={hide}>
       <Newspaper className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500 transition-colors cursor-default flex-shrink-0" />
-      {open && (
-        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-72 bg-gray-900 text-white text-[11px] rounded-lg px-3 py-2.5 shadow-lg">
+      {open && rect && (
+        <div className="fixed z-[9999] bg-gray-900 text-white text-[11px] rounded-lg px-3 py-2.5 shadow-xl max-w-[320px]"
+          style={{
+            bottom: `calc(100vh - ${rect.top - 8}px)`,
+            left: Math.max(8, Math.min(rect.left - 100, window.innerWidth - 340)),
+          }}
+        >
           <div className="font-semibold text-[10px] uppercase tracking-wide text-gray-400 mb-1.5">Latest News</div>
           {loading ? (
             <div className="text-gray-400 py-1">Loading…</div>
           ) : news && news.length > 0 ? (
             <ul className="space-y-1.5">
               {news.map((h, i) => (
-                <li key={i} className="text-gray-200 leading-snug">• {h}</li>
+                <li key={i} className="text-gray-200 leading-snug break-words whitespace-normal">• {h}</li>
               ))}
             </ul>
           ) : news !== null ? (
             <div className="text-gray-500 py-1">No recent news found.</div>
           ) : null}
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+          <div className="absolute top-full left-6 border-4 border-transparent border-t-gray-900" />
         </div>
       )}
     </div>
