@@ -452,7 +452,7 @@ function InfoHover({ content }: { content: string }) {
 /* ── Newspaper icon: fetches & shows top headlines on hover ── */
 function NewsHover({ ticker }: { ticker: string }) {
   const { open, ref, show, hide } = useHoverTooltip();
-  const [news, setNews] = useState<string[] | null>(null);
+  const [news, setNews] = useState<{ title: string; url: string }[] | null>(null);
   const [loading, setLoading] = useState(false);
 
   const fetchNews = useCallback(async () => {
@@ -495,7 +495,9 @@ function NewsHover({ ticker }: { ticker: string }) {
           ) : news && news.length > 0 ? (
             <ul className="space-y-1.5">
               {news.map((h, i) => (
-                <li key={i} className="text-gray-200 leading-snug break-words whitespace-normal">• {h}</li>
+                <li key={i} className="leading-snug break-words whitespace-normal">
+                  <a href={h.url} target="_blank" rel="noopener noreferrer" className="text-gray-200 hover:text-blue-400 transition-colors">• {h.title}</a>
+                </li>
               ))}
             </ul>
           ) : news !== null ? (

@@ -28,12 +28,18 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function fetchYahooNews(ticker: string): Promise<string[]> {
+interface NewsItem {
+  title: string;
+  url: string;
+}
+
+async function fetchYahooNews(ticker: string): Promise<NewsItem[]> {
   // Yahoo Finance RSS feed for a ticker
   const rssUrl = `https://feeds.finance.yahoo.com/rss/2.0/headline?s=${encodeURIComponent(ticker)}&region=US&lang=en-US`;
 
   const res = await fetch(rssUrl, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; Bot/0.1)" },
+    // @ts-expect-error Next.js fetch revalidate
     next: { revalidate: 300 }, // cache 5 min
   });
 
@@ -42,16 +48,23 @@ async function fetchYahooNews(ticker: string): Promise<string[]> {
   }
 
   const xml = await res.text();
-  // Simple regex extraction of <title> elements (excluding channel title)
-  const titles: string[] = [];
-  const itemRegex = /<item>[\s\S]*?<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>[\s\S]*?<\/item>/g;
+  const items: NewsItem[] = [];
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
   let match;
   while ((match = itemRegex.exec(xml)) !== null) {
-    const title = match[1].replace(/<[^>]+>/g, "").trim();
-    if (title && !title.toLowerCase().includes("yahoo finance")) {
-      titles.push(title);
+    const block = match[1];
+    const titleMatch = block.match(/<title>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/title>/);
+    const linkMatch = block.match(/<link>(?:<!\[CDATA\[)?(.*?)(?:\]\]>)?<\/link>/);
+    if (titleMatch) {
+      const title = titleMatch[1].replace(/<[^>]+>/g, "").trim();
+      if (title && !title.toLowerCase().includes("yahoo finance")) {
+        items.push({
+          title,
+          url: linkMatch ? linkMatch[1].trim() : `https://finance.yahoo.com/quote/${encodeURIComponent(ticker)}/news/`,
+        });
+      }
     }
   }
 
-  return titles.slice(0, 5); // top 5 headlines
+  return items.slice(0, 5);
 }
