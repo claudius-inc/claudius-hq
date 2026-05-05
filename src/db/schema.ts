@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 // ============================================================================
@@ -142,17 +142,26 @@ export const themes = sqliteTable("themes", {
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 
-export const themeStocks = sqliteTable("theme_stocks", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  themeId: integer("theme_id")
-    .notNull()
-    .references(() => themes.id, { onDelete: "cascade" }),
-  ticker: text("ticker").notNull(),
-  targetPrice: real("target_price"),
-  status: text("status").default("watching"),
-  notes: text("notes"),
-  addedAt: text("added_at").default(sql`(datetime('now'))`),
-});
+export const themeStocks = sqliteTable(
+  "theme_stocks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    themeId: integer("theme_id")
+      .notNull()
+      .references(() => themes.id, { onDelete: "cascade" }),
+    ticker: text("ticker").notNull(),
+    targetPrice: real("target_price"),
+    status: text("status").default("watching"),
+    notes: text("notes"),
+    addedAt: text("added_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    uniqThemeTicker: uniqueIndex("idx_theme_stocks_unique").on(
+      table.themeId,
+      table.ticker,
+    ),
+  }),
+);
 
 // ============================================================================
 // Tags — single normalized vocabulary used across tickers and themes.

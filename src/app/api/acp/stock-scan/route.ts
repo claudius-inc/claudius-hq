@@ -63,11 +63,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const themeIdsByTicker = new Map<string, number[]>();
+    // Dedup: theme_stocks may have duplicate (theme_id, ticker) rows.
+    const themeIdsByTicker = new Map<string, Set<number>>();
     for (const link of themeStockRows) {
-      const arr = themeIdsByTicker.get(link.ticker) ?? [];
-      arr.push(link.themeId);
-      themeIdsByTicker.set(link.ticker, arr);
+      const set = themeIdsByTicker.get(link.ticker) ?? new Set<number>();
+      set.add(link.themeId);
+      themeIdsByTicker.set(link.ticker, set);
     }
 
     let filtered = scoreRows.filter(
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
 
     const picks = filtered.map((r) => {
       const universe = universeByTicker.get(r.ticker);
-      const themeIds = themeIdsByTicker.get(r.ticker) ?? [];
+      const themeIds = Array.from(themeIdsByTicker.get(r.ticker) ?? []);
       return {
         ticker: r.ticker,
         name: universe?.name ?? r.ticker,

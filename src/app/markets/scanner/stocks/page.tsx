@@ -62,12 +62,14 @@ async function loadData(): Promise<{
     });
   }
 
-  // Theme membership joins live in `theme_stocks`. Group once by ticker.
-  const themesByTicker = new Map<string, number[]>();
+  // Theme membership joins live in `theme_stocks`. Use Set for dedup —
+  // theme_stocks has no UNIQUE(theme_id, ticker) constraint, so duplicates
+  // can occur and would otherwise produce duplicate React keys downstream.
+  const themesByTicker = new Map<string, Set<number>>();
   for (const link of themeStockRows) {
-    const arr = themesByTicker.get(link.ticker) ?? [];
-    arr.push(link.themeId);
-    themesByTicker.set(link.ticker, arr);
+    const set = themesByTicker.get(link.ticker) ?? new Set<number>();
+    set.add(link.themeId);
+    themesByTicker.set(link.ticker, set);
   }
 
   const rows: WatchlistRow[] = scoreRows.map((r) => {
@@ -83,7 +85,7 @@ async function loadData(): Promise<{
       priceChange1w: r.priceChange1w,
       priceChange1m: r.priceChange1m,
       priceChange3m: r.priceChange3m,
-      themeIds: themesByTicker.get(r.ticker) ?? [],
+      themeIds: Array.from(themesByTicker.get(r.ticker) ?? []),
       dataQuality: r.dataQuality as WatchlistRow["dataQuality"],
       description: universe?.notes ?? null,
     };
