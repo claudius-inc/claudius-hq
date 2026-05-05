@@ -39,8 +39,7 @@ async function fetchYahooNews(ticker: string): Promise<NewsItem[]> {
 
   const res = await fetch(rssUrl, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; Bot/0.1)" },
-    // @ts-expect-error Next.js fetch revalidate
-    next: { revalidate: 300 }, // cache 5 min
+    cache: "force-cache",
   });
 
   if (!res.ok) {
