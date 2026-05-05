@@ -34,6 +34,7 @@ interface YahooQuoteSummaryResult {
     shortName?: string;
     longName?: string;
     regularMarketPrice?: number;
+    /** Yahoo returns this as a fraction (-0.028 = -2.8%), not a percent. */
     regularMarketChangePercent?: number;
   };
 }
@@ -125,7 +126,16 @@ export async function buildScoringInputs(ticker: string): Promise<FetchedTicker 
 
   const indicators = computeIndicators(bars);
   const closes = bars.map((b) => b.close).filter((c): c is number => c != null);
-  const { pc1d, pc1w, pc1m, pc3m } = computePriceChanges(closes);
+  const changes = computePriceChanges(closes);
+
+  // Recent IPOs (e.g., 0100.HK on listing day) only have one bar of history,
+  // so historical-bar comparisons return null. Yahoo's quoteSummary still
+  // exposes the live 1-day change as a fraction; fall back to that so the
+  // 1D column isn't blank on day one.
+  const liveChangeFrac = quoteSummary?.price?.regularMarketChangePercent ?? null;
+  const pc1d =
+    changes.pc1d ?? (liveChangeFrac != null ? liveChangeFrac * 100 : null);
+  const { pc1w, pc1m, pc3m } = changes;
 
   const price = indicators.price ?? null;
 

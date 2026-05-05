@@ -1,4 +1,5 @@
 import type { PortfolioHolding, TradeJournalEntry } from "@/db/schema";
+import { formatLocalPrice, getCurrencyForTicker } from "@/lib/yahoo-utils";
 
 interface TickerHoldingsProps {
   ticker: string;
@@ -7,9 +8,9 @@ interface TickerHoldingsProps {
   journal: TradeJournalEntry[];
 }
 
-function formatPrice(value: number | null | undefined): string {
+function formatPrice(ticker: string, value: number | null | undefined): string {
   if (value === null || value === undefined) return "—";
-  return `$${value.toFixed(2)}`;
+  return formatLocalPrice(ticker, value);
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -66,7 +67,7 @@ export function TickerHoldings({
               Cost basis
             </span>
             <p className="text-sm font-semibold tabular-nums text-gray-900">
-              {formatPrice(holding.costBasis)}
+              {formatPrice(ticker, holding.costBasis)}
             </p>
           </div>
           <div>
@@ -93,7 +94,8 @@ export function TickerHoldings({
               {pl === null ? "—" : `${pl >= 0 ? "+" : ""}${pl.toFixed(1)}%`}
               {marketValue !== null && (
                 <span className="block text-[10px] text-gray-400 font-normal">
-                  ${marketValue.toFixed(0)} mkt val
+                  {getCurrencyForTicker(ticker).symbol}
+                  {marketValue.toFixed(0)} mkt val
                 </span>
               )}
             </p>
@@ -131,7 +133,7 @@ export function TickerHoldings({
                     {entry.thesis}
                   </span>
                   <span className="text-gray-400 tabular-nums shrink-0">
-                    {formatPrice(entry.price)}
+                    {formatPrice(ticker, entry.price)}
                   </span>
                 </li>
               );

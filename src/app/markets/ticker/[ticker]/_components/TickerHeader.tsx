@@ -1,5 +1,6 @@
 import type { TickerMetric } from "@/db/schema";
 import { EditTickerButton } from "@/app/markets/scanner/stocks/_components/EditTickerButton";
+import { formatLocalPrice } from "@/lib/yahoo-utils";
 
 interface QuoteInput {
   regularMarketPrice?: number;
@@ -19,11 +20,6 @@ function formatPct(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
   const sign = value >= 0 ? "+" : "";
   return `${sign}${value.toFixed(1)}%`;
-}
-
-function formatPrice(value: number | null | undefined): string {
-  if (value === null || value === undefined || Number.isNaN(value)) return "—";
-  return `$${value.toFixed(2)}`;
 }
 
 function PctCell({
@@ -94,7 +90,7 @@ export function TickerHeader({
               Price
             </span>
             <span className="text-2xl font-semibold tabular-nums text-gray-900">
-              {formatPrice(price)}
+              {price == null ? "—" : formatLocalPrice(ticker, price)}
             </span>
           </div>
           <PctCell label="1D" value={change1d} />

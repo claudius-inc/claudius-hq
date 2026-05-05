@@ -250,22 +250,30 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
           metrics={metricsRow}
         />
 
-        <TickerThemesTags
-          themes={themeLinks.map((t) => ({
-            id: t.themeId,
-            name: t.name,
-            status: t.status,
-            targetPrice: t.targetPrice,
-          }))}
-          tags={tagNames}
-        />
+        {/* Desktop layout: themes + watchlist score stack on the left,
+            news fills the right column. Mobile/tablet stack everything. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+          <div className="space-y-6">
+            <TickerThemesTags
+              themes={themeLinks.map((t) => ({
+                id: t.themeId,
+                name: t.name,
+                status: t.status,
+                targetPrice: t.targetPrice,
+              }))}
+              tags={tagNames}
+            />
 
-        {metricsRow && (
-          <TickerScores
-            metrics={metricsRow}
-            description={universeRow?.notes || null}
-          />
-        )}
+            {metricsRow && (
+              <TickerScores
+                metrics={metricsRow}
+                description={universeRow?.notes || null}
+              />
+            )}
+          </div>
+
+          <TickerNews news={news} ticker={ticker} />
+        </div>
 
         {(holdingRow || journalRows.length > 0) && (
           <TickerHoldings
@@ -275,8 +283,6 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
             journal={journalRows}
           />
         )}
-
-        <TickerNews news={news} ticker={ticker} />
 
         <TickerResearch
           ticker={ticker}
