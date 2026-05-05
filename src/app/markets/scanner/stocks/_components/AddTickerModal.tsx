@@ -149,11 +149,14 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
   }, [tickerInput, market]);
 
   // After a successful Yahoo lookup, ask Gemini to classify the ticker. Fires
-  // exactly once per modal session (guarded by `aiPopulated`) so changing the
-  // market dropdown after the fact doesn't re-trigger.
+  // at most once per modal session (guarded by `aiPopulated`). If the lookup
+  // changes mid-flight (e.g. the lookup effect re-runs because auto-filling
+  // `market` mutated its deps), the cleanup aborts the in-flight fetch and
+  // unconditionally clears the loading flag so the UI never gets stuck.
   useEffect(() => {
-    if (!lookup || aiPopulated || aiLoading) return;
-    let cancelled = false;
+    if (!lookup || aiPopulated) return;
+    let active = true;
+    const controller = new AbortController();
     setAiLoading(true);
     (async () => {
       try {
@@ -167,10 +170,18 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
             exchange: lookup.exchange,
             market: lookup.market,
           }),
+          signal: controller.signal,
         });
-        if (!res.ok) return;
+        if (!active) return;
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          console.warn(
+            `[ai-suggest] ${res.status} ${res.statusText}: ${text.slice(0, 200)}`,
+          );
+          return;
+        }
         const data = (await res.json()) as AiSuggestion;
-        if (cancelled) return;
+        if (!active) return;
 
         if (data.description) {
           setNotes((prev) => (prev.trim() ? prev : data.description));
@@ -224,18 +235,25 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
         }
 
         setAiPopulated(true);
-      } catch {
-        // Silent fallback — modal still works without AI.
+      } catch (err) {
+        if (!active) return;
+        if ((err as Error).name === "AbortError") return;
+        console.warn("[ai-suggest] request failed:", err);
       } finally {
-        if (!cancelled) setAiLoading(false);
+        if (active) setAiLoading(false);
       }
     })();
     return () => {
-      cancelled = true;
+      active = false;
+      controller.abort();
+      // Unconditional reset — the in-flight finally block won't run while
+      // `active` is false, so this is the only place that clears the flag
+      // when the effect is re-triggered before the fetch resolves.
+      setAiLoading(false);
     };
     // We deliberately exclude `notes`, `tags`, `themeIds`, `pendingNew*` to
     // avoid re-running when the user edits the form post-AI. The aiPopulated
-    // gate prevents re-fires.
+    // gate prevents re-fires once we've successfully populated.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lookup, aiPopulated]);
 
