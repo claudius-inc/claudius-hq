@@ -10,6 +10,7 @@ export type WatchlistRow = {
   price: number | null;
   momentumScore: number | null;
   technicalScore: number | null;
+  priceChange1d: number | null;
   priceChange1w: number | null;
   priceChange1m: number | null;
   priceChange3m: number | null;
@@ -23,6 +24,7 @@ export type ThemeNameMap = Record<number, string>;
 type SortKey =
   | "momentumScore"
   | "technicalScore"
+  | "priceChange1d"
   | "priceChange1w"
   | "priceChange1m"
   | "priceChange3m"
@@ -111,6 +113,13 @@ export function WatchlistTable({
                   active={sortKey === "momentumScore"}
                   dir={sortDir}
                   onClick={() => onHeader("momentumScore")}
+                  align="right"
+                />
+                <Th
+                  label="1D Δ"
+                  active={sortKey === "priceChange1d"}
+                  dir={sortDir}
+                  onClick={() => onHeader("priceChange1d")}
                   align="right"
                 />
                 <Th
@@ -224,6 +233,9 @@ function Row({
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap text-right">
         <ScoreBadge value={row.momentumScore} />
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-right">
+        <Delta value={row.priceChange1d} />
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap text-right">
         <Delta value={row.priceChange1w} />

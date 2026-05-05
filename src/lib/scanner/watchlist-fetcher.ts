@@ -17,6 +17,7 @@ const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 export interface FetchedTicker {
   inputs: ScoringInputs;
   price: number | null;
+  pc1d: number | null;
   pc1w: number | null;
   pc1m: number | null;
   pc3m: number | null;
@@ -41,23 +42,26 @@ interface YahooQuoteSummaryResult {
  * Returns null for each if there aren't enough bars.
  */
 function computePriceChanges(closes: number[]): {
+  pc1d: number | null;
   pc1w: number | null;
   pc1m: number | null;
   pc3m: number | null;
 } {
   const last = closes[closes.length - 1];
-  if (!last || last === 0) return { pc1w: null, pc1m: null, pc3m: null };
+  if (!last || last === 0) return { pc1d: null, pc1w: null, pc1m: null, pc3m: null };
 
-  // Approximate trading days: 1w≈5, 1m≈21, 3m≈63
+  // Approximate trading days: 1d≈1, 1w≈5, 1m≈21, 3m≈63
+  const idx1d = closes.length - 1 - 1;
   const idx1w = closes.length - 1 - 5;
   const idx1m = closes.length - 1 - 21;
   const idx3m = closes.length - 1 - 63;
 
+  const pc1d = idx1d >= 0 && closes[idx1d] > 0 ? (last / closes[idx1d] - 1) * 100 : null;
   const pc1w = idx1w >= 0 && closes[idx1w] > 0 ? (last / closes[idx1w] - 1) * 100 : null;
   const pc1m = idx1m >= 0 && closes[idx1m] > 0 ? (last / closes[idx1m] - 1) * 100 : null;
   const pc3m = idx3m >= 0 && closes[idx3m] > 0 ? (last / closes[idx3m] - 1) * 100 : null;
 
-  return { pc1w, pc1m, pc3m };
+  return { pc1d, pc1w, pc1m, pc3m };
 }
 
 async function fetchBars(yahooTicker: string): Promise<OHLCV[] | null> {
@@ -104,7 +108,7 @@ export async function buildScoringInputs(ticker: string): Promise<FetchedTicker 
 
   const indicators = computeIndicators(bars);
   const closes = bars.map((b) => b.close).filter((c): c is number => c != null);
-  const { pc1w, pc1m, pc3m } = computePriceChanges(closes);
+  const { pc1d, pc1w, pc1m, pc3m } = computePriceChanges(closes);
 
   const price = indicators.price ?? null;
 
@@ -125,6 +129,7 @@ export async function buildScoringInputs(ticker: string): Promise<FetchedTicker 
   return {
     name,
     price,
+    pc1d,
     pc1w,
     pc1m,
     pc3m,

@@ -353,6 +353,7 @@ export const watchlistScores = sqliteTable("watchlist_scores", {
   price: real("price"),
   momentumScore: real("momentum_score"),
   technicalScore: real("technical_score"),
+  priceChange1d: real("price_change_1d"),
   priceChange1w: real("price_change_1w"),
   priceChange1m: real("price_change_1m"),
   priceChange3m: real("price_change_3m"),

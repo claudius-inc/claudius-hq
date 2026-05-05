@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
         price: r.price,
         momentum_score: r.momentumScore,
         technical_score: r.technicalScore,
+        change_1d: r.priceChange1d,
         change_1w: r.priceChange1w,
         change_1m: r.priceChange1m,
         change_3m: r.priceChange3m,
@@ -110,7 +111,7 @@ export async function GET(_req: NextRequest) {
       limit: "Max results, 1-100 (default: 50)",
     },
     pricing: "$0.20 per request",
-    response_fields: ["ticker", "name", "market", "price", "momentum_score", "technical_score", "change_1w", "change_1m", "change_3m", "themes", "data_quality"],
+    response_fields: ["ticker", "name", "market", "price", "momentum_score", "technical_score", "change_1d", "change_1w", "change_1m", "change_3m", "themes", "data_quality"],
     methodology: {
       momentum_score: "0-100; weighted blend of 12-1M return (40), 52w range position (25), trend persistence (20), distance above 200-SMA (15)",
       technical_score: "0-100; weighted blend of MA stack (30), RSI (25), MACD (20), volume trend (15), ADX (10)",

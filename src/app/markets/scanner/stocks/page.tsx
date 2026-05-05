@@ -44,6 +44,7 @@ async function loadData(): Promise<{
     price: r.price,
     momentumScore: r.momentumScore,
     technicalScore: r.technicalScore,
+    priceChange1d: r.priceChange1d,
     priceChange1w: r.priceChange1w,
     priceChange1m: r.priceChange1m,
     priceChange3m: r.priceChange3m,
