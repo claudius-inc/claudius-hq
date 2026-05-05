@@ -1,4 +1,5 @@
 import type { TickerMetric } from "@/db/schema";
+import { EditTickerButton } from "@/app/markets/scanner/stocks/_components/EditTickerButton";
 
 interface QuoteInput {
   regularMarketPrice?: number;
@@ -76,6 +77,7 @@ export function TickerHeader({
             {name && (
               <span className="text-base text-gray-600 truncate">{name}</span>
             )}
+            <EditTickerButton ticker={ticker} variant="labeled" />
           </div>
           {sector && (
             <p className="text-xs text-gray-400 mt-1">{sector}</p>

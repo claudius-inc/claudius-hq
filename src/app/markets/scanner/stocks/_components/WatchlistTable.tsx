@@ -3,6 +3,7 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Info, Newspaper } from "lucide-react";
+import { EditTickerButton } from "./EditTickerButton";
 
 export type WatchlistRow = {
   ticker: string;
@@ -155,6 +156,9 @@ export function WatchlistTable({
                 <th className="px-3 py-2.5 text-left text-xs font-medium text-gray-500">
                   Themes
                 </th>
+                <th className="px-3 py-2.5 text-right text-xs font-medium text-gray-500 w-10">
+                  <span className="sr-only">Edit</span>
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -274,6 +278,9 @@ function Row({
           ))}
         </div>
       </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-right">
+        <EditTickerButton ticker={row.ticker} />
+      </td>
     </tr>
   );
 }
@@ -378,10 +385,10 @@ function FilterBar({
     setFilters({ ...filters, themeIds: next });
   };
 
-  // On mobile, show first 3 themes collapsed; on desktop show all
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
-  const visibleThemes = !isMobile || themesExpanded ? themeEntries : themeEntries.slice(0, 3);
-  const hasMoreThemes = isMobile && themeEntries.length > 3;
+  // Collapse beyond 3 themes regardless of viewport so the filter row stays
+  // compact on dense theme libraries.
+  const visibleThemes = themesExpanded ? themeEntries : themeEntries.slice(0, 3);
+  const hasMoreThemes = themeEntries.length > 3;
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-sm">
