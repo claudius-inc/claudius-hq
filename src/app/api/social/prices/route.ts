@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
       .split(",")
       .map((t) => t.trim().toUpperCase())
       .filter(Boolean)
-      .slice(0, 30);
+      .slice(0, 50);
 
     // Step 1: Batch fetch all quotes
     const quoteMap = await fetchBatchQuotes(tickers);

@@ -62,9 +62,17 @@ export function SocialPageContent() {
   });
 
   // Fetch prices independently (slow, from Yahoo Finance)
-  const allTickers = tweetsData?.all_tickers || [];
+  // Only request prices for primary tickers of each tweet (first ticker per tweet)
+  const visibleTickers = useMemo(() => {
+    const set = new Set<string>();
+    for (const t of tweetsData?.tweets || []) {
+      const tickers = (t as TweetData).tickers || [];
+      if (tickers.length > 0) set.add(tickers[0]);
+    }
+    return Array.from(set);
+  }, [tweetsData]);
   const { data: pricesData, isLoading: loadingPrices } = useSWR(
-    allTickers.length > 0 ? `/api/social/prices?tickers=${allTickers.join(",")}` : null,
+    visibleTickers.length > 0 ? `/api/social/prices?tickers=${visibleTickers.join(",")}` : null,
     fetcher,
     {
       dedupingInterval: marketHours ? 60000 : 1800000,
