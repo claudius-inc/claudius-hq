@@ -9,12 +9,15 @@ interface EditTickerButtonProps {
   /** "icon" = compact pencil, "labeled" = pencil + "Edit" text. */
   variant?: "icon" | "labeled";
   className?: string;
+  /** Forwarded to the modal — where to navigate after a successful delete. */
+  redirectAfterDelete?: string;
 }
 
 export function EditTickerButton({
   ticker,
   variant = "icon",
   className = "",
+  redirectAfterDelete,
 }: EditTickerButtonProps) {
   const [open, setOpen] = useState(false);
 
@@ -42,6 +45,7 @@ export function EditTickerButton({
         open={open}
         ticker={ticker}
         onClose={() => setOpen(false)}
+        redirectAfterDelete={redirectAfterDelete}
       />
     </>
   );

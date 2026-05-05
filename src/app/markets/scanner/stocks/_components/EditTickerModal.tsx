@@ -10,6 +10,10 @@ interface EditTickerModalProps {
   open: boolean;
   ticker: string;
   onClose: () => void;
+  /** Path to navigate to after a successful delete (e.g. away from the
+   *  ticker detail page since it would otherwise be empty). If omitted,
+   *  the modal just closes and refreshes the current route. */
+  redirectAfterDelete?: string;
 }
 
 interface ThemeRow {
@@ -27,7 +31,12 @@ interface TickerData {
   themeIds: number[];
 }
 
-export function EditTickerModal({ open, ticker, onClose }: EditTickerModalProps) {
+export function EditTickerModal({
+  open,
+  ticker,
+  onClose,
+  redirectAfterDelete,
+}: EditTickerModalProps) {
   const router = useRouter();
   const { toast } = useToast();
 
@@ -46,6 +55,8 @@ export function EditTickerModal({ open, ticker, onClose }: EditTickerModalProps)
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const reset = useCallback(() => {
     setName("");
@@ -60,6 +71,8 @@ export function EditTickerModal({ open, ticker, onClose }: EditTickerModalProps)
     setLoadError(null);
     setSubmitting(false);
     setSubmitError(null);
+    setConfirmingDelete(false);
+    setDeleting(false);
   }, []);
 
   useEffect(() => {
@@ -76,7 +89,9 @@ export function EditTickerModal({ open, ticker, onClose }: EditTickerModalProps)
       try {
         const [tickerRes, themesRes] = await Promise.all([
           fetch(`/api/tickers/${encodeURIComponent(ticker)}`),
-          fetch("/api/themes"),
+          // Lite endpoint is DB-only; the heavy /api/themes fans out
+          // Yahoo calls per ticker × period and would block the modal.
+          fetch("/api/themes/lite"),
         ]);
         if (cancelled) return;
 
@@ -221,7 +236,42 @@ export function EditTickerModal({ open, ticker, onClose }: EditTickerModalProps)
     }
   };
 
-  const canSubmit = !loading && !submitting && !loadError;
+  const canSubmit =
+    !loading && !submitting && !deleting && !loadError && !confirmingDelete;
+  const canDelete = !loading && !submitting && !deleting && !loadError;
+
+  const onDelete = async () => {
+    if (!canDelete) return;
+    setDeleting(true);
+    setSubmitError(null);
+    try {
+      const res = await fetch(`/api/tickers/${encodeURIComponent(ticker)}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      if (!res.ok) {
+        const msg = data.error || "Failed to delete ticker";
+        setSubmitError(msg);
+        toast(msg, "error");
+        return;
+      }
+      toast(`Deleted ${ticker}`, "success");
+      onClose();
+      if (redirectAfterDelete) {
+        router.push(redirectAfterDelete);
+      } else {
+        router.refresh();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSubmitError(msg);
+      toast(msg, "error");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -389,18 +439,57 @@ export function EditTickerModal({ open, ticker, onClose }: EditTickerModalProps)
 
           {submitError && <p className="text-sm text-red-600">{submitError}</p>}
 
-          <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary">
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="btn-primary"
-            >
-              {submitting ? "Saving…" : "Save changes"}
-            </button>
-          </div>
+          {confirmingDelete ? (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-3 space-y-2">
+              <p className="text-sm text-red-800">
+                Delete <span className="font-mono font-semibold">{ticker}</span>?
+                This removes its registry entry, computed metrics, tag links,
+                and theme memberships. Trade-journal entries and research
+                reports are kept.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(false)}
+                  disabled={deleting}
+                  className="btn-secondary text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  disabled={deleting}
+                  className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-red-300 transition-colors"
+                >
+                  {deleting ? "Deleting…" : "Yes, delete"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmingDelete(true)}
+                disabled={!canDelete}
+                className="text-sm font-medium text-red-600 hover:text-red-700 hover:underline disabled:text-red-300 disabled:no-underline"
+              >
+                Delete ticker
+              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={onClose} className="btn-secondary">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="btn-primary"
+                >
+                  {submitting ? "Saving…" : "Save changes"}
+                </button>
+              </div>
+            </div>
+          )}
         </form>
       )}
     </Modal>

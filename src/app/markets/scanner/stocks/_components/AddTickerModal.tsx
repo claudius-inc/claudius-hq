@@ -91,7 +91,9 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch("/api/themes");
+        // Lite endpoint is DB-only; the heavy /api/themes fans out Yahoo
+        // calls per ticker × period which is unnecessary for a name list.
+        const res = await fetch("/api/themes/lite");
         if (!res.ok) return;
         const data = (await res.json()) as { themes?: ThemeRow[] };
         if (!cancelled && Array.isArray(data.themes)) {

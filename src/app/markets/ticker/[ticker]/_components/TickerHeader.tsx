@@ -77,7 +77,11 @@ export function TickerHeader({
             {name && (
               <span className="text-base text-gray-600 truncate">{name}</span>
             )}
-            <EditTickerButton ticker={ticker} variant="labeled" />
+            <EditTickerButton
+              ticker={ticker}
+              variant="labeled"
+              redirectAfterDelete="/markets/scanner/stocks"
+            />
           </div>
           {sector && (
             <p className="text-xs text-gray-400 mt-1">{sector}</p>

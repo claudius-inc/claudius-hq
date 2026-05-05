@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { eq, and, sql, inArray } from "drizzle-orm";
-import { db, scannerUniverse, themes, themeStocks } from "@/db";
+import {
+  db,
+  scannerUniverse,
+  themes,
+  themeStocks,
+  tickerMetrics,
+  tickerTags,
+  portfolioHoldings,
+} from "@/db";
 import { getTagsForTicker, setTickerTags, setThemeTags } from "@/lib/tags";
 import { logger } from "@/lib/logger";
 
@@ -248,6 +256,69 @@ export async function PATCH(
     });
   } catch (e) {
     logger.error("api/tickers/[ticker]", "PATCH failed", { error: e, ticker });
+    return NextResponse.json({ error: String(e) }, { status: 500 });
+  }
+}
+
+// DELETE /api/tickers/:ticker — removes the ticker from the registry, its
+// computed metrics, its tag links, and any theme memberships. Refuses with
+// 409 if there's an active portfolio_holding so we never silently destroy a
+// position the user is tracking. Leaves trade_journal and stock_reports
+// alone; those are historical/research records that stand on their own.
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: { ticker: string } },
+) {
+  const ticker = decodeURIComponent(params.ticker).trim().toUpperCase();
+  if (!ticker) {
+    return NextResponse.json({ error: "ticker is required" }, { status: 400 });
+  }
+
+  try {
+    const existing = await db
+      .select({ id: scannerUniverse.id })
+      .from(scannerUniverse)
+      .where(eq(scannerUniverse.ticker, ticker))
+      .limit(1);
+    if (existing.length === 0) {
+      return NextResponse.json(
+        { error: `Ticker "${ticker}" not found` },
+        { status: 404 },
+      );
+    }
+
+    const holding = await db
+      .select({ id: portfolioHoldings.id })
+      .from(portfolioHoldings)
+      .where(eq(portfolioHoldings.ticker, ticker))
+      .limit(1);
+    if (holding.length > 0) {
+      return NextResponse.json(
+        {
+          error: `${ticker} has an active portfolio holding. Remove the holding before deleting the ticker.`,
+        },
+        { status: 409 },
+      );
+    }
+
+    await db.transaction(async (tx) => {
+      await tx.delete(themeStocks).where(eq(themeStocks.ticker, ticker));
+      await tx.delete(tickerTags).where(eq(tickerTags.ticker, ticker));
+      await tx.delete(tickerMetrics).where(eq(tickerMetrics.ticker, ticker));
+      await tx.delete(scannerUniverse).where(eq(scannerUniverse.ticker, ticker));
+    });
+
+    revalidatePath("/markets/scanner/stocks");
+    revalidatePath("/markets/scanner/themes");
+    revalidatePath("/markets/themes");
+    revalidatePath(`/markets/ticker/${ticker}`);
+    revalidateTag("themes");
+
+    logger.info("api/tickers/[ticker]", "Ticker deleted", { ticker });
+
+    return NextResponse.json({ ticker, deleted: true });
+  } catch (e) {
+    logger.error("api/tickers/[ticker]", "DELETE failed", { error: e, ticker });
     return NextResponse.json({ error: String(e) }, { status: 500 });
   }
 }
