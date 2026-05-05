@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { db, themes, themeStocks, stockTags } from "@/db";
-import { eq } from "drizzle-orm";
+import {
+  db,
+  themes,
+  themeStocks,
+  tickerTags,
+  tags as tagsTable,
+} from "@/db";
+import { eq, inArray } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
 import { ThemeWithPerformance, ThemePerformance, ThemeStockStatus } from "@/lib/types";
 import { logger } from "@/lib/logger";
+import { getTagsForTheme, setThemeTags } from "@/lib/tags";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -260,22 +267,23 @@ export async function GET(
 
     const tickers = stocks.map((r) => r.ticker);
 
-    // Fetch tags for all stocks in this theme
+    // Fetch tags for all stocks in this theme via the normalized join.
     const stockTagMap: Record<string, string[]> = {};
     if (tickers.length > 0) {
       const tagRows = await db
-        .select({ ticker: stockTags.ticker, tags: stockTags.tags })
-        .from(stockTags);
+        .select({ ticker: tickerTags.ticker, name: tagsTable.name })
+        .from(tickerTags)
+        .innerJoin(tagsTable, eq(tagsTable.id, tickerTags.tagId))
+        .where(inArray(tickerTags.ticker, tickers));
       for (const row of tagRows) {
-        if (tickers.includes(row.ticker)) {
-          try {
-            stockTagMap[row.ticker] = JSON.parse(row.tags);
-          } catch {
-            stockTagMap[row.ticker] = [];
-          }
-        }
+        const arr = stockTagMap[row.ticker] || [];
+        arr.push(row.name);
+        stockTagMap[row.ticker] = arr;
       }
     }
+
+    // Tags attached to this theme (was previously themes.tags JSON column).
+    const themeTagNames = await getTagsForTheme(numericId);
 
     // Batch fetch all quotes first
     const quoteMap = await fetchBatchQuotes(tickers);
@@ -290,7 +298,7 @@ export async function GET(
       id: theme.id,
       name: theme.name,
       description: theme.description || "",
-      tags: (theme.tags as string[]) || [],
+      tags: themeTagNames,
       created_at: theme.createdAt || "",
       stocks: tickers,
       performance_1w: calcBasketPerformance(stockPerfs, "performance_1w"),
@@ -328,19 +336,20 @@ export async function PATCH(
     const body = await request.json();
     const { name, description, tags } = body;
 
-    const updateData: Record<string, string | null | string[]> = {};
+    const updateData: Record<string, string | null> = {};
     if (name !== undefined && typeof name === "string" && name.trim()) {
       updateData.name = name.trim();
     }
     if (description !== undefined) {
       updateData.description = typeof description === "string" ? description : null;
     }
-    if (tags !== undefined) {
-      const parsed = Array.isArray(tags) ? tags.map((t: string) => String(t).trim().toLowerCase()).filter(Boolean) : [];
-      updateData.tags = parsed;
-    }
 
-    if (Object.keys(updateData).length === 0) {
+    const tagsProvided = tags !== undefined;
+    const parsedTags = Array.isArray(tags)
+      ? tags.map((t: string) => String(t).trim().toLowerCase()).filter(Boolean)
+      : [];
+
+    if (Object.keys(updateData).length === 0 && !tagsProvided) {
       return NextResponse.json({ error: "No fields to update" }, { status: 400 });
     }
 
@@ -349,7 +358,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Theme not found" }, { status: 404 });
     }
 
-    await db.update(themes).set(updateData).where(eq(themes.id, numericId));
+    if (Object.keys(updateData).length > 0) {
+      await db.update(themes).set(updateData).where(eq(themes.id, numericId));
+    }
+    if (tagsProvided) {
+      await setThemeTags(numericId, parsedTags);
+    }
 
     revalidatePath("/markets/themes");
     revalidateTag("themes");

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { db, themes, themeStocks } from "@/db";
-import { desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
+import { db, themes, themeStocks, themeTags, tags as tagsTable } from "@/db";
 import YahooFinance from "yahoo-finance2";
-import { Theme, ThemeWithPerformance, ThemePerformance } from "@/lib/types";
+import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { logger } from "@/lib/logger";
+import { setThemeTags } from "@/lib/tags";
 import { getCrowdingScores, aggregateCrowdingScores, CrowdingScore } from "@/lib/crowding";
 
 // Instantiate Yahoo Finance client
@@ -147,6 +148,18 @@ export async function GET(request: NextRequest) {
     // Get all theme stocks
     const allStocks = await db.select().from(themeStocks);
 
+    // Get all theme→tag links once and group by theme.
+    const tagLinks = await db
+      .select({ themeId: themeTags.themeId, name: tagsTable.name })
+      .from(themeTags)
+      .innerJoin(tagsTable, eq(tagsTable.id, themeTags.tagId));
+    const tagsByTheme = new Map<number, string[]>();
+    for (const link of tagLinks) {
+      const arr = tagsByTheme.get(link.themeId) || [];
+      arr.push(link.name);
+      tagsByTheme.set(link.themeId, arr);
+    }
+
     // Group stocks by theme
     const stocksByTheme = new Map<number, string[]>();
     for (const stock of allStocks) {
@@ -182,7 +195,7 @@ export async function GET(request: NextRequest) {
         id: theme.id,
         name: theme.name,
         description: theme.description || "",
-        tags: (theme.tags as string[]) || [],
+        tags: tagsByTheme.get(theme.id) || [],
         created_at: theme.createdAt || "",
         stocks: tickers,
         performance_1w: calcBasketPerformance(stockPerfs, "performance_1w"),
@@ -232,16 +245,22 @@ export async function POST(request: NextRequest) {
       .values({
         name: name.trim(),
         description: description?.trim() || "",
-        tags: parsedTags,
       })
       .returning();
+
+    if (newTheme && parsedTags.length > 0) {
+      await setThemeTags(newTheme.id, parsedTags);
+    }
 
     // Invalidate theme list pages
     revalidatePath("/markets/themes");
     revalidateTag("themes");
     logger.info("api/themes", "Revalidated /markets/themes after theme creation");
 
-    return NextResponse.json({ theme: newTheme }, { status: 201 });
+    return NextResponse.json(
+      { theme: { ...newTheme, tags: parsedTags } },
+      { status: 201 },
+    );
   } catch (e) {
     const error = String(e);
     if (error.includes("UNIQUE constraint")) {

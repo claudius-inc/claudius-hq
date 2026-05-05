@@ -6,8 +6,9 @@ import {
   db,
   rawClient,
   scannerUniverse,
-  watchlistScores,
-  stockTags,
+  tickerMetrics,
+  tags as tagsTable,
+  tickerTags,
   themes,
   themeStocks,
   portfolioHoldings,
@@ -41,17 +42,6 @@ interface QuoteResult {
   regularMarketPreviousClose?: number;
   fullExchangeName?: string;
   exchange?: string;
-}
-
-function safeParseTags(raw: string | null | undefined): string[] {
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((t): t is string => typeof t === "string");
-  } catch {
-    return [];
-  }
 }
 
 export async function generateMetadata({
@@ -158,8 +148,8 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
 
   const [
     universeRow,
-    watchlistRow,
-    tagRow,
+    metricsRow,
+    tagRows,
     themeLinks,
     holdingRow,
     journalRows,
@@ -175,16 +165,15 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
       .then((rows) => rows[0] || null),
     db
       .select()
-      .from(watchlistScores)
-      .where(eq(watchlistScores.ticker, ticker))
+      .from(tickerMetrics)
+      .where(eq(tickerMetrics.ticker, ticker))
       .limit(1)
       .then((rows) => rows[0] || null),
     db
-      .select()
-      .from(stockTags)
-      .where(eq(stockTags.ticker, ticker))
-      .limit(1)
-      .then((rows) => rows[0] || null),
+      .select({ name: tagsTable.name })
+      .from(tickerTags)
+      .innerJoin(tagsTable, eq(tagsTable.id, tickerTags.tagId))
+      .where(eq(tickerTags.ticker, ticker)),
     db
       .select({
         themeId: themes.id,
@@ -212,19 +201,23 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
     loadReports(rawSlug, selectedReportId),
   ]);
 
-  const tags = safeParseTags(tagRow?.tags);
+  const tagNames = tagRows.map((t) => t.name);
+
   const displayName =
     quote?.shortName ||
     quote?.longName ||
     universeRow?.name ||
-    watchlistRow?.name ||
     null;
 
-  const market = universeRow?.market || watchlistRow?.market || null;
+  const market = universeRow?.market || null;
   const sector = universeRow?.sector || null;
 
   const exists =
-    !!universeRow || !!watchlistRow || !!tagRow || themeLinks.length > 0 || !!quote;
+    !!universeRow ||
+    !!metricsRow ||
+    tagRows.length > 0 ||
+    themeLinks.length > 0 ||
+    !!quote;
 
   return (
     <>
@@ -254,7 +247,7 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
           name={displayName}
           sector={sector}
           quote={quote}
-          watchlist={watchlistRow}
+          metrics={metricsRow}
         />
 
         <TickerThemesTags
@@ -264,16 +257,21 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
             status: t.status,
             targetPrice: t.targetPrice,
           }))}
-          tags={tags}
+          tags={tagNames}
         />
 
-        {watchlistRow && <TickerScores watchlist={watchlistRow} />}
+        {metricsRow && (
+          <TickerScores
+            metrics={metricsRow}
+            description={universeRow?.notes || null}
+          />
+        )}
 
         {(holdingRow || journalRows.length > 0) && (
           <TickerHoldings
             ticker={ticker}
             holding={holdingRow}
-            currentPrice={quote?.regularMarketPrice ?? watchlistRow?.price ?? null}
+            currentPrice={quote?.regularMarketPrice ?? metricsRow?.price ?? null}
             journal={journalRows}
           />
         )}

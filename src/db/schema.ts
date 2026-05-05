@@ -139,7 +139,6 @@ export const themes = sqliteTable("themes", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
   description: text("description").default(""),
-  tags: text("tags", { mode: "json" }).$type<string[]>().default([]),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 
@@ -155,11 +154,53 @@ export const themeStocks = sqliteTable("theme_stocks", {
   addedAt: text("added_at").default(sql`(datetime('now'))`),
 });
 
-export const stockTags = sqliteTable("stock_tags", {
-  ticker: text("ticker").primaryKey(),
-  tags: text("tags").notNull().default("[]"),
-  updatedAt: text("updated_at").notNull().default(sql`(datetime('now'))`),
+// ============================================================================
+// Tags — single normalized vocabulary used across tickers and themes.
+// Names are stored lowercased; the unique constraint enforces dedup.
+// ============================================================================
+
+export const tags = sqliteTable("tags", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull().unique(),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
+
+export const tickerTags = sqliteTable(
+  "ticker_tags",
+  {
+    ticker: text("ticker").notNull(),
+    tagId: integer("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.ticker, table.tagId] }),
+  }),
+);
+
+export const themeTags = sqliteTable(
+  "theme_tags",
+  {
+    themeId: integer("theme_id")
+      .notNull()
+      .references(() => themes.id, { onDelete: "cascade" }),
+    tagId: integer("tag_id")
+      .notNull()
+      .references(() => tags.id, { onDelete: "cascade" }),
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.themeId, table.tagId] }),
+  }),
+);
+
+export type Tag = typeof tags.$inferSelect;
+export type NewTag = typeof tags.$inferInsert;
+export type TickerTag = typeof tickerTags.$inferSelect;
+export type NewTickerTag = typeof tickerTags.$inferInsert;
+export type ThemeTag = typeof themeTags.$inferSelect;
+export type NewThemeTag = typeof themeTags.$inferInsert;
 
 export const tagPerformance = sqliteTable("tag_performance", {
   tag: text("tag").notNull(),
@@ -337,19 +378,24 @@ export type StockScan = typeof stockScans.$inferSelect;
 export type NewStockScan = typeof stockScans.$inferInsert;
 
 // ============================================================================
-// Watchlist Scores
+// Ticker Metrics — computed snapshot, refreshed by the scanner job. Pairs
+// with `scanner_universe` (registry) by ticker. Volatile-only columns; all
+// durable per-ticker data (name, market, sector, notes/description, tags,
+// theme membership) lives elsewhere.
 // ============================================================================
 
 export const WATCHLIST_MARKETS = ["US", "SGX", "HK", "JP", "KS", "CN"] as const;
 export type WatchlistMarket = (typeof WATCHLIST_MARKETS)[number];
 
-export const WATCHLIST_DATA_QUALITY = ["ok", "partial", "failed"] as const;
-export type WatchlistDataQuality = (typeof WATCHLIST_DATA_QUALITY)[number];
+export const TICKER_METRICS_DATA_QUALITY = ["ok", "partial", "failed"] as const;
+export type TickerMetricsDataQuality = (typeof TICKER_METRICS_DATA_QUALITY)[number];
 
-export const watchlistScores = sqliteTable("watchlist_scores", {
+// Backwards-compat alias for code that still imports the old name.
+export const WATCHLIST_DATA_QUALITY = TICKER_METRICS_DATA_QUALITY;
+export type WatchlistDataQuality = TickerMetricsDataQuality;
+
+export const tickerMetrics = sqliteTable("ticker_metrics", {
   ticker: text("ticker").primaryKey(),
-  name: text("name").notNull(),
-  market: text("market").$type<WatchlistMarket>().notNull(),
   price: real("price"),
   momentumScore: real("momentum_score"),
   technicalScore: real("technical_score"),
@@ -357,14 +403,17 @@ export const watchlistScores = sqliteTable("watchlist_scores", {
   priceChange1w: real("price_change_1w"),
   priceChange1m: real("price_change_1m"),
   priceChange3m: real("price_change_3m"),
-  themeIds: text("theme_ids").notNull(), // JSON array
-  description: text("description"),
-  dataQuality: text("data_quality").$type<WatchlistDataQuality>().notNull(),
+  dataQuality: text("data_quality").$type<TickerMetricsDataQuality>().notNull(),
   computedAt: text("computed_at").notNull(),
 });
 
-export type WatchlistScore = typeof watchlistScores.$inferSelect;
-export type NewWatchlistScore = typeof watchlistScores.$inferInsert;
+export type TickerMetric = typeof tickerMetrics.$inferSelect;
+export type NewTickerMetric = typeof tickerMetrics.$inferInsert;
+
+// Backwards-compat alias.
+export const watchlistScores = tickerMetrics;
+export type WatchlistScore = TickerMetric;
+export type NewWatchlistScore = NewTickerMetric;
 
 // ============================================================================
 // Scanner Universe - Tickers to scan

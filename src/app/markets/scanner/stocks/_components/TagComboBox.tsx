@@ -30,6 +30,8 @@ interface TagComboBoxProps {
   onCreate?: (query: string) => void | Promise<void>;
   /** Map from value → label so chips render correctly */
   labels: Record<string, string>;
+  /** Optional set of values that should render with the "new" amber chip styling. */
+  newValues?: Set<string>;
   placeholder?: string;
   /** Force-lowercase the query and disallow uppercase chips (true for tags). */
   lowerCase?: boolean;
@@ -43,6 +45,7 @@ export function TagComboBox({
   loadOptions,
   onCreate,
   labels,
+  newValues,
   placeholder = "Search or create…",
   lowerCase = false,
   ariaLabel,
@@ -162,25 +165,34 @@ export function TagComboBox({
         className="flex flex-wrap gap-1.5 items-center min-h-[2.25rem] px-2 py-1.5 border border-gray-300 rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500/40 focus-within:border-emerald-500"
         onClick={() => inputRef.current?.focus()}
       >
-        {selected.map((value) => (
-          <span
-            key={value}
-            className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs rounded-md border border-emerald-200"
-          >
-            {labels[value] ?? value}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                removeAt(value);
-              }}
-              className="text-emerald-400 hover:text-emerald-700 transition-colors"
-              aria-label={`Remove ${labels[value] ?? value}`}
+        {selected.map((value) => {
+          const isNew = newValues?.has(value);
+          const chipCls = isNew
+            ? "bg-amber-50 text-amber-800 border-amber-200"
+            : "bg-emerald-50 text-emerald-700 border-emerald-200";
+          const removeCls = isNew
+            ? "text-amber-400 hover:text-amber-700 transition-colors"
+            : "text-emerald-400 hover:text-emerald-700 transition-colors";
+          return (
+            <span
+              key={value}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-md border ${chipCls}`}
             >
-              <X className="w-3 h-3" />
-            </button>
-          </span>
-        ))}
+              {labels[value] ?? value}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeAt(value);
+                }}
+                className={removeCls}
+                aria-label={`Remove ${labels[value] ?? value}`}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          );
+        })}
         <input
           ref={inputRef}
           type="text"

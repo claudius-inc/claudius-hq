@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { db, watchlistScores, themes } from "@/db";
+import {
+  db,
+  tickerMetrics,
+  themes,
+  themeStocks,
+  scannerUniverse,
+} from "@/db";
 import { desc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
@@ -22,30 +28,65 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const params = requestSchema.parse(body);
 
-    const [scoreRows, themeRows] = await Promise.all([
-      db.select().from(watchlistScores).orderBy(desc(watchlistScores.momentumScore)),
+    const [scoreRows, themeRows, universeRows, themeStockRows] = await Promise.all([
+      db
+        .select()
+        .from(tickerMetrics)
+        .orderBy(desc(tickerMetrics.momentumScore)),
       db.select({ id: themes.id, name: themes.name }).from(themes),
+      db
+        .select({
+          ticker: scannerUniverse.ticker,
+          name: scannerUniverse.name,
+          market: scannerUniverse.market,
+          notes: scannerUniverse.notes,
+        })
+        .from(scannerUniverse),
+      db
+        .select({ ticker: themeStocks.ticker, themeId: themeStocks.themeId })
+        .from(themeStocks),
     ]);
 
     const themeNameById = new Map(themeRows.map((t) => [t.id, t.name]));
 
-    let filtered = scoreRows.filter((r) => (r.momentumScore ?? -1) >= params.min_momentum);
+    type UniverseInfo = {
+      name: string | null;
+      market: string | null;
+      notes: string | null;
+    };
+    const universeByTicker = new Map<string, UniverseInfo>();
+    for (const u of universeRows) {
+      universeByTicker.set(u.ticker, {
+        name: u.name,
+        market: u.market,
+        notes: u.notes ?? null,
+      });
+    }
+
+    const themeIdsByTicker = new Map<string, number[]>();
+    for (const link of themeStockRows) {
+      const arr = themeIdsByTicker.get(link.ticker) ?? [];
+      arr.push(link.themeId);
+      themeIdsByTicker.set(link.ticker, arr);
+    }
+
+    let filtered = scoreRows.filter(
+      (r) => (r.momentumScore ?? -1) >= params.min_momentum,
+    );
     if (params.market !== "ALL") {
-      filtered = filtered.filter((r) => r.market === params.market);
+      filtered = filtered.filter(
+        (r) => universeByTicker.get(r.ticker)?.market === params.market,
+      );
     }
     filtered = filtered.slice(0, params.limit);
 
     const picks = filtered.map((r) => {
-      let themeIds: number[] = [];
-      try {
-        themeIds = JSON.parse(r.themeIds);
-      } catch {
-        /* ignore */
-      }
+      const universe = universeByTicker.get(r.ticker);
+      const themeIds = themeIdsByTicker.get(r.ticker) ?? [];
       return {
         ticker: r.ticker,
-        name: r.name,
-        market: r.market,
+        name: universe?.name ?? r.ticker,
+        market: universe?.market ?? null,
         price: r.price,
         momentum_score: r.momentumScore,
         technical_score: r.technicalScore,
@@ -53,7 +94,7 @@ export async function POST(req: NextRequest) {
         change_1w: r.priceChange1w,
         change_1m: r.priceChange1m,
         change_3m: r.priceChange3m,
-        description: r.description,
+        description: universe?.notes ?? null,
         themes: themeIds.map((id) => themeNameById.get(id) ?? `#${id}`),
         data_quality: r.dataQuality,
       };
@@ -104,7 +145,7 @@ export async function GET(_req: NextRequest) {
     endpoint: "/api/acp/stock-scan",
     method: "POST",
     description: "Returns the Claudius watchlist of theme-tracked tickers with momentum and technical scores.",
-    version: "3.0",
+    version: "3.1",
     params: {
       market: "US | SGX | HK | JP | KS | CN | ALL (default: ALL)",
       min_momentum: "Minimum momentum score 0-100 (default: 0)",

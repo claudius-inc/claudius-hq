@@ -354,6 +354,7 @@ export interface ThemeLite {
   id: number;
   name: string;
   description: string;
+  tags: string[];
   created_at: string;
   stocks: string[];
 }
@@ -361,7 +362,20 @@ export interface ThemeLite {
 export async function fetchThemesLite(): Promise<{ themes: ThemeLite[]; stock_tags: Record<string, string[]> }> {
   const allThemes = await db.select().from(themes).orderBy(themes.name);
   const allStocks = await db.select().from(themeStocks);
-  const allTagRows = await rawClient.execute("SELECT ticker, tags FROM stock_tags");
+
+  // Ticker → tag names, via ticker_tags ⨝ tags.
+  const tickerTagRows = await rawClient.execute(`
+    SELECT tt.ticker AS ticker, t.name AS name
+    FROM ticker_tags tt
+    JOIN tags t ON t.id = tt.tag_id
+  `);
+
+  // Theme id → tag names, via theme_tags ⨝ tags.
+  const themeTagRows = await rawClient.execute(`
+    SELECT th.theme_id AS theme_id, t.name AS name
+    FROM theme_tags th
+    JOIN tags t ON t.id = th.tag_id
+  `);
 
   const stocksByTheme = new Map<number, string[]>();
   for (const stock of allStocks) {
@@ -370,21 +384,27 @@ export async function fetchThemesLite(): Promise<{ themes: ThemeLite[]; stock_ta
     stocksByTheme.set(stock.themeId, existing);
   }
 
-  // Build ticker -> tags map
   const stockTagsMap: Record<string, string[]> = {};
-  for (const row of allTagRows.rows) {
-    try {
-      stockTagsMap[row.ticker as string] = JSON.parse(row.tags as string);
-    } catch {
-      stockTagsMap[row.ticker as string] = [];
-    }
+  for (const row of tickerTagRows.rows) {
+    const ticker = String(row.ticker);
+    const arr = stockTagsMap[ticker] || [];
+    arr.push(String(row.name));
+    stockTagsMap[ticker] = arr;
+  }
+
+  const tagsByThemeId = new Map<number, string[]>();
+  for (const row of themeTagRows.rows) {
+    const id = Number(row.theme_id);
+    const arr = tagsByThemeId.get(id) || [];
+    arr.push(String(row.name));
+    tagsByThemeId.set(id, arr);
   }
 
   const themesLite = allThemes.map((theme) => ({
     id: theme.id,
     name: theme.name,
     description: theme.description || "",
-    tags: (theme.tags as string[]) || [],
+    tags: tagsByThemeId.get(theme.id) || [],
     created_at: theme.createdAt || "",
     stocks: stocksByTheme.get(theme.id) || [],
   }));

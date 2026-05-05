@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { TagComboBox, type ComboOption } from "./TagComboBox";
@@ -27,6 +28,12 @@ interface ThemeRow {
   name: string;
 }
 
+interface AiSuggestion {
+  description: string;
+  tags: { name: string; isExisting: boolean }[];
+  themes: { name: string; id: number | null; isExisting: boolean }[];
+}
+
 const MARKETS = ["US", "SGX", "HK", "JP", "CN"] as const;
 
 export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
@@ -40,6 +47,7 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
   const [notes, setNotes] = useState("");
 
   const [tags, setTags] = useState<string[]>([]);
+  const [pendingNewTags, setPendingNewTags] = useState<string[]>([]); // tag names that don't yet exist in DB
   const [themeIds, setThemeIds] = useState<string[]>([]); // string IDs of selected existing themes
   const [pendingNewThemes, setPendingNewThemes] = useState<string[]>([]); // names of themes that will be created
 
@@ -50,6 +58,9 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiPopulated, setAiPopulated] = useState(false);
+
   const lookupDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const reset = useCallback(() => {
@@ -59,12 +70,15 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     setSector("");
     setNotes("");
     setTags([]);
+    setPendingNewTags([]);
     setThemeIds([]);
     setPendingNewThemes([]);
     setLookup(null);
     setLookupLoading(false);
     setLookupError(null);
     setSubmitError(null);
+    setAiLoading(false);
+    setAiPopulated(false);
   }, []);
 
   useEffect(() => {
@@ -134,6 +148,97 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tickerInput, market]);
 
+  // After a successful Yahoo lookup, ask Gemini to classify the ticker. Fires
+  // exactly once per modal session (guarded by `aiPopulated`) so changing the
+  // market dropdown after the fact doesn't re-trigger.
+  useEffect(() => {
+    if (!lookup || aiPopulated || aiLoading) return;
+    let cancelled = false;
+    setAiLoading(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/tickers/ai-suggest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ticker: lookup.normalized,
+            name: lookup.name,
+            sector: lookup.sector,
+            exchange: lookup.exchange,
+            market: lookup.market,
+          }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as AiSuggestion;
+        if (cancelled) return;
+
+        if (data.description) {
+          setNotes((prev) => (prev.trim() ? prev : data.description));
+        }
+
+        if (Array.isArray(data.tags) && data.tags.length > 0) {
+          setTags((prev) => {
+            const next = [...prev];
+            for (const t of data.tags) {
+              if (!next.includes(t.name)) next.push(t.name);
+            }
+            return next;
+          });
+          setPendingNewTags((prev) => {
+            const next = [...prev];
+            for (const t of data.tags) {
+              if (!t.isExisting && !next.includes(t.name)) next.push(t.name);
+            }
+            return next;
+          });
+        }
+
+        if (Array.isArray(data.themes) && data.themes.length > 0) {
+          const existingIdsToAdd: string[] = [];
+          const newNamesToAdd: string[] = [];
+          for (const t of data.themes) {
+            if (t.isExisting && t.id != null) {
+              existingIdsToAdd.push(String(t.id));
+            } else if (!t.isExisting && t.name) {
+              newNamesToAdd.push(t.name);
+            }
+          }
+          if (existingIdsToAdd.length > 0) {
+            setThemeIds((prev) => {
+              const next = [...prev];
+              for (const id of existingIdsToAdd) {
+                if (!next.includes(id)) next.push(id);
+              }
+              return next;
+            });
+          }
+          if (newNamesToAdd.length > 0) {
+            setPendingNewThemes((prev) => {
+              const next = [...prev];
+              for (const n of newNamesToAdd) {
+                if (!next.includes(n)) next.push(n);
+              }
+              return next;
+            });
+          }
+        }
+
+        setAiPopulated(true);
+      } catch {
+        // Silent fallback — modal still works without AI.
+      } finally {
+        if (!cancelled) setAiLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // We deliberately exclude `notes`, `tags`, `themeIds`, `pendingNew*` to
+    // avoid re-running when the user edits the form post-AI. The aiPopulated
+    // gate prevents re-fires.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookup, aiPopulated]);
+
   // Tag autocomplete loader.
   const loadTagOptions = useCallback(
     async (query: string): Promise<ComboOption[]> => {
@@ -168,16 +273,23 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     [allThemes],
   );
 
+  const pendingNewTagSet = useMemo(
+    () => new Set(pendingNewTags),
+    [pendingNewTags],
+  );
+
   const tagLabels = useMemo(() => {
     const out: Record<string, string> = {};
-    for (const t of tags) out[t] = t;
+    for (const t of tags) {
+      out[t] = pendingNewTagSet.has(t) ? `✨ ${t}` : t;
+    }
     return out;
-  }, [tags]);
+  }, [tags, pendingNewTagSet]);
 
   const themeLabels = useMemo(() => {
     const out: Record<string, string> = {};
     for (const t of allThemes) out[String(t.id)] = t.name;
-    for (const n of pendingNewThemes) out[`new:${n}`] = `${n} (new)`;
+    for (const n of pendingNewThemes) out[`new:${n}`] = `✨ ${n} (new)`;
     return out;
   }, [allThemes, pendingNewThemes]);
 
@@ -185,6 +297,17 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     () => [...themeIds, ...pendingNewThemes.map((n) => `new:${n}`)],
     [themeIds, pendingNewThemes],
   );
+
+  const newThemeValueSet = useMemo(
+    () => new Set(pendingNewThemes.map((n) => `new:${n}`)),
+    [pendingNewThemes],
+  );
+
+  const onTagsChange = (next: string[]) => {
+    setTags(next);
+    // If the user removed a chip, drop it from pendingNewTags too.
+    setPendingNewTags((prev) => prev.filter((t) => next.includes(t)));
+  };
 
   const onThemesChange = (next: string[]) => {
     const ids = next.filter((v) => !v.startsWith("new:"));
@@ -205,10 +328,25 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     setPendingNewThemes((prev) => [...prev, query]);
   };
 
-  const onCreateTag = (query: string) => {
+  const onCreateTag = async (query: string) => {
     const tag = query.trim().toLowerCase();
     if (!tag || tags.includes(tag)) return;
     setTags((prev) => [...prev, tag]);
+    // Mark as pending-new only if it's not already in the existing pool.
+    let isExisting = false;
+    try {
+      const params = new URLSearchParams({ q: tag, limit: "10" });
+      const res = await fetch(`/api/tags?${params}`);
+      if (res.ok) {
+        const data = (await res.json()) as { tags?: { name: string }[] };
+        isExisting = !!data.tags?.some((t) => t.name === tag);
+      }
+    } catch {
+      // ignore — assume new on failure
+    }
+    if (!isExisting) {
+      setPendingNewTags((prev) => (prev.includes(tag) ? prev : [...prev, tag]));
+    }
   };
 
   const canSubmit =
@@ -348,23 +486,52 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
         </div>
 
         <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="block text-sm font-medium text-gray-700">
+              Description (optional)
+            </label>
+            {aiLoading && (
+              <span className="text-[11px] text-gray-500 inline-flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-amber-500" />
+                AI suggesting…
+              </span>
+            )}
+          </div>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder="1-2 sentence summary of what the company does"
+            className="input w-full resize-none"
+          />
+        </div>
+
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Tags
           </label>
           <TagComboBox
             selected={tags}
-            onChange={setTags}
+            onChange={onTagsChange}
             loadOptions={loadTagOptions}
             onCreate={onCreateTag}
             labels={tagLabels}
+            newValues={pendingNewTagSet}
             placeholder="Search or create tags…"
             lowerCase
             ariaLabel="Tags"
           />
-          <p className="text-xs text-gray-400 mt-1">
-            Reuse existing tags where possible. Tags are saved to{" "}
-            <code className="text-[11px]">stock_tags</code>.
-          </p>
+          {pendingNewTags.length > 0 ? (
+            <p className="text-xs text-amber-600 mt-1">
+              Will create {pendingNewTags.length} new tag
+              {pendingNewTags.length === 1 ? "" : "s"} on submit.
+            </p>
+          ) : (
+            <p className="text-xs text-gray-400 mt-1">
+              Reuse existing tags where possible. Tags share one normalized{" "}
+              <code className="text-[11px]">tags</code> pool across tickers and themes.
+            </p>
+          )}
         </div>
 
         <div>
@@ -377,6 +544,7 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
             loadOptions={loadThemeOptions}
             onCreate={onCreateTheme}
             labels={themeLabels}
+            newValues={newThemeValueSet}
             placeholder="Search or create themes…"
             ariaLabel="Themes"
           />
@@ -386,19 +554,6 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
               {pendingNewThemes.length === 1 ? "" : "s"} on submit.
             </p>
           )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Notes (optional)
-          </label>
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            placeholder="Why is this on the watchlist?"
-            className="input w-full resize-none"
-          />
         </div>
 
         {submitError && (

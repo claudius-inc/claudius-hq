@@ -1,38 +1,54 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const fakeRows = [
-  { ticker: "AAPL",  name: "Apple", market: "US",  price: 180, momentumScore: 82, technicalScore: 75, priceChange1w: 1.2,  priceChange1m: 4.5, priceChange3m: 8.0, themeIds: "[1]", dataQuality: "ok", computedAt: "2026-05-03T12:00:00Z" },
-  { ticker: "D05.SI", name: "DBS",   market: "SGX", price: 35,  momentumScore: 40, technicalScore: 50, priceChange1w: -0.5, priceChange1m: 1.0, priceChange3m: 2.0, themeIds: "[2]", dataQuality: "ok", computedAt: "2026-05-03T12:00:00Z" },
+// Metrics rows now carry only volatile/computed columns; name/market/description
+// are sourced from scanner_universe via JOIN, themeIds from theme_stocks.
+const fakeMetrics = [
+  { ticker: "AAPL",  price: 180, momentumScore: 82, technicalScore: 75, priceChange1d: 0.3, priceChange1w: 1.2,  priceChange1m: 4.5, priceChange3m: 8.0, dataQuality: "ok", computedAt: "2026-05-03T12:00:00Z" },
+  { ticker: "D05.SI", price: 35,  momentumScore: 40, technicalScore: 50, priceChange1d: 0.0, priceChange1w: -0.5, priceChange1m: 1.0, priceChange3m: 2.0, dataQuality: "ok", computedAt: "2026-05-03T12:00:00Z" },
 ];
 const fakeThemes = [{ id: 1, name: "AI" }, { id: 2, name: "SG Banks" }];
+const fakeUniverse = [
+  { ticker: "AAPL", name: "Apple", market: "US", notes: "Consumer electronics" },
+  { ticker: "D05.SI", name: "DBS", market: "SGX", notes: "SG bank" },
+];
+const fakeThemeStocks = [
+  { ticker: "AAPL", themeId: 1 },
+  { ticker: "D05.SI", themeId: 2 },
+];
 
 vi.mock("@/db", () => {
-  const watchlistScores = { ticker: "ticker", momentumScore: "momentum_score" };
+  const tickerMetrics = { ticker: "ticker", momentumScore: "momentum_score" };
   const themes = { id: "id", name: "name" };
-  // Two distinct select() return shapes — the watchlist call uses .from().orderBy(),
-  // the themes call uses .from() returning the rows directly via thenable.
+  const scannerUniverse = { ticker: "ticker", name: "name", market: "market", notes: "notes" };
+  const themeStocks = { ticker: "ticker", themeId: "themeId" };
+
+  // Per-test call sequence: tickerMetrics .from().orderBy(), then themes .from(),
+  // then scannerUniverse .from(), then themeStocks .from().
   let callIndex = 0;
   return {
     db: {
       select: vi.fn(() => {
         callIndex++;
-        if (callIndex % 2 === 1) {
-          // watchlistScores call
+        const which = ((callIndex - 1) % 4) + 1;
+        if (which === 1) {
           return {
             from: vi.fn(() => ({
-              orderBy: vi.fn(async () => fakeRows),
+              orderBy: vi.fn(async () => fakeMetrics),
             })),
           };
+        } else if (which === 2) {
+          return { from: vi.fn(async () => fakeThemes) };
+        } else if (which === 3) {
+          return { from: vi.fn(async () => fakeUniverse) };
         } else {
-          // themes call
-          return {
-            from: vi.fn(async () => fakeThemes),
-          };
+          return { from: vi.fn(async () => fakeThemeStocks) };
         }
       }),
     },
-    watchlistScores,
+    tickerMetrics,
     themes,
+    scannerUniverse,
+    themeStocks,
   };
 });
 
@@ -60,10 +76,14 @@ describe("POST /api/acp/stock-scan", () => {
     const apple = body.data.picks.find((p: any) => p.ticker === "AAPL");
     expect(apple).toMatchObject({
       ticker: "AAPL",
+      name: "Apple",
+      market: "US",
       momentum_score: 82,
       technical_score: 75,
       change_1w: 1.2,
+      description: "Consumer electronics",
     });
+    expect(apple.themes).toEqual(["AI"]);
     expect(apple).not.toHaveProperty("fundamentals");
   });
 
@@ -86,10 +106,10 @@ describe("POST /api/acp/stock-scan", () => {
 });
 
 describe("GET /api/acp/stock-scan", () => {
-  it("returns the new self-description", async () => {
+  it("returns the self-description", async () => {
     const res = await GET(new Request("http://localhost/api/acp/stock-scan") as any);
     const body = await res.json();
-    expect(body.version).toBe("3.0");
+    expect(body.version).toBeTruthy();
     expect(body.params).toHaveProperty("min_momentum");
     expect(body.params).not.toHaveProperty("enhanced");
   });

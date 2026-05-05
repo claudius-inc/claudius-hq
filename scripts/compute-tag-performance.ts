@@ -38,27 +38,28 @@ async function getReturn(ticker: string, days: number): Promise<number | null> {
 }
 
 async function main() {
-  console.log("Fetching all stock tags...");
-  const tagRows = await db.execute("SELECT ticker, tags FROM stock_tags");
+  console.log("Fetching ticker_tags ⨝ tags...");
+  const tagRows = await db.execute(`
+    SELECT tt.ticker AS ticker, t.name AS tag
+    FROM ticker_tags tt
+    JOIN tags t ON t.id = tt.tag_id
+  `);
 
-  // Build ticker -> tags mapping
-  const tickerTags: Record<string, string[]> = {};
-  for (const row of tagRows.rows) {
-    tickerTags[row.ticker as string] = JSON.parse(row.tags as string);
-  }
-
-  // Build tag -> tickers mapping
+  // Build tag -> tickers mapping (and the unique-ticker set as a side product).
   const tagTickers: Record<string, string[]> = {};
-  for (const [ticker, tags] of Object.entries(tickerTags)) {
-    for (const tag of tags) {
-      if (!tagTickers[tag]) tagTickers[tag] = [];
-      tagTickers[tag].push(ticker);
-    }
+  const tickerSet = new Set<string>();
+  for (const row of tagRows.rows) {
+    const ticker = String(row.ticker);
+    const tag = String(row.tag);
+    if (!tagTickers[tag]) tagTickers[tag] = [];
+    tagTickers[tag].push(ticker);
+    tickerSet.add(ticker);
   }
 
-  // Get all unique tickers
-  const allTickers = Array.from(new Set(Object.keys(tickerTags)));
-  console.log(`Found ${allTickers.length} unique tickers across ${Object.keys(tagTickers).length} tags`);
+  const allTickers = Array.from(tickerSet);
+  console.log(
+    `Found ${allTickers.length} unique tickers across ${Object.keys(tagTickers).length} tags`,
+  );
 
   // Fetch returns for all tickers (batched, 20 concurrent)
   const returns: Record<string, { "1W": number | null; "1M": number | null; "3M": number | null }> = {};

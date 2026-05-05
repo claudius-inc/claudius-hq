@@ -1,4 +1,4 @@
-import type { WatchlistScore } from "@/db/schema";
+import type { TickerMetric } from "@/db/schema";
 
 function ScoreBadge({
   label,
@@ -46,8 +46,14 @@ const QUALITY_CLS: Record<string, string> = {
   failed: "bg-gray-100 text-gray-500 border-gray-200",
 };
 
-export function TickerScores({ watchlist }: { watchlist: WatchlistScore }) {
-  const quality = watchlist.dataQuality;
+export function TickerScores({
+  metrics,
+  description,
+}: {
+  metrics: TickerMetric;
+  description?: string | null;
+}) {
+  const quality = metrics.dataQuality;
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
       <div className="flex items-center justify-between mb-3">
@@ -61,13 +67,11 @@ export function TickerScores({ watchlist }: { watchlist: WatchlistScore }) {
         </span>
       </div>
       <div className="flex items-center gap-8">
-        <ScoreBadge label="Momentum" value={watchlist.momentumScore} />
-        <ScoreBadge label="Technical" value={watchlist.technicalScore} />
+        <ScoreBadge label="Momentum" value={metrics.momentumScore} />
+        <ScoreBadge label="Technical" value={metrics.technicalScore} />
       </div>
-      {watchlist.description && (
-        <p className="text-xs text-gray-500 mt-3 leading-relaxed">
-          {watchlist.description}
-        </p>
+      {description && (
+        <p className="text-xs text-gray-500 mt-3 leading-relaxed">{description}</p>
       )}
     </div>
   );

@@ -1,4 +1,4 @@
-import type { WatchlistScore } from "@/db/schema";
+import type { TickerMetric } from "@/db/schema";
 
 interface QuoteInput {
   regularMarketPrice?: number;
@@ -11,7 +11,7 @@ interface TickerHeaderProps {
   name: string | null;
   sector: string | null;
   quote: QuoteInput | null;
-  watchlist: WatchlistScore | null;
+  metrics: TickerMetric | null;
 }
 
 function formatPct(value: number | null | undefined): string {
@@ -56,14 +56,14 @@ export function TickerHeader({
   name,
   sector,
   quote,
-  watchlist,
+  metrics,
 }: TickerHeaderProps) {
-  const price = quote?.regularMarketPrice ?? watchlist?.price ?? null;
+  const price = quote?.regularMarketPrice ?? metrics?.price ?? null;
   const change1d =
-    quote?.regularMarketChangePercent ?? watchlist?.priceChange1d ?? null;
-  const change1w = watchlist?.priceChange1w ?? null;
-  const change1m = watchlist?.priceChange1m ?? null;
-  const change3m = watchlist?.priceChange3m ?? null;
+    quote?.regularMarketChangePercent ?? metrics?.priceChange1d ?? null;
+  const change1w = metrics?.priceChange1w ?? null;
+  const change1m = metrics?.priceChange1m ?? null;
+  const change3m = metrics?.priceChange3m ?? null;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">

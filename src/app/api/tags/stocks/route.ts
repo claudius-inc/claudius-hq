@@ -118,20 +118,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Find all tickers with this tag
-    const rows = await rawClient.execute("SELECT ticker, tags FROM stock_tags");
-    const tickers: string[] = [];
-
-    for (const row of rows.rows) {
-      try {
-        const tags: string[] = JSON.parse(row.tags as string);
-        if (tags.includes(tag)) {
-          tickers.push(row.ticker as string);
-        }
-      } catch {
-        // skip
-      }
-    }
+    // Find all tickers with this tag via the normalized ticker_tags + tags
+    // join (lowercased name).
+    const rows = await rawClient.execute({
+      sql: `
+        SELECT tt.ticker AS ticker
+        FROM ticker_tags tt
+        JOIN tags t ON t.id = tt.tag_id
+        WHERE t.name = ?
+      `,
+      args: [tag.toLowerCase()],
+    });
+    const tickers: string[] = rows.rows.map((r) => String(r.ticker));
 
     if (tickers.length === 0) {
       return NextResponse.json({ stocks: [] });

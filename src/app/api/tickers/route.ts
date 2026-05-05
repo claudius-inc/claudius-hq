@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { eq, and, sql } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
-import { db, scannerUniverse, stockTags, themes, themeStocks } from "@/db";
+import { db, scannerUniverse, themes, themeStocks } from "@/db";
 import {
   normalizeTickerForMarket,
   normalizeMarketCode,
   detectMarketFromYahoo,
 } from "@/lib/scanner/ticker-normalize";
+import {
+  getTagsForTicker,
+  setTickerTags,
+  setThemeTags,
+} from "@/lib/tags";
 import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -166,47 +171,10 @@ export async function POST(request: NextRequest) {
         },
       });
 
-    // 4. Upsert stock_tags (merge with existing).
-    let mergedTags = tagList;
-    if (tagList.length > 0 || !isNewTicker) {
-      const existingTagRow = await db
-        .select()
-        .from(stockTags)
-        .where(eq(stockTags.ticker, normalized))
-        .limit(1);
-
-      let existingTags: string[] = [];
-      if (existingTagRow.length > 0) {
-        try {
-          const parsed = JSON.parse(existingTagRow[0].tags || "[]");
-          if (Array.isArray(parsed)) {
-            existingTags = parsed
-              .filter((t): t is string => typeof t === "string")
-              .map((t) => t.toLowerCase());
-          }
-        } catch {
-          existingTags = [];
-        }
-      }
-      mergedTags = normalizeTagList([...existingTags, ...tagList]);
-
-      if (mergedTags.length > 0 || existingTagRow.length > 0) {
-        if (existingTagRow.length > 0) {
-          await db
-            .update(stockTags)
-            .set({
-              tags: JSON.stringify(mergedTags),
-              updatedAt: sql`datetime('now')`,
-            })
-            .where(eq(stockTags.ticker, normalized));
-        } else if (mergedTags.length > 0) {
-          await db.insert(stockTags).values({
-            ticker: normalized,
-            tags: JSON.stringify(mergedTags),
-          });
-        }
-      }
-    }
+    // 4. Merge user-supplied tags with any pre-existing tags on this ticker.
+    const existingTags = await getTagsForTicker(normalized);
+    const mergedTags = normalizeTagList([...existingTags, ...tagList]);
+    await setTickerTags(normalized, mergedTags);
 
     // 5. Create new themes (skip duplicates by unique name).
     const createdThemeIds: number[] = [];
@@ -219,10 +187,15 @@ export async function POST(request: NextRequest) {
           .values({
             name: themeName,
             description: t.description?.trim() || "",
-            tags: normalizeTagList(t.tags),
           })
           .returning({ id: themes.id });
-        if (inserted) createdThemeIds.push(inserted.id);
+        if (inserted) {
+          createdThemeIds.push(inserted.id);
+          // Attach any tags the new theme came with.
+          if (Array.isArray(t.tags) && t.tags.length > 0) {
+            await setThemeTags(inserted.id, normalizeTagList(t.tags));
+          }
+        }
       } catch (e) {
         const msg = String(e);
         if (msg.includes("UNIQUE")) {

@@ -9,13 +9,13 @@
  * from this module, NOT from @/lib/scanner/watchlist.
  */
 
-import { db, themeStocks, watchlistScores } from "@/db";
+import { db, themeStocks, tickerMetrics, scannerUniverse } from "@/db";
 import { logger } from "@/lib/logger";
 import { sql } from "drizzle-orm";
 import { buildScoringInputs } from "@/lib/scanner/watchlist-fetcher";
 import { scoreMomentum, scoreTechnical } from "@/lib/scanner/watchlist";
 import type { ScoringInputs } from "@/lib/scanner/watchlist";
-import type { NewWatchlistScore, WatchlistMarket } from "@/db/schema";
+import type { NewTickerMetric, WatchlistMarket } from "@/db/schema";
 
 export interface ComputeResult {
   tickersProcessed: number;
@@ -49,7 +49,9 @@ function classifyQuality(inputs: ScoringInputs | null): "ok" | "partial" | "fail
 export async function computeWatchlistScores(): Promise<ComputeResult> {
   const startedAt = new Date().toISOString();
 
-  const rows = await db.select({ themeId: themeStocks.themeId, ticker: themeStocks.ticker }).from(themeStocks);
+  const rows = await db
+    .select({ themeId: themeStocks.themeId, ticker: themeStocks.ticker })
+    .from(themeStocks);
 
   const themesByTicker = new Map<string, number[]>();
   for (const r of rows) {
@@ -66,7 +68,10 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
     return { tickersProcessed: 0, okCount: 0, partialCount: 0, failedCount: 0, allFailed: false };
   }
 
-  const newRows: NewWatchlistScore[] = [];
+  const newRows: NewTickerMetric[] = [];
+  // Side-table of the registry data we resolved from Yahoo so we can keep
+  // `scanner_universe` in sync with what the scanner observes.
+  const registryUpdates: { ticker: string; market: WatchlistMarket; name: string }[] = [];
   let okCount = 0, partialCount = 0, failedCount = 0;
 
   const CONCURRENCY = 8;
@@ -87,7 +92,6 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
   }
 
   for (const ticker of tickers) {
-    const themeIds = themesByTicker.get(ticker) ?? [];
     const fetched = fetchedByTicker.get(ticker) ?? null;
 
     const quality = classifyQuality(fetched?.inputs ?? null);
@@ -100,8 +104,6 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
 
     newRows.push({
       ticker,
-      name: fetched?.name ?? ticker,
-      market: detectMarket(ticker),
       price: fetched?.price ?? null,
       momentumScore: momentum,
       technicalScore: technical,
@@ -109,9 +111,14 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
       priceChange1w: fetched?.pc1w ?? null,
       priceChange1m: fetched?.pc1m ?? null,
       priceChange3m: fetched?.pc3m ?? null,
-      themeIds: JSON.stringify(themeIds.sort((a, b) => a - b)),
       dataQuality: quality,
       computedAt: startedAt,
+    });
+
+    registryUpdates.push({
+      ticker,
+      market: detectMarket(ticker),
+      name: fetched?.name ?? ticker,
     });
   }
 
@@ -124,15 +131,15 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
   }
 
   await db.transaction(async (tx) => {
-    await tx.delete(watchlistScores).where(
+    // Drop metrics for tickers that left theme_stocks.
+    await tx.delete(tickerMetrics).where(
       sql`ticker NOT IN (${sql.join(tickers.map((t) => sql`${t}`), sql`, `)})`
     );
+
     for (const row of newRows) {
-      await tx.insert(watchlistScores).values(row).onConflictDoUpdate({
-        target: watchlistScores.ticker,
+      await tx.insert(tickerMetrics).values(row).onConflictDoUpdate({
+        target: tickerMetrics.ticker,
         set: {
-          name: row.name,
-          market: row.market,
           price: row.price,
           momentumScore: row.momentumScore,
           technicalScore: row.technicalScore,
@@ -140,11 +147,32 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
           priceChange1w: row.priceChange1w,
           priceChange1m: row.priceChange1m,
           priceChange3m: row.priceChange3m,
-          themeIds: row.themeIds,
           dataQuality: row.dataQuality,
           computedAt: row.computedAt,
         },
       });
+    }
+
+    // Keep `scanner_universe` in sync — every ticker we score should have a
+    // registry row with up-to-date name/market. Don't overwrite source/notes/
+    // enabled, which are user-managed.
+    for (const u of registryUpdates) {
+      await tx
+        .insert(scannerUniverse)
+        .values({
+          ticker: u.ticker,
+          market: u.market,
+          name: u.name,
+          source: "discovered",
+        })
+        .onConflictDoUpdate({
+          target: scannerUniverse.ticker,
+          set: {
+            market: u.market,
+            name: u.name,
+            updatedAt: sql`datetime('now')`,
+          },
+        });
     }
   });
 

@@ -8,16 +8,24 @@ const themeStocksRows = [
 ];
 
 let upsertedRows: any[] = [];
+let universeUpserts: any[] = [];
 let deleteCalled = false;
 
 vi.mock("@/db", () => {
   const themeStocks = { themeId: "themeId", ticker: "ticker" };
-  const watchlistScores = { ticker: "ticker" };
+  const tickerMetrics = { ticker: "ticker" };
+  const scannerUniverse = { ticker: "ticker" };
   const tx = {
     delete: vi.fn(() => ({ where: vi.fn(async () => { deleteCalled = true; }) })),
-    insert: vi.fn(() => ({
+    insert: vi.fn((table: any) => ({
       values: vi.fn((row: any) => ({
-        onConflictDoUpdate: vi.fn(async () => { upsertedRows.push(row); }),
+        onConflictDoUpdate: vi.fn(async () => {
+          if (table === scannerUniverse) {
+            universeUpserts.push(row);
+          } else {
+            upsertedRows.push(row);
+          }
+        }),
       })),
     })),
   };
@@ -27,7 +35,8 @@ vi.mock("@/db", () => {
       transaction: vi.fn(async (cb: any) => cb(tx)),
     },
     themeStocks,
-    watchlistScores,
+    tickerMetrics,
+    scannerUniverse,
   };
 });
 
@@ -50,11 +59,12 @@ const okFetch = (ticker: string) => ({
 describe("computeWatchlistScores", () => {
   beforeEach(() => {
     upsertedRows = [];
+    universeUpserts = [];
     deleteCalled = false;
     vi.mocked(buildScoringInputs).mockReset();
   });
 
-  it("dedupes tickers across themes and writes one row per ticker", async () => {
+  it("dedupes tickers across themes and writes one metrics row per ticker", async () => {
     vi.mocked(buildScoringInputs).mockImplementation(async (t) => okFetch(t));
     const result = await computeWatchlistScores();
     expect(result.tickersProcessed).toBe(3); // AAPL, MSFT, D05.SI
@@ -62,11 +72,26 @@ describe("computeWatchlistScores", () => {
     expect(written).toEqual(new Set(["AAPL", "MSFT", "D05.SI"]));
   });
 
-  it("aggregates theme_ids for tickers spanning multiple themes", async () => {
+  it("upserts scanner_universe for every observed ticker (registry sync)", async () => {
+    vi.mocked(buildScoringInputs).mockImplementation(async (t) => okFetch(t));
+    await computeWatchlistScores();
+    const tickers = new Set(universeUpserts.map((r: any) => r.ticker));
+    expect(tickers).toEqual(new Set(["AAPL", "MSFT", "D05.SI"]));
+    const aapl = universeUpserts.find((r: any) => r.ticker === "AAPL");
+    expect(aapl.name).toBe("Name of AAPL");
+    expect(aapl.market).toBe("US");
+    const dbs = universeUpserts.find((r: any) => r.ticker === "D05.SI");
+    expect(dbs.market).toBe("SGX");
+  });
+
+  it("metrics row no longer carries name/market/themeIds/description", async () => {
     vi.mocked(buildScoringInputs).mockImplementation(async (t) => okFetch(t));
     await computeWatchlistScores();
     const aapl = upsertedRows.find((r: any) => r.ticker === "AAPL");
-    expect(JSON.parse(aapl.themeIds).sort()).toEqual([1, 2]);
+    expect(aapl.name).toBeUndefined();
+    expect(aapl.market).toBeUndefined();
+    expect(aapl.themeIds).toBeUndefined();
+    expect(aapl.description).toBeUndefined();
   });
 
   it("writes data_quality='failed' for a ticker whose fetch returned null", async () => {
