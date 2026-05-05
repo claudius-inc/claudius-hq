@@ -11,7 +11,7 @@
 
 import { db, themeStocks, tickerMetrics, scannerUniverse } from "@/db";
 import { logger } from "@/lib/logger";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { buildScoringInputs } from "@/lib/scanner/watchlist-fetcher";
 import { scoreMomentum, scoreTechnical } from "@/lib/scanner/watchlist";
 import type { ScoringInputs } from "@/lib/scanner/watchlist";
@@ -130,6 +130,16 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
     };
   }
 
+  // Look up prior data quality so we can preserve last-known-good rows when a
+  // single scan fails for a ticker that was healthy on the previous run.
+  const priorRows = await db
+    .select({ ticker: tickerMetrics.ticker, dataQuality: tickerMetrics.dataQuality })
+    .from(tickerMetrics);
+  const priorQualityByTicker = new Map<string, string>();
+  for (const r of priorRows) priorQualityByTicker.set(r.ticker, r.dataQuality);
+
+  let preservedCount = 0;
+
   await db.transaction(async (tx) => {
     // Drop metrics for tickers that left theme_stocks.
     await tx.delete(tickerMetrics).where(
@@ -137,6 +147,22 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
     );
 
     for (const row of newRows) {
+      const prior = priorQualityByTicker.get(row.ticker);
+      const shouldPreserve =
+        row.dataQuality === "failed" && prior !== undefined && prior !== "failed";
+
+      if (shouldPreserve) {
+        // Don't regress a previously-ok/partial row to "failed". Bump
+        // `computedAt` to record that we attempted the scan; everything
+        // else stays as-is. The UI's ScanAge already shows the freshness.
+        await tx
+          .update(tickerMetrics)
+          .set({ computedAt: row.computedAt })
+          .where(eq(tickerMetrics.ticker, row.ticker));
+        preservedCount++;
+        continue;
+      }
+
       await tx.insert(tickerMetrics).values(row).onConflictDoUpdate({
         target: tickerMetrics.ticker,
         set: {
@@ -176,7 +202,10 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
     }
   });
 
-  logger.info("watchlist", `Run complete: ${okCount} ok / ${partialCount} partial / ${failedCount} failed`);
+  logger.info(
+    "watchlist",
+    `Run complete: ${okCount} ok / ${partialCount} partial / ${failedCount} failed (${preservedCount} preserved from prior)`,
+  );
 
   return {
     tickersProcessed: tickers.length,

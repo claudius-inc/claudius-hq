@@ -15,21 +15,9 @@ import {
   aggregateToWeekly,
   aggregateToMonthly,
 } from "./indicators";
+import { acquireYahooSlot, withYahooRetry } from "./yahoo-rate-limiter";
 import type { TechnicalMetrics } from "./scoring";
 import type { YahooStockData } from "./mode-scoring";
-
-// Rate limiting: 250ms between chart requests (reduced from 350ms since we batch quotes)
-const RATE_LIMIT_MS = 250;
-let lastRequestTime = 0;
-
-async function rateLimit(): Promise<void> {
-  const now = Date.now();
-  const elapsed = now - lastRequestTime;
-  if (elapsed < RATE_LIMIT_MS) {
-    await new Promise((resolve) => setTimeout(resolve, RATE_LIMIT_MS - elapsed));
-  }
-  lastRequestTime = Date.now();
-}
 
 interface YahooHistoricalBar {
   date: Date;
@@ -70,18 +58,19 @@ function toOHLCV(data: YahooHistoricalBar[]): OHLCV[] {
 export async function fetchHistoricalData(
   ticker: string
 ): Promise<OHLCV[] | null> {
-  await rateLimit();
-
   try {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - 14);
 
-    const result = await yahooFinance.historical(ticker, {
-      period1: startDate,
-      period2: endDate,
-      interval: "1d",
-    });
+    await acquireYahooSlot();
+    const result = await withYahooRetry(`historical(${ticker})`, () =>
+      yahooFinance.historical(ticker, {
+        period1: startDate,
+        period2: endDate,
+        interval: "1d",
+      }),
+    );
 
     const data = result as YahooHistoricalBar[];
     if (!data || data.length < 50) {
@@ -115,47 +104,47 @@ async function fetchBatchQuotes(tickers: string[]): Promise<Map<string, QuoteRes
     chunks.push(tickers.slice(i, i + CHUNK));
   }
 
-  await Promise.all(
-    chunks.map(async (chunk) => {
-      try {
-        const quotes = (await yahooFinance.quote(chunk)) as QuoteResult | QuoteResult[];
-        const arr = Array.isArray(quotes) ? quotes : [quotes];
+  // Process chunks sequentially (gated by acquireYahooSlot anyway) to avoid
+  // a paired-burst that defeats the rate limiter.
+  for (const chunk of chunks) {
+    try {
+      await acquireYahooSlot();
+      const quotes = (await withYahooRetry(`quote(batch:${chunk.length})`, () =>
+        yahooFinance.quote(chunk),
+      )) as QuoteResult | QuoteResult[];
+      const arr = Array.isArray(quotes) ? quotes : [quotes];
 
-        // Build a lookup map for this chunk
-        const tickerMap = new Map<string, string>();
-        for (const t of chunk) {
-          tickerMap.set(t.toUpperCase(), t);
-        }
-
-        for (const q of arr) {
-          if (q?.symbol) {
-            const symbolUpper = q.symbol.toUpperCase();
-            let originalTicker = tickerMap.get(symbolUpper);
-
-            // Store under original ticker if found
-            if (originalTicker) {
-              result.set(originalTicker, q);
-            }
-            // Also store under returned symbol as fallback
-            result.set(q.symbol, q);
-          }
-        }
-      } catch (e) {
-        console.error("[Yahoo] Batch quote failed -", e);
-        // Try individual calls
-        await Promise.all(
-          chunk.map(async (t) => {
-            try {
-              const q = (await yahooFinance.quote(t)) as QuoteResult;
-              if (q?.symbol) result.set(t, q);
-            } catch {
-              /* skip */
-            }
-          }),
-        );
+      const tickerMap = new Map<string, string>();
+      for (const t of chunk) {
+        tickerMap.set(t.toUpperCase(), t);
       }
-    }),
-  );
+
+      for (const q of arr) {
+        if (q?.symbol) {
+          const symbolUpper = q.symbol.toUpperCase();
+          const originalTicker = tickerMap.get(symbolUpper);
+          if (originalTicker) {
+            result.set(originalTicker, q);
+          }
+          result.set(q.symbol, q);
+        }
+      }
+    } catch (e) {
+      console.error("[Yahoo] Batch quote failed -", e);
+      // Fall back to individual calls (still rate-limited + retried).
+      for (const t of chunk) {
+        try {
+          await acquireYahooSlot();
+          const q = (await withYahooRetry(`quote(${t})`, () =>
+            yahooFinance.quote(t),
+          )) as QuoteResult;
+          if (q?.symbol) result.set(t, q);
+        } catch {
+          /* skip */
+        }
+      }
+    }
+  }
 
   return result;
 }
@@ -167,7 +156,10 @@ export async function fetchQuote(
   ticker: string
 ): Promise<{ price: number; volume: number } | null> {
   try {
-    const result = await yahooFinance.quote(ticker);
+    await acquireYahooSlot();
+    const result = await withYahooRetry(`quote(${ticker})`, () =>
+      yahooFinance.quote(ticker),
+    );
     const quote = result as Record<string, unknown>;
     if (!quote || quote.regularMarketPrice === undefined) {
       return null;
@@ -329,18 +321,19 @@ export async function batchFetchMetrics(
 export async function fetchFundamentalData(
   ticker: string
 ): Promise<YahooStockData | null> {
-  await rateLimit();
-
   try {
-    const result = await yahooFinance.quoteSummary(ticker, {
-      modules: [
-        "financialData",
-        "defaultKeyStatistics",
-        "summaryDetail",
-        "price",
-        "summaryProfile",
-      ],
-    });
+    await acquireYahooSlot();
+    const result = await withYahooRetry(`quoteSummary(${ticker})`, () =>
+      yahooFinance.quoteSummary(ticker, {
+        modules: [
+          "financialData",
+          "defaultKeyStatistics",
+          "summaryDetail",
+          "price",
+          "summaryProfile",
+        ],
+      }),
+    );
 
     if (!result) return null;
 

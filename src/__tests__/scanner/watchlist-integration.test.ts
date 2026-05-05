@@ -7,14 +7,18 @@ const themeStocksRows = [
   { themeId: 2, ticker: "D05.SI" },
 ];
 
+let priorMetricsRows: { ticker: string; dataQuality: string }[] = [];
 let upsertedRows: any[] = [];
 let universeUpserts: any[] = [];
+let preservedUpdateCount = 0;
 let deleteCalled = false;
+let selectCount = 0;
 
 vi.mock("@/db", () => {
   const themeStocks = { themeId: "themeId", ticker: "ticker" };
-  const tickerMetrics = { ticker: "ticker" };
+  const tickerMetrics = { ticker: "ticker", dataQuality: "dataQuality" };
   const scannerUniverse = { ticker: "ticker" };
+
   const tx = {
     delete: vi.fn(() => ({ where: vi.fn(async () => { deleteCalled = true; }) })),
     insert: vi.fn((table: any) => ({
@@ -28,10 +32,31 @@ vi.mock("@/db", () => {
         }),
       })),
     })),
+    // The orchestrator only calls update() in the preservation path (failed
+    // fetch with a prior non-failed row). We just count invocations.
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn(async () => {
+          preservedUpdateCount++;
+        }),
+      })),
+    })),
   };
+
+  // Two selects per run: (1) themeStocks, (2) tickerMetrics for prior state.
+  // The counter lives in module scope (above) so it can be reset per test.
   return {
     db: {
-      select: vi.fn(() => ({ from: vi.fn(async () => themeStocksRows) })),
+      select: vi.fn(() => {
+        const idx = selectCount++;
+        return {
+          from: vi.fn(async () => {
+            if (idx === 0) return themeStocksRows;
+            if (idx === 1) return priorMetricsRows;
+            return [];
+          }),
+        };
+      }),
       transaction: vi.fn(async (cb: any) => cb(tx)),
     },
     themeStocks,
@@ -60,7 +85,10 @@ describe("computeWatchlistScores", () => {
   beforeEach(() => {
     upsertedRows = [];
     universeUpserts = [];
+    preservedUpdateCount = 0;
+    priorMetricsRows = [];
     deleteCalled = false;
+    selectCount = 0;
     vi.mocked(buildScoringInputs).mockReset();
   });
 
@@ -94,13 +122,50 @@ describe("computeWatchlistScores", () => {
     expect(aapl.description).toBeUndefined();
   });
 
-  it("writes data_quality='failed' for a ticker whose fetch returned null", async () => {
+  it("writes data_quality='failed' for a brand-new ticker whose fetch returned null", async () => {
+    // No prior row → nothing to preserve → the failed row gets inserted.
     vi.mocked(buildScoringInputs).mockImplementation(async (t) => t === "AAPL" ? null : okFetch(t));
     await computeWatchlistScores();
     const aapl = upsertedRows.find((r: any) => r.ticker === "AAPL");
     expect(aapl.dataQuality).toBe("failed");
     expect(aapl.momentumScore).toBeNull();
     expect(aapl.technicalScore).toBeNull();
+  });
+
+  it("preserves a previously-ok row when the current fetch fails", async () => {
+    // AAPL was healthy last run; this run, its fetch fails. The orchestrator
+    // should NOT overwrite the row with a failed state — it should leave the
+    // metrics intact and only bump computedAt via tx.update().
+    priorMetricsRows = [
+      { ticker: "AAPL", dataQuality: "ok" },
+      { ticker: "MSFT", dataQuality: "ok" },
+      { ticker: "D05.SI", dataQuality: "partial" },
+    ];
+    vi.mocked(buildScoringInputs).mockImplementation(async (t) => t === "AAPL" ? null : okFetch(t));
+
+    await computeWatchlistScores();
+
+    // AAPL must NOT appear in upsertedRows — it should have been preserved.
+    const upsertTickers = upsertedRows.map((r: any) => r.ticker);
+    expect(upsertTickers).not.toContain("AAPL");
+    // It WAS attempted (preservation path triggered an update for computedAt).
+    expect(preservedUpdateCount).toBeGreaterThanOrEqual(1);
+    // Healthy tickers still get full upserts.
+    expect(upsertTickers).toContain("MSFT");
+    expect(upsertTickers).toContain("D05.SI");
+  });
+
+  it("overwrites a previously-failed row with a fresh failed row (no preservation)", async () => {
+    // AAPL was already 'failed' last run; preservation should NOT kick in
+    // because there's nothing better to preserve.
+    priorMetricsRows = [{ ticker: "AAPL", dataQuality: "failed" }];
+    vi.mocked(buildScoringInputs).mockImplementation(async (t) => t === "AAPL" ? null : okFetch(t));
+
+    await computeWatchlistScores();
+
+    const aapl = upsertedRows.find((r: any) => r.ticker === "AAPL");
+    expect(aapl).toBeDefined();
+    expect(aapl.dataQuality).toBe("failed");
   });
 
   it("does NOT write to DB if every fetch returns null", async () => {

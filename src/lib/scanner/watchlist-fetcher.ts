@@ -11,6 +11,7 @@ import { logger } from "@/lib/logger";
 import type { ScoringInputs } from "@/lib/scanner/watchlist";
 import { computeIndicators } from "@/lib/scanner/watchlist-indicators";
 import type { OHLCV } from "@/lib/scanner/indicators";
+import { acquireYahooSlot, withYahooRetry } from "@/lib/scanner/yahoo-rate-limiter";
 import YahooFinance from "yahoo-finance2";
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -69,11 +70,14 @@ async function fetchBars(yahooTicker: string): Promise<OHLCV[] | null> {
   const startDate = new Date();
   startDate.setMonth(startDate.getMonth() - 14);
   try {
-    const raw = await yahooFinance.chart(yahooTicker, {
-      period1: startDate,
-      period2: new Date(),
-      interval: "1d",
-    });
+    await acquireYahooSlot();
+    const raw = await withYahooRetry(`chart(${yahooTicker})`, () =>
+      yahooFinance.chart(yahooTicker, {
+        period1: startDate,
+        period2: new Date(),
+        interval: "1d",
+      }),
+    );
     const quotes = raw?.quotes ?? [];
     return quotes
       .filter((q) => q.close != null && q.high != null && q.low != null && q.open != null)
@@ -90,16 +94,29 @@ async function fetchBars(yahooTicker: string): Promise<OHLCV[] | null> {
   }
 }
 
+async function fetchQuoteSummary(
+  yahooTicker: string,
+): Promise<YahooQuoteSummaryResult | null> {
+  try {
+    await acquireYahooSlot();
+    return (await withYahooRetry(`quoteSummary(${yahooTicker})`, () =>
+      yahooFinance.quoteSummary(yahooTicker, {
+        modules: ["summaryDetail", "price"],
+      }),
+    )) as YahooQuoteSummaryResult;
+  } catch {
+    return null;
+  }
+}
+
 export async function buildScoringInputs(ticker: string): Promise<FetchedTicker | null> {
   const yahooTicker = normalizeTickerForYahoo(ticker);
 
-  // Fetch raw bars + lightweight quote data in parallel
-  const [bars, quoteSummary] = await Promise.all([
-    fetchBars(yahooTicker),
-    yahooFinance
-      .quoteSummary(yahooTicker, { modules: ["summaryDetail", "price"] })
-      .catch(() => null) as Promise<YahooQuoteSummaryResult | null>,
-  ]);
+  // Sequence the per-ticker pair so the rate limiter can pace cleanly —
+  // parallel fan-out (Promise.all) was creating paired bursts that overwhelmed
+  // Yahoo's tolerance for concurrent connections from a single client.
+  const bars = await fetchBars(yahooTicker);
+  const quoteSummary = await fetchQuoteSummary(yahooTicker);
 
   if (!bars || bars.length === 0) {
     logger.warn("watchlist-fetcher", `No historical bars for ${ticker}`);
