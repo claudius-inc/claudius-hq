@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavSectionSwitcher } from "@/components/NavSectionSwitcher";
 
 /* ── Primary sections ─────────────────────────────────────── */
 
 interface SubTab {
   href: string;
   label: string;
-  exact?: boolean;
 }
 
 interface PrimaryTab {
@@ -54,42 +54,45 @@ const primaryTabs: PrimaryTab[] = [
 export function MarketsTabs() {
   const pathname = usePathname();
 
-  const activeSection = primaryTabs.find((tab) => {
-    if (tab.exact) return pathname === tab.href;
-    return tab.activePaths.some((p) => pathname.startsWith(p));
-  });
-
-  const subTabs = activeSection?.subTabs;
-  const hasSubTabs = subTabs && subTabs.length > 0;
-
-  const isSubActive = (sub: SubTab) => {
-    if (sub.href.includes("#")) {
-      if (typeof window !== "undefined" && window.location.hash) {
-        return sub.href.includes(window.location.hash);
-      }
-      return false;
-    }
-    if (sub.exact) return pathname === sub.href;
-    return pathname.startsWith(sub.href);
-  };
-
   return (
-    <div className="space-y-2 bg-white/90 backdrop-blur-sm border-b border-gray-200">
+    <div className="bg-white/90 backdrop-blur-sm border-b border-gray-200">
       <div className="max-w-6xl mx-auto px-4">
-        {/* Primary tabs */}
-        <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
-          <nav className="flex items-center space-x-4 min-w-max">
+        <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+          <nav className="flex items-end space-x-4 min-w-max">
             {primaryTabs.map((tab) => {
               const active = tab.exact
                 ? pathname === tab.href
                 : tab.activePaths.some((p) => pathname.startsWith(p));
+              const hasSubTabs = tab.subTabs && tab.subTabs.length > 0;
+              // Transparent placeholder border keeps height identical between
+              // active and inactive tabs, so the row doesn't shift on navigation.
+              const borderCls = active
+                ? "border-gray-900"
+                : "border-transparent";
+
+              if (hasSubTabs) {
+                // The inner trigger button has its own `py-1`, so we shave 4px
+                // off both pt and pb here to make the button's *text* align
+                // with the plain Link tabs' text (not just the box bottoms).
+                return (
+                  <span
+                    key={tab.label}
+                    className={`min-h-[38px] flex items-end pt-1.5 pb-0.5 border-b-[2.5px] ${borderCls}`}
+                  >
+                    <NavSectionSwitcher
+                      sections={tab.subTabs!}
+                      placeholder={tab.label}
+                    />
+                  </span>
+                );
+              }
 
               return (
                 <Link
                   key={tab.label}
                   href={tab.href}
                   className={`
-                  min-h-[38px] flex items-end py-2 text-sm whitespace-nowrap
+                  min-h-[38px] flex items-end pt-2 pb-1.5 text-sm whitespace-nowrap border-b-[2.5px] ${borderCls}
                   ${
                     active
                       ? "font-semibold text-gray-900"
@@ -98,43 +101,11 @@ export function MarketsTabs() {
                 `}
                 >
                   {tab.label}
-                  {active && (
-                    <span className="flex flex-col items-start gap-0.5 -ml-0.5">
-                      <span className="w-1.5 h-[1px] bg-gray-900" />
-                    </span>
-                  )}
                 </Link>
               );
             })}
           </nav>
         </div>
-
-        {/* Mini pill sub-tabs */}
-        {hasSubTabs && (
-          <div className="overflow-x-auto scrollbar-hide -mx-1 px-1 py-2">
-            <div className="flex items-center gap-1.5 min-w-max bg-gray-100/80 rounded-full px-1.5 py-1 w-fit">
-              {subTabs.map((sub) => {
-                const subActive = isSubActive(sub);
-                return (
-                  <Link
-                    key={sub.href}
-                    href={sub.href}
-                    className={`
-                    min-h-[32px] flex items-center px-3 text-xs whitespace-nowrap rounded-full transition-all
-                    ${
-                      subActive
-                        ? "bg-white text-gray-900 font-medium shadow-sm"
-                        : "text-gray-500 hover:text-gray-700"
-                    }
-                  `}
-                  >
-                    {sub.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
