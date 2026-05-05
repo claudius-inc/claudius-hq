@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, tweetTickers } from "@/db";
-import { desc, like, and, sql, eq } from "drizzle-orm";
+import { desc, like, and, sql } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";

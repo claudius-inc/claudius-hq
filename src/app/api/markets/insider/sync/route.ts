@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db, insiderTrades } from "@/db";
+import { db } from "@/db";
 import { sql } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 

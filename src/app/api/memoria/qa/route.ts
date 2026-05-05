@@ -94,7 +94,7 @@ RULES:
     });
 
     if (!geminiRes.ok) {
-      const err = await geminiRes.text();
+      const _err = await geminiRes.text();
       return Response.json({ error: `Gemini error: ${geminiRes.status}` }, { status: 502 });
     }
 

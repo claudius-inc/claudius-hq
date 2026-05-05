@@ -4,7 +4,7 @@ import { desc } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth";
 
 // GET /api/portfolio/reports — List all portfolio reports
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const reports = await db
       .select()

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, memoriaEntries, memoriaEntryTags, memoriaTags } from "@/db";
-import { eq, ne, and, inArray, desc } from "drizzle-orm";
+import { db, memoriaEntries, memoriaEntryTags } from "@/db";
+import { eq, ne, and, inArray } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 // GET /api/memoria/[id]/related — Find related entries by tag overlap + ai_tags keyword overlap
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const id = parseInt(params.id, 10);

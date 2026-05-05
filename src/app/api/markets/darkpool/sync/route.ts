@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { db, darkpoolData, rawClient } from "@/db";
-import { sql, eq, and } from "drizzle-orm";
+import { db, darkpoolData } from "@/db";
+import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 // Sync endpoint - called by cron job (weekly)
@@ -30,7 +30,7 @@ async function fetchFinraAtsData(): Promise<AtsWeeklyData[]> {
     
     // Calculate the Friday of last week (ATS data is weekly ending Friday)
     const dayOfWeek = lastWeek.getDay();
-    const daysToFriday = (5 - dayOfWeek + 7) % 7;
+    const _daysToFriday = (5 - dayOfWeek + 7) % 7;
     const weekEndingDate = new Date(lastWeek);
     weekEndingDate.setDate(weekEndingDate.getDate() - (dayOfWeek === 5 ? 0 : (dayOfWeek + 2)));
     const weekEnding = weekEndingDate.toISOString().split("T")[0];

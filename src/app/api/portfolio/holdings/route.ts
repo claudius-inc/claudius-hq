@@ -16,7 +16,7 @@ function toSnakeCase(r: Record<string, unknown>) {
 }
 
 // GET /api/portfolio/holdings — List all holdings
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const rows = await db
       .select()

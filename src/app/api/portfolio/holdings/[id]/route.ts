@@ -67,7 +67,7 @@ export async function PUT(
 
 // DELETE /api/portfolio/holdings/[id] — Remove holding
 export async function DELETE(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   const { id } = params;

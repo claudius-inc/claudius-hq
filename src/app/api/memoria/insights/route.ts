@@ -6,7 +6,7 @@ import { analyzePatterns, analyzeConnections, analyzeDistillation } from "@/lib/
 import { logger } from "@/lib/logger";
 
 // GET /api/memoria/insights — List all insights
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const insights = await db
       .select()

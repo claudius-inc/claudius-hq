@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, clarityJournals } from "@/db";
-import { desc, eq, sql, and, isNull } from "drizzle-orm";
+import { desc, eq, sql, isNull } from "drizzle-orm";
 
 // GET /api/clarity-journal — List entries, optionally filtered by holdingId
 // Query params:

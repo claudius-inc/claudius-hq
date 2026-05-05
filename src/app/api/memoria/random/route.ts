@@ -3,7 +3,7 @@ import { db, memoriaEntries } from "@/db";
 import { eq, sql, and, or, isNull, lt } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000)
       .toISOString()

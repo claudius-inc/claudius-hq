@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db, congressTrades } from "@/db";
-import { sql, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 // Sync endpoint - called by cron job

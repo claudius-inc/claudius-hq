@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 export const dynamic = "force-dynamic";
 
 // POST /api/social/sync — triggers tweet fetch on VPS, returns new tweet count
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
   try {
     const apiKey = process.env.HQ_API_KEY;
     if (!apiKey) {
