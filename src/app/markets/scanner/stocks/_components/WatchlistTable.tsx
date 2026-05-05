@@ -430,14 +430,15 @@ function useHoverTooltip() {
 /* ── Info icon: shows company description on hover ── */
 function InfoHover({ content }: { content: string }) {
   const { open, ref, show, hide } = useHoverTooltip();
+  const rect = ref.current?.getBoundingClientRect();
   return (
     <div ref={ref} className="relative inline-flex" onMouseEnter={show} onMouseLeave={hide}>
       <Info className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500 transition-colors cursor-default flex-shrink-0" />
-      {open && (
+      {open && rect && (
         <div className="fixed z-[9999] bg-gray-900 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl pointer-events-none max-w-[280px] break-words whitespace-normal"
           style={{
-            bottom: `calc(100% - ${ref.current?.getBoundingClientRect().top ?? 0}px + 48)`,
-            left: Math.max(8, (ref.current?.getBoundingClientRect().left ?? 0) - 80),
+            bottom: `calc(100vh - ${rect.top - 8}px)`,
+            left: Math.max(8, Math.min(rect.left - 40, window.innerWidth - 300)),
           }}
         >
           {content}
