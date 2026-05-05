@@ -127,6 +127,7 @@ function formatDuration(startDate: string, endDate: string): string {
     (end.getMonth() - start.getMonth());
   const years = Math.floor(totalMonths / 12);
   const months = totalMonths % 12;
+  if (years === 0 && months === 0) return "<1m";
   if (years === 0) return `${months}m`;
   if (months === 0) return `${years}y`;
   return `${years}y ${months}m`;

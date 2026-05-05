@@ -867,6 +867,12 @@ export async function computeGavekalQuadrant(
   // history arrays so the RatioChart shows 50+ years instead of just the
   // weekly Yahoo window. The live current/ma7y/signal stay as-is so the
   // displayed quadrant + values remain fresh from today's IEF/Yahoo data.
+  //
+  // Capture the weekly histories BEFORE the monthly overwrite so we can
+  // recover the actual weekly flip date for the splice below.
+  const weeklyEnergyHistory = energyEfficiency.history;
+  const weeklyCurrencyHistory = currencyQuality.history;
+
   let regimeHistory: GavekalRegimePoint[] = await loadHistoricalRegimeHistory();
   const histRatios = await loadHistoricalRatioHistories();
   if (histRatios) {
@@ -878,6 +884,29 @@ export async function computeGavekalQuadrant(
       energyEfficiency.history,
       currencyQuality.history,
     );
+  }
+
+  // Splice the live weekly regime onto the trailing edge of the monthly
+  // history if they disagree. Without this the timeline's "Current:" label
+  // lags the card by however long it takes the monthly MA crossing to
+  // confirm the weekly one — sometimes years. Use the actual weekly flip
+  // date (not today) so the duration is meaningful and stable across cache
+  // refreshes; clamp to be strictly after the historical tail.
+  const tail = regimeHistory[regimeHistory.length - 1];
+  if (tail && tail.quadrant !== quadrant.name) {
+    const weeklyHistory = buildRegimeHistory(
+      weeklyEnergyHistory,
+      weeklyCurrencyHistory,
+    );
+    const lastWeeklyFlip = weeklyHistory[weeklyHistory.length - 1];
+    const today = new Date().toISOString().split("T")[0];
+    const flipDate =
+      lastWeeklyFlip && lastWeeklyFlip.quadrant === quadrant.name
+        ? lastWeeklyFlip.date > tail.date
+          ? lastWeeklyFlip.date
+          : tail.date
+        : today;
+    regimeHistory = [...regimeHistory, { date: flipDate, quadrant: quadrant.name }];
   }
 
   return {
