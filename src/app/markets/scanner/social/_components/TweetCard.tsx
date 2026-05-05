@@ -115,13 +115,22 @@ export function TweetCard({ tweet, prices, priceLoading, tickerFilter, onTickerC
       <div className="flex">
         {/* Left: Price chart area */}
         <div className="w-28 sm:w-36 shrink-0 border-r border-gray-100 flex flex-col justify-center items-center py-3 px-2 gap-1 bg-gray-50/50">
-          {/* Ticker badge */}
-          <Link
-            href={`/markets/ticker/${primaryTicker}`}
-            className="inline-flex items-center px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md border border-emerald-200 hover:bg-emerald-100 transition-colors"
-          >
-            {primaryTicker}
-          </Link>
+          {/* Ticker badges — show all tickers */}
+          <div className="flex flex-wrap justify-center gap-1">
+            {tweet.tickers.map((t, i) => (
+              <Link
+                key={t}
+                href={`/markets/ticker/${t}`}
+                className={`inline-flex items-center px-1.5 py-0.5 text-xs font-semibold rounded-md border transition-colors ${
+                  i === 0
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-gray-300 hover:text-gray-800"
+                }`}
+              >
+                {t}
+              </Link>
+            ))}
+          </div>
 
           {showPriceSkeleton ? (
             <>
@@ -203,20 +212,6 @@ export function TweetCard({ tweet, prices, priceLoading, tickerFilter, onTickerC
             </div>
           )}
 
-          {/* Secondary tickers */}
-          {tweet.tickers.length > 1 && (
-            <div className="flex items-center gap-1 mt-2 flex-wrap">
-              {tweet.tickers.slice(1).map((t) => (
-                <Link
-                  key={t}
-                  href={`/markets/ticker/${t}`}
-                  className="inline-flex items-center px-1.5 py-0.5 text-[10px] text-gray-500 bg-gray-100 rounded border border-gray-200 hover:border-gray-300 hover:text-gray-700 transition-colors"
-                >
-                  {t}
-                </Link>
-              ))}
-            </div>
-          )}
 
           {/* Media indicator */}
           {tweet.media_urls.length > 0 && (
