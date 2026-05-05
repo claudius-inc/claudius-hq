@@ -329,6 +329,7 @@ function FilterBar({
   setFilters: (f: Filters) => void;
   themeNames: ThemeNameMap;
 }) {
+  const [themesExpanded, setThemesExpanded] = useState(false);
   const markets: ("US" | "SGX" | "HK" | "JP" | "KS" | "CN")[] = [
     "US",
     "SGX",
@@ -352,6 +353,11 @@ function FilterBar({
     setFilters({ ...filters, themeIds: next });
   };
 
+  // On mobile, show first 3 themes collapsed; on desktop show all
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
+  const visibleThemes = !isMobile || themesExpanded ? themeEntries : themeEntries.slice(0, 3);
+  const hasMoreThemes = isMobile && themeEntries.length > 3;
+
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-sm">
       <span className="text-gray-500">Market:</span>
@@ -365,7 +371,7 @@ function FilterBar({
         </Chip>
       ))}
 
-      <span className="text-gray-500 ml-2">Momentum:</span>
+      <span className="text-gray-500">Momentum:</span>
       {(["all", "ge40", "ge70"] as const).map((t) => (
         <Chip
           key={t}
@@ -387,8 +393,8 @@ function FilterBar({
 
       {themeEntries.length > 0 && (
         <>
-          <span className="text-gray-500 ml-2">Theme:</span>
-          {themeEntries.map(([id, name]) => (
+          <span className="text-gray-500">Theme:</span>
+          {visibleThemes.map(([id, name]) => (
             <Chip
               key={id}
               active={filters.themeIds.has(Number(id))}
@@ -397,6 +403,16 @@ function FilterBar({
               {name}
             </Chip>
           ))}
+          {hasMoreThemes && !themesExpanded && (
+            <Chip active={false} onClick={() => setThemesExpanded(true)}>
+              +{themeEntries.length - 3} more
+            </Chip>
+          )}
+          {hasMoreThemes && themesExpanded && (
+            <Chip active={false} onClick={() => setThemesExpanded(false)}>
+              Less
+            </Chip>
+          )}
         </>
       )}
     </div>
@@ -430,21 +446,28 @@ function useHoverTooltip() {
 /* ── Info icon: shows company description on hover ── */
 function InfoHover({ content }: { content: string }) {
   const { open, ref, show, hide } = useHoverTooltip();
-  const rect = ref.current?.getBoundingClientRect();
   return (
     <div ref={ref} className="relative inline-flex" onMouseEnter={show} onMouseLeave={hide}>
       <Info className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500 transition-colors cursor-default flex-shrink-0" />
-      {open && rect && (
-        <div className="fixed z-[9999] bg-gray-900 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl pointer-events-none max-w-[280px] break-words whitespace-normal"
-          style={{
-            bottom: `calc(100vh - ${rect.top - 8}px)`,
-            left: Math.max(8, Math.min(rect.left - 40, window.innerWidth - 300)),
-          }}
-        >
-          {content}
-          <div className="absolute top-full left-6 border-4 border-transparent border-t-gray-900" />
-        </div>
+      {open && (
+        <DescriptionTooltip content={content} anchorRef={ref} />
       )}
+    </div>
+  );
+}
+
+function DescriptionTooltip({ content, anchorRef }: { content: string; anchorRef: React.RefObject<HTMLDivElement | null> }) {
+  const rect = anchorRef.current?.getBoundingClientRect();
+  if (!rect) return null;
+  return (
+    <div className="fixed z-[9999] bg-gray-900 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl pointer-events-none max-w-[280px] break-words whitespace-normal"
+      style={{
+        bottom: `calc(100vh - ${rect.top - 8}px)`,
+        left: Math.max(8, Math.min(rect.left - 100, window.innerWidth - 300)),
+      }}
+    >
+      {content}
+      <div className="absolute top-full left-6 border-4 border-transparent border-t-gray-900" />
     </div>
   );
 }
