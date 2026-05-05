@@ -20,19 +20,24 @@ export function ProjectsTabs() {
   return (
     <div className="bg-white/90 backdrop-blur-sm border-b border-gray-200">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="overflow-x-auto overflow-y-hidden scrollbar-hide -mx-1 px-1">
-          <nav className="flex items-center space-x-4 min-w-max">
+        <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+          <nav className="flex items-end space-x-4 min-w-max">
             {tabs.map((tab) => {
               const active = tab.exact
                 ? pathname === tab.href
                 : pathname.startsWith(tab.href);
+              // Transparent placeholder border keeps height identical between
+              // active and inactive tabs, so the row doesn't shift on navigation.
+              const borderCls = active
+                ? "border-gray-900"
+                : "border-transparent";
 
               return (
                 <Link
                   key={tab.href}
                   href={tab.href}
                   className={`
-                    min-h-[38px] flex items-end py-2 text-sm whitespace-nowrap
+                    min-h-[38px] flex items-end pt-2 pb-1.5 text-sm whitespace-nowrap border-b-[2.5px] ${borderCls}
                     ${
                       active
                         ? "font-semibold text-gray-900"
@@ -41,11 +46,6 @@ export function ProjectsTabs() {
                   `}
                 >
                   {tab.label}
-                  {active && (
-                    <span className="flex flex-col items-start gap-0.5 -ml-0.5">
-                      <span className="w-1.5 h-[1px] bg-gray-900" />
-                    </span>
-                  )}
                 </Link>
               );
             })}
