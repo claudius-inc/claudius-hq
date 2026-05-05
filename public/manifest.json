@@ -23,7 +23,14 @@
   ],
   "shortcuts": [
     {
-      "name": "Themes",
+      "name": "Scan → Stocks",
+      "short_name": "Stocks",
+      "description": "Stock watchlist with momentum & technical scores",
+      "url": "/markets/scanner/stocks",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Scan → Themes",
       "short_name": "Themes",
       "description": "Stock themes & tag heatmap",
       "url": "/markets/scanner/themes",
@@ -34,13 +41,6 @@
       "short_name": "Memoria",
       "description": "Research memory & notes",
       "url": "/memoria",
-      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Sectors",
-      "short_name": "Sectors",
-      "description": "Sector momentum & analysis",
-      "url": "/markets/scanner/sectors",
       "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     }
   ],
