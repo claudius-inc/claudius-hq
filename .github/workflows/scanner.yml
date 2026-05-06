@@ -27,7 +27,7 @@ jobs:
         run: npm ci
 
       - name: Run scanner
-        run: npx tsx scripts/run-scanner.ts
+        run: npx tsx scripts/pipelines/run-scanner.ts
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}

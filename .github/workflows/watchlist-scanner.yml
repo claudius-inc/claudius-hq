@@ -25,7 +25,7 @@ jobs:
         run: npm ci
 
       - name: Run watchlist scanner
-        run: npx tsx scripts/run-watchlist-scanner.ts
+        run: npx tsx scripts/pipelines/run-watchlist-scanner.ts
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}

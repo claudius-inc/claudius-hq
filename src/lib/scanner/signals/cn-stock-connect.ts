@@ -1,7 +1,7 @@
 /**
  * China: Stock Connect Flows via AkShare
  * AkShare is Python-only, so we use a cached JSON approach.
- * The Python script (scripts/akshare-connect.py) fetches data and writes to cache.
+ * The Python script (scripts/pipelines/akshare-connect.py) fetches data and writes to cache.
  */
 
 import { exec } from "child_process";
@@ -76,7 +76,7 @@ export async function refreshStockConnectCache(): Promise<boolean> {
     // Ensure cache directory exists
     await fs.mkdir(CACHE_DIR, { recursive: true });
 
-    const scriptPath = path.join(process.cwd(), "scripts", "akshare-connect.py");
+    const scriptPath = path.join(process.cwd(), "scripts", "pipelines", "akshare-connect.py");
 
     // Check if script exists
     try {
