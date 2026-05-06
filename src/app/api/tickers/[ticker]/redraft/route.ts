@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidatePath } from "next/cache";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, scannerUniverse } from "@/db";
-import { generateTickerAiResult, profileToColumns } from "@/lib/ticker-ai";
+import { generateTickerAiResult } from "@/lib/ticker-ai";
 import { logger } from "@/lib/logger";
 
 // POST /api/tickers/:ticker/redraft
 //
-// Calls Gemini to re-generate the qualitative profile for a single ticker
-// and writes the result to scanner_universe. Does not touch tags / themes /
-// description — those are managed via the EditTickerModal — only the profile
-// columns + profileGeneratedAt timestamp.
-//
-// Returns the new profile so the caller can update its UI optimistically.
+// Generates a fresh AI proposal (description + tags + themes + qualitative
+// profile) and returns it WITHOUT writing to the DB. Used by:
+//   - EditTickerProfileModal — reads `profile`
+//   - EditTickerModal       — reads `description` / `tags` / `themes`
+//   - AddTickerModal         — reads everything when re-running on a typed ticker
+// Persistence happens through PATCH /api/tickers/:ticker (or POST for add).
 export async function POST(
   _request: NextRequest,
   { params }: { params: { ticker: string } },
@@ -56,24 +55,17 @@ export async function POST(
       market: row.market,
     });
 
-    const cols = profileToColumns(result.profile);
-    await db
-      .update(scannerUniverse)
-      .set({
-        ...cols,
-        profileGeneratedAt: sql`datetime('now')`,
-        updatedAt: sql`datetime('now')`,
-      })
-      .where(eq(scannerUniverse.ticker, ticker));
-
-    revalidatePath(`/markets/ticker/${ticker}`);
-
-    logger.info("api/tickers/[ticker]/redraft", "Profile re-drafted", {
+    logger.info("api/tickers/[ticker]/redraft", "AI proposal generated", {
       ticker,
+      tagCount: result.tags.length,
+      themeCount: result.themes.length,
     });
 
     return NextResponse.json({
       ticker,
+      description: result.description,
+      tags: result.tags,
+      themes: result.themes,
       profile: result.profile,
     });
   } catch (e) {

@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Pencil, Sparkles } from "lucide-react";
+import { Pencil } from "lucide-react";
 import type { TickerProfile as TickerProfileData } from "@/lib/ticker-ai";
 import type { TickerMetric } from "@/db/schema";
-import { useToast } from "@/components/ui/Toast";
 import { EditTickerProfileModal } from "./EditTickerProfileModal";
 
 interface TickerProfileProps {
@@ -206,33 +204,9 @@ export function TickerProfile({
   metrics,
   description,
 }: TickerProfileProps) {
-  const router = useRouter();
-  const { toast } = useToast();
   const [editOpen, setEditOpen] = useState(false);
-  const [redrafting, setRedrafting] = useState(false);
 
   const empty = isEmpty(profile);
-
-  const onRedraft = async () => {
-    if (redrafting) return;
-    setRedrafting(true);
-    try {
-      const res = await fetch(`/api/tickers/${encodeURIComponent(ticker)}/redraft`, {
-        method: "POST",
-      });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        toast(data.error || "Failed to draft profile", "error");
-      } else {
-        toast("Profile re-drafted via AI", "success");
-        router.refresh();
-      }
-    } catch (err) {
-      toast(err instanceof Error ? err.message : String(err), "error");
-    } finally {
-      setRedrafting(false);
-    }
-  };
 
   // Empty state — minimal CTA card. Still renders scores if we have them so
   // the user doesn't lose the watchlist scores when there's no profile yet.
@@ -249,25 +223,14 @@ export function TickerProfile({
                 No qualitative profile yet for {ticker}.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onRedraft}
-                disabled={redrafting}
-                className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                {redrafting ? "Drafting…" : "Draft via AI"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-                Edit manually
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit
+            </button>
           </div>
           {metrics && <ScoresBlock metrics={metrics} />}
           {description && (
@@ -299,25 +262,14 @@ export function TickerProfile({
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onRedraft}
-              disabled={redrafting}
-              className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
-            >
-              <Sparkles className="w-3 h-3" />
-              {redrafting ? "Drafting…" : "Re-draft"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Pencil className="w-3 h-3" />
-              Edit
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setEditOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Pencil className="w-3 h-3" />
+            Edit
+          </button>
         </div>
 
         {metrics && <ScoresBlock metrics={metrics} />}

@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
 // concentration). Splitting these would mean two Gemini calls per add — same
 // prompt context, twice the cost — so we batch.
 
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemini-3.1-pro-preview";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 

@@ -31,9 +31,15 @@ interface ModalProps {
   title?: string;
   size?: ModalSize;
   children: React.ReactNode;
+  /** Optional fixed action bar rendered outside the scrolling content
+   *  area. Use this for Save/Cancel buttons so they don't sit on top of
+   *  scrollable content (which would let the content's bottom padding
+   *  show through). Buttons here can target a form by id via the
+   *  `form="..."` attribute. */
+  footer?: React.ReactNode;
 }
 
-export function Modal({ open, onClose, title, size = "md", children }: ModalProps) {
+export function Modal({ open, onClose, title, size = "md", children, footer }: ModalProps) {
   const isMobile = useIsMobile();
 
   const handleEscape = useCallback(
@@ -78,6 +84,11 @@ export function Modal({ open, onClose, title, size = "md", children }: ModalProp
             </button>
           </div>
           <div className="overflow-y-auto p-4 flex-1">{children}</div>
+          {footer && (
+            <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0 bg-white">
+              {footer}
+            </div>
+          )}
         </div>
       </div>,
       document.body,
@@ -103,6 +114,11 @@ export function Modal({ open, onClose, title, size = "md", children }: ModalProp
           </button>
         </div>
         <div className="overflow-y-auto p-5 flex-1">{children}</div>
+        {footer && (
+          <div className="px-5 py-3 border-t border-gray-100 flex-shrink-0 bg-white">
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body,
