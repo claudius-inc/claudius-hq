@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCache, setCache } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
 import { computeGavekalQuadrant } from "@/lib/gavekal";
-import { fetchValuationData } from "@/lib/valuation";
+import { fetchValuationData } from "@/lib/market-valuation";
 import { fetchSentimentData } from "@/lib/sentiment";
 import { fetchBreadthData } from "@/lib/breadth";
 import { fetchThemePerformanceAll } from "@/lib/themes";

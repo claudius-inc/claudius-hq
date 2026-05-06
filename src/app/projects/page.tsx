@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import db from "@/lib/db";
+import { rawClient as db } from "@/db";
 import { Project } from "@/lib/types";
 import { ProjectFilters } from "./_components/ProjectFilters";
 import { EmptyState } from "@/components/EmptyState";

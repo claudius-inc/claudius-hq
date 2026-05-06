@@ -1,5 +1,5 @@
 import { ProjectSidebar, ProjectMobileTOC } from "./_components/ProjectSidebar";
-import db, { ensureDB } from "@/lib/db";
+import { rawClient as db } from "@/db";
 import { Project } from "@/lib/types";
 import { notFound } from "next/navigation";
 
@@ -17,7 +17,6 @@ export default async function ProjectLayout({
   params: { id: string };
 }) {
   const { id } = params;
-  await ensureDB();
 
   // Fetch project
   const projectRes = await db.execute({

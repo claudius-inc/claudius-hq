@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import db, { ensureDB } from "@/lib/db";
+import { rawClient as db } from "@/db";
 import { StockReport } from "@/lib/types";
 import { PageHero } from "@/components/PageHero";
 import { ResearchForm } from "./_components/ResearchForm";
@@ -36,7 +36,6 @@ async function getActiveJobs(): Promise<ResearchJob[]> {
 }
 
 export default async function ResearchPage() {
-  await ensureDB();
   const [reports, activeJobs] = await Promise.all([
     getReports(),
     getActiveJobs(),

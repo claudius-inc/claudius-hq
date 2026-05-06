@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import db, { ensureDB } from "@/lib/db";
+import { rawClient as db } from "@/db";
 import { ResearchPage, Project } from "@/lib/types";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -11,7 +11,6 @@ export const revalidate = false;
 export async function generateMetadata({ params }: { params: { id: string; slug: string } }): Promise<Metadata> {
   const { id, slug } = params;
   try {
-    await ensureDB();
     const result = await db.execute({
       sql: "SELECT title FROM research_pages WHERE project_id = ? AND slug = ?",
       args: [Number(id), slug]
@@ -26,7 +25,6 @@ export async function generateMetadata({ params }: { params: { id: string; slug:
 
 export default async function ResearchPageDetail({ params }: { params: { id: string; slug: string } }) {
   const { id, slug } = params;
-  await ensureDB();
 
   const projectRes = await db.execute({ sql: "SELECT * FROM projects WHERE id = ?", args: [Number(id)] });
   if (projectRes.rows.length === 0) notFound();

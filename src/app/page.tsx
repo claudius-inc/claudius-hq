@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
 
-import db, { ensureDB } from "@/lib/db";
+import { rawClient as db } from "@/db";
 import { Project } from "@/lib/types";
 import { ProjectCards } from "@/app/_components/ProjectCards";
 import { Nav } from "@/components/Nav";
@@ -18,7 +18,6 @@ export const metadata: Metadata = {
 export const revalidate = false;
 
 async function getData() {
-  await ensureDB();
   try {
     const [projectsRes, ideasRes, reportsRes] = await Promise.all([
       db.execute("SELECT * FROM projects ORDER BY updated_at DESC"),

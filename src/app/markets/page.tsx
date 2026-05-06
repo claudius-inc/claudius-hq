@@ -14,7 +14,7 @@ import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
 import { logger } from "@/lib/logger";
 import { fetchSentimentData } from "@/lib/sentiment";
 import { fetchBreadthData } from "@/lib/breadth";
-import { fetchValuationData } from "@/lib/valuation";
+import { fetchValuationData } from "@/lib/market-valuation";
 import { fetchThemePerformanceAll } from "@/lib/themes";
 import { fetchGoldData } from "@/lib/gold";
 import { fetchExpectedReturnsData } from "@/lib/valuation/fetch-expected-returns";

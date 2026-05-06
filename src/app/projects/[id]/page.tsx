@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import db, { ensureDB } from "@/lib/db";
+import { rawClient as db } from "@/db";
 import { formatDate, formatDateTime } from "@/lib/date";
 import { Project } from "@/lib/types";
 import Link from "next/link";
@@ -12,7 +12,6 @@ export const revalidate = false;
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const { id } = params;
   try {
-    await ensureDB();
     const result = await db.execute({ sql: "SELECT name FROM projects WHERE id = ?", args: [Number(id)] });
     if (result.rows.length > 0) {
       const project = result.rows[0] as unknown as { name: string };
@@ -37,7 +36,6 @@ const buildColors: Record<string, string> = {
 
 export default async function ProjectOverviewPage({ params }: { params: { id: string } }) {
   const { id } = params;
-  await ensureDB();
 
   const projectRes = await db.execute({ sql: "SELECT * FROM projects WHERE id = ?", args: [Number(id)] });
   if (projectRes.rows.length === 0) notFound();

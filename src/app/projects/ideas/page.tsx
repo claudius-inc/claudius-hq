@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import db, { ensureDB } from "@/lib/db";
+import { rawClient as db } from "@/db";
 import { Idea } from "@/lib/types";
 import { IdeasPipeline } from "./_components/IdeasPipeline";
 import { IdeaForm } from "./_components/IdeaForm";
@@ -13,7 +13,6 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function IdeasPage() {
-  await ensureDB();
   let ideas: Idea[] = [];
   try {
     const result = await db.execute("SELECT * FROM ideas ORDER BY created_at DESC");

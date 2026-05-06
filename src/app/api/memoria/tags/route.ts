@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import rawClient from "@/lib/db";
+import { rawClient } from "@/db";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";
