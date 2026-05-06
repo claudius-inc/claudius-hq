@@ -127,7 +127,40 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
 
   if (!editing) {
     return (
-      <Modal open={open} onClose={onClose} title="Entry Details">
+      <Modal
+        open={open}
+        onClose={onClose}
+        title="Entry Details"
+        footer={
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="flex-1 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Edit
+            </button>
+            {confirmDelete ? (
+              <button
+                type="button"
+                onClick={() => onDelete(entry.id)}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700"
+              >
+                Confirm Delete
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
+              >
+                <Trash2 size={12} />
+                Delete
+              </button>
+            )}
+          </div>
+        }
+      >
         <div className="space-y-3">
           <div className="flex items-center gap-1.5 text-xs text-gray-500">
             <span className="capitalize">{entry.sourceType}</span>
@@ -202,41 +235,37 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
               ))}
             </div>
           )}
-          <div className="flex gap-2 pt-2 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="flex-1 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Edit
-            </button>
-            {confirmDelete ? (
-              <button
-                type="button"
-                onClick={() => onDelete(entry.id)}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                Confirm Delete
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(true)}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
-              >
-                <Trash2 size={12} />
-                Delete
-              </button>
-            )}
-          </div>
         </div>
       </Modal>
     );
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Edit Entry">
-      <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-1">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Edit Entry"
+      footer={
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            className="flex-1 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-3">
         <div>
           <label className="text-xs text-gray-500 block mb-1">Content</label>
           <textarea
@@ -372,23 +401,6 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
             </div>
           </div>
         )}
-      </div>
-      <div className="flex gap-2 pt-3 mt-2 border-t border-gray-100">
-        <button
-          type="button"
-          onClick={() => setEditing(false)}
-          className="flex-1 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="flex-1 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          {saving ? "Saving..." : "Save Changes"}
-        </button>
       </div>
     </Modal>
   );

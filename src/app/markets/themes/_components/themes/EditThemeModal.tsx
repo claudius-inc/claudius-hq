@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { TagInput } from "./TagInput";
 
@@ -53,9 +52,31 @@ export function EditThemeModal({
     }
   };
 
+  const formId = "edit-theme-form";
+
   return (
-    <Modal open={open} onClose={onClose} title="Edit Theme" size="sm">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Edit Theme"
+      size="sm"
+      footer={
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="btn-secondary">
+            Cancel
+          </button>
+          <button
+            form={formId}
+            type="submit"
+            disabled={saving || !name.trim()}
+            className="btn-primary"
+          >
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      }
+    >
+      <form id={formId} onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
           <input
@@ -82,15 +103,6 @@ export function EditThemeModal({
             placeholder="Brief description"
             className="input w-full h-20 resize-none"
           />
-        </div>
-
-        <div className="flex justify-end gap-2 pt-2">
-          <button type="button" onClick={onClose} className="btn-secondary">
-            Cancel
-          </button>
-          <button type="submit" disabled={saving || !name.trim()} className="btn-primary">
-            {saving ? "Saving..." : "Save"}
-          </button>
         </div>
       </form>
     </Modal>
