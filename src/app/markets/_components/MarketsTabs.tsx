@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavSectionSwitcher } from "@/components/NavSectionSwitcher";
+import { TickerSearch } from "@/components/TickerSearch";
 
 /* ── Primary sections ─────────────────────────────────────── */
 
@@ -56,8 +57,8 @@ export function MarketsTabs() {
 
   return (
     <div className="sticky top-12 z-40 bg-white/90 backdrop-blur-sm border-b border-gray-200">
-      <div className="max-w-6xl mx-auto px-4">
-        <div className="overflow-x-auto scrollbar-hide -mx-1 px-1">
+      <div className="max-w-6xl mx-auto px-4 flex items-end gap-3">
+        <div className="overflow-x-auto scrollbar-hide -mx-1 px-1 flex-1 min-w-0">
           <nav className="flex items-end space-x-4 min-w-max">
             {primaryTabs.map((tab) => {
               const active = tab.exact
@@ -105,6 +106,9 @@ export function MarketsTabs() {
               );
             })}
           </nav>
+        </div>
+        <div className="flex-shrink-0">
+          <TickerSearch />
         </div>
       </div>
     </div>

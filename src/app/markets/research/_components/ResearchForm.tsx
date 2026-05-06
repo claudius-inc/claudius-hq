@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Spinner } from "@/components/ui/Spinner";
 
@@ -11,8 +11,11 @@ interface ResearchFormProps {
 export function ResearchForm({ initialTicker }: ResearchFormProps) {
   const router = useRouter();
   const [ticker, setTicker] = useState(initialTicker || "");
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [message, setMessage] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Handle ?refresh=TICKER param from stock detail page (client-side only)
   useEffect(() => {
@@ -26,6 +29,21 @@ export function ResearchForm({ initialTicker }: ResearchFormProps) {
         window.history.replaceState({}, "", url.toString());
       }
     }
+  }, []);
+
+  // Ctrl/⌘+R focuses the ticker input from anywhere on the page (and
+  // selects existing text so the user can overwrite immediately). After
+  // typing, plain Enter submits the form.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "r") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -46,7 +64,9 @@ export function ResearchForm({ initialTicker }: ResearchFormProps) {
 
       if (res.ok) {
         setStatus("success");
-        setMessage(`Research queued for ${ticker.toUpperCase()}. Refreshing...`);
+        setMessage(
+          `Research queued for ${ticker.toUpperCase()}. Refreshing...`,
+        );
         setTicker("");
         // Refresh to show the new job (router.refresh forces ISR revalidation)
         setTimeout(() => {
@@ -67,17 +87,23 @@ export function ResearchForm({ initialTicker }: ResearchFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-2">
       <div className="flex gap-2">
-        <input
-          type="text"
-          id="ticker"
-          value={ticker}
-          onChange={(e) => setTicker(e.target.value.toUpperCase())}
-          placeholder="Ticker, e.g. AAPL, 9988.HK"
-          autoCapitalize="characters"
-          autoComplete="off"
-          className="flex-1 min-w-0 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none sm:w-52"
-          disabled={status === "loading"}
-        />
+        <div className="relative flex-1 min-w-0 sm:flex-initial sm:w-52">
+          <input
+            type="text"
+            ref={inputRef}
+            id="ticker"
+            value={ticker}
+            onChange={(e) => setTicker(e.target.value.toUpperCase())}
+            placeholder="Ticker, e.g. AAPL, 9988.HK"
+            autoCapitalize="characters"
+            autoComplete="off"
+            className="w-full px-3 py-2 pr-14 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-gray-900 focus:border-gray-900 outline-none"
+            disabled={status === "loading"}
+          />
+          <kbd className="hidden sm:inline-flex items-center px-1.5 h-4 text-[10px] font-mono text-gray-400 bg-gray-50 border border-gray-200 rounded leading-none tracking-tight absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+            <span className="text-[11px]">⌘</span> R
+          </kbd>
+        </div>
         <button
           type="submit"
           disabled={!ticker.trim() || status === "loading"}
