@@ -19,7 +19,7 @@ mkdir -p "$REPO_DIR"
 
 # Run the dump directly into the repo (excludes large regeneratable tables)
 echo "[$(date -u)] Starting backup..."
-NODE_OPTIONS="--max-old-space-size=256" node dump-db.mjs "$REPO_DIR/$FILE"
+NODE_OPTIONS="--max-old-space-size=256" node scripts/ops/dump-db.mjs "$REPO_DIR/$FILE"
 
 SIZE=$(du -h "$REPO_DIR/$FILE" | cut -f1)
 echo "[$(date -u)] Dump complete: $FILE ($SIZE)"

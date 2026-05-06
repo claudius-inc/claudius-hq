@@ -39,3 +39,6 @@ next-env.d.ts
 # claude
 /.claude/*
 .env.vercel
+
+# workflow artifacts (ticker-profile backfill, batch outputs, etc.)
+/tmp/
