@@ -1,0 +1,797 @@
+[
+  {
+    "ticker": "QGEN",
+    "profile": {
+      "revenueModel": "Sales of molecular diagnostic kits, sample-prep consumables, and lab instruments to clinical and life-science customers.",
+      "revenueSegments": [
+        {"item": "Molecular Diagnostics", "pct": 50},
+        {"item": "Life Sciences (Academic/Pharma)", "pct": 35},
+        {"item": "Instruments", "pct": 15}
+      ],
+      "cyclicality": "Defensive; tied to healthcare diagnostics demand with modest pharma R&D cyclicality.",
+      "tailwinds": ["Growth in syndromic infectious-disease testing (QIAstat-Dx)", "Expansion of companion diagnostics tied to precision oncology", "Increased TB testing via QuantiFERON"],
+      "headwinds": ["Post-COVID normalization of testing volumes", "FX exposure given European cost base and global revenue", "Pharma biotech funding pressure on life-science tools spend"],
+      "threats": ["Competition from Roche, Hologic, bioMérieux in molecular dx", "Reimbursement pressure on lab tests", "Failed Thermo Fisher takeover left strategic uncertainty"],
+      "opportunities": ["Digital PCR platform expansion", "Sample-to-insight automation in clinical labs", "Liquid biopsy and NGS sample-prep growth"],
+      "customerConcentration": "Diversified across hospitals, clinical labs, academic and pharma customers."
+    }
+  },
+  {
+    "ticker": "QLYS",
+    "profile": {
+      "revenueModel": "Cloud-based subscription SaaS for vulnerability management, compliance, and IT security, billed annually.",
+      "revenueSegments": [
+        {"item": "Subscription (VMDR, compliance, web app scanning)", "pct": 95},
+        {"item": "Professional Services", "pct": 5}
+      ],
+      "cyclicality": "Defensive; cybersecurity spend is non-discretionary but tied to enterprise IT budgets.",
+      "tailwinds": ["Rising cyberattack frequency driving vuln-management spend", "Cloud and container workload growth requiring continuous scanning", "Regulatory compliance mandates (PCI, HIPAA, FedRAMP)"],
+      "headwinds": ["Enterprise IT budget scrutiny lengthening sales cycles", "Pricing pressure as VM becomes commoditized", "Slowing net-new customer adds"],
+      "threats": ["Competition from Tenable, Rapid7, Wiz, CrowdStrike platform consolidation", "Platform players bundling VM into broader suites", "Customer churn to integrated XDR vendors"],
+      "opportunities": ["Cross-sell EASM, CSPM, patch-management modules", "International expansion", "MSSP channel growth"],
+      "customerConcentration": "Diversified enterprise base; no single customer material."
+    }
+  },
+  {
+    "ticker": "QNC",
+    "profile": {
+      "revenueModel": "Pre-revenue; intends to license quantum random number generation (QRNG) hardware and cybersecurity IP.",
+      "revenueSegments": [],
+      "cyclicality": "Speculative; tied to commercialization of quantum security technology.",
+      "tailwinds": ["Post-quantum cryptography migration push by NIST and governments", "Rising demand for true random number generators in encryption"],
+      "headwinds": ["Pre-commercial; no meaningful revenue", "Capital-raising dependent on equity dilution"],
+      "threats": ["Competition from larger quantum security vendors", "Risk technology never reaches commercial scale", "Going-concern / dilution risk"],
+      "opportunities": ["Government and defense pilot contracts", "Partnerships with cybersecurity OEMs", "IoT and fintech QRNG embedding"],
+      "customerConcentration": "Unknown."
+    }
+  },
+  {
+    "ticker": "QS",
+    "profile": {
+      "revenueModel": "Pre-revenue; plans to license solid-state lithium-metal battery technology and supply prototype cells to automakers.",
+      "revenueSegments": [],
+      "cyclicality": "Speculative; tied to EV adoption and battery technology breakthroughs.",
+      "tailwinds": ["Global EV transition demanding higher energy-density batteries", "OEM (Volkswagen/PowerCo) partnership funding"],
+      "headwinds": ["Years of cash burn before commercial production", "Slowing EV demand growth pressuring partner appetite", "High capex required to scale manufacturing"],
+      "threats": ["Competition from CATL, Samsung SDI, Toyota in solid-state", "Technical risk that anode-free design fails to scale", "Dilution risk through repeated equity raises"],
+      "opportunities": ["First-mover advantage if QSE-5 cells reach automotive qualification", "Stationary storage and consumer electronics applications", "Royalty/licensing model with multiple OEMs"],
+      "customerConcentration": "Highly concentrated; Volkswagen/PowerCo is the lead partner."
+    }
+  },
+  {
+    "ticker": "QUBT",
+    "profile": {
+      "revenueModel": "Sales of photonic chips, quantum software, and remote-sensing services; largely development-stage revenue.",
+      "revenueSegments": [],
+      "cyclicality": "Speculative; tied to government R&D budgets and quantum hype cycle.",
+      "tailwinds": ["US national quantum initiative funding", "Defense/intelligence interest in quantum sensing"],
+      "headwinds": ["Negligible revenue versus market cap", "Persistent operating losses and dilution"],
+      "threats": ["Competition from IBM, Google, IonQ, Rigetti with deeper resources", "Technology may not achieve quantum advantage at commercial scale", "Going-concern / shareholder dilution"],
+      "opportunities": ["Photonic foundry (Tempe, AZ) commercialization", "Government and academic research contracts", "Reservoir computing niche applications"],
+      "customerConcentration": "Highly concentrated in government / research customers."
+    }
+  },
+  {
+    "ticker": "RBLX",
+    "profile": {
+      "revenueModel": "Virtual currency (Robux) sales to users who spend on user-generated experiences and avatar items, with revenue share to creators.",
+      "revenueSegments": [
+        {"item": "Bookings from Robux purchases", "pct": 100}
+      ],
+      "cyclicality": "Consumer discretionary; correlated with disposable income and youth gaming engagement.",
+      "tailwinds": ["Aging-up of user base into higher-spending demographics", "Advertising and brand activations on platform", "International expansion (Japan, India)"],
+      "headwinds": ["High developer payout share compresses margins", "Persistent GAAP operating losses", "Apple/Google app-store fee pressure"],
+      "threats": ["Child-safety regulation and parental scrutiny", "Competition from Fortnite, Minecraft, TikTok for youth attention", "Content moderation liability"],
+      "opportunities": ["Immersive advertising platform scale", "Older-user engagement (17+ experiences)", "AI-driven content creation tools for developers"],
+      "customerConcentration": "Diversified across millions of consumers; no concentration."
+    }
+  },
+  {
+    "ticker": "RBRK",
+    "profile": {
+      "revenueModel": "Subscription SaaS for cyber-resilience: data backup, recovery, and security posture, sold via annual contracts.",
+      "revenueSegments": [
+        {"item": "Subscription ARR", "pct": 90},
+        {"item": "Maintenance & Other", "pct": 10}
+      ],
+      "cyclicality": "Defensive; data-protection and ransomware-recovery spend is non-discretionary.",
+      "tailwinds": ["Surge in ransomware attacks driving cyber-recovery demand", "Shift from legacy backup vendors (Veritas, Commvault) to cloud-native", "Microsoft strategic partnership"],
+      "headwinds": ["High GAAP losses post-IPO", "Stock-based comp dilution", "Sales-cycle elongation in macro-sensitive deals"],
+      "threats": ["Competition from Cohesity/Veeam, plus hyperscaler-native backup", "Margin pressure from cloud hosting costs", "Lockup expiries and insider selling"],
+      "opportunities": ["Cyber-recovery and data-security posture management upsell", "Federal/public-sector expansion", "AI-powered threat detection on backup data"],
+      "customerConcentration": "Diversified enterprise base."
+    }
+  },
+  {
+    "ticker": "RCL",
+    "profile": {
+      "revenueModel": "Cruise ticket sales plus onboard spending (gambling, F&B, excursions) across Royal Caribbean, Celebrity, and Silversea brands.",
+      "revenueSegments": [
+        {"item": "Passenger Ticket Revenue", "pct": 70},
+        {"item": "Onboard & Other", "pct": 30}
+      ],
+      "cyclicality": "Highly cyclical consumer discretionary; tied to consumer confidence and travel demand.",
+      "tailwinds": ["Post-pandemic cruise demand at record yields", "New-build deliveries (Icon class) at premium pricing", "Private destination (Perfect Day at CocoCay) margin uplift"],
+      "headwinds": ["Heavy debt load with rising refinancing costs", "Fuel-price volatility", "FX and geopolitical exposure (Red Sea routing)"],
+      "threats": ["Recession would compress booking yields", "Environmental regulation on emissions (IMO)", "Port access restrictions and overtourism backlash"],
+      "opportunities": ["River cruise entry", "Asia-Pacific source-market expansion", "Loyalty program and pre-cruise revenue capture"],
+      "customerConcentration": "Diversified consumer base across geographies."
+    }
+  },
+  {
+    "ticker": "RDW",
+    "profile": {
+      "revenueModel": "Space infrastructure products and services: solar arrays, deployable structures, in-space manufacturing, and digital engineering, sold to government/commercial space programs.",
+      "revenueSegments": [
+        {"item": "Space Infrastructure (hardware)", "pct": 75},
+        {"item": "Engineering Services / Digital", "pct": 25}
+      ],
+      "cyclicality": "Tied to government space budgets (NASA/DoD) and commercial satellite cycles.",
+      "tailwinds": ["NASA Artemis and lunar economy spending", "Proliferated LEO constellation buildouts", "Edge Autonomy acquisition expanding into UAS/defense"],
+      "headwinds": ["Persistent operating losses and negative free cash flow", "Lumpy contract revenue", "Working capital strain on long-cycle programs"],
+      "threats": ["Competition from Maxar, Northrop, Lockheed, and SpaceX vertical integration", "Government program delays / budget continuing resolutions", "Dilution risk from equity raises"],
+      "opportunities": ["Hypersonic and national-security backlog growth", "In-space manufacturing (PIL-BOX) commercialization", "Defense drone integration via Edge Autonomy"],
+      "customerConcentration": "Concentrated in US government (NASA, DoD) customers."
+    }
+  },
+  {
+    "ticker": "REGN",
+    "profile": {
+      "revenueModel": "Sales and collaboration profits from biologic drugs, principally Eylea (anti-VEGF) and Dupixent (royalties from Sanofi).",
+      "revenueSegments": [
+        {"item": "Eylea / Eylea HD (US)", "pct": 35},
+        {"item": "Sanofi collaboration (Dupixent etc.)", "pct": 40},
+        {"item": "Other product & royalties", "pct": 25}
+      ],
+      "cyclicality": "Defensive; biologic drug demand inelastic but exposed to patent cliffs.",
+      "tailwinds": ["Dupixent label expansion (COPD, urticaria) driving collaboration profits", "Eylea HD higher-dose conversion extending franchise", "Pipeline in oncology (Libtayo) and hematology"],
+      "headwinds": ["Aflibercept biosimilar competition for original Eylea", "IRA Medicare price negotiation exposure", "Slowing legacy-Eylea volumes"],
+      "threats": ["Roche Vabysmo competition in retinal disease", "Patent litigation around Eylea HD", "Pipeline trial readouts (e.g., factor XI, oncology)"],
+      "opportunities": ["Itepekimab in COPD", "Linvoseltamab in multiple myeloma", "Genetic medicines via Alnylam and Intellia partnerships"],
+      "customerConcentration": "Distributed via specialty distributors; Sanofi is key collaboration partner."
+    }
+  },
+  {
+    "ticker": "RELIANCE.NS",
+    "profile": {
+      "revenueModel": "Diversified Indian conglomerate: oil-to-chemicals refining, telecom subscription (Jio), and retail store sales.",
+      "revenueSegments": [
+        {"item": "Oil-to-Chemicals (O2C)", "pct": 55},
+        {"item": "Retail", "pct": 25},
+        {"item": "Digital Services (Jio)", "pct": 15},
+        {"item": "Oil & Gas E&P / Other", "pct": 5}
+      ],
+      "cyclicality": "Mixed; refining is highly cyclical, telecom and retail are defensive growth.",
+      "tailwinds": ["Indian consumption growth and digital adoption (Jio 5G monetization)", "Retail footprint expansion in Tier 2/3 cities", "Renewables / new energy gigafactory investment"],
+      "headwinds": ["Refining margin volatility (Singapore GRMs)", "Heavy capex cycle pressuring free cash flow", "Government windfall taxes on refining"],
+      "threats": ["Telecom price war risk vs Airtel and Vi", "Regulatory scrutiny of digital ecosystem (Jio Platforms)", "Stake monetization timing (Jio/Retail IPOs)"],
+      "opportunities": ["Jio Platforms IPO unlocking value", "Green hydrogen and solar manufacturing scale-up", "Quick-commerce via JioMart"],
+      "customerConcentration": "Diversified retail and telecom consumer base."
+    }
+  },
+  {
+    "ticker": "RGTI",
+    "profile": {
+      "revenueModel": "Sale of quantum computing systems, cloud access (Quantum-as-a-Service), and government R&D contract revenue.",
+      "revenueSegments": [],
+      "cyclicality": "Speculative; tied to quantum-computing R&D spend and government funding cycles.",
+      "tailwinds": ["DARPA, DoE, and UK ARC quantum program funding", "Industry shift toward error-corrected superconducting qubits"],
+      "headwinds": ["Persistent operating losses and reliance on equity issuance", "Slow customer adoption beyond pilots", "Long path to fault-tolerant quantum computing"],
+      "threats": ["Competition from IBM, Google, IonQ, PsiQuantum with greater resources", "Technology platform risk (superconducting may lose to neutral-atom/photonic)", "Dilution from at-the-market offerings"],
+      "opportunities": ["84-qubit Ankaa-3 milestones and roadmap to 100+ qubits", "On-premises system sales to national labs", "Cloud partnership revenue via AWS Braket / Azure"],
+      "customerConcentration": "Concentrated in government and research customers."
+    }
+  },
+  {
+    "ticker": "RHM.DE",
+    "profile": {
+      "revenueModel": "Defense systems sales (vehicles, ammunition, weapons, electronics) to NATO governments, plus civilian automotive components.",
+      "revenueSegments": [
+        {"item": "Vehicle Systems", "pct": 35},
+        {"item": "Weapon & Ammunition", "pct": 30},
+        {"item": "Electronic Solutions", "pct": 20},
+        {"item": "Sensors & Power Systems (Civilian)", "pct": 15}
+      ],
+      "cyclicality": "Defense portion is counter-cyclical / driven by geopolitical risk; auto portion cyclical.",
+      "tailwinds": ["European NATO members raising defense budgets above 2% post-Ukraine", "Multi-year ammunition shortage backlog", "German Bundeswehr €100bn special fund"],
+      "headwinds": ["Auto segment weakness from European OEM demand", "Capex intensity to expand ammo capacity", "Skilled-labor shortages in German manufacturing"],
+      "threats": ["Potential Ukraine ceasefire reducing perceived urgency", "Political shifts away from defense spending", "ESG fund exclusions"],
+      "opportunities": ["Lynx IFV export wins (Italy, Hungary)", "F-35 fuselage production in Weeze", "Air defense (Skyranger, Skynex) demand surge"],
+      "customerConcentration": "Concentrated in European NATO governments, primarily Germany."
+    }
+  },
+  {
+    "ticker": "RIO",
+    "profile": {
+      "revenueModel": "Sales of mined commodities: iron ore, copper, aluminum, and minerals priced on global benchmarks.",
+      "revenueSegments": [
+        {"item": "Iron Ore", "pct": 55},
+        {"item": "Aluminum", "pct": 20},
+        {"item": "Copper", "pct": 15},
+        {"item": "Minerals (lithium, borates, TiO2)", "pct": 10}
+      ],
+      "cyclicality": "Highly cyclical; tied to global industrial demand, especially Chinese steel.",
+      "tailwinds": ["Copper supply deficit driven by electrification and grid build", "Lithium portfolio expansion via Arcadium acquisition", "Simandou (Guinea) iron ore project ramp-up"],
+      "headwinds": ["China property and steel demand weakness pressuring iron ore prices", "Capex inflation on multi-billion-dollar projects", "Rising royalty and tax pressure in Australia"],
+      "threats": ["Tailings/safety incidents (Juukan Gorge legacy reputational)", "Carbon-pricing regulation on aluminum smelters", "Resource nationalism in Mongolia (Oyu Tolgoi) and Guinea"],
+      "opportunities": ["Oyu Tolgoi underground copper ramp", "Lithium production at Rincon and Jadar (if approved)", "Decarbonized iron ore (HBI/green steel) premiums"],
+      "customerConcentration": "Heavy exposure to Chinese steel mills for iron ore."
+    }
+  },
+  {
+    "ticker": "RIOT",
+    "profile": {
+      "revenueModel": "Self-mining of bitcoin using ASIC fleet, plus engineering services and small hosting revenue.",
+      "revenueSegments": [
+        {"item": "Bitcoin Mining", "pct": 80},
+        {"item": "Engineering (electrical contracting)", "pct": 15},
+        {"item": "Hosting / Other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical with bitcoin price and network hashrate.",
+      "tailwinds": ["Higher bitcoin price post-halving improving mining economics", "Texas grid demand-response credits", "AI/HPC potential repurposing of power capacity"],
+      "headwinds": ["Post-halving block-reward economics", "Rising network difficulty diluting hashrate share", "Energy-cost volatility in ERCOT"],
+      "threats": ["Bitcoin price drawdowns directly compressing margins", "Regulatory scrutiny on miner electricity usage", "Equity dilution from ATM offerings"],
+      "opportunities": ["AI/HPC pivot of power infrastructure (Corsicana site)", "Self-mining hashrate growth toward 60+ EH/s", "Treasury management of mined BTC"],
+      "customerConcentration": "Bitcoin sold into liquid markets; no customer concentration."
+    }
+  },
+  {
+    "ticker": "RKLB",
+    "profile": {
+      "revenueModel": "Launch services (Electron, future Neutron rockets) plus space systems (satellite components, spacecraft buses).",
+      "revenueSegments": [
+        {"item": "Space Systems", "pct": 70},
+        {"item": "Launch Services", "pct": 30}
+      ],
+      "cyclicality": "Tied to government and commercial space program funding cycles.",
+      "tailwinds": ["DoD and Space Force responsive launch demand", "Constellation buildouts driving small-sat launches", "Vertical integration into spacecraft manufacturing"],
+      "headwinds": ["Persistent GAAP losses and Neutron development capex", "Competition from SpaceX rideshare on price", "Long sales cycle on government primes"],
+      "threats": ["Neutron development delays could erode credibility", "SpaceX dominance compressing pricing", "Single-point-of-failure launch anomalies"],
+      "opportunities": ["Neutron entry into medium-lift market against Falcon 9", "End-to-end space-as-a-service (Photon platform)", "Defense prime contractor status"],
+      "customerConcentration": "Concentrated in US government and commercial constellation operators."
+    }
+  },
+  {
+    "ticker": "RL",
+    "profile": {
+      "revenueModel": "Sales of branded apparel, accessories, and home goods through company-owned stores, e-commerce, and wholesale department-store channels.",
+      "revenueSegments": [
+        {"item": "North America", "pct": 45},
+        {"item": "Europe", "pct": 30},
+        {"item": "Asia (incl. China)", "pct": 25}
+      ],
+      "cyclicality": "Cyclical consumer discretionary; tied to luxury/aspirational spending.",
+      "tailwinds": ["Brand elevation lifting average unit retail", "Direct-to-consumer mix expansion", "China rebound and Asia store openings"],
+      "headwinds": ["US wholesale channel softness (Macy's, Kohl's)", "FX headwinds on Europe and Asia translation", "Cotton and freight cost volatility"],
+      "threats": ["Aspirational-luxury consumer pullback", "Loss of brand heat among younger cohorts", "Counterfeit and gray-market exposure in Asia"],
+      "opportunities": ["Women's expansion and accessories penetration", "Outerwear and core RL brand pricing power", "Travel-retail recovery"],
+      "customerConcentration": "Diversified consumer base; some wholesale concentration in US department stores."
+    }
+  },
+  {
+    "ticker": "ROK",
+    "profile": {
+      "revenueModel": "Industrial automation hardware (PLCs, drives) and software (FactoryTalk, Plex) sold to manufacturers, plus lifecycle services.",
+      "revenueSegments": [
+        {"item": "Intelligent Devices", "pct": 45},
+        {"item": "Software & Control", "pct": 30},
+        {"item": "Lifecycle Services", "pct": 25}
+      ],
+      "cyclicality": "Highly cyclical; tied to industrial capex, particularly discrete and process automation.",
+      "tailwinds": ["US manufacturing reshoring and CHIPS/IRA stimulus", "Brownfield modernization to digital control systems", "Annual recurring revenue mix from software acquisitions (Plex, Fiix)"],
+      "headwinds": ["Auto/EV capex pause weighing on discrete automation", "Channel destocking through 2024-25", "China industrial weakness"],
+      "threats": ["Siemens, Schneider, Mitsubishi competitive pressure", "Open-source/edge automation eroding proprietary PLC moat", "Customer in-sourcing of software"],
+      "opportunities": ["AI/ML predictive maintenance via FactoryTalk", "Pharma and life-sciences project pipeline", "Cybersecurity-for-OT services"],
+      "customerConcentration": "Diversified across automotive, food/bev, life sciences, oil & gas."
+    }
+  },
+  {
+    "ticker": "ROP",
+    "profile": {
+      "revenueModel": "Acquired portfolio of niche vertical software businesses (legal, healthcare, education, network software) sold via subscription/maintenance contracts.",
+      "revenueSegments": [
+        {"item": "Application Software", "pct": 55},
+        {"item": "Network Software", "pct": 25},
+        {"item": "Test & Measurement / Process Tech", "pct": 20}
+      ],
+      "cyclicality": "Defensive; high recurring revenue mix in niche-monopoly software verticals.",
+      "tailwinds": ["Continued vertical-SaaS price increases at install bases", "Disciplined M&A capital deployment", "Acquisition of Procare (childcare) and Replicon"],
+      "headwinds": ["Slower organic growth versus pure-play SaaS peers", "High purchase-price multiples on new deals", "Rising rates increase acquisition financing cost"],
+      "threats": ["Competitive disruption in long-tail vertical software", "M&A strategy dependence — execution risk on integration", "Deferred-revenue accounting scrutiny"],
+      "opportunities": ["Continued bolt-on acquisitions in fragmented verticals", "Cross-sell within niche customer bases", "Industrial divestitures completing software pivot"],
+      "customerConcentration": "Diversified across niche vertical software customer bases."
+    }
+  },
+  {
+    "ticker": "RR.L",
+    "profile": {
+      "revenueModel": "Aircraft engine sales plus long-term service agreements (TotalCare power-by-the-hour) for civil and defense customers; also marine and small-modular-reactor development.",
+      "revenueSegments": [
+        {"item": "Civil Aerospace", "pct": 50},
+        {"item": "Defence", "pct": 25},
+        {"item": "Power Systems (MTU)", "pct": 20},
+        {"item": "New Markets (SMR / Other)", "pct": 5}
+      ],
+      "cyclicality": "Cyclical; tied to wide-body flying hours and defense/marine cycles.",
+      "tailwinds": ["Wide-body flying-hour recovery post-COVID driving aftermarket", "Trent XWB installed-base maturing into LTSA cash flow", "European defense rearmament"],
+      "headwinds": ["Trent 1000 durability remediation costs", "Leverage and pension liabilities", "Engine production constraints from supply chain"],
+      "threats": ["GE Aerospace dominance in narrowbody (no RR offering)", "Boeing 787 production rate constraints", "SMR commercialization timeline slippage"],
+      "opportunities": ["UltraFan and next-gen narrowbody engine return", "UK SMR program selection and exports", "Power Systems data-center backup demand"],
+      "customerConcentration": "Concentrated in airline aftermarket and government defense."
+    }
+  },
+  {
+    "ticker": "RTX",
+    "profile": {
+      "revenueModel": "Defense systems and aerospace OE/aftermarket: missiles, radars, avionics (Raytheon, Collins) plus geared turbofan engines and aftermarket (Pratt & Whitney).",
+      "revenueSegments": [
+        {"item": "Collins Aerospace", "pct": 35},
+        {"item": "Pratt & Whitney", "pct": 35},
+        {"item": "Raytheon (Defense)", "pct": 30}
+      ],
+      "cyclicality": "Defense counter-cyclical; commercial aerospace cyclical with airline traffic.",
+      "tailwinds": ["Defense backlog growth from Ukraine/Israel/Red Sea conflicts", "Air-traffic recovery driving Collins aftermarket", "Patriot, NASAMS, Stinger replenishment orders"],
+      "headwinds": ["GTF powdered-metal fleet inspection and AOG remediation costs", "Supply-chain constraints on engine deliveries", "Margin compression from fixed-price defense contracts"],
+      "threats": ["Further GTF technical issues extending warranty provisions", "Continuing-resolution risk to Pentagon spending", "Lockheed/Boeing competitive pressure"],
+      "opportunities": ["GTF Advantage upgrade", "Hypersonic and counter-UAS programs", "Classified space and ISR portfolio at Raytheon"],
+      "customerConcentration": "US DoD and major airlines/Airbus as principal customers."
+    }
+  },
+  {
+    "ticker": "RUN",
+    "profile": {
+      "revenueModel": "Residential solar and storage installed via lease/PPA (recurring customer payments) and direct sales; monetizes ITC and SREC tax credits.",
+      "revenueSegments": [
+        {"item": "Customer Agreements & Incentives (lease/PPA)", "pct": 55},
+        {"item": "Solar Energy Systems & Product Sales", "pct": 45}
+      ],
+      "cyclicality": "Highly rate-sensitive; tied to consumer financing cost and utility net-metering policy.",
+      "tailwinds": ["IRA investment tax credit and storage attach-rates", "Time-of-use pricing increasing battery economics", "California NEM 3.0 driving solar+storage attachment"],
+      "headwinds": ["Rising rates increase financing cost on leveraged business model", "California NEM 3.0 cut new-customer payback economics", "Negative free cash flow and high net debt"],
+      "threats": ["Residential solar bankruptcies in peer set (SunPower)", "State-level rooftop solar policy reversals", "Utility competition for behind-the-meter storage"],
+      "opportunities": ["Battery attach economics improving margins", "Virtual power plant (VPP) revenue programs", "Tesla Powerwall partnership volume"],
+      "customerConcentration": "Diversified residential customer base."
+    }
+  },
+  {
+    "ticker": "RVLV",
+    "profile": {
+      "revenueModel": "Online retail of women's premium contemporary apparel, sold through Revolve and FWRD sites, with influencer-driven marketing.",
+      "revenueSegments": [
+        {"item": "Revolve segment", "pct": 85},
+        {"item": "FWRD segment (luxury)", "pct": 15}
+      ],
+      "cyclicality": "Cyclical consumer discretionary, skewed to higher-income millennial/Gen Z women.",
+      "tailwinds": ["Return-to-events / occasion dressing", "Owned-brand mix expansion improving gross margin", "AI-driven personalization and search"],
+      "headwinds": ["High return rates pressure unit economics", "Aspirational-customer cohort spending pullback", "Influencer marketing cost inflation"],
+      "threats": ["Shein/Temu pricing competition at low end", "Net-A-Porter, Saks, Ssense at the FWRD luxury end", "Fashion trend mis-step risk"],
+      "opportunities": ["International expansion and physical pop-ups", "Beauty and home category extension", "Resale/secondary market channels"],
+      "customerConcentration": "Diversified consumer base."
+    }
+  },
+  {
+    "ticker": "S63.SI",
+    "profile": {
+      "revenueModel": "Engineering and manufacturing services across defense (munitions, vehicles), aerospace (MRO, nacelles), and urban/digital systems for governments and commercial customers.",
+      "revenueSegments": [
+        {"item": "Defence & Public Security", "pct": 50},
+        {"item": "Commercial Aerospace", "pct": 25},
+        {"item": "Urban Solutions & SatCom", "pct": 25}
+      ],
+      "cyclicality": "Mixed; defense is counter-cyclical, aerospace MRO cyclical with traffic, smart-city tied to government capex.",
+      "tailwinds": ["Asia-Pacific defense spending growth", "Aerospace MRO demand recovery and nacelle backlog", "Smart-city contracts in MENA and ASEAN"],
+      "headwinds": ["Higher interest expense post-TransCore acquisition", "Margin pressure on smart-city integration projects", "Supply-chain inflation in aero structures"],
+      "threats": ["Singapore-government policy concentration", "Competition from European and Korean defense primes for export deals", "FX translation across global units"],
+      "opportunities": ["TransCore tolling business growth in US infrastructure", "Hycom satellite communications expansion", "Indonesian and Middle East defense exports"],
+      "customerConcentration": "Singapore government and Ministry of Defence are anchor customers; broader global mix in commercial aero."
+    }
+  },
+  {
+    "ticker": "SAF.PA",
+    "profile": {
+      "revenueModel": "Civil aircraft engines (CFM/LEAP via 50/50 with GE) plus aerospace equipment (landing gear, nacelles, interiors) and defense electronics; large aftermarket service mix.",
+      "revenueSegments": [
+        {"item": "Aerospace Propulsion", "pct": 55},
+        {"item": "Aircraft Equipment, Defense & Aerosystems", "pct": 35},
+        {"item": "Aircraft Interiors", "pct": 10}
+      ],
+      "cyclicality": "Cyclical with global air travel; aftermarket service revenue smooths volatility.",
+      "tailwinds": ["LEAP installed-base growth driving aftermarket through 2030s", "Air-traffic recovery and narrowbody flying-hour growth", "Defense optronics demand"],
+      "headwinds": ["LEAP durability issues in hot/dusty environments increasing shop visits", "Boeing 737 MAX production rate constraints", "Supply-chain inflation in titanium and forgings"],
+      "threats": ["Pratt & Whitney GTF competitive dynamics on A320neo", "Open Fan (RISE) program execution risk for next-gen narrowbody", "Trade tensions with US over engine technology"],
+      "opportunities": ["RISE open-fan engine for post-2035 narrowbody", "Helicopter and military engine market share", "Aftermarket digital services pricing"],
+      "customerConcentration": "Concentrated in Airbus, Boeing, and major airlines (via aftermarket)."
+    }
+  },
+  {
+    "ticker": "SBIN.NS",
+    "profile": {
+      "revenueModel": "Net interest income from loans and government securities, plus fee income, treasury, and insurance/AMC subsidiary contributions.",
+      "revenueSegments": [
+        {"item": "Net Interest Income", "pct": 70},
+        {"item": "Fee & Other Non-Interest Income", "pct": 20},
+        {"item": "Treasury / Subsidiaries", "pct": 10}
+      ],
+      "cyclicality": "Cyclical; tied to Indian credit cycle, GDP growth, and rate environment.",
+      "tailwinds": ["Indian credit growth running at low-teens %", "Improved asset quality and lower credit costs", "SBI Cards and SBI Life subsidiary value"],
+      "headwinds": ["Government-bank classification limits free-pricing flexibility", "Deposit-cost pressure as rates rise", "Higher provisioning required by RBI on unsecured retail"],
+      "threats": ["RBI macroprudential tightening on retail/personal loans", "Public-sector wage settlements and pension liabilities", "Cyber-fraud incidents"],
+      "opportunities": ["YONO digital platform monetization", "MSME and corporate book recovery in capex cycle", "Insurance/AMC subsidiary IPO/value crystallization"],
+      "customerConcentration": "Highly diversified retail and corporate customer base across India."
+    }
+  },
+  {
+    "ticker": "SCCO",
+    "profile": {
+      "revenueModel": "Sales of mined copper plus byproducts (molybdenum, silver, zinc) priced on LME/Comex benchmarks, primarily from Mexico and Peru operations.",
+      "revenueSegments": [
+        {"item": "Copper", "pct": 80},
+        {"item": "Molybdenum", "pct": 10},
+        {"item": "Silver, Zinc, Other", "pct": 10}
+      ],
+      "cyclicality": "Highly cyclical; pure-play copper miner tied to global industrial demand.",
+      "tailwinds": ["Copper supply deficit driven by electrification and EVs", "Low cash-cost asset base in Mexico/Peru", "Long reserve life (60+ years)"],
+      "headwinds": ["Peruvian community/permitting opposition (Tia Maria, Los Chancas)", "Mexican mining royalty and water-permit regime", "Capex inflation on greenfield projects"],
+      "threats": ["Resource nationalism and contract renegotiation risk", "Concentrated controlling shareholder (Grupo Mexico) governance", "Energy and labor cost inflation"],
+      "opportunities": ["Buenavista zinc concentrator ramp", "Tia Maria project finally advancing if social license", "AI/data-center demand boosting long-term copper price"],
+      "customerConcentration": "Diversified across global metal traders and smelters."
+    }
+  },
+  {
+    "ticker": "SE",
+    "profile": {
+      "revenueModel": "Three segments: Garena gaming (in-game purchases), Shopee e-commerce (commissions, fulfillment, ads), and SeaMoney digital financial services.",
+      "revenueSegments": [
+        {"item": "E-commerce (Shopee)", "pct": 65},
+        {"item": "Digital Financial Services (SeaMoney)", "pct": 20},
+        {"item": "Digital Entertainment (Garena)", "pct": 15}
+      ],
+      "cyclicality": "Mixed; e-commerce tied to Southeast Asia consumption, gaming tied to Free Fire engagement.",
+      "tailwinds": ["Southeast Asia e-commerce penetration still under 15%", "SeaMoney credit book scaling profitably", "Free Fire revival in India"],
+      "headwinds": ["TikTok Shop competition compressing Shopee take-rates", "FX volatility across emerging-market currencies", "Brazil Shopee profitability slow to scale"],
+      "threats": ["Lazada/Alibaba and TikTok Shop competition", "Indonesian regulatory policy on social-commerce", "Concentration of gaming revenue in Free Fire"],
+      "opportunities": ["SeaMoney lending and BNPL expansion", "Live-stream commerce monetization", "AI-driven logistics cost reduction"],
+      "customerConcentration": "Diversified across millions of consumers across SE Asia, Taiwan, Brazil."
+    }
+  },
+  {
+    "ticker": "SEDG",
+    "profile": {
+      "revenueModel": "Sales of solar inverters, power optimizers, batteries, and EV chargers to residential, commercial, and utility solar installers worldwide.",
+      "revenueSegments": [
+        {"item": "Solar Inverters & Optimizers", "pct": 80},
+        {"item": "Batteries & Other (EV chargers, services)", "pct": 20}
+      ],
+      "cyclicality": "Highly cyclical with solar installation rates and consumer financing cost.",
+      "tailwinds": ["Long-term solar penetration tailwind in Europe and US", "Storage attach growth", "Channel destocking finally normalizing"],
+      "headwinds": ["European inventory glut and pricing pressure from Chinese inverter makers", "High rates depressing residential demand", "Persistent operating losses and going-concern scrutiny"],
+      "threats": ["Enphase competitive pricing on microinverters", "Chinese inverter makers (Huawei, Sungrow, GoodWe) entering US/EU", "Customer (installer) bankruptcies"],
+      "opportunities": ["US manufacturing tax credits (45X) on domestic production", "Utility-scale inverter business growth", "Energy-management software services"],
+      "customerConcentration": "Diversified across global solar installers; some distributor concentration."
+    }
+  },
+  {
+    "ticker": "SEELQ",
+    "profile": {
+      "revenueModel": "Pre-revenue clinical-stage biotech; intends to commercialize CNS therapeutics if approved.",
+      "revenueSegments": [],
+      "cyclicality": "Speculative; binary clinical trial outcomes.",
+      "tailwinds": [],
+      "headwinds": ["No commercial revenue", "Going-concern / Q-suffix indicates bankruptcy or delisting risk", "Pipeline trial failures"],
+      "threats": ["Capital structure / Chapter 11 risk (Q ticker suffix)", "Trial readout failures", "Loss of Nasdaq listing"],
+      "opportunities": ["Asset sales of remaining pipeline programs", "Reorganization with refocused indication"],
+      "customerConcentration": "Unknown."
+    }
+  },
+  {
+    "ticker": "SES",
+    "profile": {
+      "revenueModel": "Pre-commercial; develops lithium-metal battery cells for EVs and urban air mobility, with joint development agreements with OEMs.",
+      "revenueSegments": [],
+      "cyclicality": "Speculative; tied to EV battery technology adoption.",
+      "tailwinds": ["Hyundai, Honda, and GM joint development agreements", "EV energy-density demand"],
+      "headwinds": ["Pre-commercial; minimal revenue versus cash burn", "Slowing EV adoption pace", "High capex required to scale"],
+      "threats": ["Competition from QuantumScape, Solid Power, CATL on solid-state", "Technical scaling risk of lithium-metal anode", "Equity dilution"],
+      "opportunities": ["Urban air mobility battery niche", "AI-driven battery health diagnostics (Avatar)", "OEM B-sample qualification milestones"],
+      "customerConcentration": "Concentrated in OEM JDA partners (Hyundai, Honda, GM)."
+    }
+  },
+  {
+    "ticker": "SGMO",
+    "profile": {
+      "revenueModel": "Collaboration revenue from gene therapy and zinc-finger genome editing partnerships with pharma; minimal product revenue.",
+      "revenueSegments": [],
+      "cyclicality": "Speculative; tied to clinical trial milestones and partnership economics.",
+      "tailwinds": ["Genomic medicine sector partnerships (Pfizer, Biogen, Genentech)", "Zinc-finger technology niche in epigenetic regulation"],
+      "headwinds": ["Loss of Pfizer hemophilia partnership impacted economics", "Persistent operating losses and going-concern warnings", "Restructuring and headcount cuts"],
+      "threats": ["CRISPR/base-editing competitive technologies dominating gene editing", "Partnership terminations", "Dilution and reverse-split risk"],
+      "opportunities": ["Pfizer hemophilia program royalty if approved", "Neurology zinc-finger epigenetic regulator pipeline", "Tau program for Alzheimer's"],
+      "customerConcentration": "Concentrated in pharma collaboration partners."
+    }
+  },
+  {
+    "ticker": "SIEGY",
+    "profile": {
+      "revenueModel": "Industrial automation, electrification, smart infrastructure, mobility (rail), and healthcare equipment (Siemens Healthineers) — hardware sales plus software and services.",
+      "revenueSegments": [
+        {"item": "Digital Industries (Automation/Software)", "pct": 30},
+        {"item": "Smart Infrastructure", "pct": 25},
+        {"item": "Mobility (Rail)", "pct": 15},
+        {"item": "Siemens Healthineers", "pct": 25},
+        {"item": "Other / Financial Services", "pct": 5}
+      ],
+      "cyclicality": "Cyclical with industrial capex; healthcare provides defensive ballast.",
+      "tailwinds": ["Reshoring and grid investment driving Smart Infrastructure", "Rail electrification and HSR tenders globally", "Software (digital twin) recurring revenue growth"],
+      "headwinds": ["China industrial weakness on Digital Industries", "Auto/EV capex pause on factory automation", "Channel destocking through 2024-25"],
+      "threats": ["Schneider Electric and Rockwell competitive pressure", "China local-champion automation competition (Inovance)", "Healthineers diagnostics pricing pressure"],
+      "opportunities": ["Industrial AI / Xcelerator software platform", "US manufacturing reshoring orders", "Rail signaling decarbonization upgrades"],
+      "customerConcentration": "Diversified industrial, infrastructure, and healthcare customer base."
+    }
+  },
+  {
+    "ticker": "SMCI",
+    "profile": {
+      "revenueModel": "Sales of high-performance servers, storage, and rack-scale solutions, with strong AI/GPU server franchise tied to NVIDIA platforms.",
+      "revenueSegments": [
+        {"item": "Server & Storage Systems", "pct": 95},
+        {"item": "Subsystems & Accessories", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical with hyperscaler/AI capex spending.",
+      "tailwinds": ["AI server demand (NVIDIA HGX/Blackwell platforms)", "Liquid-cooling rack design leadership", "Direct-liquid-cooled (DLC) capacity expansion"],
+      "headwinds": ["Gross-margin compression from competitive AI-server pricing", "Working-capital strain from rapid revenue growth", "Customer concentration in hyperscalers"],
+      "threats": ["Auditor resignation and short-seller report (governance overhang)", "Dell, HPE, Lenovo competitive AI server pressure", "GPU allocation dependency on NVIDIA"],
+      "opportunities": ["Sovereign-AI buildouts in Europe/Middle East", "Enterprise AI factory adoption", "DLC and rack-scale services"],
+      "customerConcentration": "Highly concentrated; a small number of hyperscaler/cloud customers represent a large share of revenue."
+    }
+  },
+  {
+    "ticker": "SMR",
+    "profile": {
+      "revenueModel": "Pre-commercial; intends to license/sell small modular reactor (SMR) technology and engineering services to utility customers.",
+      "revenueSegments": [],
+      "cyclicality": "Tied to utility nuclear new-build cycles and government clean-energy funding.",
+      "tailwinds": ["Hyperscaler demand for clean firm power for AI data centers", "Bipartisan US support for nuclear (ADVANCE Act)", "DoE cost-share funding"],
+      "headwinds": ["Cancellation of CFPP UAMPS reference project in 2023 hurt credibility", "Long lead time to first commercial revenue (post-2030)", "High cash burn relative to revenue"],
+      "threats": ["Competition from BWXT, GE-Hitachi BWRX-300, X-Energy, Holtec", "Nuclear cost overruns / regulatory delays", "Equity dilution"],
+      "opportunities": ["NRC design certification milestones", "International deals (Romania RoPower)", "Data-center power contracts (Standard Power, Entra1)"],
+      "customerConcentration": "Concentrated in government and utility/data-center pilot customers."
+    }
+  },
+  {
+    "ticker": "SMSM.JK",
+    "profile": {
+      "revenueModel": "Sales of automotive filters (Sakura brand) and radiators to OEMs and aftermarket globally, manufactured in Indonesia.",
+      "revenueSegments": [
+        {"item": "Filters", "pct": 75},
+        {"item": "Radiators & Other", "pct": 25}
+      ],
+      "cyclicality": "Cyclical with auto and heavy-equipment markets, smoothed by aftermarket replacement demand.",
+      "tailwinds": ["Indonesia and ASEAN aftermarket vehicle parc growth", "Export expansion (Middle East, Americas)", "Heavy-equipment/mining filter demand"],
+      "headwinds": ["Raw-material (steel, paper, rubber) cost volatility", "FX exposure on imported inputs", "Slowing global commercial-vehicle production"],
+      "threats": ["EV transition reduces some filter demand long-term", "Counterfeit filter market in Asia", "Competition from Mann+Hummel, Donaldson"],
+      "opportunities": ["EV thermal-management product entry", "Higher-margin OEM contracts", "African and South American distribution growth"],
+      "customerConcentration": "Diversified across global aftermarket distributors and OEMs."
+    }
+  },
+  {
+    "ticker": "SNDK",
+    "profile": {
+      "revenueModel": "Sales of NAND flash memory and SSD products to consumer (cards, drives) and enterprise/cloud customers, post spin-off from Western Digital.",
+      "revenueSegments": [
+        {"item": "Cloud / Enterprise SSD", "pct": 40},
+        {"item": "Client SSD (PC OEMs)", "pct": 30},
+        {"item": "Consumer (cards, retail drives)", "pct": 30}
+      ],
+      "cyclicality": "Highly cyclical; NAND memory pricing follows boom-bust supply cycles.",
+      "tailwinds": ["AI training/inference driving enterprise SSD demand", "NAND supply discipline post-2023 trough", "Standalone capital allocation post-WDC spin"],
+      "headwinds": ["Memory pricing volatility", "Capex required for next-node BiCS NAND transitions", "Kioxia JV operational complexity"],
+      "threats": ["Samsung, SK Hynix, Micron, YMTC competitive pressure", "China YMTC subsidized capacity", "Substitution risk from HBM in some workloads"],
+      "opportunities": ["AI-driven enterprise SSD growth at high attach rates", "Higher-layer 3D NAND cost leadership", "Datacenter QLC adoption"],
+      "customerConcentration": "Concentrated in PC OEMs and hyperscaler datacenter customers."
+    }
+  },
+  {
+    "ticker": "SNOW",
+    "profile": {
+      "revenueModel": "Consumption-based cloud data platform; customers pay for compute and storage credits used for analytics, data sharing, and AI workloads.",
+      "revenueSegments": [
+        {"item": "Product Revenue (consumption)", "pct": 95},
+        {"item": "Professional Services", "pct": 5}
+      ],
+      "cyclicality": "Tied to enterprise IT spend and data-workload growth; consumption model amplifies volatility.",
+      "tailwinds": ["Generative AI driving data-platform consumption (Cortex AI)", "Iceberg open-table format adoption", "Snowpark and AI app development"],
+      "headwinds": ["Customer query-optimization reducing consumption growth", "Stock-based comp dilution and GAAP losses", "Hyperscaler bundling pressure"],
+      "threats": ["Databricks competitive pressure on AI/lakehouse", "AWS/Azure/GCP native data warehouses (Redshift, BigQuery)", "Pricing concessions to large enterprise renewals"],
+      "opportunities": ["Cortex LLM/AI usage monetization", "Data clean rooms and inter-company sharing", "Public-sector and regulated-industry growth"],
+      "customerConcentration": "Diversified, but Forbes Global 2000 customers represent meaningful concentration."
+    }
+  },
+  {
+    "ticker": "SONY",
+    "profile": {
+      "revenueModel": "Diversified: PlayStation gaming hardware/software/services, music publishing/recorded, film/TV (Sony Pictures), CMOS image sensors, and electronics products.",
+      "revenueSegments": [
+        {"item": "Game & Network Services (PlayStation)", "pct": 30},
+        {"item": "Music", "pct": 15},
+        {"item": "Pictures (Film/TV)", "pct": 12},
+        {"item": "Imaging & Sensing Solutions (sensors)", "pct": 15},
+        {"item": "Entertainment Tech & Services / Financial / Other", "pct": 28}
+      ],
+      "cyclicality": "Mixed; gaming and electronics cyclical, music defensive growth.",
+      "tailwinds": ["PS5 mid-cycle software attach", "CMOS sensor share at smartphone OEMs (Apple, Samsung)", "Music streaming royalties from publishing catalog"],
+      "headwinds": ["Hollywood strikes legacy impact on Pictures slate", "Smartphone unit weakness affecting sensor demand", "Yen translation effects"],
+      "threats": ["Microsoft/Activision and multi-platform game release pressure on PlayStation exclusivity", "Samsung sensor competition", "Streaming-service margin pressure"],
+      "opportunities": ["Anime franchises and Crunchyroll growth", "Live-service games portfolio", "Honda EV partnership (Afeela)"],
+      "customerConcentration": "Highly diversified across consumer, OEM (sensors), and music streaming partners."
+    }
+  },
+  {
+    "ticker": "SOUN",
+    "profile": {
+      "revenueModel": "AI-powered conversational voice technology licensed to automotive OEMs, restaurants, and IoT devices; subscription/usage-based.",
+      "revenueSegments": [
+        {"item": "Automotive AI (voice in cars)", "pct": 50},
+        {"item": "Restaurants / Customer Service AI", "pct": 30},
+        {"item": "IoT and Other", "pct": 20}
+      ],
+      "cyclicality": "Tied to enterprise AI adoption; revenue still small-base.",
+      "tailwinds": ["Voice-AI adoption in cars (Hyundai/Kia, Stellantis)", "Restaurant labor automation (drive-thru voice ordering)", "Generative AI integration into voice"],
+      "headwinds": ["Persistent operating losses", "Customer (SYNQ3 / restaurant chain) concentration risk", "NVIDIA divestiture noise on share price"],
+      "threats": ["OpenAI, Google, Amazon foundation-model voice competition", "Cerence in automotive voice", "Equity dilution to fund growth"],
+      "opportunities": ["Edge-deployed voice AI without cloud dependency", "International OEM voice contracts", "Polaris LLM monetization"],
+      "customerConcentration": "Concentrated in a small number of automotive OEMs and QSR chains."
+    }
+  },
+  {
+    "ticker": "SPG",
+    "profile": {
+      "revenueModel": "REIT collecting rent and tenant reimbursements from owned premium malls, mills, and outlets in the US and abroad.",
+      "revenueSegments": [
+        {"item": "Lease / Minimum Rents", "pct": 65},
+        {"item": "Tenant Reimbursements", "pct": 15},
+        {"item": "Overage / Percentage Rents & Other", "pct": 10},
+        {"item": "Management & JV income", "pct": 10}
+      ],
+      "cyclicality": "Cyclical with consumer spending; high-quality A-mall portfolio more resilient than lower-tier retail.",
+      "tailwinds": ["A-mall occupancy and base-rent re-leasing spreads above expirations", "International outlet expansion", "Premium Outlets traffic strength"],
+      "headwinds": ["Higher rates increase refinancing cost on debt stack", "Anchor tenant weakness (department stores)", "JCP / SPARC retail brand exposure"],
+      "threats": ["E-commerce share gain in apparel", "Bankruptcy risk among in-line tenants", "Klepierre / European mall valuation pressure"],
+      "opportunities": ["Mixed-use redevelopment of dead anchor boxes", "Luxury and dining tenant mix", "Outlet center pricing power"],
+      "customerConcentration": "Diversified across thousands of retail tenants."
+    }
+  },
+  {
+    "ticker": "SQM",
+    "profile": {
+      "revenueModel": "Sales of lithium chemicals, specialty plant nutrition (SPN/potassium nitrate), iodine, and industrial chemicals from Atacama (Chile) and Salar Lithium operations.",
+      "revenueSegments": [
+        {"item": "Lithium & Derivatives", "pct": 60},
+        {"item": "Specialty Plant Nutrition", "pct": 15},
+        {"item": "Iodine & Derivatives", "pct": 15},
+        {"item": "Industrial Chemicals & Potassium", "pct": 10}
+      ],
+      "cyclicality": "Highly cyclical with lithium price; specialty businesses (iodine) provide some ballast.",
+      "tailwinds": ["Long-term lithium demand from EV batteries and storage", "Codelco JV consolidating Atacama brine rights", "World-class iodine market position"],
+      "headwinds": ["Lithium price collapse from 2022 highs hurting realized prices", "Chilean lithium nationalization framework restructuring contracts", "Royalty and water-permit pressure"],
+      "threats": ["Chinese lepidolite and African lithium supply growth", "Codelco partnership renegotiation risk", "Resource-nationalism precedent in Latin America"],
+      "opportunities": ["Mt Holland (Australia) hydroxide ramp", "Iodine pricing power amid global supply tightness", "EV recovery boosting lithium spot prices"],
+      "customerConcentration": "Concentrated in major battery cathode makers and ag/nutrition distributors."
+    }
+  },
+  {
+    "ticker": "STNE",
+    "profile": {
+      "revenueModel": "Brazilian payments fintech: merchant acquiring (POS), banking and credit, and software (Linx ERP) via subscription/transactional fees.",
+      "revenueSegments": [
+        {"item": "Financial Services (Acquiring + Banking)", "pct": 80},
+        {"item": "Software (Linx)", "pct": 20}
+      ],
+      "cyclicality": "Cyclical with Brazilian SME consumer spending and credit cycle.",
+      "tailwinds": ["Brazilian SME digitalization", "Pix instant-payments network volume", "Falling Brazilian rates supporting credit book economics"],
+      "headwinds": ["Past credit-book provisioning losses (2022 cycle)", "Competition from Cielo, PagSeguro, Mercado Pago compressing take-rates", "FX volatility on USD-listed shares"],
+      "threats": ["Brazilian central bank rate volatility", "Linx integration / margin pressure", "Concentration in SME segment with high churn"],
+      "opportunities": ["Banking/credit cross-sell to merchant base", "Software bundling (Linx + payments)", "International expansion within LatAm"],
+      "customerConcentration": "Diversified across Brazilian SMEs."
+    }
+  },
+  {
+    "ticker": "TCS.NS",
+    "profile": {
+      "revenueModel": "IT services and consulting: application development/maintenance, BPO, cloud, and digital transformation, sold via T&M and fixed-price contracts to global enterprise customers.",
+      "revenueSegments": [
+        {"item": "BFSI", "pct": 30},
+        {"item": "Retail & CPG", "pct": 16},
+        {"item": "Communications, Media & Tech", "pct": 17},
+        {"item": "Manufacturing", "pct": 10},
+        {"item": "Life Sciences & Healthcare / Other", "pct": 27}
+      ],
+      "cyclicality": "Cyclical with global enterprise IT discretionary spend; BFSI exposure adds bank-sector cyclicality.",
+      "tailwinds": ["Generative AI services (TCS BaNCS, ignio)", "BSNL deal ramp in India", "Vendor consolidation deals"],
+      "headwinds": ["Slower BFSI discretionary spend in US/UK", "Margin pressure from wage inflation in India", "Visa/H-1B regulatory friction"],
+      "threats": ["Accenture, Infosys, Cognizant competitive pressure", "Genrative AI productivity gains compressing T&M revenue", "Tata Sons holding overhang"],
+      "opportunities": ["GenAI-led transformation programs", "Sovereign-AI deals in Middle East/Asia", "Software product (BaNCS) growth"],
+      "customerConcentration": "Diversified across Fortune 500 customers; meaningful BFSI exposure."
+    }
+  },
+  {
+    "ticker": "TECK",
+    "profile": {
+      "revenueModel": "Sales of mined copper, zinc, and molybdenum (post coal-divestment to Glencore), priced on global benchmarks.",
+      "revenueSegments": [
+        {"item": "Copper", "pct": 65},
+        {"item": "Zinc", "pct": 30},
+        {"item": "Molybdenum / Other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical pure-play base-metals miner.",
+      "tailwinds": ["QB2 (Quebrada Blanca) ramp adding copper volumes", "Pivot to copper-pure-play post Elk Valley coal sale", "Capital return from coal proceeds"],
+      "headwinds": ["QB2 ramp execution issues and cost overruns", "Trail smelter and Red Dog zinc operational variance", "Chilean water and permitting constraints"],
+      "threats": ["Activist / takeover target post-coal sale (Glencore overture)", "Zinc TC/RC concentrate market tightness", "First Nations and BC permitting risk on Galore Creek"],
+      "opportunities": ["Highland Valley mine life extension", "Zafranal and San Nicolas project sanctioning", "Strategic partnership / consolidation in copper"],
+      "customerConcentration": "Diversified across global smelters and traders."
+    }
+  },
+  {
+    "ticker": "TER",
+    "profile": {
+      "revenueModel": "Sales of automated test equipment for semiconductors (SoC, memory) and industrial automation/robotics (Universal Robots, MiR).",
+      "revenueSegments": [
+        {"item": "Semiconductor Test", "pct": 75},
+        {"item": "Industrial Automation (UR, MiR)", "pct": 15},
+        {"item": "System Test (storage, defense)", "pct": 10}
+      ],
+      "cyclicality": "Highly cyclical with semiconductor capex and consumer electronics cycles.",
+      "tailwinds": ["AI accelerator and HPC chip test complexity driving tester demand", "Memory (HBM) test growth", "Reshoring of fab capacity"],
+      "headwinds": ["Mobile SoC test demand (Apple/Qualcomm) softness", "Industrial automation slowdown in 2024-25", "Inventory adjustments at OSATs"],
+      "threats": ["Advantest dominance in HPC/AI test", "Customer in-sourcing of test development", "China export-control restrictions on advanced test equipment"],
+      "opportunities": ["VIP (verification IP) and SLT (system-level test) growth", "Automotive and silicon-photonics test", "AI compute test ramp at TSMC, Samsung"],
+      "customerConcentration": "Concentrated in major fabless and OSAT customers (TSMC, Samsung, Apple supply chain)."
+    }
+  },
+  {
+    "ticker": "TEVA",
+    "profile": {
+      "revenueModel": "Generic and specialty pharmaceutical sales globally; flagship branded products include Austedo (HD/TD) and Ajovy (migraine).",
+      "revenueSegments": [
+        {"item": "Generics (US, Europe, International)", "pct": 55},
+        {"item": "Innovative / Branded (Austedo, Ajovy, Copaxone)", "pct": 35},
+        {"item": "API & Other", "pct": 10}
+      ],
+      "cyclicality": "Defensive; pharma demand inelastic but pricing pressure on generics is structural.",
+      "tailwinds": ["Austedo XR growth in US for tardive dyskinesia and Huntington's", "Biosimilar pipeline (Humira, Stelara)", "Pivot-to-Growth restructuring"],
+      "headwinds": ["High net debt from 2016 Actavis Generics deal", "US opioid litigation settlement payments", "Generic price erosion in US"],
+      "threats": ["Generic / biosimilar competition on Copaxone, Bendeka", "FDA inspection and quality issues at manufacturing sites", "Pricing reform under IRA"],
+      "opportunities": ["Olanzapine LAI (TEV-749) for schizophrenia", "Anti-PD-1/IL-15 oncology pipeline (with mAbxience)", "Continued debt paydown improving credit profile"],
+      "customerConcentration": "Diversified across global wholesalers and pharmacy chains."
+    }
+  },
+  {
+    "ticker": "TMQ",
+    "profile": {
+      "revenueModel": "Pre-revenue exploration company developing copper-zinc-cobalt-silver projects (Arctic and Bornite) in Alaska's Ambler district via JV with South32.",
+      "revenueSegments": [],
+      "cyclicality": "Speculative; tied to copper price and Alaska permitting.",
+      "tailwinds": ["Copper supply deficit driving exploration interest", "Alaska road infrastructure (Ambler Access) under federal review"],
+      "headwinds": ["No revenue; reliant on equity raises and partner funding", "Biden-era denial of Ambler Road right-of-way reissued under EIS", "Long path to first production"],
+      "threats": ["Ambler Road permit reversal under future administrations", "South32 partnership decision risk", "Equity dilution"],
+      "opportunities": ["Trump-administration revival of Alaska resource projects", "JV partner buyout / strategic transaction", "Cobalt and silver byproduct credits"],
+      "customerConcentration": "Unknown."
+    }
+  },
+  {
+    "ticker": "TPIA.JK",
+    "profile": {
+      "revenueModel": "Indonesian petrochemical producer; sales of olefins (ethylene, propylene), polyolefins, styrene, and butadiene to domestic and regional plastics customers.",
+      "revenueSegments": [
+        {"item": "Olefins (Ethylene/Propylene)", "pct": 45},
+        {"item": "Polyolefins (PE/PP)", "pct": 35},
+        {"item": "Styrene Monomer / Butadiene / Other", "pct": 20}
+      ],
+      "cyclicality": "Highly cyclical with petrochemical spreads and Asian polymer prices.",
+      "tailwinds": ["Indonesian government infrastructure and industrialization push", "CAP2 (second petrochemical complex) progressing", "Strategic partnership with Thailand's SCG"],
+      "headwinds": ["Asian polyolefin oversupply from China capacity additions compressing margins", "Naphtha feedstock cost volatility", "Capex burden on CAP2"],
+      "threats": ["Chinese coal-to-olefins capacity flooding regional market", "Crude oil price spikes squeezing spreads", "Environmental/ESG pressure on virgin plastics"],
+      "opportunities": ["CAP2 commissioning expanding capacity 2-3x", "Import substitution in Indonesian polymer market", "Green/circular plastics initiatives"],
+      "customerConcentration": "Diversified across Indonesian and regional plastics converters."
+    }
+  }
+]

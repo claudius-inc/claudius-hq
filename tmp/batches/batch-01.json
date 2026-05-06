@@ -1,0 +1,296 @@
+[
+  {
+    "ticker": "000513.SZ",
+    "market": "CN",
+    "name": "LIVZON PHARMACEUTICAL GROUP INC",
+    "sector": null
+  },
+  {
+    "ticker": "000538.SZ",
+    "market": "CN",
+    "name": "YUNNAN BAIYAO GROUP CO",
+    "sector": null
+  },
+  {
+    "ticker": "000660.KS",
+    "market": "KS",
+    "name": "SK hynix",
+    "sector": null
+  },
+  {
+    "ticker": "000792.SZ",
+    "market": "CN",
+    "name": "QINGHAI SALT LAKE INDUSTRY CO L",
+    "sector": null
+  },
+  {
+    "ticker": "000876.SZ",
+    "market": "CN",
+    "name": "NEW HOPE LIUHE CO LTD",
+    "sector": null
+  },
+  {
+    "ticker": "000988.SZ",
+    "market": "CN",
+    "name": "HUAGONG TECH CO",
+    "sector": null
+  },
+  {
+    "ticker": "000998.SZ",
+    "market": "CN",
+    "name": "YUAN LONGPING HIGH-TECH AGRICUL",
+    "sector": null
+  },
+  {
+    "ticker": "0013.HK",
+    "market": "HK",
+    "name": "HUTCHMED",
+    "sector": null
+  },
+  {
+    "ticker": "0020.HK",
+    "market": "HK",
+    "name": "SENSETIME-W",
+    "sector": null
+  },
+  {
+    "ticker": "002008.SZ",
+    "market": "CN",
+    "name": "HAN'S LASER TECHNOLOGY INDUSTRY",
+    "sector": null
+  },
+  {
+    "ticker": "002049.SZ",
+    "market": "CN",
+    "name": "UNIGROUP GUOXIN MICROELECTRONIC",
+    "sector": null
+  },
+  {
+    "ticker": "002156.SZ",
+    "market": "CN",
+    "name": "TONGFU MICROELECTRONICS CO LTD",
+    "sector": null
+  },
+  {
+    "ticker": "002230.SZ",
+    "market": "CN",
+    "name": "IFLYTEK CO LTD",
+    "sector": null
+  },
+  {
+    "ticker": "002236.SZ",
+    "market": "CN",
+    "name": "ZHEJIANG DAHUA TECHNOLOGY CO. L",
+    "sector": null
+  },
+  {
+    "ticker": "002371.SZ",
+    "market": "CN",
+    "name": "NAURA TECHNOLOGY GROUP CO LTD",
+    "sector": null
+  },
+  {
+    "ticker": "002384.SZ",
+    "market": "CN",
+    "name": "SUZHOU DONGSHAN PRECISION MANUF",
+    "sector": null
+  },
+  {
+    "ticker": "002415.SZ",
+    "market": "CN",
+    "name": "HANGZHOU HIKVISION DIGITAL TECH",
+    "sector": null
+  },
+  {
+    "ticker": "002475.SZ",
+    "market": "CN",
+    "name": "LUXSHARE PRECISION INDUSTRY CO ",
+    "sector": null
+  },
+  {
+    "ticker": "002518.SZ",
+    "market": "CN",
+    "name": "SHENZHEN KSTAR SCIENCE AND TECH",
+    "sector": null
+  },
+  {
+    "ticker": "0027.HK",
+    "market": "HK",
+    "name": "GALAXY ENT",
+    "sector": null
+  },
+  {
+    "ticker": "002714.SZ",
+    "market": "CN",
+    "name": "MUYUAN FOODS CO LTD",
+    "sector": null
+  },
+  {
+    "ticker": "002851.SZ",
+    "market": "CN",
+    "name": "SHENZHEN MEGMEET ELECTRICAL CO ",
+    "sector": null
+  },
+  {
+    "ticker": "003490.KS",
+    "market": "KS",
+    "name": "KAL",
+    "sector": null
+  },
+  {
+    "ticker": "0038.HK",
+    "market": "HK",
+    "name": "FIRST TRACTOR",
+    "sector": null
+  },
+  {
+    "ticker": "0045.HK",
+    "market": "HK",
+    "name": "HK&S HOTELS",
+    "sector": null
+  },
+  {
+    "ticker": "005380.KS",
+    "market": "KS",
+    "name": "HyundaiMtr",
+    "sector": null
+  },
+  {
+    "ticker": "005930.KS",
+    "market": "KS",
+    "name": "SamsungElec",
+    "sector": null
+  },
+  {
+    "ticker": "006400.KS",
+    "market": "KS",
+    "name": "SAMSUNG SDI CO.,LTD.",
+    "sector": null
+  },
+  {
+    "ticker": "008770.KS",
+    "market": "KS",
+    "name": "HtlShilla",
+    "sector": null
+  },
+  {
+    "ticker": "0100.HK",
+    "market": "HK",
+    "name": "MINIMAX-W",
+    "sector": null
+  },
+  {
+    "ticker": "012450.KS",
+    "market": "KS",
+    "name": "HANWHA AEROSPACE",
+    "sector": null
+  },
+  {
+    "ticker": "0288.HK",
+    "market": "HK",
+    "name": "WH GROUP",
+    "sector": null
+  },
+  {
+    "ticker": "0293.HK",
+    "market": "HK",
+    "name": "CATHAY PAC AIR",
+    "sector": null
+  },
+  {
+    "ticker": "032830.KS",
+    "market": "KS",
+    "name": "SAMSUNG LIFE",
+    "sector": null
+  },
+  {
+    "ticker": "035420.KS",
+    "market": "KS",
+    "name": "NAVER",
+    "sector": null
+  },
+  {
+    "ticker": "036570.KS",
+    "market": "KS",
+    "name": "NC",
+    "sector": null
+  },
+  {
+    "ticker": "036930.KS",
+    "market": "KS",
+    "name": "036930.KS,0P0000ARNV,450845",
+    "sector": null
+  },
+  {
+    "ticker": "0386.HK",
+    "market": "HK",
+    "name": "SINOPEC CORP",
+    "sector": null
+  },
+  {
+    "ticker": "042700.KQ",
+    "market": "KS",
+    "name": "042700.KQ,0P0000APDA,644491",
+    "sector": null
+  },
+  {
+    "ticker": "051910.KS",
+    "market": "KS",
+    "name": "LGCHEM",
+    "sector": null
+  },
+  {
+    "ticker": "051915.KS",
+    "market": "KS",
+    "name": "LGCHEM(1P)",
+    "sector": null
+  },
+  {
+    "ticker": "056080.KQ",
+    "market": "KS",
+    "name": "Yujin Robot",
+    "sector": null
+  },
+  {
+    "ticker": "0570.HK",
+    "market": "HK",
+    "name": "TRAD CHI MED",
+    "sector": null
+  },
+  {
+    "ticker": "0606.HK",
+    "market": "HK",
+    "name": "SCE CM",
+    "sector": null
+  },
+  {
+    "ticker": "066570.KS",
+    "market": "KS",
+    "name": "LGELECTRONICS",
+    "sector": null
+  },
+  {
+    "ticker": "0670.HK",
+    "market": "HK",
+    "name": "CHINA EAST AIR",
+    "sector": null
+  },
+  {
+    "ticker": "0700.HK",
+    "market": "HK",
+    "name": "TENCENT",
+    "sector": null
+  },
+  {
+    "ticker": "0753.HK",
+    "market": "HK",
+    "name": "AIR CHINA",
+    "sector": null
+  },
+  {
+    "ticker": "0857.HK",
+    "market": "HK",
+    "name": "PETROCHINA",
+    "sector": null
+  }
+]

@@ -1,0 +1,296 @@
+[
+  {
+    "ticker": "GLW",
+    "market": "US",
+    "name": null,
+    "sector": null
+  },
+  {
+    "ticker": "GMAB",
+    "market": "US",
+    "name": "Genmab A/S",
+    "sector": null
+  },
+  {
+    "ticker": "GMBXF",
+    "market": "US",
+    "name": "Grupo Mexico S.A.B. de C.V.",
+    "sector": null
+  },
+  {
+    "ticker": "GOOG",
+    "market": "US",
+    "name": "Alphabet Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "GOOGL",
+    "market": "US",
+    "name": "Alphabet Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "GPCR",
+    "market": "US",
+    "name": "Structure Therapeutics Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "GPN",
+    "market": "US",
+    "name": "Global Payments Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "H",
+    "market": "US",
+    "name": "Hyatt Hotels Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "HDFCBANK.NS",
+    "market": "US",
+    "name": "HDFC BANK LTD",
+    "sector": null
+  },
+  {
+    "ticker": "HESAY",
+    "market": "US",
+    "name": "Hermes International SA",
+    "sector": null
+  },
+  {
+    "ticker": "HINDUNILVR.NS",
+    "market": "US",
+    "name": "HINDUSTAN UNILEVER LTD.",
+    "sector": null
+  },
+  {
+    "ticker": "HLN",
+    "market": "US",
+    "name": "Haleon plc",
+    "sector": null
+  },
+  {
+    "ticker": "HLT",
+    "market": "US",
+    "name": "Hilton Worldwide Holdings Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "HMSP.JK",
+    "market": "US",
+    "name": "H.M. Sampoerna Tbk.",
+    "sector": null
+  },
+  {
+    "ticker": "HNR1.DE",
+    "market": "US",
+    "name": "HANNOVER RUECK SE NA O.N.",
+    "sector": null
+  },
+  {
+    "ticker": "HRMY",
+    "market": "US",
+    "name": "Harmony Biosciences Holdings, I",
+    "sector": null
+  },
+  {
+    "ticker": "HUT",
+    "market": "US",
+    "name": "Hut 8 Corp.",
+    "sector": null
+  },
+  {
+    "ticker": "ICICIBANK.NS",
+    "market": "US",
+    "name": "ICICI BANK LTD.",
+    "sector": null
+  },
+  {
+    "ticker": "IHG.L",
+    "market": "US",
+    "name": "INTERCONTINENTAL HOTELS GROUP P",
+    "sector": null
+  },
+  {
+    "ticker": "INCO.JK",
+    "market": "US",
+    "name": "Vale Indonesia Tbk.",
+    "sector": null
+  },
+  {
+    "ticker": "INFQ",
+    "market": "US",
+    "name": "Infleqtion, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "INFY",
+    "market": "US",
+    "name": "Infosys Limited",
+    "sector": null
+  },
+  {
+    "ticker": "INTC",
+    "market": "US",
+    "name": "Intel Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "IONQ",
+    "market": "US",
+    "name": "IonQ, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "IRDM",
+    "market": "US",
+    "name": "Iridium Communications Inc",
+    "sector": null
+  },
+  {
+    "ticker": "IRM",
+    "market": "US",
+    "name": "Iron Mountain Incorporated (Del",
+    "sector": null
+  },
+  {
+    "ticker": "ISRG",
+    "market": "US",
+    "name": "Intuitive Surgical, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "ITUB",
+    "market": "US",
+    "name": "Itau Unibanco Banco Holding SA",
+    "sector": null
+  },
+  {
+    "ticker": "JKS",
+    "market": "US",
+    "name": "JinkoSolar Holding Company Limi",
+    "sector": null
+  },
+  {
+    "ticker": "JOBY",
+    "market": "US",
+    "name": "Joby Aviation, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "KLAC",
+    "market": "US",
+    "name": "KLA Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "KOF",
+    "market": "US",
+    "name": "Coca Cola Femsa S.A.B. de C.V.",
+    "sector": null
+  },
+  {
+    "ticker": "LAC",
+    "market": "US",
+    "name": "Lithium Americas Corp.",
+    "sector": null
+  },
+  {
+    "ticker": "LEGN",
+    "market": "US",
+    "name": "Legend Biotech Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "LEU",
+    "market": "US",
+    "name": "Centrus Energy Corp.",
+    "sector": null
+  },
+  {
+    "ticker": "LHX",
+    "market": "US",
+    "name": "L3Harris Technologies, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "LILMF",
+    "market": "US",
+    "name": "Lilium N.V.",
+    "sector": null
+  },
+  {
+    "ticker": "LLY",
+    "market": "US",
+    "name": "Eli Lilly and Company",
+    "sector": null
+  },
+  {
+    "ticker": "LMT",
+    "market": "US",
+    "name": "Lockheed Martin Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "LRCX",
+    "market": "US",
+    "name": "Lam Research Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "LT.NS",
+    "market": "US",
+    "name": "LARSEN & TOUBRO LTD.",
+    "sector": null
+  },
+  {
+    "ticker": "LVMUY",
+    "market": "US",
+    "name": "LVMH-Moet Hennessy Louis Vuitto",
+    "sector": null
+  },
+  {
+    "ticker": "LYFT",
+    "market": "US",
+    "name": "Lyft, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "MA",
+    "market": "US",
+    "name": "Mastercard Incorporated",
+    "sector": null
+  },
+  {
+    "ticker": "MAR",
+    "market": "US",
+    "name": "Marriott International",
+    "sector": null
+  },
+  {
+    "ticker": "MARA",
+    "market": "US",
+    "name": "MARA Holdings, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "MBLY",
+    "market": "US",
+    "name": "Mobileye Global Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "MDKA.JK",
+    "market": "US",
+    "name": "Merdeka Copper Gold Tbk.",
+    "sector": null
+  },
+  {
+    "ticker": "MELI",
+    "market": "US",
+    "name": "MercadoLibre, Inc.",
+    "sector": null
+  }
+]

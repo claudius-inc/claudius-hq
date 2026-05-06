@@ -13,6 +13,11 @@ import {
   setTickerTags,
   setThemeTags,
 } from "@/lib/tags";
+import {
+  type TickerProfile,
+  profileToColumns,
+  isProfileEmpty,
+} from "@/lib/ticker-ai";
 import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -43,6 +48,7 @@ interface AddTickerBody {
   tags?: string[];
   themeIds?: number[];
   newThemes?: NewThemeInput[];
+  profile?: TickerProfile;
 }
 
 const MARKET_CANDIDATES = ["US", "SGX", "HK", "JP", "CN"] as const;
@@ -148,27 +154,50 @@ export async function POST(request: NextRequest) {
       .limit(1);
     const isNewTicker = existingUniverse.length === 0;
 
-    // 3. Upsert scanner_universe.
+    // 3. Upsert scanner_universe. If the caller forwarded an AI-generated
+    // profile (AddTickerModal does this), write the columns + stamp
+    // profile_generated_at. An empty profile is ignored so we don't
+    // overwrite a previously-drafted profile on update.
+    const profileCols =
+      body.profile && !isProfileEmpty(body.profile)
+        ? profileToColumns(body.profile)
+        : null;
+    const profileStampedAt = profileCols ? sql`datetime('now')` : null;
+
+    const insertValues: Record<string, unknown> = {
+      ticker: normalized,
+      market,
+      name: finalName,
+      sector: finalSector,
+      source: "user",
+      notes: body.notes?.trim() || null,
+      enabled: true,
+    };
+    if (profileCols) {
+      Object.assign(insertValues, profileCols, {
+        profileGeneratedAt: profileStampedAt,
+      });
+    }
+
+    const updateValues: Record<string, unknown> = {
+      market,
+      name: finalName,
+      sector: finalSector,
+      notes: body.notes?.trim() || null,
+      updatedAt: sql`datetime('now')`,
+    };
+    if (profileCols) {
+      Object.assign(updateValues, profileCols, {
+        profileGeneratedAt: profileStampedAt,
+      });
+    }
+
     await db
       .insert(scannerUniverse)
-      .values({
-        ticker: normalized,
-        market,
-        name: finalName,
-        sector: finalSector,
-        source: "user",
-        notes: body.notes?.trim() || null,
-        enabled: true,
-      })
+      .values(insertValues as typeof scannerUniverse.$inferInsert)
       .onConflictDoUpdate({
         target: scannerUniverse.ticker,
-        set: {
-          market,
-          name: finalName,
-          sector: finalSector,
-          notes: body.notes?.trim() || null,
-          updatedAt: sql`datetime('now')`,
-        },
+        set: updateValues,
       });
 
     // 4. Merge user-supplied tags with any pre-existing tags on this ticker.

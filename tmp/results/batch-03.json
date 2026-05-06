@@ -1,0 +1,1615 @@
+[
+  {
+    "ticker": "373220.KQ",
+    "profile": {
+      "revenueModel": "Manufacture and sale of lithium-ion EV battery cells, modules and packs to global automakers under long-term supply contracts.",
+      "revenueSegments": [
+        {"item": "Automotive batteries", "pct": 70},
+        {"item": "ESS (energy storage systems)", "pct": 15},
+        {"item": "Small-format / IT batteries", "pct": 15}
+      ],
+      "cyclicality": "Cyclical capex-driven business tied to EV demand and auto production cycles.",
+      "tailwinds": [
+        "US IRA production tax credits for North American battery output",
+        "Global EV adoption and grid-storage build-out",
+        "Korean policy support and trade access vs Chinese competitors"
+      ],
+      "headwinds": [
+        "EV demand growth slowdown in US/Europe pressuring utilization",
+        "Falling lithium and cathode prices compressing ASPs",
+        "Cost competition from Chinese cell makers (CATL/BYD)"
+      ],
+      "threats": [
+        "Customer in-housing of cells (Tesla, GM, Ford)",
+        "LFP chemistry shift undercutting NCM margins",
+        "Solid-state and next-gen chemistry disruption"
+      ],
+      "opportunities": [
+        "JV plants with GM, Stellantis, Honda, Hyundai in North America",
+        "ESS demand from data-center and grid customers",
+        "Expansion into LFP and 4680 cylindrical cells"
+      ],
+      "customerConcentration": "Top customers (GM, Hyundai-Kia, Ford, Volkswagen) account for a significant majority of revenue."
+    }
+  },
+  {
+    "ticker": "3750.HK",
+    "profile": {
+      "revenueModel": "Manufacture and sale of lithium-ion battery cells, modules and packs (EV and ESS) plus battery materials to global OEMs.",
+      "revenueSegments": [
+        {"item": "EV (power) batteries", "pct": 70},
+        {"item": "Energy storage systems (ESS)", "pct": 20},
+        {"item": "Battery materials / recycling / other", "pct": 10}
+      ],
+      "cyclicality": "Cyclical, levered to global EV unit growth and grid storage capex.",
+      "tailwinds": [
+        "Global EV penetration still <25% in most markets",
+        "Surging utility-scale ESS demand alongside renewables",
+        "Falling raw material costs improving unit economics"
+      ],
+      "headwinds": [
+        "EU and US tariffs / IRA exclusion of Chinese-controlled content",
+        "Chinese domestic price competition with BYD and second-tier cell makers",
+        "Slowing EV demand growth in Europe"
+      ],
+      "threats": [
+        "Geopolitical restrictions on China battery exports",
+        "OEM vertical integration into cells",
+        "Solid-state battery competition from Japanese/Korean rivals"
+      ],
+      "opportunities": [
+        "Overseas plants in Hungary, Germany, Spain (with Stellantis), Indonesia",
+        "Skateboard chassis and battery-swap services",
+        "ESS scale advantage as data-center power demand surges"
+      ],
+      "customerConcentration": "Top customers include Tesla, BMW, Stellantis, NIO, Li Auto, Geely; concentrated but diversified across global OEMs."
+    }
+  },
+  {
+    "ticker": "3759.HK",
+    "profile": {
+      "revenueModel": "Contract research, development and manufacturing services (CRO/CDMO) to global pharma and biotech customers, billed by project milestones.",
+      "revenueSegments": [
+        {"item": "Laboratory services (CRO)", "pct": 60},
+        {"item": "CMC (small molecule CDMO)", "pct": 25},
+        {"item": "Clinical development & large molecule / CGT", "pct": 15}
+      ],
+      "cyclicality": "Tied to global biotech R&D funding cycles; moderately cyclical.",
+      "tailwinds": [
+        "Outsourcing penetration of pharma R&D still rising",
+        "Biotech funding recovery post-2022/23 trough",
+        "Cost arbitrage of China-based discovery work"
+      ],
+      "headwinds": [
+        "US BIOSECURE Act risk targeting Chinese CRO/CDMOs",
+        "Weak biotech VC funding from 2022 cycle",
+        "FX and pricing pressure from Western customers"
+      ],
+      "threats": [
+        "US legislation restricting US biotech engagement with Chinese CROs",
+        "Competition from WuXi AppTec / WuXi Biologics and Indian CROs",
+        "Customer reshoring of preclinical work"
+      ],
+      "opportunities": [
+        "UK Cramlington site and US/EU footprint to derisk geopolitics",
+        "Cell & gene therapy CDMO build-out",
+        "Large molecule / biologics service expansion"
+      ],
+      "customerConcentration": "Diversified across thousands of pharma and biotech customers; top clients include large global pharma."
+    }
+  },
+  {
+    "ticker": "4063.T",
+    "profile": {
+      "revenueModel": "Manufacture and sale of silicon wafers for semiconductors, PVC, silicones, rare-earth magnets and specialty chemicals.",
+      "revenueSegments": [
+        {"item": "Semiconductor silicon wafers", "pct": 30},
+        {"item": "PVC / chlor-alkali (Shintech)", "pct": 30},
+        {"item": "Functional materials (silicones, rare earths, photoresists)", "pct": 25},
+        {"item": "Specialty chemicals & other", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, exposed to semiconductor wafer demand and US housing-driven PVC demand.",
+      "tailwinds": [
+        "AI-driven leading-edge wafer demand at TSMC/Samsung/Intel",
+        "Long-term US housing under-build supporting PVC volumes",
+        "EUV photoresist demand for advanced nodes"
+      ],
+      "headwinds": [
+        "Mature-node wafer oversupply from Chinese entrants",
+        "Weak PVC pricing in cyclical trough",
+        "Strong yen reducing translated overseas earnings"
+      ],
+      "threats": [
+        "Chinese silicon wafer capacity ramp (NSIG, Zing Semi)",
+        "Rare-earth supply chain disruption",
+        "Energy/feedstock cost volatility for chlor-alkali"
+      ],
+      "opportunities": [
+        "300mm wafer capacity expansion under long-term contracts",
+        "AI/HPC-driven leading-edge silicon demand",
+        "EUV photoresists and advanced packaging materials"
+      ],
+      "customerConcentration": "Wafer business concentrated with global foundries/IDMs (TSMC, Samsung, Intel, Micron); Shintech PVC sells broadly into US construction."
+    }
+  },
+  {
+    "ticker": "4502.T",
+    "profile": {
+      "revenueModel": "Sales of branded prescription pharmaceuticals across oncology, GI, rare disease, neuroscience and plasma-derived therapies.",
+      "revenueSegments": [
+        {"item": "GI & inflammation (Entyvio)", "pct": 25},
+        {"item": "Oncology", "pct": 20},
+        {"item": "Rare diseases", "pct": 20},
+        {"item": "Neuroscience / plasma-derived therapies / vaccines", "pct": 35}
+      ],
+      "cyclicality": "Defensive; pharmaceutical demand is largely non-cyclical.",
+      "tailwinds": [
+        "Aging populations in developed markets",
+        "Entyvio subcutaneous launch extending IBD franchise",
+        "Pipeline catalysts in dengue vaccine and narcolepsy"
+      ],
+      "headwinds": [
+        "Looming patent cliff on Entyvio (mid/late decade)",
+        "US IRA Medicare price negotiation exposure",
+        "Heavy debt from Shire acquisition still being deleveraged"
+      ],
+      "threats": [
+        "Biosimilar erosion of Entyvio post-LOE",
+        "Pipeline R&D failures (e.g., orexin program setbacks)",
+        "FX volatility (USD/JPY) on translated earnings"
+      ],
+      "opportunities": [
+        "Orexin agonist TAK-861 in narcolepsy",
+        "Plasma-derived therapy growth (immunoglobulins)",
+        "Emerging-market expansion of dengue vaccine Qdenga"
+      ],
+      "customerConcentration": "Diversified across global wholesalers, hospital systems and payers."
+    }
+  },
+  {
+    "ticker": "4503.T",
+    "profile": {
+      "revenueModel": "Sales of branded prescription drugs in oncology, urology, transplant immunology and ophthalmology.",
+      "revenueSegments": [
+        {"item": "Xtandi (prostate cancer)", "pct": 30},
+        {"item": "Padcev (urothelial cancer)", "pct": 15},
+        {"item": "Transplant / immunology (Prograf)", "pct": 15},
+        {"item": "Other prescription drugs", "pct": 40}
+      ],
+      "cyclicality": "Defensive; prescription drug demand is non-cyclical.",
+      "tailwinds": [
+        "Padcev label expansion in 1L urothelial cancer",
+        "Aging population driving oncology prescription volume",
+        "Vyloy (zolbetuximab) launch in gastric cancer"
+      ],
+      "headwinds": [
+        "Xtandi LOE approaching late decade",
+        "US IRA drug price negotiation hitting Xtandi",
+        "Iveric Bio (Izervay) commercial launch slower than expected"
+      ],
+      "threats": [
+        "Generic erosion of Xtandi post-patent",
+        "Competition in dry-AMD from Apellis Syfovre",
+        "Pipeline attrition risk after Iveric acquisition"
+      ],
+      "opportunities": [
+        "Geographic atrophy market with Izervay",
+        "Padcev + Keytruda combo expansion",
+        "Cell therapy and gene therapy platform"
+      ],
+      "customerConcentration": "Diversified across global wholesalers and healthcare systems; partners include Pfizer (Xtandi) and Seagen/Pfizer (Padcev)."
+    }
+  },
+  {
+    "ticker": "4519.T",
+    "profile": {
+      "revenueModel": "Sales of innovative branded pharmaceuticals (oncology, immunology) developed in-house and via Roche partnership; majority-owned by Roche.",
+      "revenueSegments": [
+        {"item": "Oncology", "pct": 50},
+        {"item": "Specialty (hemophilia, ophthalmology)", "pct": 25},
+        {"item": "Bone & joint / other", "pct": 15},
+        {"item": "Royalties & overseas", "pct": 10}
+      ],
+      "cyclicality": "Defensive; prescription pharma demand is non-cyclical.",
+      "tailwinds": [
+        "Hemlibra global growth via Roche distribution",
+        "Aging Japanese demographics supporting oncology volumes",
+        "Royalty stream from Roche on globally-licensed assets"
+      ],
+      "headwinds": [
+        "Japan biennial NHI drug-price cuts",
+        "Strong yen reduces overseas royalty translation",
+        "Avastin/Herceptin biosimilar erosion in Japan"
+      ],
+      "threats": [
+        "Pipeline attrition without Roche backing",
+        "Biosimilar competition on legacy Roche-licensed antibodies",
+        "Domestic patent cliffs on key oncology assets"
+      ],
+      "opportunities": [
+        "Mid-size molecule / antibody-engineering platform (Recycling Antibody, Switch Antibody)",
+        "In-house pipeline outlicensing to Roche globally",
+        "New launches in ophthalmology and rare disease"
+      ],
+      "customerConcentration": "Roche owns ~60% and is the key out-license partner; product distribution diversified through Japanese wholesalers."
+    }
+  },
+  {
+    "ticker": "4565.T",
+    "profile": {
+      "revenueModel": "Drug discovery royalties/milestones plus marketed CNS specialty drugs in Japan; previously known as Sosei Heptares.",
+      "revenueSegments": [
+        {"item": "Marketed products (CNS, Japan)", "pct": 60},
+        {"item": "Royalties & milestones (GPCR platform out-licenses)", "pct": 30},
+        {"item": "Research collaboration revenue", "pct": 10}
+      ],
+      "cyclicality": "Defensive on marketed drugs; lumpy/event-driven on milestone income.",
+      "tailwinds": [
+        "Pfizer Velsipity (S1P modulator) royalties ramping",
+        "GPCR structure-based drug discovery platform partnerships",
+        "Japanese CNS franchise base"
+      ],
+      "headwinds": [
+        "Japan drug-price reductions",
+        "Lumpy milestone-based revenue recognition",
+        "Limited late-stage in-house pipeline"
+      ],
+      "threats": [
+        "Partner pipeline attrition reducing milestone flow",
+        "Competition in GPCR drug discovery",
+        "Royalty concentration in few partner products"
+      ],
+      "opportunities": [
+        "Expansion of GPCR partnerships with global pharma",
+        "Internal pipeline progression in CNS/orexin",
+        "Geographic expansion of marketed CNS portfolio"
+      ],
+      "customerConcentration": "Royalty income concentrated on a small number of partner programs (notably Pfizer Velsipity)."
+    }
+  },
+  {
+    "ticker": "4568.T",
+    "profile": {
+      "revenueModel": "Sales of branded prescription drugs led by oncology ADCs (Enhertu) plus cardiovascular and vaccines, with Enhertu profit-shared with AstraZeneca.",
+      "revenueSegments": [
+        {"item": "Oncology (Enhertu, Datroway)", "pct": 45},
+        {"item": "Cardiovascular (Lixiana)", "pct": 20},
+        {"item": "Vaccines & other Japan business", "pct": 25},
+        {"item": "US/EU other products", "pct": 10}
+      ],
+      "cyclicality": "Defensive; prescription drug demand is non-cyclical.",
+      "tailwinds": [
+        "Enhertu rapid uptake across HER2+ and HER2-low tumors",
+        "Datroway (TROP2 ADC) launch in breast and lung cancer",
+        "Strong ADC platform pipeline (DXd)"
+      ],
+      "headwinds": [
+        "Heavy R&D and SG&A spend during ADC launches",
+        "Japan domestic price-cut pressure",
+        "FX risk on USD/EUR-denominated co-promotion economics"
+      ],
+      "threats": [
+        "Competing TROP2 ADC (Trodelvy) and pipeline ADCs",
+        "Manufacturing scale-up execution risk on ADCs",
+        "Patent cliff on Lixiana mid/late decade"
+      ],
+      "opportunities": [
+        "Multiple DXd-platform ADCs in pivotal trials",
+        "Label expansion of Enhertu into earlier lines and additional tumors",
+        "ADC out-licensing/partnerships globally"
+      ],
+      "customerConcentration": "AstraZeneca is a key co-development/commercialization partner for Enhertu and Datroway; product sold globally via diversified wholesalers."
+    }
+  },
+  {
+    "ticker": "4578.T",
+    "profile": {
+      "revenueModel": "Diversified holdings: branded pharmaceuticals (Abilify, Rexulti, Jynarque) plus consumer health products (Pocari Sweat, Oronamin C, Bonyu nutraceuticals).",
+      "revenueSegments": [
+        {"item": "Pharmaceuticals", "pct": 65},
+        {"item": "Nutraceuticals (consumer)", "pct": 25},
+        {"item": "Consumer products / other", "pct": 10}
+      ],
+      "cyclicality": "Defensive; pharma and consumer staples both non-cyclical.",
+      "tailwinds": [
+        "Rexulti label expansion (agitation in Alzheimer's)",
+        "Jynarque/Samsca (tolvaptan) growth in ADPKD",
+        "Asian beverage/nutraceutical demand growth"
+      ],
+      "headwinds": [
+        "Abilify Maintena LOE pressure",
+        "Japan biennial NHI price cuts",
+        "FX and EM currency translation drag"
+      ],
+      "threats": [
+        "Generic/biosimilar competition on legacy CNS franchise",
+        "Pipeline attrition risk in late-stage psychiatry",
+        "Regulatory scrutiny on novel CNS launches"
+      ],
+      "opportunities": [
+        "Centanafadine (ADHD) and other CNS pipeline launches",
+        "Mindset Pharma psychedelics platform (acquisition)",
+        "Indication expansion of Rexulti and tolvaptan"
+      ],
+      "customerConcentration": "Diversified across global wholesalers, hospitals, and consumer retail in Asia."
+    }
+  },
+  {
+    "ticker": "4587.T",
+    "profile": {
+      "revenueModel": "Drug discovery and development collaborations using a peptide-discovery platform (PDPS), generating upfront, milestone and royalty income; plus emerging radiopharma/manufacturing.",
+      "revenueSegments": [
+        {"item": "Discovery collaboration & milestones", "pct": 70},
+        {"item": "Manufacturing / contract services", "pct": 20},
+        {"item": "Royalties & other", "pct": 10}
+      ],
+      "cyclicality": "Lumpy/event-driven; tied to biotech R&D funding and partner program advancement.",
+      "tailwinds": [
+        "Renewed interest in peptide therapeutics post-GLP-1 success",
+        "Platform partnerships with Novartis, Genentech, Lilly, Merck",
+        "Pipeline diversification into radiopharmaceuticals"
+      ],
+      "headwinds": [
+        "Revenue lumpiness from milestone timing",
+        "High R&D burn until royalties scale",
+        "Biotech funding environment volatility"
+      ],
+      "threats": [
+        "Partner program failures eliminating milestone streams",
+        "Competing peptide discovery platforms",
+        "Dependence on small number of late-stage partner assets"
+      ],
+      "opportunities": [
+        "Royalty leverage if multiple partner peptides reach market",
+        "Internal pipeline (oncology, radiopharma) progression",
+        "Platform expansion into oral peptides and macrocycles"
+      ],
+      "customerConcentration": "Concentrated in roughly a dozen large pharma collaborations (Novartis, Lilly, Merck, Genentech, etc.)."
+    }
+  },
+  {
+    "ticker": "4592.T",
+    "profile": {
+      "revenueModel": "Development of regenerative cell therapies (allogeneic mesenchymal stem cell-derived); revenue primarily milestones from partners and limited product sales.",
+      "revenueSegments": [],
+      "cyclicality": "Pre-commercial / early-commercial biotech; not cyclical but highly event-driven.",
+      "tailwinds": [
+        "Approval pathway momentum for regenerative medicine in Japan (Sakigake)",
+        "Aging population needs for stroke and neurotrauma rehab",
+        "Partnership with Sumitomo Pharma"
+      ],
+      "headwinds": [
+        "Persistent operating losses and going-concern history",
+        "Manufacturing scale-up complexity for cell therapies",
+        "Limited pipeline diversification"
+      ],
+      "threats": [
+        "Regulatory delays or post-marketing data issues for SB623",
+        "Competing cell-therapy platforms",
+        "Dilution risk from continued capital raises"
+      ],
+      "opportunities": [
+        "Akuugo (SB623) commercial launch in chronic motor deficit from TBI in Japan",
+        "Label/indication expansion into stroke",
+        "Out-licensing in US/EU"
+      ],
+      "customerConcentration": "Sumitomo Pharma is a key collaboration partner; commercial customer base will be hospitals/payers in Japan."
+    }
+  },
+  {
+    "ticker": "4661.T",
+    "profile": {
+      "revenueModel": "Operation of Tokyo Disney Resort (Disneyland & DisneySea) — admissions, in-park merchandise and food, plus hotels; pays royalty to Disney.",
+      "revenueSegments": [
+        {"item": "Theme parks (admissions)", "pct": 50},
+        {"item": "Merchandise & food at parks", "pct": 35},
+        {"item": "Hotels & other", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, tied to consumer discretionary spending and inbound tourism.",
+      "tailwinds": [
+        "Inbound tourism to Japan rebounding to record highs",
+        "Weak yen attracting foreign visitors",
+        "Fantasy Springs (DisneySea expansion) driving per-capita spend"
+      ],
+      "headwinds": [
+        "Domestic Japanese consumer spending pressure",
+        "Capacity constraints on peak days limiting throughput",
+        "High capex amortization from Fantasy Springs"
+      ],
+      "threats": [
+        "Pandemic / health-related park closures",
+        "Foreign visitor pullback if yen strengthens",
+        "Royalty cost escalation in licensing renewals"
+      ],
+      "opportunities": [
+        "Premium pricing and dynamic-pricing rollout",
+        "Cruise ship business launch (planned)",
+        "International visitor share growth"
+      ],
+      "customerConcentration": "Diversified consumer base; mix of domestic and inbound visitors."
+    }
+  },
+  {
+    "ticker": "4971.TWO",
+    "profile": {
+      "revenueModel": null,
+      "revenueSegments": [],
+      "cyclicality": null,
+      "tailwinds": [],
+      "headwinds": [],
+      "threats": [],
+      "opportunities": [],
+      "customerConcentration": "Unknown."
+    }
+  },
+  {
+    "ticker": "5713.T",
+    "profile": {
+      "revenueModel": "Mining, smelting and refining of nickel, copper, gold, plus production of battery cathode materials and electronic materials.",
+      "revenueSegments": [
+        {"item": "Mineral resources (nickel, copper, gold mining stakes)", "pct": 30},
+        {"item": "Smelting & refining", "pct": 45},
+        {"item": "Materials (battery cathode, electronic)", "pct": 20},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, tied to nickel, copper and gold prices and EV battery demand.",
+      "tailwinds": [
+        "Long-term nickel/copper demand from electrification",
+        "Toyota/Panasonic battery cathode supply relationships",
+        "Gold strength as a safe-haven hedge"
+      ],
+      "headwinds": [
+        "Indonesian nickel oversupply collapsing prices",
+        "EV demand growth slowdown pressuring cathode volumes",
+        "Strong yen reducing translated commodity earnings"
+      ],
+      "threats": [
+        "Continued nickel price weakness vs Indonesian HPAL output",
+        "LFP cathode shift away from nickel-rich NCA/NCM",
+        "Mine cost inflation and geopolitical risk in Philippines/Chile"
+      ],
+      "opportunities": [
+        "Battery recycling and closed-loop nickel sourcing",
+        "Premium-priced clean nickel for IRA-compliant supply chains",
+        "Copper price upside from grid/electrification capex"
+      ],
+      "customerConcentration": "Cathode materials customers concentrated in Panasonic/Toyota; metals sold broadly."
+    }
+  },
+  {
+    "ticker": "5E2.SI",
+    "profile": {
+      "revenueModel": "Heavy engineering, fabrication and integration services for offshore oil & gas platforms, FPSOs, drilling rigs, offshore wind, and ship repair.",
+      "revenueSegments": [
+        {"item": "Offshore oil & gas projects (FPSO, platforms)", "pct": 60},
+        {"item": "New energies (offshore wind, carbon capture)", "pct": 15},
+        {"item": "Ship repair & conversion", "pct": 25}
+      ],
+      "cyclicality": "Highly cyclical, tied to offshore oil capex and shipping cycles.",
+      "tailwinds": [
+        "Offshore E&P capex upcycle (Petrobras, Equinor, TotalEnergies)",
+        "Offshore wind substation and foundation orders",
+        "Backlog at multi-year highs post Sembcorp Marine + Keppel O&M merger"
+      ],
+      "headwinds": [
+        "Legacy loss-making contracts still working through P&L",
+        "Working capital and execution risk on large turnkey EPCs",
+        "Singapore labor cost inflation"
+      ],
+      "threats": [
+        "Project cost overruns or delays on fixed-price EPC contracts",
+        "Korean/Chinese yard competition on FPSOs and rigs",
+        "Energy transition reducing long-term offshore oil capex"
+      ],
+      "opportunities": [
+        "Repowering and offshore wind installation work in Asia/Europe",
+        "Carbon capture and floating offshore wind",
+        "Margin recovery as legacy contracts roll off"
+      ],
+      "customerConcentration": "Project-driven; top customers include Petrobras, Shell, BP, TotalEnergies, Equinor."
+    }
+  },
+  {
+    "ticker": "600085.SS",
+    "profile": {
+      "revenueModel": "Manufacture and retail of branded traditional Chinese medicine (TCM) under the Tong Ren Tang brand, sold through proprietary stores and wholesalers.",
+      "revenueSegments": [
+        {"item": "TCM finished medicines (manufacturing)", "pct": 60},
+        {"item": "Retail pharmacy (proprietary stores)", "pct": 35},
+        {"item": "Other / overseas", "pct": 5}
+      ],
+      "cyclicality": "Defensive consumer health; non-cyclical.",
+      "tailwinds": [
+        "Chinese government policy supporting TCM",
+        "Aging Chinese population driving chronic-care demand",
+        "Premium brand heritage (350+ years)"
+      ],
+      "headwinds": [
+        "Chinese consumer downgrade pressuring premium TCM pricing",
+        "Provincial volume-based procurement (VBP) on some TCM lines",
+        "Raw herb cost inflation"
+      ],
+      "threats": [
+        "VBP price cuts in hospital channels",
+        "Counterfeit / grey-market product reputation risk",
+        "Younger consumer shift toward Western OTC"
+      ],
+      "opportunities": [
+        "International expansion of TCM in SE Asia and ethnic markets",
+        "E-commerce and DTC growth",
+        "New formulations targeting wellness consumers"
+      ],
+      "customerConcentration": "Diversified retail consumer base across China; some hospital channel exposure."
+    }
+  },
+  {
+    "ticker": "600096.SS",
+    "profile": {
+      "revenueModel": "Manufacture and sale of phosphate fertilizers, polyformaldehyde (POM), feed-grade phosphates and yellow phosphorus.",
+      "revenueSegments": [
+        {"item": "Phosphate fertilizers (DAP/MAP)", "pct": 50},
+        {"item": "Compound fertilizers & feed phosphate", "pct": 25},
+        {"item": "Fine chemicals (POM, yellow phosphorus)", "pct": 20},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, tied to global fertilizer prices and Chinese ag policy.",
+      "tailwinds": [
+        "Global food security concerns supporting fertilizer demand",
+        "China export quotas keeping domestic phosphate prices firm",
+        "LFP cathode demand for purified phosphate"
+      ],
+      "headwinds": [
+        "Phosphate fertilizer price normalization from 2022 highs",
+        "China property slowdown weighing on industrial chemicals demand",
+        "Energy/coal cost volatility for yellow phosphorus"
+      ],
+      "threats": [
+        "Tighter Chinese environmental regulation on phosphate mining",
+        "Loss of phosphate export quota allocation",
+        "Substitution risk in compound fertilizer market"
+      ],
+      "opportunities": [
+        "Battery-grade purified phosphoric acid for LFP cathodes",
+        "Vertical integration into LFP value chain",
+        "POM capacity expansion for engineering plastics"
+      ],
+      "customerConcentration": "Diversified across Chinese agricultural distributors and industrial chemical buyers."
+    }
+  },
+  {
+    "ticker": "600276.SS",
+    "profile": {
+      "revenueModel": "Sales of branded prescription pharmaceuticals (oncology, anesthesia, contrast media) in China; growing innovative drug pipeline with overseas licensing.",
+      "revenueSegments": [
+        {"item": "Oncology", "pct": 40},
+        {"item": "Anesthesia", "pct": 20},
+        {"item": "Contrast media & other generics", "pct": 25},
+        {"item": "Innovative drug licensing & overseas", "pct": 15}
+      ],
+      "cyclicality": "Defensive; pharma demand is non-cyclical.",
+      "tailwinds": [
+        "Aging Chinese population driving oncology volume",
+        "Out-licensing of innovative pipeline (e.g., GLP-1, ADC) to global pharma",
+        "NMPA innovation-friendly approval reforms"
+      ],
+      "headwinds": [
+        "Volume-based procurement (VBP) cutting generic prices",
+        "National Reimbursement Drug List (NRDL) price negotiation",
+        "Anti-corruption healthcare crackdown affecting hospital sales"
+      ],
+      "threats": [
+        "Continued VBP rounds eroding legacy generic margin",
+        "Domestic biosimilar/innovative competition (Akeso, BeiGene)",
+        "Geopolitical risk on US licensing economics"
+      ],
+      "opportunities": [
+        "Global out-licensing of GLP-1, PD-1/VEGF bispecifics, ADCs",
+        "International commercial launches with partners (Merck, etc.)",
+        "Pipeline depth (~80 innovative molecules)"
+      ],
+      "customerConcentration": "Diversified across Chinese hospitals and provincial distributors; growing licensing revenue from select global pharma."
+    }
+  },
+  {
+    "ticker": "600298.SS",
+    "profile": {
+      "revenueModel": "Manufacture and sale of yeast and yeast derivatives (baker's yeast, yeast extract, animal nutrition, biopharma ingredients) globally.",
+      "revenueSegments": [
+        {"item": "Yeast & deep processing (baking, food, savory)", "pct": 75},
+        {"item": "Sugar & molasses", "pct": 10},
+        {"item": "Animal nutrition / other", "pct": 15}
+      ],
+      "cyclicality": "Defensive food ingredient with some commodity input cyclicality (molasses).",
+      "tailwinds": [
+        "Global yeast extract demand in clean-label foods",
+        "International capacity (Egypt, Russia) capturing local demand",
+        "Falling molasses costs after 2022 spike"
+      ],
+      "headwinds": [
+        "Sugar/molasses input cost volatility",
+        "Energy cost increases at fermentation plants",
+        "Russia/CIS geopolitical exposure"
+      ],
+      "threats": [
+        "Lesaffre and AB Mauri global competition",
+        "Trade restrictions on key export markets",
+        "Currency volatility on overseas plants"
+      ],
+      "opportunities": [
+        "Yeast extract substitution for MSG / clean-label demand",
+        "New plant ramp in Egypt and Russia",
+        "Animal nutrition and biopharma ingredient growth"
+      ],
+      "customerConcentration": "Diversified across global food/baking customers and Chinese bakeries."
+    }
+  },
+  {
+    "ticker": "600438.SS",
+    "profile": {
+      "revenueModel": "Manufacture of high-purity polysilicon, solar cells/wafers, and aquatic feed (legacy business).",
+      "revenueSegments": [
+        {"item": "Solar materials (polysilicon)", "pct": 40},
+        {"item": "Solar cells & modules", "pct": 35},
+        {"item": "Feed (aquatic, livestock)", "pct": 20},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, tied to polysilicon spot prices and global solar installations.",
+      "tailwinds": [
+        "Global solar capacity additions still rising",
+        "Industry consolidation as smaller polysilicon producers exit",
+        "Cost-leader position in polysilicon"
+      ],
+      "headwinds": [
+        "Severe polysilicon and module overcapacity in China",
+        "Polysilicon prices below cash cost for many peers",
+        "US tariffs and trade barriers limiting export channels"
+      ],
+      "threats": [
+        "Prolonged solar industry price war",
+        "Tier-2 producers irrationally maintaining output",
+        "Tariff/sanction expansion"
+      ],
+      "opportunities": [
+        "Industry shake-out leaving low-cost survivors",
+        "TOPCon / heterojunction cell technology mix shift",
+        "Vertical integration economics in down-cycle"
+      ],
+      "customerConcentration": "Polysilicon sold to top wafer makers (LONGi, JinkoSolar, Trina); module customers diversified globally."
+    }
+  },
+  {
+    "ticker": "600584.SS",
+    "profile": {
+      "revenueModel": "Outsourced semiconductor assembly and test (OSAT) services — wafer-level, advanced packaging, SiP and traditional packaging — for global IC designers/IDMs.",
+      "revenueSegments": [
+        {"item": "Wafer-level / advanced packaging", "pct": 35},
+        {"item": "Communication & SiP", "pct": 30},
+        {"item": "Computing / memory packaging", "pct": 20},
+        {"item": "Automotive / industrial / consumer", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, follows semiconductor demand and inventory cycles.",
+      "tailwinds": [
+        "China semiconductor self-sufficiency policy support",
+        "Chiplet/heterogeneous integration adoption",
+        "AI accelerator advanced packaging demand"
+      ],
+      "headwinds": [
+        "Mature packaging price competition with ASE/Amkor",
+        "Memory cycle volatility (acquired STATS ChipPAC exposure)",
+        "US export controls on leading-edge customer technology"
+      ],
+      "threats": [
+        "US sanctions limiting access to leading-edge tools/customers",
+        "ASE / Amkor margin pressure in advanced packaging",
+        "Customer in-housing of advanced packaging (TSMC CoWoS)"
+      ],
+      "opportunities": [
+        "Domestic Chinese fabless customers ramping volumes",
+        "Advanced packaging (XDFOI, Hi-density Fan-out) for AI",
+        "Automotive packaging growth"
+      ],
+      "customerConcentration": "Top customers include Qualcomm, MediaTek, SMIC, and major Chinese fabless firms; concentrated but expanding."
+    }
+  },
+  {
+    "ticker": "600598.SS",
+    "profile": {
+      "revenueModel": "State-affiliated agribusiness in Heilongjiang — production and sale of rice, soybeans, corn, and farmland leasing operations.",
+      "revenueSegments": [
+        {"item": "Rice processing & sales", "pct": 60},
+        {"item": "Other grains (soybean, corn)", "pct": 25},
+        {"item": "Farmland operations / services", "pct": 15}
+      ],
+      "cyclicality": "Tied to grain commodity cycles and weather; moderately cyclical.",
+      "tailwinds": [
+        "Chinese food-security policy emphasizing domestic grain",
+        "State backing as Beidahuang group affiliate",
+        "Premium northeastern rice brand recognition"
+      ],
+      "headwinds": [
+        "Domestic rice price ceilings limiting margins",
+        "Weather/yield variability in Heilongjiang",
+        "Soybean import competition from Brazil/US"
+      ],
+      "threats": [
+        "Grain price reform reducing protected pricing",
+        "Climate/weather disruption to harvests",
+        "SOE governance and capital allocation risk"
+      ],
+      "opportunities": [
+        "Vertical integration into branded rice retail",
+        "Land-management services scale-up",
+        "Modernization of farm productivity"
+      ],
+      "customerConcentration": "Diversified across Chinese grain wholesalers and food processors."
+    }
+  },
+  {
+    "ticker": "600699.SS",
+    "profile": {
+      "revenueModel": "Tier-1 supplier of automotive safety systems (airbags, seatbelts), HMI, electronics and connected-car solutions to global OEMs.",
+      "revenueSegments": [
+        {"item": "Automotive safety (airbags, seatbelts, steering wheels)", "pct": 65},
+        {"item": "Automotive electronics / HMI / connected", "pct": 30},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Cyclical, tied to global light vehicle production volumes.",
+      "tailwinds": [
+        "EV adoption requiring more electronics content per car",
+        "China NEV penetration driving local OEM share gains",
+        "Active safety / ADAS regulation increasing safety content per vehicle"
+      ],
+      "headwinds": [
+        "Soft global auto SAAR and OEM destocking",
+        "Heavy debt from Takata Safety acquisition",
+        "Pricing pressure from OEM cost-down demands"
+      ],
+      "threats": [
+        "Global auto production downturn",
+        "Autoliv competition in airbags/seatbelts",
+        "FX volatility on global manufacturing footprint"
+      ],
+      "opportunities": [
+        "China NEV OEM win rate (BYD, Geely, Li Auto)",
+        "ADAS and HMI content growth per vehicle",
+        "Margin recovery as Takata integration completes"
+      ],
+      "customerConcentration": "Top global OEMs (VW, Stellantis, GM, Ford, BMW, Toyota plus China NEV players) drive most revenue."
+    }
+  },
+  {
+    "ticker": "600887.SS",
+    "profile": {
+      "revenueModel": "Manufacture and sale of branded dairy products (liquid milk, infant formula, ice cream, yogurt, milk powder) across China and select overseas markets.",
+      "revenueSegments": [
+        {"item": "Liquid milk", "pct": 60},
+        {"item": "Milk powder & milk products (incl. infant formula)", "pct": 25},
+        {"item": "Ice cream / cold drinks", "pct": 10},
+        {"item": "Other (cheese, overseas)", "pct": 5}
+      ],
+      "cyclicality": "Defensive consumer staple; mildly cyclical via raw milk costs.",
+      "tailwinds": [
+        "Per-capita dairy consumption still below developed-market peers",
+        "Premiumization trend in Chinese dairy (organic, ambient yogurt)",
+        "Falling raw milk price in 2024-25 cycle improving margins"
+      ],
+      "headwinds": [
+        "Chinese birth-rate decline reducing infant formula TAM",
+        "Soft consumer spending and category de-stocking",
+        "Promotional intensity vs Mengniu and regional brands"
+      ],
+      "threats": [
+        "Continued birth-rate decline impacting formula segment",
+        "Domestic competition with Mengniu in liquid milk",
+        "Raw milk price volatility"
+      ],
+      "opportunities": [
+        "Adult/senior nutrition and functional dairy categories",
+        "Cheese category development in China",
+        "SE Asia expansion (Joyday brand)"
+      ],
+      "customerConcentration": "Highly diversified Chinese consumer base via modern trade, traditional retail and e-commerce."
+    }
+  },
+  {
+    "ticker": "603986.SS",
+    "profile": {
+      "revenueModel": "Fabless semiconductor design — NOR flash memory, MCUs, sensors and DRAM (via partnerships) sold to consumer/IoT/auto OEMs.",
+      "revenueSegments": [
+        {"item": "NOR flash memory", "pct": 55},
+        {"item": "Microcontrollers (MCU)", "pct": 30},
+        {"item": "Sensors & analog", "pct": 10},
+        {"item": "DRAM / other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, tied to consumer electronics and memory pricing cycles.",
+      "tailwinds": [
+        "China semiconductor self-sufficiency drive",
+        "AIoT/edge AI device proliferation",
+        "MCU automotive penetration in domestic NEVs"
+      ],
+      "headwinds": [
+        "NOR flash and MCU price weakness in cyclical trough",
+        "Consumer electronics demand softness",
+        "Inventory destocking at downstream customers"
+      ],
+      "threats": [
+        "Winbond, Macronix competition in NOR flash",
+        "STMicro/NXP/Renesas competition in MCU",
+        "US export controls on advanced fab access"
+      ],
+      "opportunities": [
+        "Auto-grade MCU and NOR flash growth in NEVs",
+        "DRAM market entry via Changxin partnership",
+        "Domestic substitution in industrial MCU"
+      ],
+      "customerConcentration": "Diversified across Chinese consumer/IoT brands and a growing automotive customer mix."
+    }
+  },
+  {
+    "ticker": "6160.HK",
+    "profile": {
+      "revenueModel": "Sales of branded oncology drugs (BTK inhibitor Brukinsa, PD-1 tislelizumab) plus collaboration/license income; formerly BeiGene.",
+      "revenueSegments": [
+        {"item": "Brukinsa (zanubrutinib)", "pct": 55},
+        {"item": "Tislelizumab (PD-1) and other internal products", "pct": 25},
+        {"item": "In-licensed Amgen products in China", "pct": 15},
+        {"item": "Collaboration / royalty", "pct": 5}
+      ],
+      "cyclicality": "Defensive; oncology drug demand non-cyclical, but P&L event-driven on launches.",
+      "tailwinds": [
+        "Brukinsa share gains vs Imbruvica in CLL globally",
+        "Tislelizumab approvals expanding in EU/US",
+        "Diverse internal pipeline in solid tumors"
+      ],
+      "headwinds": [
+        "Heavy R&D and SG&A spend during global commercial build",
+        "China NRDL price negotiations on tislelizumab",
+        "Biosimilar/generic competition in China oncology"
+      ],
+      "threats": [
+        "AstraZeneca acalabrutinib and pipeline non-covalent BTKs (pirtobrutinib)",
+        "Geopolitical risk (US-China biotech sanctions)",
+        "Manufacturing transfer / supply chain decoupling pressure"
+      ],
+      "opportunities": [
+        "Sonrotoclax (BCL2) and pipeline solid-tumor assets",
+        "Continued global Brukinsa share expansion",
+        "Profitability inflection as scale builds"
+      ],
+      "customerConcentration": "Diversified across global hospitals/payers; Amgen partnership covers select in-licensed China products."
+    }
+  },
+  {
+    "ticker": "6302.T",
+    "profile": {
+      "revenueModel": "Manufacture and sale of industrial machinery — precision injection-molding machines, power transmission/control, ships, environmental & energy systems, construction machinery.",
+      "revenueSegments": [
+        {"item": "Mechatronics (injection molders, precision controls, robots)", "pct": 35},
+        {"item": "Industrial machinery (power transmission, gearboxes)", "pct": 25},
+        {"item": "Logistics & construction equipment", "pct": 20},
+        {"item": "Ships / environmental / energy", "pct": 20}
+      ],
+      "cyclicality": "Highly cyclical, tied to global industrial capex and semiconductor/auto investment.",
+      "tailwinds": [
+        "Semiconductor capex recovery driving precision equipment orders",
+        "Reshoring of manufacturing in US/EU/Japan",
+        "Automation / robotics demand in labor-short economies"
+      ],
+      "headwinds": [
+        "Chinese industrial capex weakness",
+        "Strong yen reducing translated overseas earnings",
+        "Ship/heavy machinery commoditization"
+      ],
+      "threats": [
+        "Korean/Chinese competition in injection molders",
+        "Global industrial recession",
+        "Energy cost volatility for steel-intensive products"
+      ],
+      "opportunities": [
+        "Semiconductor wafer-handling and SiC/Power-device equipment",
+        "Material handling automation for warehouse/logistics",
+        "Hydrogen and offshore wind components"
+      ],
+      "customerConcentration": "Diversified across global industrial OEMs and infrastructure customers."
+    }
+  },
+  {
+    "ticker": "6501.T",
+    "profile": {
+      "revenueModel": "Diversified industrial conglomerate — IT services (Lumada), digital systems & services, energy/grid, mobility (rail), connective industries; extensive software and recurring service mix.",
+      "revenueSegments": [
+        {"item": "Digital Systems & Services (incl. Lumada, GlobalLogic)", "pct": 30},
+        {"item": "Connective Industries (industrial digital, automotive)", "pct": 25},
+        {"item": "Mobility (rail, elevators)", "pct": 15},
+        {"item": "Green Energy & Mobility (grid, power)", "pct": 20},
+        {"item": "Other / financial services", "pct": 10}
+      ],
+      "cyclicality": "Mixed — IT services defensive, industrial/grid cyclical but increasingly recurring.",
+      "tailwinds": [
+        "Global grid investment for renewables and AI data centers",
+        "Lumada digital-transformation pipeline at Japanese enterprises",
+        "Mobility/rail orders globally (HRE Hitachi Rail Europe)"
+      ],
+      "headwinds": [
+        "GlobalLogic IT services growth deceleration",
+        "Strong yen impacting overseas translation",
+        "Working capital pressure on long-cycle grid projects"
+      ],
+      "threats": [
+        "Siemens/GE Vernova competition in grid",
+        "Indian IT services price competition",
+        "Project execution risk on global rail/grid contracts"
+      ],
+      "opportunities": [
+        "Hitachi Energy backlog growth from grid build-out",
+        "Data-center power/cooling solutions",
+        "Lumada cross-sell into industrial customers"
+      ],
+      "customerConcentration": "Diversified across utilities, governments, industrial OEMs and IT enterprise customers globally."
+    }
+  },
+  {
+    "ticker": "6702.T",
+    "profile": {
+      "revenueModel": "IT services and solutions — system integration, managed services, cloud (Uvance), plus shrinking hardware (PC/server) business; majority recurring services revenue.",
+      "revenueSegments": [
+        {"item": "Service Solutions (Japan IT services)", "pct": 35},
+        {"item": "Hardware Solutions / Network", "pct": 20},
+        {"item": "Uvance (digital transformation platform)", "pct": 25},
+        {"item": "International / other", "pct": 20}
+      ],
+      "cyclicality": "Defensive recurring services with some cyclical hardware exposure.",
+      "tailwinds": [
+        "Japan corporate IT digital-transformation backlog",
+        "Government and public-sector cloud migration",
+        "Lifestyle of recurring SaaS/managed services"
+      ],
+      "headwinds": [
+        "UK Post Office Horizon scandal litigation overhang",
+        "Hardware revenue mix decline pressuring near-term sales",
+        "Strong yen impacting overseas translation"
+      ],
+      "threats": [
+        "NTT Data and Accenture competition in Japan IT services",
+        "Reputational and financial impact from Horizon inquiry",
+        "Wage inflation in IT engineer labor market"
+      ],
+      "opportunities": [
+        "Uvance cross-industry digital platform monetization",
+        "Generative AI services upsell to enterprise customers",
+        "Mid-term margin uplift from services mix shift"
+      ],
+      "customerConcentration": "Concentrated in Japanese enterprises and public sector; also UK government contracts."
+    }
+  },
+  {
+    "ticker": "6821.HK",
+      "profile": {
+      "revenueModel": "Small-molecule CDMO services — process R&D and commercial manufacturing of APIs and intermediates for global pharma customers.",
+      "revenueSegments": [
+        {"item": "Commercial-stage CDMO (API manufacturing)", "pct": 70},
+        {"item": "Pre-commercial / clinical CDMO", "pct": 25},
+        {"item": "Other / formulations / biologics", "pct": 5}
+      ],
+      "cyclicality": "Tied to global pharma commercial volumes and biotech R&D funding.",
+      "tailwinds": [
+        "Continuous manufacturing technology leadership",
+        "Long-term supply agreements with several large global pharma",
+        "Pharma outsourcing penetration trend"
+      ],
+      "headwinds": [
+        "US BIOSECURE Act risk perception on Chinese CDMOs",
+        "Customer destocking and end-of-COVID volume normalization",
+        "Pricing pressure from Indian CDMO competition"
+      ],
+      "threats": [
+        "US legislation restricting Chinese CDMO access",
+        "Large-customer order pull-forward unwind",
+        "Competition from WuXi STA, Lonza, Catalent"
+      ],
+      "opportunities": [
+        "Capacity addition in formulations and biologics",
+        "Geographic diversification (UK, US sites)",
+        "GLP-1 / peptide manufacturing"
+      ],
+      "customerConcentration": "Concentrated; top customers (Pfizer, Vertex, Gilead, etc.) represent a substantial share of revenue."
+    }
+  },
+  {
+    "ticker": "6861.T",
+    "profile": {
+      "revenueModel": "Direct sales of factory automation sensors, machine vision, measuring instruments and barcode readers to industrial customers globally; fabless model with very high gross margins.",
+      "revenueSegments": [
+        {"item": "Sensors", "pct": 35},
+        {"item": "Vision / image processing", "pct": 25},
+        {"item": "Measurement / microscope", "pct": 20},
+        {"item": "Marking / barcode readers / other", "pct": 20}
+      ],
+      "cyclicality": "Cyclical, tied to global industrial/factory automation capex.",
+      "tailwinds": [
+        "Global manufacturing automation and labor substitution",
+        "Reshoring/factory build-out in US, Mexico, India",
+        "Aging industrial workforce in developed markets"
+      ],
+      "headwinds": [
+        "Chinese factory capex weakness",
+        "Strong yen translation drag on overseas earnings",
+        "Inventory cycle softness in semiconductor/auto end markets"
+      ],
+      "threats": [
+        "Cognex competition in machine vision",
+        "Omron/Sick competition in sensors",
+        "Margin compression if direct-sales productivity falters"
+      ],
+      "opportunities": [
+        "AI-enabled vision systems and 3D measurement",
+        "India / Southeast Asia market penetration",
+        "EV battery and semiconductor production line content"
+      ],
+      "customerConcentration": "Highly diversified — over 300,000 industrial customers globally, no single customer material."
+    }
+  },
+  {
+    "ticker": "688012.SS",
+    "profile": {
+      "revenueModel": "Manufacture and sale of plasma etch, MOCVD and EPI semiconductor equipment to global and Chinese fabs; one-time tool sales plus services/spares.",
+      "revenueSegments": [
+        {"item": "Plasma etch equipment (CCP/ICP)", "pct": 60},
+        {"item": "MOCVD / EPI / thin film", "pct": 20},
+        {"item": "Services & spares", "pct": 15},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Cyclical, tied to global wafer fab equipment (WFE) spending.",
+      "tailwinds": [
+        "Chinese semiconductor capex push for self-sufficiency",
+        "US export controls boosting domestic Chinese tool wins",
+        "3D NAND / advanced logic etch step count rising"
+      ],
+      "headwinds": [
+        "Lumpy lead-times and order timing volatility",
+        "Customer concentration in domestic fabs (SMIC, YMTC, CXMT)",
+        "Margin pressure as competition intensifies"
+      ],
+      "threats": [
+        "US/Dutch sanctions on tool component imports",
+        "Lam Research / Applied Materials retain leading-edge dominance",
+        "Domestic peer competition (Naura)"
+      ],
+      "opportunities": [
+        "Domestic substitution in etch and CVD",
+        "Capacity ramp at Chinese memory and logic fabs",
+        "Move to advanced 3D NAND and DRAM nodes"
+      ],
+      "customerConcentration": "Concentrated in top Chinese fabs (SMIC, Hua Hong, YMTC, CXMT)."
+    }
+  },
+  {
+    "ticker": "688036.SS",
+    "profile": {
+      "revenueModel": "Design and sale of low/mid-range Android smartphones, feature phones and accessories under Tecno, Itel, Infinix brands, primarily in emerging markets.",
+      "revenueSegments": [
+        {"item": "Smartphones (Tecno, Infinix)", "pct": 75},
+        {"item": "Feature phones (Itel)", "pct": 15},
+        {"item": "Accessories / smart home / other", "pct": 10}
+      ],
+      "cyclicality": "Cyclical, tied to emerging-market consumer spending and replacement cycles.",
+      "tailwinds": [
+        "Smartphone penetration still rising in Africa, South Asia, LATAM",
+        "Strong distribution moat in Africa (>40% smartphone share)",
+        "AI smartphone feature uplift driving ASP"
+      ],
+      "headwinds": [
+        "Component cost inflation (memory, panels)",
+        "EM FX devaluation eroding USD-translated revenue",
+        "Indian regulatory scrutiny on Chinese OEMs"
+      ],
+      "threats": [
+        "Xiaomi, OPPO, Samsung price competition in EMs",
+        "Indian government action against Chinese smartphone brands",
+        "EM macro shocks reducing consumer durable spend"
+      ],
+      "opportunities": [
+        "AI-feature smartphones at sub-$200 price points",
+        "Mobile internet / digital ad services on installed base",
+        "Smart-home / accessory ecosystem expansion"
+      ],
+      "customerConcentration": "Diversified across emerging-market consumers via local distributors and retail."
+    }
+  },
+  {
+    "ticker": "688126.SS",
+    "profile": {
+      "revenueModel": "Manufacture and sale of 200mm and 300mm semiconductor silicon wafers (polished and epitaxial) to Chinese and global foundries.",
+      "revenueSegments": [
+        {"item": "300mm silicon wafers", "pct": 55},
+        {"item": "200mm silicon wafers", "pct": 35},
+        {"item": "SOI / specialty wafers", "pct": 10}
+      ],
+      "cyclicality": "Cyclical, tied to wafer demand and semiconductor inventory cycles.",
+      "tailwinds": [
+        "China silicon wafer self-sufficiency drive",
+        "Local fabs (SMIC, Hua Hong) capacity expansion",
+        "SOI growth in RF and power semiconductor"
+      ],
+      "headwinds": [
+        "Mature-node wafer oversupply globally",
+        "Pricing pressure from Shin-Etsu, SUMCO, GlobalWafers",
+        "Heavy capex burden during ramp-up"
+      ],
+      "threats": [
+        "300mm wafer ASP decline if Chinese fab utilization falls",
+        "US export controls on advanced wafer technology",
+        "Quality qualification cycle delays at customers"
+      ],
+      "opportunities": [
+        "Growing share with Chinese 28nm-and-above fabs",
+        "SOI wafer expansion for RF/IoT/power applications",
+        "Eventual leading-edge wafer qualification"
+      ],
+      "customerConcentration": "Top customers concentrated in domestic fabs (SMIC, Hua Hong) plus select global customers."
+    }
+  },
+  {
+    "ticker": "688188.SS",
+    "profile": {
+      "revenueModel": "Manufacture of laser-cutting control systems (controllers, sensors, software) sold to laser machine tool builders.",
+      "revenueSegments": [
+        {"item": "Laser cutting control systems", "pct": 85},
+        {"item": "Other laser/automation electronics", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, tied to industrial machine tool demand and metal fabrication capex.",
+      "tailwinds": [
+        "High-power laser cutting penetration in Chinese metal fabrication",
+        "Domestic substitution vs foreign laser-control systems",
+        "Manufacturing automation buildout"
+      ],
+      "headwinds": [
+        "Chinese industrial capex slowdown",
+        "Price competition from second-tier domestic peers",
+        "Customer (laser machine OEM) margin pressure"
+      ],
+      "threats": [
+        "Loss of share to peer Friendess or upstream laser-source vendors integrating",
+        "Chinese property/construction-driven metal demand softness",
+        "Trade barriers on exported laser equipment"
+      ],
+      "opportunities": [
+        "High-end ultrafast/high-power laser controls",
+        "Welding and 3D laser cutting controls expansion",
+        "Overseas channel build-out"
+      ],
+      "customerConcentration": "Concentrated in top Chinese laser machine builders (Bystronic, HSG, Han's Laser-related OEMs)."
+    }
+  },
+  {
+    "ticker": "688195.SS",
+    "profile": {
+      "revenueModel": "Manufacture of precision optical components and assemblies (lenses, mirrors, prisms) for semiconductor lithography, communications, lasers and scientific instruments.",
+      "revenueSegments": [
+        {"item": "Optical components (lenses, mirrors, prisms)", "pct": 60},
+        {"item": "Optical assemblies / modules", "pct": 30},
+        {"item": "Other / services", "pct": 10}
+      ],
+      "cyclicality": "Cyclical, tied to semiconductor, datacom and laser equipment cycles.",
+      "tailwinds": [
+        "Domestic semiconductor lithography component demand",
+        "Optical communications / silicon photonics growth",
+        "Scientific instrument and biomedical imaging demand"
+      ],
+      "headwinds": [
+        "Small absolute scale and high R&D ratio",
+        "Long qualification cycles at semicon equipment OEMs",
+        "Optical raw glass material cost volatility"
+      ],
+      "threats": [
+        "Zeiss / Nikon / Canon dominance in lithography optics",
+        "US export controls limiting access to certain customers",
+        "Yield risk on high-precision components"
+      ],
+      "opportunities": [
+        "Lithography optics import substitution in China",
+        "AR/VR and silicon photonics optics",
+        "Diversification into space / defense optics"
+      ],
+      "customerConcentration": "Concentrated in select Chinese semiconductor equipment, telecom and laser customers."
+    }
+  },
+  {
+    "ticker": "688256.SS",
+    "profile": {
+      "revenueModel": "Fabless designer and seller of cloud and edge AI accelerator chips and IP to Chinese hyperscalers, OEMs, and government/enterprise customers.",
+      "revenueSegments": [
+        {"item": "Cloud AI products (training/inference accelerators)", "pct": 70},
+        {"item": "Edge / IP licensing", "pct": 20},
+        {"item": "Smart compute / other", "pct": 10}
+      ],
+      "cyclicality": "Tied to AI infrastructure capex; currently in strong upcycle.",
+      "tailwinds": [
+        "China domestic AI chip self-sufficiency push",
+        "US export controls on Nvidia driving customer migration",
+        "Hyperscale Chinese cloud AI capex acceleration"
+      ],
+      "headwinds": [
+        "On US Entity List, restricting access to leading-edge foundry process nodes",
+        "Software/CUDA-ecosystem moat at Nvidia",
+        "Customer concentration risk"
+      ],
+      "threats": [
+        "Tighter US export controls on foundry partners (TSMC/SMIC)",
+        "Domestic competition from Huawei Ascend and other Chinese AI chip vendors",
+        "Software ecosystem gap vs CUDA"
+      ],
+      "opportunities": [
+        "Capture share if Nvidia restricted from China",
+        "Sovereign AI cluster build-outs in China",
+        "Edge inference and automotive AI"
+      ],
+      "customerConcentration": "Highly concentrated — top customers (large Chinese internet companies) drive most revenue."
+    }
+  },
+  {
+    "ticker": "6883.HK",
+    "profile": {
+      "revenueModel": "Wholesale and retail distribution of imported branded fragrances and cosmetics in Greater China.",
+      "revenueSegments": [
+        {"item": "Fragrance & cosmetics distribution / retail", "pct": 95},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Cyclical, tied to Chinese discretionary consumer spending and travel retail.",
+      "tailwinds": [
+        "Premium fragrance category growth in China",
+        "Travel retail recovery post-COVID",
+        "Long-standing brand-distribution agreements with global houses"
+      ],
+      "headwinds": [
+        "Soft Chinese discretionary spending and luxury slowdown",
+        "Hainan duty-free competition compressing offshore margins",
+        "Brand owners pursuing direct-to-consumer channels"
+      ],
+      "threats": [
+        "Loss of distribution rights to brand-owner direct operations",
+        "Grey-market and parallel-import erosion of channel pricing",
+        "Hainan / cross-border policy shifts"
+      ],
+      "opportunities": [
+        "New brand additions and exclusive distribution wins",
+        "E-commerce/livestream channel build",
+        "Niche fragrance trend in China"
+      ],
+      "customerConcentration": "Diversified through department stores, duty-free retailers and online channels in China."
+    }
+  },
+  {
+    "ticker": "688363.SS",
+    "profile": {
+      "revenueModel": "Manufacture and sale of hyaluronic acid raw materials, medical aesthetics products (dermal fillers), functional skincare and food/cosmetic ingredients.",
+      "revenueSegments": [
+        {"item": "Functional skincare (Bloomage Biomeso, Quadha, BM-Muscle)", "pct": 55},
+        {"item": "Medical aesthetics / pharma raw materials", "pct": 25},
+        {"item": "HA raw materials (industrial/food/cosmetic)", "pct": 15},
+        {"item": "Functional food / other", "pct": 5}
+      ],
+      "cyclicality": "Mildly cyclical via consumer discretionary skincare demand.",
+      "tailwinds": [
+        "Chinese medical aesthetics market growth",
+        "HA application expansion (orthopedic, food, cosmetics)",
+        "Domestic skincare premiumization"
+      ],
+      "headwinds": [
+        "Domestic functional skincare brand fatigue and discounting",
+        "Heavy marketing spend pressuring operating margins",
+        "Competitive pressure from Proya, Winona"
+      ],
+      "threats": [
+        "Aesthetic medicine regulatory tightening in China",
+        "Loss of share in skincare to faster-growing peers",
+        "HA price erosion in commodity raw material segment"
+      ],
+      "opportunities": [
+        "New aesthetic injectables (recombinant collagen, regenerative)",
+        "Cross-selling functional foods and oral beauty",
+        "International expansion of HA raw material franchise"
+      ],
+      "customerConcentration": "Diversified retail consumer base for skincare; raw material business diversified across global cosmetics/food customers."
+    }
+  },
+  {
+    "ticker": "688396.SS",
+    "profile": {
+      "revenueModel": "Integrated semiconductor IDM — manufactures and sells power discretes, MEMS, IPM modules and provides foundry services for analog/power devices.",
+      "revenueSegments": [
+        {"item": "Power semiconductors (MOSFET, IGBT modules)", "pct": 50},
+        {"item": "Foundry services (analog, MEMS)", "pct": 30},
+        {"item": "Mask & other", "pct": 20}
+      ],
+      "cyclicality": "Cyclical, tied to power semiconductor demand (industrial, auto, consumer).",
+      "tailwinds": [
+        "EV / charging / industrial automation demand for IGBT and SiC",
+        "China power semiconductor self-sufficiency push",
+        "Renewable energy inverter demand"
+      ],
+      "headwinds": [
+        "Industrial and consumer power-device pricing weakness",
+        "Heavy capex for new 12-inch fab ramp",
+        "Sino-US trade restrictions on certain tools/customers"
+      ],
+      "threats": [
+        "Infineon / STMicro / Onsemi competition in IGBT/SiC",
+        "Domestic peers (Silan, Hua Hong) capacity additions",
+        "Cyclical inventory destocking"
+      ],
+      "opportunities": [
+        "SiC/GaN power module ramp",
+        "Auto-grade IGBT growth with Chinese NEV OEMs",
+        "MEMS and analog foundry revenue expansion"
+      ],
+      "customerConcentration": "Diversified across Chinese power-electronics, automotive and consumer customers; some foundry customer concentration."
+    }
+  },
+  {
+    "ticker": "688561.SS",
+    "profile": {
+      "revenueModel": "Cybersecurity software and services — endpoint, network security, threat intelligence, security operations center products to Chinese government and enterprise.",
+      "revenueSegments": [
+        {"item": "Network and endpoint security products", "pct": 50},
+        {"item": "Security services / consulting / managed security", "pct": 30},
+        {"item": "Threat intelligence / cloud / other", "pct": 20}
+      ],
+      "cyclicality": "Cyclical via Chinese enterprise/government IT budgets.",
+      "tailwinds": [
+        "China cybersecurity regulation (Data Security Law, PIPL, MLPS 2.0)",
+        "Government and SOE cyber spending mandates",
+        "AI-driven security analytics demand"
+      ],
+      "headwinds": [
+        "Chinese local government fiscal stress slowing procurement",
+        "Heavy R&D and SG&A investment compressing margins",
+        "Project-based revenue lumpiness"
+      ],
+      "threats": [
+        "Sangfor, Topsec and other domestic security peers",
+        "Government budget cuts on cyber projects",
+        "Customer payment / receivables risk"
+      ],
+      "opportunities": [
+        "AI-driven SOC and XDR product upgrade cycle",
+        "Cloud security and zero-trust adoption in China",
+        "Cross-sell of integrated cybersecurity stack to large enterprises"
+      ],
+      "customerConcentration": "Skewed toward Chinese government, SOE and large enterprise customers."
+    }
+  },
+  {
+    "ticker": "688777.SS",
+    "profile": {
+      "revenueModel": "Manufacture and sale of distributed control systems (DCS), industrial software, instrumentation and automation services for process industries.",
+      "revenueSegments": [
+        {"item": "Industrial automation products (DCS, SIS, instrumentation)", "pct": 70},
+        {"item": "Industrial software", "pct": 15},
+        {"item": "Services & engineering", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, tied to Chinese process-industry capex (chemicals, refining, power).",
+      "tailwinds": [
+        "Domestic substitution of Honeywell / Emerson / ABB DCS",
+        "China chemical / refining / new energy capex",
+        "Industrial digitalization and software upsell"
+      ],
+      "headwinds": [
+        "Chemical industry overcapacity weighing on capex",
+        "Margin pressure from project-based revenue mix",
+        "Competition from domestic peers (Hollysys)"
+      ],
+      "threats": [
+        "Foreign incumbent price reactions to defend share",
+        "Capex slowdown in petrochemicals and power",
+        "Customer credit / receivables risk"
+      ],
+      "opportunities": [
+        "Industrial AI and software platform monetization",
+        "Overseas project wins (Belt & Road, Middle East)",
+        "Lithium/EV-supply-chain capex (cathode plants)"
+      ],
+      "customerConcentration": "Diversified across Chinese chemical, refining, power and pharma process-industry customers."
+    }
+  },
+  {
+    "ticker": "688819.SS",
+    "profile": {
+      "revenueModel": "Manufacture and sale of lead-acid and lithium-ion batteries primarily for electric two-wheelers and energy storage; majority lead-acid.",
+      "revenueSegments": [
+        {"item": "Lead-acid batteries (e-bike, two-wheeler)", "pct": 80},
+        {"item": "Lithium-ion batteries (two-wheeler, ESS)", "pct": 15},
+        {"item": "Other (battery recycling, materials)", "pct": 5}
+      ],
+      "cyclicality": "Modestly cyclical, tied to Chinese e-bike/two-wheeler unit sales and replacement cycle.",
+      "tailwinds": [
+        "Chinese electric two-wheeler fleet replacement cycle",
+        "Battery recycling regulation favoring established players",
+        "Lithium price normalization aiding lithium product economics"
+      ],
+      "headwinds": [
+        "Lithium two-wheeler battery substitution against lead-acid",
+        "Lead price volatility on input costs",
+        "Soft Chinese consumer durable demand"
+      ],
+      "threats": [
+        "Faster-than-expected lead-acid to lithium transition",
+        "Tightening environmental regulation on lead processing",
+        "Competition from Chaowei and Camel Group"
+      ],
+      "opportunities": [
+        "ESS / energy storage entry leveraging cell capacity",
+        "Recycling closed-loop economics on lead",
+        "International e-bike / SE Asia expansion"
+      ],
+      "customerConcentration": "Diversified across major Chinese e-bike OEMs (Yadea, Aima, Tailg) and aftermarket replacement channel."
+    }
+  },
+  {
+    "ticker": "688981.SS",
+    "profile": {
+      "revenueModel": "Pure-play foundry — manufactures semiconductor wafers (mature and trailing-edge) for fabless and IDM customers globally; one-time tool sales replaced by per-wafer pricing.",
+      "revenueSegments": [
+        {"item": "Mature node logic / foundry (28nm and above)", "pct": 70},
+        {"item": "Advanced node logic (14nm/N+1/N+2)", "pct": 15},
+        {"item": "Specialty (PMIC, RF, embedded)", "pct": 15}
+      ],
+      "cyclicality": "Highly cyclical, tied to semiconductor demand and inventory cycles.",
+      "tailwinds": [
+        "China's domestic semiconductor self-sufficiency capex push",
+        "Customer migration to domestic foundry under US export curbs",
+        "Strong utilization at mature nodes from local fabless"
+      ],
+      "headwinds": [
+        "On US Entity List restricting access to advanced equipment (EUV, sub-7nm)",
+        "Mature-node global oversupply pressuring ASPs",
+        "Heavy capex with depressed industry margins"
+      ],
+      "threats": [
+        "Tighter US/Dutch export controls on equipment",
+        "TSMC / UMC / GlobalFoundries pricing competition at mature nodes",
+        "Geopolitical de-coupling reducing access to overseas customers"
+      ],
+      "opportunities": [
+        "Domestic Chinese fabless customer ramp",
+        "Capacity expansion at Beijing/Shenzhen 12-inch fabs",
+        "Specialty processes (PMIC, BCD, RF) for EV and IoT"
+      ],
+      "customerConcentration": "Top customers include large Chinese fabless firms; concentrated but diversified across hundreds of customers."
+    }
+  },
+  {
+    "ticker": "6954.T",
+    "profile": {
+      "revenueModel": "Manufacture and sale of factory automation products (CNC controllers), industrial robots, ROBOMACHINE machine tools, and robomachine services.",
+      "revenueSegments": [
+        {"item": "Robots", "pct": 35},
+        {"item": "FA (CNC controllers, servo motors)", "pct": 35},
+        {"item": "ROBOMACHINE (electric injection molders, robodrills)", "pct": 15},
+        {"item": "Service & other", "pct": 15}
+      ],
+      "cyclicality": "Highly cyclical, tied to global machine tool and electronics capex.",
+      "tailwinds": [
+        "Reshoring/automation in US, Mexico, Europe",
+        "Aging workforce in developed markets pushing automation",
+        "EV factory build-outs needing robots and CNC"
+      ],
+      "headwinds": [
+        "Chinese machine tool capex weakness",
+        "Strong yen impacting translated overseas earnings",
+        "Smartphone capex (Robodrill end market) at low ebb"
+      ],
+      "threats": [
+        "Siemens and domestic Chinese CNC players (Shenyang/Huazhong)",
+        "ABB, Yaskawa robot competition",
+        "Cyclical downturn in global manufacturing"
+      ],
+      "opportunities": [
+        "Collaborative robot (cobot) market growth",
+        "AI-enabled machine vision integration",
+        "EV battery and semiconductor production line content"
+      ],
+      "customerConcentration": "Diversified across global machine tool builders, electronics manufacturers and auto OEMs; some Apple supply-chain (smartphone) sensitivity."
+    }
+  },
+  {
+    "ticker": "7203.T",
+    "profile": {
+      "revenueModel": "Design, manufacture and sale of passenger vehicles (ICE, hybrid, BEV, FCEV) plus financing arm, parts and accessories.",
+      "revenueSegments": [
+        {"item": "Automotive (vehicle sales)", "pct": 85},
+        {"item": "Financial services", "pct": 10},
+        {"item": "Other (housing, marine, telecom)", "pct": 5}
+      ],
+      "cyclicality": "Cyclical, tied to global vehicle SAAR and auto pricing/mix cycles.",
+      "tailwinds": [
+        "Strong hybrid demand globally as BEV adoption decelerates",
+        "Weak yen boosting export profitability",
+        "Pricing power and low incentive levels"
+      ],
+      "headwinds": [
+        "Slowing US/EU SAAR and rising incentives in 2025",
+        "Daihatsu and certification scandal recalls/impacts",
+        "BEV strategic catch-up vs Tesla/BYD"
+      ],
+      "threats": [
+        "BYD and Chinese OEMs taking SE Asia market share",
+        "Trump administration tariff risk on Mexican/Japanese imports",
+        "Solid-state battery commercialization timing risk"
+      ],
+      "opportunities": [
+        "Hybrid leadership monetized as BEV demand softens",
+        "Solid-state battery launch by 2027-30",
+        "Hydrogen FCEV commercial vehicle leadership"
+      ],
+      "customerConcentration": "Highly diversified global retail customer base via dealer networks."
+    }
+  },
+  {
+    "ticker": "7735.T",
+    "profile": {
+      "revenueModel": "Manufacture and sale of semiconductor wafer cleaning, coater/developer and inspection equipment, plus printing/graphics and FPD/PCB equipment; one-time tool sales plus services.",
+      "revenueSegments": [
+        {"item": "Semiconductor production equipment (cleaning, coater/developer)", "pct": 80},
+        {"item": "Display production equipment", "pct": 5},
+        {"item": "Graphic & precision solutions / PCB", "pct": 10},
+        {"item": "Service / other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, tied to global wafer fab equipment (WFE) spending.",
+      "tailwinds": [
+        "Cleaning equipment leadership at advanced logic and 3D NAND",
+        "AI-driven leading-edge logic capex (TSMC, Samsung, Intel)",
+        "Memory cycle recovery driving cleaning tool orders"
+      ],
+      "headwinds": [
+        "Chinese WFE outlook moderating after 2024 spike",
+        "Strong yen reducing translated overseas earnings",
+        "Lumpy quarterly tool revenue recognition"
+      ],
+      "threats": [
+        "Lam Research, TEL competition in cleaning",
+        "US/Dutch export controls limiting China leading-edge revenue",
+        "Customer capex cuts in downturn"
+      ],
+      "opportunities": [
+        "EUV-related single-wafer cleaning step expansion",
+        "3D NAND layer count growth driving cleaning intensity",
+        "Advanced packaging / hybrid bonding tool growth"
+      ],
+      "customerConcentration": "Concentrated in top global foundries / memory makers (TSMC, Samsung, Intel, Micron, SK Hynix, plus Chinese fabs)."
+    }
+  },
+  {
+    "ticker": "7974.T",
+    "profile": {
+      "revenueModel": "Sales of dedicated video game hardware (Switch) and first-party software, plus digital downloads, online subscriptions, IP licensing, and Nintendo theme parks.",
+      "revenueSegments": [
+        {"item": "First-party software (packaged + digital)", "pct": 50},
+        {"item": "Hardware (Switch / successor console)", "pct": 35},
+        {"item": "Digital / mobile / IP / subscriptions", "pct": 15}
+      ],
+      "cyclicality": "Cyclical via console hardware lifecycle; software/IP more recurring.",
+      "tailwinds": [
+        "Switch successor console launch cycle re-set in 2025",
+        "Growing IP monetization (films, theme parks, merchandise)",
+        "Weak yen boosting overseas-translated profits"
+      ],
+      "headwinds": [
+        "End-of-life Switch sales decline ahead of successor",
+        "Mobile gaming market saturation",
+        "FX risk if yen reverses sharply"
+      ],
+      "threats": [
+        "Successor console launch execution risk (price, supply)",
+        "Mobile / cloud gaming substitution for handheld console",
+        "Live-service competitive pressure for engagement time"
+      ],
+      "opportunities": [
+        "New console launch installed-base reset",
+        "Theme park (Universal) and film franchise (Mario, Zelda) IP monetization",
+        "Subscription (Nintendo Switch Online) growth"
+      ],
+      "customerConcentration": "Highly diversified global consumer base via retail and digital storefront."
+    }
+  }
+]

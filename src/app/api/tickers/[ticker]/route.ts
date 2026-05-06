@@ -11,6 +11,11 @@ import {
   portfolioHoldings,
 } from "@/db";
 import { getTagsForTicker, setTickerTags, setThemeTags } from "@/lib/tags";
+import {
+  type TickerProfile,
+  columnsToProfile,
+  profileToColumns,
+} from "@/lib/ticker-ai";
 import { logger } from "@/lib/logger";
 
 interface NewThemeInput {
@@ -26,6 +31,8 @@ interface PatchTickerBody {
   tags?: string[];
   themeIds?: number[];
   newThemes?: NewThemeInput[];
+  // When present, replaces the full profile. Pass an empty profile to clear.
+  profile?: TickerProfile;
 }
 
 function normalizeTagList(input: unknown): string[] {
@@ -83,6 +90,8 @@ export async function GET(
       notes: universe.notes,
       tags,
       themeIds: themeLinks.map((t) => t.themeId),
+      profile: columnsToProfile(universe),
+      profileGeneratedAt: universe.profileGeneratedAt,
     });
   } catch (e) {
     logger.error("api/tickers/[ticker]", "GET failed", { error: e, ticker });
@@ -138,6 +147,15 @@ export async function PATCH(
     if (body.notes !== undefined) {
       const trimmed = typeof body.notes === "string" ? body.notes.trim() : "";
       updates.notes = trimmed || null;
+    }
+    // Profile fields are replaced wholesale when provided. Stamping
+    // profile_generated_at on user edits too is intentional: it's a
+    // "last-touched" marker rather than "last-AI-touched", so the backfill
+    // script's `IS NULL` filter doesn't redraft over manual edits.
+    if (body.profile !== undefined) {
+      const cols = profileToColumns(body.profile);
+      Object.assign(updates, cols);
+      updates.profileGeneratedAt = sql`datetime('now')`;
     }
     await db
       .update(scannerUniverse)
@@ -248,11 +266,19 @@ export async function PATCH(
       .select({ themeId: themeStocks.themeId })
       .from(themeStocks)
       .where(eq(themeStocks.ticker, ticker));
+    const refreshedRow = await db
+      .select()
+      .from(scannerUniverse)
+      .where(eq(scannerUniverse.ticker, ticker))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
 
     return NextResponse.json({
       ticker,
       tags: refreshedTags,
       themeIds: refreshedThemeLinks.map((t) => t.themeId),
+      profile: refreshedRow ? columnsToProfile(refreshedRow) : null,
+      profileGeneratedAt: refreshedRow?.profileGeneratedAt ?? null,
     });
   } catch (e) {
     logger.error("api/tickers/[ticker]", "PATCH failed", { error: e, ticker });

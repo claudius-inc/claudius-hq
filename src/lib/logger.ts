@@ -7,7 +7,24 @@ type Level = "debug" | "info" | "warn" | "error";
 
 function serializeError(err: unknown): Record<string, unknown> {
   if (err instanceof Error) {
-    return { name: err.name, message: err.message, stack: err.stack };
+    const out: Record<string, unknown> = {
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+    };
+    const code = (err as { code?: unknown }).code;
+    if (code !== undefined) out.code = code;
+    if (err.cause !== undefined) {
+      out.cause =
+        err.cause instanceof Error
+          ? {
+              name: err.cause.name,
+              message: err.cause.message,
+              stack: err.cause.stack,
+            }
+          : String(err.cause);
+    }
+    return out;
   }
   return { message: String(err) };
 }

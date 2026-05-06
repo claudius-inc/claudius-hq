@@ -1,0 +1,296 @@
+[
+  {
+    "ticker": "CVX",
+    "market": "US",
+    "name": "Chevron Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "D05.SI",
+    "market": "SGX",
+    "name": "DBS",
+    "sector": null
+  },
+  {
+    "ticker": "D5IU.SI",
+    "market": "SGX",
+    "name": "Landmark REIT",
+    "sector": null
+  },
+  {
+    "ticker": "DAVA",
+    "market": "US",
+    "name": "Endava plc",
+    "sector": null
+  },
+  {
+    "ticker": "DE",
+    "market": "US",
+    "name": "Deere & Company",
+    "sector": null
+  },
+  {
+    "ticker": "DLO",
+    "market": "US",
+    "name": null,
+    "sector": null
+  },
+  {
+    "ticker": "DLR",
+    "market": "US",
+    "name": "Digital Realty Trust, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "DNN",
+    "market": "US",
+    "name": "Denison Mines Corp",
+    "sector": null
+  },
+  {
+    "ticker": "DRUG",
+    "market": "US",
+    "name": "Bright Minds Biosciences Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "DVA",
+    "market": "US",
+    "name": "DaVita Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "DVN",
+    "market": "US",
+    "name": "Devon Energy Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "E5H.SI",
+    "market": "SGX",
+    "name": "Golden Agri-Res",
+    "sector": null
+  },
+  {
+    "ticker": "EA",
+    "market": "US",
+    "name": "Electronic Arts Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "EC",
+    "market": "US",
+    "name": "Ecopetrol S.A.",
+    "sector": null
+  },
+  {
+    "ticker": "EDIT",
+    "market": "US",
+    "name": "Editas Medicine, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "EH",
+    "market": "US",
+    "name": "EHang Holdings Limited",
+    "sector": null
+  },
+  {
+    "ticker": "EMR",
+    "market": "US",
+    "name": "Emerson Electric Company",
+    "sector": null
+  },
+  {
+    "ticker": "ENPH",
+    "market": "US",
+    "name": "Enphase Energy, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "ENVB",
+    "market": "US",
+    "name": "Enveric Biosciences, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "EOG",
+    "market": "US",
+    "name": "EOG Resources, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "EQIX",
+    "market": "US",
+    "name": "Equinix, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "EQNR",
+    "market": "US",
+    "name": "Equinor ASA",
+    "sector": null
+  },
+  {
+    "ticker": "ERAA.JK",
+    "market": "US",
+    "name": "Erajaya Swasembada Tbk.",
+    "sector": null
+  },
+  {
+    "ticker": "ESRT",
+    "market": "US",
+    "name": "Empire State Realty Trust, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "ETN",
+    "market": "US",
+    "name": "Eaton Corporation, PLC",
+    "sector": null
+  },
+  {
+    "ticker": "EVGO",
+    "market": "US",
+    "name": "EVgo Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "EVTL",
+    "market": "US",
+    "name": "Vertical Aerospace Ltd.",
+    "sector": null
+  },
+  {
+    "ticker": "EXPE",
+    "market": "US",
+    "name": "Expedia Group, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "F34.SI",
+    "market": "SGX",
+    "name": "Wilmar Intl",
+    "sector": null
+  },
+  {
+    "ticker": "F9D.SI",
+    "market": "SGX",
+    "name": "Boustead",
+    "sector": null
+  },
+  {
+    "ticker": "FANG",
+    "market": "US",
+    "name": "Diamondback Energy, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "FATE",
+    "market": "US",
+    "name": "Fate Therapeutics, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "FCX",
+    "market": "US",
+    "name": "Freeport-McMoRan, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "FLNC",
+    "market": "US",
+    "name": "Fluence Energy, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "FMC",
+    "market": "US",
+    "name": "FMC Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "FORM",
+    "market": "US",
+    "name": "FormFactor, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "FSLR",
+    "market": "US",
+    "name": "First Solar, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "FTNT",
+    "market": "US",
+    "name": "Fortinet, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "FTS",
+    "market": "US",
+    "name": "Fortis Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "G07.SI",
+    "market": "SGX",
+    "name": "Great Eastern",
+    "sector": null
+  },
+  {
+    "ticker": "G13.SI",
+    "market": "SGX",
+    "name": "Genting Sing",
+    "sector": null
+  },
+  {
+    "ticker": "GBOOY",
+    "market": "US",
+    "name": "Grupo Financiero Banorte, S.A.B",
+    "sector": null
+  },
+  {
+    "ticker": "GD",
+    "market": "US",
+    "name": "General Dynamics Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "GE",
+    "market": "US",
+    "name": "GE Aerospace",
+    "sector": null
+  },
+  {
+    "ticker": "GEBN.SW",
+    "market": "US",
+    "name": "GEBERIT N",
+    "sector": null
+  },
+  {
+    "ticker": "GEV",
+    "market": "US",
+    "name": "GE Vernova Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "GGB",
+    "market": "US",
+    "name": "Gerdau S.A.",
+    "sector": null
+  },
+  {
+    "ticker": "GHRS",
+    "market": "US",
+    "name": "GH Research PLC",
+    "sector": null
+  },
+  {
+    "ticker": "GLOB",
+    "market": "US",
+    "name": "Globant S.A.",
+    "sector": null
+  }
+]

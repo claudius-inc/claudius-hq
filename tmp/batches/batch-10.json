@@ -1,0 +1,248 @@
+[
+  {
+    "ticker": "TPR",
+    "market": "US",
+    "name": "Tapestry, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "TRV",
+    "market": "US",
+    "name": "The Travelers Companies, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "TSLA",
+    "market": "US",
+    "name": "Tesla, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "TSM",
+    "market": "US",
+    "name": "Taiwan Semiconductor Manufactur",
+    "sector": null
+  },
+  {
+    "ticker": "TTE",
+    "market": "US",
+    "name": "TotalEnergies SE",
+    "sector": null
+  },
+  {
+    "ticker": "TTWO",
+    "market": "US",
+    "name": "Take-Two Interactive Software, ",
+    "sector": null
+  },
+  {
+    "ticker": "U",
+    "market": "US",
+    "name": "Unity Software Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "U11.SI",
+    "market": "SGX",
+    "name": null,
+    "sector": null
+  },
+  {
+    "ticker": "UBER",
+    "market": "US",
+    "name": "Uber Technologies, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "UEC",
+    "market": "US",
+    "name": "Uranium Energy Corp.",
+    "sector": null
+  },
+  {
+    "ticker": "URA",
+    "market": "US",
+    "name": "Global X Uranium ETF",
+    "sector": null
+  },
+  {
+    "ticker": "URG",
+    "market": "US",
+    "name": "Ur Energy Inc",
+    "sector": null
+  },
+  {
+    "ticker": "URNM",
+    "market": "US",
+    "name": "Sprott Uranium Miners ETF",
+    "sector": null
+  },
+  {
+    "ticker": "USAR",
+    "market": "US",
+    "name": "USA Rare Earth, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "UUUU",
+    "market": "US",
+    "name": "Energy Fuels Inc",
+    "sector": null
+  },
+  {
+    "ticker": "V",
+    "market": "US",
+    "name": "Visa Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "VALE",
+    "market": "US",
+    "name": "VALE S.A.",
+    "sector": null
+  },
+  {
+    "ticker": "VC2.SI",
+    "market": "SGX",
+    "name": "Olam Group",
+    "sector": null
+  },
+  {
+    "ticker": "VEEV",
+    "market": "US",
+    "name": "Veeva Systems Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "VIAV",
+    "market": "US",
+    "name": "Viavi Solutions Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "VIV",
+    "market": "US",
+    "name": "Telefonica Brasil S.A.",
+    "sector": null
+  },
+  {
+    "ticker": "VKTX",
+    "market": "US",
+    "name": "Viking Therapeutics, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "VNET",
+    "market": "US",
+    "name": "VNET Group, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "VRTX",
+    "market": "US",
+    "name": "Vertex Pharmaceuticals Incorpor",
+    "sector": null
+  },
+  {
+    "ticker": "VST",
+    "market": "US",
+    "name": "Vistra Corp.",
+    "sector": null
+  },
+  {
+    "ticker": "VTR",
+    "market": "US",
+    "name": "Ventas, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "VTRS",
+    "market": "US",
+    "name": "Viatris Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "WBX",
+    "market": "US",
+    "name": "Wallbox N.V.",
+    "sector": null
+  },
+  {
+    "ticker": "WELL",
+    "market": "US",
+    "name": "Welltower Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "WIT",
+    "market": "US",
+    "name": "Wipro Limited",
+    "sector": null
+  },
+  {
+    "ticker": "WMMVY",
+    "market": "US",
+    "name": "Wal-Mart De Mexico S.A.B. de C.",
+    "sector": null
+  },
+  {
+    "ticker": "WTRG",
+    "market": "US",
+    "name": "Essential Utilities, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "XNDU",
+    "market": "US",
+    "name": "Xanadu Quantum Technologies Lim",
+    "sector": null
+  },
+  {
+    "ticker": "XOM",
+    "market": "US",
+    "name": "Exxon Mobil Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "XYL",
+    "market": "US",
+    "name": "Xylem Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "XYZ",
+    "market": "US",
+    "name": "Block, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "YPF",
+    "market": "US",
+    "name": "YPF Sociedad Anonima",
+    "sector": null
+  },
+  {
+    "ticker": "Z74.SI",
+    "market": "SGX",
+    "name": "Singtel",
+    "sector": null
+  },
+  {
+    "ticker": "ZLAB",
+    "market": "US",
+    "name": "Zai Lab Limited",
+    "sector": null
+  },
+  {
+    "ticker": "ZS",
+    "market": "US",
+    "name": "Zscaler, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "ZURVY",
+    "market": "US",
+    "name": "Zurich Insurance Group Ltd",
+    "sector": null
+  }
+]

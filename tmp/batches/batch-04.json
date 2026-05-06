@@ -1,0 +1,296 @@
+[
+  {
+    "ticker": "8001.T",
+    "market": "JP",
+    "name": "ITOCHU CORP",
+    "sector": null
+  },
+  {
+    "ticker": "8002.T",
+    "market": "JP",
+    "name": "MARUBENI CORP",
+    "sector": null
+  },
+  {
+    "ticker": "8031.T",
+    "market": "JP",
+    "name": "MITSUI & CO",
+    "sector": null
+  },
+  {
+    "ticker": "8035.T",
+    "market": "JP",
+    "name": "TOKYO ELECTRON",
+    "sector": null
+  },
+  {
+    "ticker": "8053.T",
+    "market": "JP",
+    "name": "SUMITOMO CORP",
+    "sector": null
+  },
+  {
+    "ticker": "8058.T",
+    "market": "JP",
+    "name": "MITSUBISHI CORP",
+    "sector": null
+  },
+  {
+    "ticker": "8306.T",
+    "market": "JP",
+    "name": "MITSUBISHI UFJ FINANCIAL GROUP ",
+    "sector": null
+  },
+  {
+    "ticker": "8316.T",
+    "market": "JP",
+    "name": "SUMITOMO MITSUI FINANCIAL GROUP",
+    "sector": null
+  },
+  {
+    "ticker": "8411.T",
+    "market": "JP",
+    "name": "MIZUHO FINANCIAL GROUP",
+    "sector": null
+  },
+  {
+    "ticker": "8630.T",
+    "market": "JP",
+    "name": "SOMPO HOLDINGS INC",
+    "sector": null
+  },
+  {
+    "ticker": "8725.T",
+    "market": "JP",
+    "name": "MS&AD INS GP HLDGS",
+    "sector": null
+  },
+  {
+    "ticker": "8766.T",
+    "market": "JP",
+    "name": "TOKIO MARINE HOLDINGS INC",
+    "sector": null
+  },
+  {
+    "ticker": "9201.T",
+    "market": "JP",
+    "name": "JAPAN AIRLINES CO LTD",
+    "sector": null
+  },
+  {
+    "ticker": "9202.T",
+    "market": "JP",
+    "name": "ANA HOLDINGS INC",
+    "sector": null
+  },
+  {
+    "ticker": "9433.T",
+    "market": "JP",
+    "name": "KDDI CORPORATION",
+    "sector": null
+  },
+  {
+    "ticker": "9626.HK",
+    "market": "HK",
+    "name": "BILIBILI-W",
+    "sector": null
+  },
+  {
+    "ticker": "9660.HK",
+    "market": "HK",
+    "name": "HORIZONROBOT-W",
+    "sector": null
+  },
+  {
+    "ticker": "9682.T",
+    "market": "JP",
+    "name": "DTS CORPORATION",
+    "sector": null
+  },
+  {
+    "ticker": "9688.HK",
+    "market": "HK",
+    "name": "ZAI LAB",
+    "sector": null
+  },
+  {
+    "ticker": "9697.T",
+    "market": "JP",
+    "name": "CAPCOM CO LTD",
+    "sector": null
+  },
+  {
+    "ticker": "9863.HK",
+    "market": "HK",
+    "name": "LEAPMOTOR",
+    "sector": null
+  },
+  {
+    "ticker": "9866.HK",
+    "market": "HK",
+    "name": "NIO-SW",
+    "sector": null
+  },
+  {
+    "ticker": "9868.HK",
+    "market": "HK",
+    "name": "XPENG-W",
+    "sector": null
+  },
+  {
+    "ticker": "9880.HK",
+    "market": "HK",
+    "name": "UBTECH ROBOTICS",
+    "sector": null
+  },
+  {
+    "ticker": "9926.HK",
+    "market": "HK",
+    "name": "AKESO",
+    "sector": null
+  },
+  {
+    "ticker": "9961.HK",
+    "market": "HK",
+    "name": "TRIP.COM-S",
+    "sector": null
+  },
+  {
+    "ticker": "9988.HK",
+    "market": "HK",
+    "name": "BABA-W",
+    "sector": null
+  },
+  {
+    "ticker": "AAPL",
+    "market": "US",
+    "name": "Apple Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "ABEV",
+    "market": "US",
+    "name": "Ambev S.A.",
+    "sector": null
+  },
+  {
+    "ticker": "ABNB",
+    "market": "US",
+    "name": "Airbnb, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "ACHR",
+    "market": "US",
+    "name": "Archer Aviation Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "ADBE",
+    "market": "US",
+    "name": "Adobe Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "ADM",
+    "market": "US",
+    "name": "Archer-Daniels-Midland Company",
+    "sector": null
+  },
+  {
+    "ticker": "ADYEY",
+    "market": "US",
+    "name": "Adyen N.V.",
+    "sector": null
+  },
+  {
+    "ticker": "AEVA",
+    "market": "US",
+    "name": "Aeva Technologies, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "AFL",
+    "market": "US",
+    "name": "AFLAC Incorporated",
+    "sector": null
+  },
+  {
+    "ticker": "AFRM",
+    "market": "US",
+    "name": "Affirm Holdings, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "AGCO",
+    "market": "US",
+    "name": "AGCO Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "AI",
+    "market": "US",
+    "name": "C3.ai, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "AIG",
+    "market": "US",
+    "name": "American International Group, I",
+    "sector": null
+  },
+  {
+    "ticker": "AIR.PA",
+    "market": "US",
+    "name": "AIRBUS SE",
+    "sector": null
+  },
+  {
+    "ticker": "AJBU.SI",
+    "market": "SGX",
+    "name": "Keppel DC Reit",
+    "sector": null
+  },
+  {
+    "ticker": "ALB",
+    "market": "US",
+    "name": "Albemarle Corporation",
+    "sector": null
+  },
+  {
+    "ticker": "ALV.DE",
+    "market": "US",
+    "name": "Allianz SE                    v",
+    "sector": null
+  },
+  {
+    "ticker": "AMAT",
+    "market": "US",
+    "name": "Applied Materials, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "AMBA",
+    "market": "US",
+    "name": "Ambarella, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "AMBP",
+    "market": "US",
+    "name": "Ardagh Metal Packaging S.A.",
+    "sector": null
+  },
+  {
+    "ticker": "AMD",
+    "market": "US",
+    "name": "Advanced Micro Devices, Inc.",
+    "sector": null
+  },
+  {
+    "ticker": "AMGN",
+    "market": "US",
+    "name": "Amgen Inc.",
+    "sector": null
+  }
+]

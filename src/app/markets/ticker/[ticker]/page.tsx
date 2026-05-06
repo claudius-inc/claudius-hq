@@ -16,9 +16,9 @@ import {
 } from "@/db";
 import type { StockReport } from "@/lib/types";
 import { logger } from "@/lib/logger";
+import { columnsToProfile } from "@/lib/ticker-ai";
 import { TickerHeader } from "./_components/TickerHeader";
-import { TickerThemesTags } from "./_components/TickerThemesTags";
-import { TickerScores } from "./_components/TickerScores";
+import { TickerProfile } from "./_components/TickerProfile";
 import { TickerHoldings } from "./_components/TickerHoldings";
 import { TickerNews, type NewsItem } from "./_components/TickerNews";
 import { TickerResearch } from "./_components/TickerResearch";
@@ -241,39 +241,33 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
         </div>
       </div>
 
-      <main className="max-w-6xl mx-auto px-4 pb-10 space-y-6">
+      <main className="max-w-6xl mx-auto pb-10 space-y-6">
         <TickerHeader
           ticker={ticker}
           name={displayName}
           sector={sector}
           quote={quote}
           metrics={metricsRow}
+          themes={themeLinks.map((t) => ({
+            id: t.themeId,
+            name: t.name,
+            status: t.status,
+            targetPrice: t.targetPrice,
+          }))}
+          tags={tagNames}
         />
 
-        {/* Desktop layout: themes + watchlist score stack on the left,
-            news fills the right column. Mobile/tablet stack everything. */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-          <div className="space-y-6">
-            <TickerThemesTags
-              themes={themeLinks.map((t) => ({
-                id: t.themeId,
-                name: t.name,
-                status: t.status,
-                targetPrice: t.targetPrice,
-              }))}
-              tags={tagNames}
-            />
+        {universeRow && (
+          <TickerProfile
+            ticker={ticker}
+            profile={columnsToProfile(universeRow)}
+            profileGeneratedAt={universeRow.profileGeneratedAt}
+            metrics={metricsRow}
+            description={universeRow.notes || null}
+          />
+        )}
 
-            {metricsRow && (
-              <TickerScores
-                metrics={metricsRow}
-                description={universeRow?.notes || null}
-              />
-            )}
-          </div>
-
-          <TickerNews news={news} ticker={ticker} />
-        </div>
+        <TickerNews news={news} ticker={ticker} />
 
         {(holdingRow || journalRows.length > 0) && (
           <TickerHoldings

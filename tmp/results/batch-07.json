@@ -1,0 +1,1622 @@
+[
+  {
+    "ticker": "GLW",
+    "profile": {
+      "revenueModel": "Sales of specialty glass, ceramics and optical fiber to display, telecom, life sciences and automotive customers.",
+      "revenueSegments": [
+        {"item": "Display Technologies", "pct": 25},
+        {"item": "Optical Communications", "pct": 35},
+        {"item": "Specialty Materials", "pct": 15},
+        {"item": "Environmental Technologies", "pct": 10},
+        {"item": "Life Sciences & Hemlock", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, tied to TV/IT panel demand, telecom carrier capex and auto production.",
+      "tailwinds": [
+        "AI-driven datacenter buildouts boosting demand for optical fiber and connectivity",
+        "US solar polysilicon (Hemlock) benefits from domestic-content tax credits",
+        "Gorilla Glass content per smartphone/auto display rising"
+      ],
+      "headwinds": [
+        "Display glass pricing under chronic pressure from Korean and Chinese substrate makers",
+        "Telecom carrier capex cuts compress fiber volumes",
+        "Yen weakness compresses display segment margins"
+      ],
+      "threats": [
+        "Substitute display technologies (OLED on plastic) reducing glass content",
+        "Chinese vertical integration in fiber and display glass",
+        "Customer concentration in display (Samsung, LG, BOE)"
+      ],
+      "opportunities": [
+        "Generative AI optical interconnect demand for hyperscaler campuses",
+        "Bendable/foldable cover glass for new device form factors",
+        "Reshoring of US semiconductor and solar supply chains"
+      ],
+      "customerConcentration": "Significant concentration in display (top panel makers) and a few hyperscaler/telecom customers in optical."
+    }
+  },
+  {
+    "ticker": "GMAB",
+    "profile": {
+      "revenueModel": "Royalties and milestone payments on partnered antibodies (Darzalex with J&J, Kesimpta with Novartis) plus owned-product sales (Tepezza-like Tepkinly/Epkinly, Tivdak).",
+      "revenueSegments": [
+        {"item": "Darzalex royalties (J&J)", "pct": 70},
+        {"item": "Kesimpta and other royalties", "pct": 10},
+        {"item": "Epkinly and proprietary products", "pct": 15},
+        {"item": "Milestones and other", "pct": 5}
+      ],
+      "cyclicality": "Non-cyclical, biotech revenue tied to oncology/autoimmune drug demand.",
+      "tailwinds": [
+        "Continued multiple-myeloma label expansion for Darzalex Faspro",
+        "Bispecific antibody platform (DuoBody) producing pipeline assets",
+        "Aging populations expanding hematology-oncology TAM"
+      ],
+      "headwinds": [
+        "Darzalex IP cliff and biosimilar risk over the medium term",
+        "US IRA Medicare price negotiation exposure on top assets",
+        "FX translation given Danish kroner reporting"
+      ],
+      "threats": [
+        "Subcutaneous and bispecific competitors (Sanofi's Sarclisa, Pfizer's Elrexfio) eroding Darzalex share",
+        "Royalty step-downs and eventual loss of exclusivity post-2030",
+        "Pipeline trial setbacks could compress valuation"
+      ],
+      "opportunities": [
+        "Epkinly expansion into earlier lines of lymphoma",
+        "Tivdak in cervical cancer and label extensions",
+        "Partnered programs (BioNTech, AbbVie) reaching commercialization"
+      ],
+      "customerConcentration": "Revenue heavily concentrated via Johnson & Johnson (Darzalex partner)."
+    }
+  },
+  {
+    "ticker": "GMBXF",
+    "profile": {
+      "revenueModel": "Integrated mining (copper, zinc, molybdenum, silver), rail transportation in Mexico, and infrastructure services.",
+      "revenueSegments": [
+        {"item": "Mining (Americas Mining/Southern Copper)", "pct": 80},
+        {"item": "Transportation (GMXT rail)", "pct": 15},
+        {"item": "Infrastructure", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, copper price and global industrial demand drive earnings.",
+      "tailwinds": [
+        "Electrification and grid investment lifting structural copper demand",
+        "Low cash-cost Peruvian and Mexican mines benefit from commodity upcycles",
+        "Nearshoring increasing Mexican rail volumes"
+      ],
+      "headwinds": [
+        "Permitting delays at Tia Maria and Los Chancas in Peru",
+        "Mexican mining royalty and tax regime tightening",
+        "Peso strength compresses USD-translated margins"
+      ],
+      "threats": [
+        "Community opposition and political risk in Peru",
+        "AMLO/Sheinbaum government interventions in mining concessions",
+        "Copper price downturn given high operational leverage"
+      ],
+      "opportunities": [
+        "Buenavista expansion and El Arco development",
+        "GMXT rail expansion linked to USMCA nearshoring flows",
+        "Potential reactivation of stalled Peruvian projects"
+      ],
+      "customerConcentration": "Diversified commodity buyers (smelters, traders) and rail customers across Mexico."
+    }
+  },
+  {
+    "ticker": "GOOG",
+    "profile": {
+      "revenueModel": "Digital advertising on Search, YouTube and network properties, plus Google Cloud and hardware/subscriptions.",
+      "revenueSegments": [
+        {"item": "Google Search & other ads", "pct": 55},
+        {"item": "YouTube ads", "pct": 10},
+        {"item": "Google Network ads", "pct": 8},
+        {"item": "Google Cloud", "pct": 13},
+        {"item": "Subscriptions, devices & other", "pct": 14}
+      ],
+      "cyclicality": "Moderately cyclical via ad budgets, with secular cloud growth offset.",
+      "tailwinds": [
+        "Generative AI integration into Search and Workspace driving usage",
+        "Cloud TPU/Gemini differentiation winning AI workloads",
+        "YouTube CTV ad share gains versus linear TV"
+      ],
+      "headwinds": [
+        "Ad market sensitivity to macro slowdowns",
+        "Capex intensity of AI infrastructure compressing free cash flow",
+        "TAC payments to Apple at risk from antitrust remedy"
+      ],
+      "threats": [
+        "DOJ antitrust remedies on Search and ad-tech possibly forcing divestitures",
+        "Generative AI chatbots disintermediating traditional Search",
+        "EU Digital Markets Act constraints on default placements"
+      ],
+      "opportunities": [
+        "Waymo robotaxi commercialization in additional metros",
+        "Gemini API monetization across enterprise developers",
+        "Cloud AI infrastructure capturing share from AWS"
+      ],
+      "customerConcentration": "Highly diversified advertiser base; cloud has some hyperscaler-style large customers."
+    }
+  },
+  {
+    "ticker": "GOOGL",
+    "profile": {
+      "revenueModel": "Digital advertising on Search, YouTube and network properties, plus Google Cloud and hardware/subscriptions.",
+      "revenueSegments": [
+        {"item": "Google Search & other ads", "pct": 55},
+        {"item": "YouTube ads", "pct": 10},
+        {"item": "Google Network ads", "pct": 8},
+        {"item": "Google Cloud", "pct": 13},
+        {"item": "Subscriptions, devices & other", "pct": 14}
+      ],
+      "cyclicality": "Moderately cyclical via ad budgets, with secular cloud growth offset.",
+      "tailwinds": [
+        "Generative AI integration into Search and Workspace driving usage",
+        "Cloud TPU/Gemini differentiation winning AI workloads",
+        "YouTube CTV ad share gains versus linear TV"
+      ],
+      "headwinds": [
+        "Ad market sensitivity to macro slowdowns",
+        "Capex intensity of AI infrastructure compressing free cash flow",
+        "TAC payments to Apple at risk from antitrust remedy"
+      ],
+      "threats": [
+        "DOJ antitrust remedies on Search and ad-tech possibly forcing divestitures",
+        "Generative AI chatbots disintermediating traditional Search",
+        "EU Digital Markets Act constraints on default placements"
+      ],
+      "opportunities": [
+        "Waymo robotaxi commercialization in additional metros",
+        "Gemini API monetization across enterprise developers",
+        "Cloud AI infrastructure capturing share from AWS"
+      ],
+      "customerConcentration": "Highly diversified advertiser base; cloud has some hyperscaler-style large customers."
+    }
+  },
+  {
+    "ticker": "GPCR",
+    "profile": {
+      "revenueModel": "Pre-commercial biotech; revenue limited to collaboration/grant payments, funded by equity issuance.",
+      "revenueSegments": [],
+      "cyclicality": "Non-cyclical clinical-stage biotech driven by trial readouts and capital markets sentiment.",
+      "tailwinds": [
+        "GLP-1/obesity market expansion and demand for oral alternatives",
+        "Generative chemistry platform enabling small-molecule GPCR design",
+        "Investor appetite for late-stage obesity assets"
+      ],
+      "headwinds": [
+        "Capital-intensive clinical development with no current product revenue",
+        "High bar set by Lilly's Mounjaro/orforglipron and Novo's semaglutide",
+        "Equity dilution risk in a tightening funding environment"
+      ],
+      "threats": [
+        "Late-stage trial failure of lead oral GLP-1 GSBR-209/GSBR-1290",
+        "Larger pharma competitors with broader pipelines and pricing power",
+        "Regulatory scrutiny on GLP-1 safety could affect class"
+      ],
+      "opportunities": [
+        "Pivotal data readouts triggering partnership or buyout",
+        "Pipeline expansion into IPF and other GPCR-driven indications",
+        "Licensing deals leveraging Chinese parent ShouTi platform"
+      ],
+      "customerConcentration": "No commercial customers; partner/licensee dependent."
+    }
+  },
+  {
+    "ticker": "GPN",
+    "profile": {
+      "revenueModel": "Merchant payment processing fees, software-led acquiring and issuer/consumer solutions.",
+      "revenueSegments": [
+        {"item": "Merchant Solutions", "pct": 70},
+        {"item": "Issuer Solutions", "pct": 25},
+        {"item": "Consumer Solutions", "pct": 5}
+      ],
+      "cyclicality": "Moderately cyclical, tied to consumer card spend and SMB formation.",
+      "tailwinds": [
+        "Continued cash-to-card conversion in international markets",
+        "Vertical software (restaurant, healthcare) cross-sell of payments",
+        "B2B and integrated payments share gains"
+      ],
+      "headwinds": [
+        "Margin compression from Stripe/Adyen/Block competition",
+        "Slowing US SMB payment volumes",
+        "Higher financing cost on M&A-driven leverage"
+      ],
+      "threats": [
+        "Disintermediation by software platforms embedding their own acquiring",
+        "Interchange regulation in EU and US",
+        "Stablecoin/account-to-account rails reducing card volumes"
+      ],
+      "opportunities": [
+        "Worldpay-Issuer reshuffle with FIS unlocking cost synergies",
+        "POS modernization with Genius platform",
+        "Cross-border e-commerce expansion"
+      ],
+      "customerConcentration": "Diversified merchant base of >4 million SMBs and enterprises."
+    }
+  },
+  {
+    "ticker": "H",
+    "profile": {
+      "revenueModel": "Owned/leased hotel revenue, management and franchise fees, distribution from World of Hyatt loyalty.",
+      "revenueSegments": [
+        {"item": "Owned & leased hotels", "pct": 35},
+        {"item": "Management, franchise & other fees", "pct": 25},
+        {"item": "Distribution", "pct": 35},
+        {"item": "Apple Leisure/Inclusive Collection", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, tied to business and leisure travel demand.",
+      "tailwinds": [
+        "Luxury and resort RevPAR outperformance via Park Hyatt/Alila",
+        "Asset-light pivot lifting fee-based earnings mix",
+        "Bleisure and group travel recovery"
+      ],
+      "headwinds": [
+        "US business transient travel slower to recover than peers",
+        "Higher financing cost for owners limits new builds",
+        "Wage inflation pressuring owned-hotel margins"
+      ],
+      "threats": [
+        "Marriott/Hilton scale advantages in distribution",
+        "Airbnb and alternative-lodging share in leisure",
+        "China outbound travel slower than expected"
+      ],
+      "opportunities": [
+        "Inclusive Collection growing all-inclusive presence in Caribbean/Mexico",
+        "Conversions and small franchise brands accelerating room growth",
+        "Asset sales recycling capital toward fee streams"
+      ],
+      "customerConcentration": "Diversified consumer and corporate travel base."
+    }
+  },
+  {
+    "ticker": "HDFCBANK.NS",
+    "profile": {
+      "revenueModel": "Net interest income on retail/wholesale loans plus fee income from cards, FX and wealth.",
+      "revenueSegments": [
+        {"item": "Net interest income", "pct": 75},
+        {"item": "Fees & commissions", "pct": 15},
+        {"item": "Treasury & other income", "pct": 10}
+      ],
+      "cyclicality": "Cyclical, tied to Indian credit growth and rate cycle.",
+      "tailwinds": [
+        "Indian household credit penetration still low",
+        "Digital banking app and PayZapp scaling cheaply",
+        "Merger with HDFC Ltd added mortgage book at scale"
+      ],
+      "headwinds": [
+        "Liability mix dilution post-merger pressuring NIM",
+        "RBI tighter unsecured-lending norms increase risk weights",
+        "Deposit competition with PSU and fintech players"
+      ],
+      "threats": [
+        "Asset-quality stress in unsecured personal loans",
+        "Regulatory scrutiny on tech outages and IT systems",
+        "Margin compression as merger LCR drag persists"
+      ],
+      "opportunities": [
+        "Branch expansion into semi-urban India",
+        "Cross-selling HDFC mortgage customers into deposits and cards",
+        "Subsidiary value unlock (HDB Financial IPO)"
+      ],
+      "customerConcentration": "Diversified retail and SME deposit base; some large corporate exposures."
+    }
+  },
+  {
+    "ticker": "HESAY",
+    "profile": {
+      "revenueModel": "Sales of luxury leather goods, silk, fashion, watches and beauty primarily through directly operated stores.",
+      "revenueSegments": [
+        {"item": "Leather goods & saddlery", "pct": 45},
+        {"item": "Ready-to-wear & accessories", "pct": 25},
+        {"item": "Silk, textiles & other", "pct": 10},
+        {"item": "Perfume & beauty", "pct": 5},
+        {"item": "Watches & other", "pct": 15}
+      ],
+      "cyclicality": "Defensive within luxury due to scarcity-driven Birkin/Kelly demand and limited supply growth.",
+      "tailwinds": [
+        "Top-end luxury client cohort more resilient than aspirational segment",
+        "Tightly managed supply creating multi-year waitlists",
+        "Travel and tourism flows benefiting flagship boutiques"
+      ],
+      "headwinds": [
+        "Chinese luxury demand softness affecting Asia same-store sales",
+        "Strong euro versus dollar/yen affecting reported growth",
+        "Leather and gold input cost inflation"
+      ],
+      "threats": [
+        "Counterfeit and grey-market reseller channels",
+        "Class action / antitrust scrutiny over Birkin allocation practices",
+        "Generational shift in luxury consumption preferences"
+      ],
+      "opportunities": [
+        "Selective leather goods price hikes maintaining margin",
+        "New atelier capacity in France lifting unit growth",
+        "Watch and beauty category expansion"
+      ],
+      "customerConcentration": "Diversified high-net-worth global clientele with strong Asia and US mix."
+    }
+  },
+  {
+    "ticker": "HINDUNILVR.NS",
+    "profile": {
+      "revenueModel": "Branded sales of home care, beauty/personal care and foods/refreshment in India through traditional and modern trade.",
+      "revenueSegments": [
+        {"item": "Home Care", "pct": 35},
+        {"item": "Beauty & Personal Care", "pct": 35},
+        {"item": "Foods & Refreshment", "pct": 25},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Defensive consumer staples with mild rural-monsoon cyclicality.",
+      "tailwinds": [
+        "Rural India consumption recovery post-monsoon",
+        "Premiumization within personal care and foods",
+        "E-commerce/quick-commerce expanding penetration"
+      ],
+      "headwinds": [
+        "Slow urban discretionary FMCG growth",
+        "Palm oil and crude derivative cost volatility",
+        "D2C and regional brand competition in beauty"
+      ],
+      "threats": [
+        "Local upstart brands taking share in personal care",
+        "Quick-commerce platform pricing power eroding gross margins",
+        "Regulatory caps on packaging and palm oil"
+      ],
+      "opportunities": [
+        "Beauty business demerger unlocking value",
+        "Adjacent category entry (health platforms, prestige beauty)",
+        "Growth in tier-3/4 cities via direct distribution"
+      ],
+      "customerConcentration": "Diversified across millions of retail outlets and modern trade chains."
+    }
+  },
+  {
+    "ticker": "HLN",
+    "profile": {
+      "revenueModel": "Sales of consumer-health OTC brands across pain relief, oral health, respiratory, vitamins and digestive health.",
+      "revenueSegments": [
+        {"item": "Oral Health (Sensodyne, Parodontax)", "pct": 30},
+        {"item": "Pain Relief (Panadol, Voltaren, Advil)", "pct": 25},
+        {"item": "Vitamins & Digestive (Centrum, Tums)", "pct": 20},
+        {"item": "Respiratory (Theraflu, Otrivin)", "pct": 15},
+        {"item": "Other", "pct": 10}
+      ],
+      "cyclicality": "Defensive consumer healthcare, cold/flu season seasonality.",
+      "tailwinds": [
+        "Aging populations driving OTC/self-care category",
+        "Premiumization in oral and digestive health",
+        "Margin expansion as standalone Haleon ramps cost programs"
+      ],
+      "headwinds": [
+        "Mild cold/flu seasons compressing respiratory volumes",
+        "Currency translation given GBP reporting",
+        "Private-label competition in vitamins and pain relief"
+      ],
+      "threats": [
+        "Zantac litigation overhang in US courts",
+        "GLP-1-driven changes in OTC consumption patterns",
+        "Retailer consolidation pressuring shelf economics"
+      ],
+      "opportunities": [
+        "Innovation in sensitive teeth and gum health",
+        "Geographic expansion in India and Southeast Asia",
+        "Pfizer/GSK overhang stake placements completing"
+      ],
+      "customerConcentration": "Diversified retailer base; some concentration with major pharmacy chains."
+    }
+  },
+  {
+    "ticker": "HLT",
+    "profile": {
+      "revenueModel": "Hotel franchise and management fees plus owned/leased revenue and Hilton Honors loyalty distribution.",
+      "revenueSegments": [
+        {"item": "Franchise & licensing fees", "pct": 60},
+        {"item": "Base & incentive management fees", "pct": 15},
+        {"item": "Owned & leased hotels", "pct": 10},
+        {"item": "Other (loyalty, ancillary)", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, tied to global lodging demand and RevPAR.",
+      "tailwinds": [
+        "Asset-light franchise model expanding without capital",
+        "Conversions accelerating net unit growth",
+        "Group and business transient demand recovery"
+      ],
+      "headwinds": [
+        "US lodging supply growth modest but rate growth slowing",
+        "Wage inflation pressuring managed-hotel owner economics",
+        "Higher rates limit owner financing for new builds"
+      ],
+      "threats": [
+        "Marriott scale lead in global pipeline",
+        "Airbnb share in leisure travel",
+        "Geopolitical disruption to international travel"
+      ],
+      "opportunities": [
+        "Spark/Tempo midscale brands expanding addressable market",
+        "Lifestyle and luxury growth via Graduate, NoMad and Waldorf pipeline",
+        "China and India unit growth"
+      ],
+      "customerConcentration": "Diversified franchisees and consumer travelers globally."
+    }
+  },
+  {
+    "ticker": "HMSP.JK",
+    "profile": {
+      "revenueModel": "Manufacture and distribution of clove (kretek) and white cigarettes in Indonesia under Sampoerna A, Dji Sam Soe, Marlboro brands.",
+      "revenueSegments": [
+        {"item": "Machine-made kretek (SKM)", "pct": 70},
+        {"item": "Hand-rolled kretek (SKT)", "pct": 15},
+        {"item": "White cigarettes (SPM)", "pct": 10},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Defensive staple, but volume-sensitive to Indonesian excise tax hikes.",
+      "tailwinds": [
+        "Premium SKM mix shift supporting price/mix",
+        "Distribution scale across 100k+ Indonesian outlets",
+        "Reduced-risk products (IQOS) introduction via Philip Morris parent"
+      ],
+      "headwinds": [
+        "Annual excise tax (CHT) increases pressuring volumes",
+        "Down-trading to lower-tier cigarettes",
+        "Illicit cigarette trade in Indonesia"
+      ],
+      "threats": [
+        "Regulatory restrictions on tobacco advertising and packaging",
+        "Public-health policy shifts toward plain packaging",
+        "Currency depreciation affecting dollar-priced inputs"
+      ],
+      "opportunities": [
+        "Heat-not-burn (IQOS) rollout if regulation permits",
+        "Premium kretek segment growth",
+        "E-commerce and modern trade penetration"
+      ],
+      "customerConcentration": "Diversified consumer base; majority owned by Philip Morris International."
+    }
+  },
+  {
+    "ticker": "HNR1.DE",
+    "profile": {
+      "revenueModel": "Property/casualty and life/health reinsurance premiums earned from primary insurer cedents globally.",
+      "revenueSegments": [
+        {"item": "Property & Casualty reinsurance", "pct": 70},
+        {"item": "Life & Health reinsurance", "pct": 25},
+        {"item": "Investment income", "pct": 5}
+      ],
+      "cyclicality": "Counter-cyclical pricing to insured loss cycles; investment results tied to rates.",
+      "tailwinds": [
+        "Hard reinsurance pricing cycle continuing into renewals",
+        "Higher reinvestment yields on bond portfolio",
+        "Capacity discipline among major reinsurers"
+      ],
+      "headwinds": [
+        "Elevated nat-cat losses (hurricanes, floods, wildfires)",
+        "Casualty loss-cost inflation in US",
+        "Currency translation versus euro reporting"
+      ],
+      "threats": [
+        "Climate-change-driven secondary peril volatility",
+        "Pandemic-era life mortality assumptions revisions",
+        "Capital market entrants (cat bonds, ILS) compressing pricing"
+      ],
+      "opportunities": [
+        "Cyber reinsurance growing premium pool",
+        "Expansion in Asia and Latin America primary markets",
+        "Increased ceded reinsurance demand from primary insurers"
+      ],
+      "customerConcentration": "Diversified global cedent base across hundreds of primary insurers."
+    }
+  },
+  {
+    "ticker": "HRMY",
+    "profile": {
+      "revenueModel": "Sales of branded prescription drugs for rare neurological diseases (Wakix for narcolepsy).",
+      "revenueSegments": [
+        {"item": "Wakix (pitolisant)", "pct": 95},
+        {"item": "Other / pipeline", "pct": 5}
+      ],
+      "cyclicality": "Non-cyclical specialty pharma demand.",
+      "tailwinds": [
+        "Continued narcolepsy diagnosis expansion lifting Wakix scripts",
+        "Strong cash generation funding pipeline acquisitions",
+        "Orphan drug pricing protections"
+      ],
+      "headwinds": [
+        "Single-product concentration risk on Wakix",
+        "Loss of exclusivity for Wakix later this decade",
+        "Payor pushback on specialty pricing"
+      ],
+      "threats": [
+        "Generic pitolisant entry post-IP expiry",
+        "Competition from orexin-2 receptor agonists in development",
+        "Patent litigation outcomes affecting LOE timing"
+      ],
+      "opportunities": [
+        "Pipeline expansion via M&A into rare neuro/sleep",
+        "Pediatric narcolepsy label extension",
+        "EPX-100 epilepsy and ZYN002 Fragile X programs"
+      ],
+      "customerConcentration": "Specialty pharmacy distribution; concentrated in top US distributors."
+    }
+  },
+  {
+    "ticker": "HUT",
+    "profile": {
+      "revenueModel": "Bitcoin self-mining, plus high-performance compute hosting and energy infrastructure services.",
+      "revenueSegments": [
+        {"item": "Bitcoin mining", "pct": 60},
+        {"item": "Managed services / hosting", "pct": 20},
+        {"item": "High-performance compute (HPC)", "pct": 15},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, levered to bitcoin price and network hashrate.",
+      "tailwinds": [
+        "Bitcoin halving compressed weak miners, benefiting low-cost operators",
+        "AI/HPC datacenter monetization of existing power sites",
+        "Strategic partnership with BITMAIN and AI customers"
+      ],
+      "headwinds": [
+        "Hashrate growth keeps mining margin pressured",
+        "US Texas/Alberta power price volatility",
+        "Equity dilution to fund fleet upgrades"
+      ],
+      "threats": [
+        "Sustained drop in bitcoin price",
+        "Regulatory action on US miner electricity use or tax",
+        "Failure to convert sites to AI/HPC use cases"
+      ],
+      "opportunities": [
+        "Conversion of mining capacity to AI hosting",
+        "Power asset monetization via PPAs",
+        "Treasury bitcoin holdings appreciating"
+      ],
+      "customerConcentration": "Some hosting and HPC contracts concentrated with a few customers."
+    }
+  },
+  {
+    "ticker": "ICICIBANK.NS",
+    "profile": {
+      "revenueModel": "Net interest income on retail and corporate loans plus fees from cards, distribution and treasury.",
+      "revenueSegments": [
+        {"item": "Net interest income", "pct": 70},
+        {"item": "Fees & commissions", "pct": 20},
+        {"item": "Treasury & other", "pct": 10}
+      ],
+      "cyclicality": "Cyclical, tied to Indian credit growth and rate cycle.",
+      "tailwinds": [
+        "Strong retail loan growth in mortgages and unsecured",
+        "Best-in-class digital app driving deposit accretion",
+        "Subsidiary mix (insurance, AMC) generating fee growth"
+      ],
+      "headwinds": [
+        "Stress in unsecured personal loans and credit cards",
+        "RBI risk-weight increases on consumer credit",
+        "Deposit cost rising as Indian rate cycle stays high"
+      ],
+      "threats": [
+        "Asset quality deterioration if MFI/unsecured cycles weaken",
+        "Increased competition from PSU banks for deposits",
+        "Regulatory scrutiny of related-party transactions"
+      ],
+      "opportunities": [
+        "Subsidiary value unlock (ICICI Prudential, Lombard, AMC)",
+        "Cross-selling wealth and insurance to existing base",
+        "Corporate capex cycle reviving wholesale loan demand"
+      ],
+      "customerConcentration": "Highly diversified retail and SME base."
+    }
+  },
+  {
+    "ticker": "IHG.L",
+    "profile": {
+      "revenueModel": "Hotel franchise and management fees, plus IHG Rewards loyalty distribution; largely asset-light.",
+      "revenueSegments": [
+        {"item": "Franchise fees", "pct": 60},
+        {"item": "Managed hotel fees", "pct": 25},
+        {"item": "System fund (loyalty, marketing) net", "pct": 10},
+        {"item": "Owned & leased", "pct": 5}
+      ],
+      "cyclicality": "Cyclical, tied to global RevPAR and travel demand.",
+      "tailwinds": [
+        "Asset-light fees compounding with system size",
+        "Strong China and Greater China openings",
+        "Conversions via Voco, Garner accelerating signings"
+      ],
+      "headwinds": [
+        "US lodging RevPAR slowing into normalisation",
+        "Wage and energy inflation at owner level",
+        "Sterling FX translation effects"
+      ],
+      "threats": [
+        "Marriott/Hilton scale gap in luxury and lifestyle",
+        "Loyalty program inflation eroding economics",
+        "China property weakness pausing new builds"
+      ],
+      "opportunities": [
+        "Garner midscale conversion brand",
+        "Six Senses and Regent luxury growth",
+        "Buybacks supported by strong cash conversion"
+      ],
+      "customerConcentration": "Diversified franchisee and consumer base."
+    }
+  },
+  {
+    "ticker": "INCO.JK",
+    "profile": {
+      "revenueModel": "Sales of nickel matte from Sorowako mine to Vale and partner offtakers; transition toward HPAL/RKEF projects.",
+      "revenueSegments": [
+        {"item": "Nickel matte", "pct": 100}
+      ],
+      "cyclicality": "Highly cyclical, tied to nickel price and stainless steel/EV battery demand.",
+      "tailwinds": [
+        "EV battery demand for Class 1 nickel longer term",
+        "Government partnership (MIND ID) consolidating Indonesia nickel",
+        "New Pomalaa HPAL and Bahodopi RKEF projects under build"
+      ],
+      "headwinds": [
+        "Nickel oversupply from Indonesia laterite NPI flooding market",
+        "LME nickel price weakness pressuring earnings",
+        "Rising IDR coal and energy costs"
+      ],
+      "threats": [
+        "Resource nationalism and export restrictions",
+        "ESG concerns over coal-fired smelting and tailings",
+        "Substitution to LFP batteries reducing nickel intensity"
+      ],
+      "opportunities": [
+        "Battery-grade MHP/sulfate via HPAL JV with Ford and Huayou",
+        "Vertical integration with Vale Base Metals downstream",
+        "Indonesian government nickel benchmark price support"
+      ],
+      "customerConcentration": "Highly concentrated; Vale and partner offtakers are dominant buyers."
+    }
+  },
+  {
+    "ticker": "INFQ",
+    "profile": {
+      "revenueModel": "Quantum computing hardware, software and services, plus government and research contracts.",
+      "revenueSegments": [],
+      "cyclicality": "Pre-commercial; revenue tied to government and research grant cycles.",
+      "tailwinds": [
+        "US/UK government quantum funding initiatives",
+        "Neutral-atom quantum computing approach gaining traction",
+        "AI/quantum hybrid compute interest from enterprise"
+      ],
+      "headwinds": [
+        "Long commercialization timeline before useful quantum advantage",
+        "High R&D burn relative to revenue",
+        "Public-listing transition costs and dilution"
+      ],
+      "threats": [
+        "Competing modalities (superconducting, trapped ion, photonic)",
+        "Funding environment for deep tech tightening",
+        "Talent competition with hyperscalers"
+      ],
+      "opportunities": [
+        "DARPA Quantum Benchmarking Initiative milestones",
+        "Cloud-based quantum access partnerships",
+        "Atomic clock and sensing commercial spinoffs"
+      ],
+      "customerConcentration": "Heavily reliant on government and research customers."
+    }
+  },
+  {
+    "ticker": "INFY",
+    "profile": {
+      "revenueModel": "IT services, consulting and outsourcing billed on time-and-materials and fixed-price contracts.",
+      "revenueSegments": [
+        {"item": "Financial Services", "pct": 30},
+        {"item": "Retail/CPG/Logistics", "pct": 15},
+        {"item": "Communication/Media/Tech", "pct": 15},
+        {"item": "Energy/Utilities/Manufacturing", "pct": 25},
+        {"item": "Life Sciences/Hi-Tech/Other", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, tied to enterprise IT and discretionary tech spend.",
+      "tailwinds": [
+        "Generative AI services (Topaz) creating new deal flow",
+        "Cost-takeout deals favored in slowing macro",
+        "Vendor consolidation benefiting tier-1 IT services"
+      ],
+      "headwinds": [
+        "Discretionary IT budget cuts in BFSI and telecom",
+        "Wage inflation in India and onshore",
+        "INR appreciation risk affecting USD margins"
+      ],
+      "threats": [
+        "GenAI productivity compressing T&M revenue per hour",
+        "US visa restrictions and onshore wage inflation",
+        "Pricing pressure from larger consolidation deals"
+      ],
+      "opportunities": [
+        "Large multi-year cost-takeout deals (Liberty Global, etc.)",
+        "Cobalt cloud migration services scaling",
+        "Capital return increases via buybacks/special dividends"
+      ],
+      "customerConcentration": "Top 10 clients are a meaningful share but no single client dominant."
+    }
+  },
+  {
+    "ticker": "INTC",
+    "profile": {
+      "revenueModel": "Sales of x86 client and server CPUs, plus foundry, networking, and edge silicon.",
+      "revenueSegments": [
+        {"item": "Client Computing (PC CPUs)", "pct": 50},
+        {"item": "Data Center & AI", "pct": 25},
+        {"item": "Network & Edge", "pct": 10},
+        {"item": "Intel Foundry", "pct": 10},
+        {"item": "Mobileye, Altera & other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, tied to PC, server and semiconductor capex cycles.",
+      "tailwinds": [
+        "AI PC refresh cycle lifting client mix",
+        "US CHIPS Act funding subsidizing Ohio/Arizona fabs",
+        "Foundry pipeline (18A) gaining external customers"
+      ],
+      "headwinds": [
+        "Datacenter share loss to AMD EPYC and ARM-based silicon",
+        "AI accelerator share dominated by Nvidia/AMD GPUs",
+        "Heavy capex burn pressuring free cash flow"
+      ],
+      "threats": [
+        "Continued share loss in DC CPUs and lack of competitive AI accelerator",
+        "Foundry execution risk on 18A and 14A nodes",
+        "US-China export restrictions limiting addressable market"
+      ],
+      "opportunities": [
+        "Foundry external wins (Microsoft, defense)",
+        "Altera and Mobileye monetization",
+        "Gaudi/AI accelerator roadmap traction"
+      ],
+      "customerConcentration": "Major OEMs (Dell, HP, Lenovo) and hyperscalers contribute meaningfully."
+    }
+  },
+  {
+    "ticker": "IONQ",
+    "profile": {
+      "revenueModel": "Trapped-ion quantum computing systems, cloud access and government/research contracts.",
+      "revenueSegments": [
+        {"item": "Cloud & quantum services", "pct": 60},
+        {"item": "Hardware system sales", "pct": 25},
+        {"item": "Other (services)", "pct": 15}
+      ],
+      "cyclicality": "Pre-commercial; revenue tied to government/enterprise R&D budgets.",
+      "tailwinds": [
+        "US government quantum initiatives (DARPA, AFRL)",
+        "Cloud access via AWS Braket, Azure Quantum",
+        "Networking acquisitions (Lightsynq, Qubitekk) building moat"
+      ],
+      "headwinds": [
+        "Heavy operating losses and equity dilution",
+        "Long path to error-corrected, useful quantum advantage",
+        "Volatile sentiment for speculative compute names"
+      ],
+      "threats": [
+        "Competing modalities (neutral atom, superconducting, photonic)",
+        "Hyperscalers (Google, IBM) with deeper R&D",
+        "Funding cycle slowdown for deep tech"
+      ],
+      "opportunities": [
+        "Quantum networking and secure-comms market entry",
+        "DOE/DOD multi-year contracts",
+        "Tempo and Forte system commercialization"
+      ],
+      "customerConcentration": "Concentrated with hyperscaler and US government customers."
+    }
+  },
+  {
+    "ticker": "IRDM",
+    "profile": {
+      "revenueModel": "Subscription airtime services on Iridium L-band satellite constellation plus equipment sales and government contracts.",
+      "revenueSegments": [
+        {"item": "Commercial services (IoT, voice/data, broadband)", "pct": 65},
+        {"item": "Government services (DoD)", "pct": 20},
+        {"item": "Equipment sales", "pct": 10},
+        {"item": "Engineering & support", "pct": 5}
+      ],
+      "cyclicality": "Defensive; recurring subscription model with low churn.",
+      "tailwinds": [
+        "Direct-to-device (D2D) opportunity with smartphone OEMs",
+        "IoT subscriber growth in tracking and asset monitoring",
+        "DoD multi-year EMSS contract funding visibility"
+      ],
+      "headwinds": [
+        "Competition from Starlink/AST mobile satellite service",
+        "Capex required for next-gen Iridium NEXT replenishment",
+        "Maritime broadband ARPU under pressure"
+      ],
+      "threats": [
+        "Apple/Globalstar partnership taking emergency-message share",
+        "LEO broadband constellations encroaching on niche use cases",
+        "Spectrum policy changes"
+      ],
+      "opportunities": [
+        "Project Stardust D2D services with chipset partners",
+        "Defense and special-ops growth",
+        "Acquisition of Satelles for PNT services"
+      ],
+      "customerConcentration": "US Department of Defense is largest single customer; commercial base is diversified."
+    }
+  },
+  {
+    "ticker": "IRM",
+    "profile": {
+      "revenueModel": "Storage rental and services for physical records, plus growing data-center colocation and digital solutions, structured as a REIT.",
+      "revenueSegments": [
+        {"item": "Records & Information Management storage rental", "pct": 60},
+        {"item": "Records services", "pct": 20},
+        {"item": "Data Center", "pct": 10},
+        {"item": "Asset Lifecycle Management & other", "pct": 10}
+      ],
+      "cyclicality": "Defensive recurring storage revenue; data center cyclicality follows hyperscaler capex.",
+      "tailwinds": [
+        "Hyperscaler datacenter leasing demand for AI capacity",
+        "ALM (asset lifecycle management) capturing IT decommissioning",
+        "Pricing power on record storage with high renewal rates"
+      ],
+      "headwinds": [
+        "Secular decline in physical records storage volumes",
+        "REIT cost of capital sensitive to interest rates",
+        "Data-center development capex weighing on FCF"
+      ],
+      "threats": [
+        "Hyperscalers building rather than leasing capacity",
+        "Acceleration of paper-to-digital transitions",
+        "Customer churn in legal/financial verticals"
+      ],
+      "opportunities": [
+        "Matterhorn datacenter pipeline with pre-leased capacity",
+        "Digital workflow and content services up-sell",
+        "Cross-border records storage in growth markets"
+      ],
+      "customerConcentration": "Highly diversified with 95%+ of Fortune 1000 as customers."
+    }
+  },
+  {
+    "ticker": "ISRG",
+    "profile": {
+      "revenueModel": "Sale of da Vinci surgical systems, recurring sales of instruments/accessories per procedure, and service contracts.",
+      "revenueSegments": [
+        {"item": "Instruments & Accessories", "pct": 60},
+        {"item": "Systems", "pct": 25},
+        {"item": "Services", "pct": 15}
+      ],
+      "cyclicality": "Defensive medtech with mild cyclicality on system sales tied to hospital capex.",
+      "tailwinds": [
+        "da Vinci 5 launch driving system upgrade cycle",
+        "Procedure growth in general surgery and bariatrics",
+        "Ion robotic bronchoscopy expanding into lung biopsy"
+      ],
+      "headwinds": [
+        "Hospital labor and budget constraints",
+        "China VBP and indigenous robotic competition",
+        "Slowdown in lower-acuity benign procedures"
+      ],
+      "threats": [
+        "Medtronic Hugo, J&J Ottava and other emerging robotic platforms",
+        "Reimbursement reform on robotic surgery codes",
+        "Bariatric procedure substitution by GLP-1 obesity drugs"
+      ],
+      "opportunities": [
+        "International expansion in Japan, Korea, India",
+        "SP single-port platform expansion to new specialties",
+        "Digital and analytics services per procedure"
+      ],
+      "customerConcentration": "Diversified hospital/IDN customer base globally."
+    }
+  },
+  {
+    "ticker": "ITUB",
+    "profile": {
+      "revenueModel": "Net interest income on Brazilian retail/wholesale loans, plus fees from cards, asset management, insurance and brokerage.",
+      "revenueSegments": [
+        {"item": "Net interest income", "pct": 65},
+        {"item": "Fees & commissions", "pct": 25},
+        {"item": "Insurance & other", "pct": 10}
+      ],
+      "cyclicality": "Cyclical, tied to Brazilian credit cycle and Selic rate.",
+      "tailwinds": [
+        "Brazilian rate cuts supporting loan demand",
+        "Strong digital channel migration reducing cost-to-serve",
+        "Wealth management and insurance fee growth"
+      ],
+      "headwinds": [
+        "Asset quality stress in unsecured retail",
+        "Fintech competition (Nubank, Mercado Pago) for low-income clients",
+        "BRL volatility affecting USD-denominated returns"
+      ],
+      "threats": [
+        "Open finance and PIX disintermediation of fees",
+        "Political risk to fiscal trajectory",
+        "Tax reforms increasing bank levies"
+      ],
+      "opportunities": [
+        "Itau Latam expansion in Chile, Colombia",
+        "Capital return via increased payout",
+        "XP stake monetization/restructuring"
+      ],
+      "customerConcentration": "Highly diversified retail and corporate base."
+    }
+  },
+  {
+    "ticker": "JKS",
+    "profile": {
+      "revenueModel": "Manufacture and sale of solar wafers, cells and modules globally; growing energy storage business.",
+      "revenueSegments": [
+        {"item": "Solar modules", "pct": 90},
+        {"item": "Cells, wafers and other", "pct": 5},
+        {"item": "Energy storage", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, tied to solar pricing, polysilicon and global PV demand.",
+      "tailwinds": [
+        "Global solar deployment continuing to grow double-digits",
+        "TOPCon technology leadership versus PERC peers",
+        "Energy storage attach to module business"
+      ],
+      "headwinds": [
+        "Severe module ASP declines compressing margins",
+        "Chinese manufacturing oversupply",
+        "US Section 201/UFLPA import restrictions"
+      ],
+      "threats": [
+        "US/EU trade actions targeting Chinese solar imports",
+        "Margin pressure forcing weaker peers to consolidate or fail",
+        "Polysilicon spot price volatility"
+      ],
+      "opportunities": [
+        "US/Mexico/Vietnam manufacturing footprint to bypass tariffs",
+        "Storage and integrated solutions",
+        "Recovery in module pricing as supply rationalizes"
+      ],
+      "customerConcentration": "Diversified utility, distributor and EPC customers globally."
+    }
+  },
+  {
+    "ticker": "JOBY",
+    "profile": {
+      "revenueModel": "Pre-revenue eVTOL air-taxi developer; future revenue from per-mile passenger flights, Department of Defense and Saudi/UAE deployments.",
+      "revenueSegments": [],
+      "cyclicality": "Pre-commercial; future revenue tied to consumer travel and defense procurement.",
+      "tailwinds": [
+        "FAA powered-lift certification framework progressing",
+        "Toyota partnership funding manufacturing scale-up",
+        "Delta, Uber distribution partnerships"
+      ],
+      "headwinds": [
+        "Heavy cash burn until commercial certification",
+        "Battery energy density limits range and payload",
+        "Public market sentiment volatile for SPAC-era pre-revenue"
+      ],
+      "threats": [
+        "Certification delays pushing commercial launch out",
+        "Competing eVTOL programs (Archer, Beta, EHang)",
+        "Operational accidents during flight testing"
+      ],
+      "opportunities": [
+        "First-mover commercial launch in Dubai, NYC",
+        "DoD Agility Prime contracts",
+        "Hydrogen-electric extended range platform"
+      ],
+      "customerConcentration": "Limited launch partners (Dubai RTA, Delta, US DoD)."
+    }
+  },
+  {
+    "ticker": "KLAC",
+    "profile": {
+      "revenueModel": "Sales of process-control and inspection equipment to semiconductor fabs plus services.",
+      "revenueSegments": [
+        {"item": "Semiconductor Process Control", "pct": 85},
+        {"item": "Specialty Semiconductor Process", "pct": 5},
+        {"item": "PCB & Display & Services", "pct": 10}
+      ],
+      "cyclicality": "Cyclical, tied to wafer fab equipment (WFE) spending.",
+      "tailwinds": [
+        "Leading-edge logic complexity raising process-control intensity",
+        "AI compute capex driving HBM and advanced packaging tool demand",
+        "Service/installed base fees growing with installed tools"
+      ],
+      "headwinds": [
+        "Memory capex digestion in 2024 trough",
+        "China export controls limiting advanced-tool sales",
+        "Trailing-edge China customer pull-forward normalising"
+      ],
+      "threats": [
+        "Geopolitical export restrictions widening to mature nodes",
+        "Customer concentration with TSMC, Intel, Samsung",
+        "Competitive erosion at trailing-edge inspection"
+      ],
+      "opportunities": [
+        "Advanced packaging metrology tied to HBM and CoWoS",
+        "EUV mask inspection and reticle services",
+        "AI-driven yield analytics software attach"
+      ],
+      "customerConcentration": "Top 3 foundry/IDM customers (TSMC, Samsung, Intel) account for majority of revenue."
+    }
+  },
+  {
+    "ticker": "KOF",
+    "profile": {
+      "revenueModel": "Bottling and distribution of Coca-Cola products across Mexico, Brazil, Central America and Argentina.",
+      "revenueSegments": [
+        {"item": "Mexico", "pct": 50},
+        {"item": "Brazil", "pct": 30},
+        {"item": "Central America & Colombia", "pct": 10},
+        {"item": "Argentina & other", "pct": 10}
+      ],
+      "cyclicality": "Defensive consumer staple, mild emerging-markets FX cyclicality.",
+      "tailwinds": [
+        "Volume growth in Mexican non-alcoholic beverages",
+        "Premium and digital-direct channels (Juntos+) growth",
+        "Strong free cash flow generation supporting dividends"
+      ],
+      "headwinds": [
+        "Sugar tax and packaging regulation in Mexico",
+        "BRL/MXN translation volatility",
+        "PET resin and aluminium input cost"
+      ],
+      "threats": [
+        "Health regulations limiting sugar-based SKUs",
+        "Mexican judicial/labor reform implementation",
+        "Climate impacts on water-rights and bottling cost"
+      ],
+      "opportunities": [
+        "Acquisitions of bottlers in Latam",
+        "Expansion into beer distribution and adjacent categories",
+        "Digital B2B platform monetization"
+      ],
+      "customerConcentration": "Diversified retail and HORECA customer base."
+    }
+  },
+  {
+    "ticker": "LAC",
+    "profile": {
+      "revenueModel": "Pre-revenue lithium developer; future revenue from sale of battery-grade lithium carbonate from Thacker Pass, Nevada.",
+      "revenueSegments": [],
+      "cyclicality": "Highly cyclical, tied to lithium price and EV battery demand.",
+      "tailwinds": [
+        "US Inflation Reduction Act incentives for domestic lithium",
+        "GM strategic investment and offtake agreement",
+        "DOE loan support for Thacker Pass construction"
+      ],
+      "headwinds": [
+        "Lithium prices well below cycle peaks pressuring NPV",
+        "Construction cost inflation and timeline risk",
+        "Pre-revenue status with funding gap"
+      ],
+      "threats": [
+        "Permitting/litigation risk on Thacker Pass",
+        "Chinese low-cost brine and lepidolite supply",
+        "Slowing US EV demand and OEM EV pullbacks"
+      ],
+      "opportunities": [
+        "Phase 2 expansion at Thacker Pass",
+        "Strategic equity from automaker partners",
+        "Lithium price recovery on EV restart"
+      ],
+      "customerConcentration": "Single offtake partner (GM) for Phase 1; future customers TBD."
+    }
+  },
+  {
+    "ticker": "LEGN",
+    "profile": {
+      "revenueModel": "Cell therapy biotech; revenue from Carvykti (CAR-T for multiple myeloma) commercialization in partnership with Janssen.",
+      "revenueSegments": [
+        {"item": "Carvykti collaboration revenue (J&J)", "pct": 95},
+        {"item": "Other / pipeline", "pct": 5}
+      ],
+      "cyclicality": "Non-cyclical specialty oncology demand.",
+      "tailwinds": [
+        "Carvykti label expansion to earlier lines of myeloma",
+        "Manufacturing capacity scaling at Tech Lane and Raritan",
+        "CAR-T category growing rapidly"
+      ],
+      "headwinds": [
+        "Manufacturing complexity and slot allocation limiting volumes",
+        "Single-product concentration risk",
+        "China-domiciled biotech sentiment overhang"
+      ],
+      "threats": [
+        "Competition from Bristol/2seventy bio Abecma and bispecifics",
+        "BIOSECURE Act risk for China-linked biotechs",
+        "FDA Class warning on secondary malignancies"
+      ],
+      "opportunities": [
+        "Allogeneic and solid-tumor pipeline programs",
+        "Frontline myeloma indication launch",
+        "Strategic transactions or parent (GenScript) carve-out"
+      ],
+      "customerConcentration": "Revenue concentrated through J&J/Janssen partnership."
+    }
+  },
+  {
+    "ticker": "LEU",
+    "profile": {
+      "revenueModel": "Sales of low-enriched uranium (LEU) and HALEU enrichment services to nuclear utilities and US government, plus technical solutions.",
+      "revenueSegments": [
+        {"item": "LEU (low-enriched uranium)", "pct": 75},
+        {"item": "Technical solutions / HALEU contracts", "pct": 25}
+      ],
+      "cyclicality": "Tied to multi-year utility fuel contracting cycles and nuclear policy.",
+      "tailwinds": [
+        "Western push to decouple from Russian Tenex enrichment supply",
+        "US Prohibiting Russian Uranium Imports Act funding HALEU buildout",
+        "Advanced reactor demand for HALEU fuel"
+      ],
+      "headwinds": [
+        "Capital intensity to scale Piketon, Ohio centrifuge plant",
+        "Contract pricing locked from prior cycles capping near-term upside",
+        "Long lead-time before HALEU revenue scales"
+      ],
+      "threats": [
+        "Resumption of cheap Russian SWU imports",
+        "Competing US/EU enrichment expansions (Urenco, Orano)",
+        "Cost overruns at HALEU production scale-up"
+      ],
+      "opportunities": [
+        "DOE HALEU procurement contracts",
+        "SMR fuel demand from X-energy, TerraPower partners",
+        "Long-dated LEU contract repricing"
+      ],
+      "customerConcentration": "US DOE and a small set of utility customers represent material share."
+    }
+  },
+  {
+    "ticker": "LHX",
+    "profile": {
+      "revenueModel": "Sales of defense electronics, communications, space and aviation systems primarily to US DoD and allied governments.",
+      "revenueSegments": [
+        {"item": "Space & Airborne Systems", "pct": 30},
+        {"item": "Integrated Mission Systems", "pct": 30},
+        {"item": "Communication Systems", "pct": 20},
+        {"item": "Aerojet Rocketdyne", "pct": 15},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Defensive, tied to multi-year DoD budget cycles.",
+      "tailwinds": [
+        "Elevated DoD topline and missile/munitions restocking",
+        "Aerojet Rocketdyne propulsion in tight supply",
+        "FMS demand from European NATO allies"
+      ],
+      "headwinds": [
+        "DoD continuing resolution affecting program timing",
+        "Supply chain inflation in legacy fixed-price programs",
+        "Higher rates on net debt from Aerojet acquisition"
+      ],
+      "threats": [
+        "Budget continuing resolutions delaying new program awards",
+        "Defense priority shift away from legacy platforms",
+        "Cost growth on fixed-price development programs"
+      ],
+      "opportunities": [
+        "Tactical radio refresh cycle",
+        "Hypersonic and missile-defense programs",
+        "Resilient PNT and space sensor wins"
+      ],
+      "customerConcentration": "US DoD is the dominant customer (>70% of revenue)."
+    }
+  },
+  {
+    "ticker": "LILMF",
+    "profile": {
+      "revenueModel": "Pre-revenue eVTOL developer pursuing regional jet-style electric aircraft; orders/deposits but no commercial revenue.",
+      "revenueSegments": [],
+      "cyclicality": "Pre-commercial; reliant on equity raises and pre-orders.",
+      "tailwinds": [
+        "European and Saudi pre-order interest",
+        "EASA powered-lift framework progressing"
+      ],
+      "headwinds": [
+        "Severe liquidity strain and recurring going-concern doubts",
+        "Battery technology limits on range and payload",
+        "Equity dilution and possible insolvency in 2024-25"
+      ],
+      "threats": [
+        "Insolvency proceedings in Germany",
+        "Failure to secure additional government or strategic funding",
+        "Loss of certification timeline competitiveness"
+      ],
+      "opportunities": [
+        "White-knight strategic investor or restructuring",
+        "Asset sale of jet design IP"
+      ],
+      "customerConcentration": "Limited pre-order customers, concentrated in a few launch partners."
+    }
+  },
+  {
+    "ticker": "LLY",
+    "profile": {
+      "revenueModel": "Sales of branded prescription drugs across diabetes/obesity, oncology, immunology and neuroscience.",
+      "revenueSegments": [
+        {"item": "Mounjaro/Zepbound (tirzepatide)", "pct": 45},
+        {"item": "Trulicity & other diabetes", "pct": 15},
+        {"item": "Oncology (Verzenio, Jaypirca)", "pct": 15},
+        {"item": "Immunology (Taltz, Olumiant)", "pct": 10},
+        {"item": "Neuroscience & other", "pct": 15}
+      ],
+      "cyclicality": "Non-cyclical, but rapid growth driven by GLP-1 launch dynamics.",
+      "tailwinds": [
+        "Tirzepatide demand far exceeding supply across obesity and diabetes",
+        "Pipeline (orforglipron oral GLP-1, retatrutide, donanemab) expanding",
+        "Manufacturing capacity additions at Mount Pleasant, Concord, Lebanon"
+      ],
+      "headwinds": [
+        "US IRA Medicare price negotiation eligibility for top assets",
+        "Competition from Novo Nordisk semaglutide franchise",
+        "Compounded GLP-1 grey market and supply normalization"
+      ],
+      "threats": [
+        "Pipeline trial setbacks (e.g., orforglipron Ph3 outcomes)",
+        "PBM rebate regulation reducing net realized prices",
+        "Patent litigation on tirzepatide manufacturing"
+      ],
+      "opportunities": [
+        "Oral GLP-1 (orforglipron) widening obesity TAM",
+        "Direct-to-consumer LillyDirect channel",
+        "Alzheimer's launch (Kisunla) ramp"
+      ],
+      "customerConcentration": "Diversified PBM/payer/wholesaler base."
+    }
+  },
+  {
+    "ticker": "LMT",
+    "profile": {
+      "revenueModel": "Sales of military aircraft, missiles, space and rotary platforms primarily to US DoD and FMS customers.",
+      "revenueSegments": [
+        {"item": "Aeronautics (F-35, F-16)", "pct": 40},
+        {"item": "Missiles & Fire Control", "pct": 20},
+        {"item": "Rotary & Mission Systems", "pct": 25},
+        {"item": "Space", "pct": 15}
+      ],
+      "cyclicality": "Defensive, tied to DoD and allied defense budgets.",
+      "tailwinds": [
+        "Elevated DoD topline and Patriot/PAC-3, Javelin restocking",
+        "F-35 sustainment revenue compounding with installed fleet",
+        "European NATO purchases via FMS"
+      ],
+      "headwinds": [
+        "F-35 TR-3 software delays affecting deliveries",
+        "Continuing resolution funding uncertainty",
+        "Pension and discount-rate volatility"
+      ],
+      "threats": [
+        "DoD shift toward attritable/autonomous platforms reducing legacy programs",
+        "Cost overruns on fixed-price classified programs",
+        "Supply chain inflation in titanium and electronics"
+      ],
+      "opportunities": [
+        "Hypersonic and integrated air-and-missile defense programs",
+        "Crewed-uncrewed teaming with autonomous platforms",
+        "Space and Skunk Works classified pipeline"
+      ],
+      "customerConcentration": "US DoD ~70% of revenue with material FMS exposure."
+    }
+  },
+  {
+    "ticker": "LRCX",
+    "profile": {
+      "revenueModel": "Sales of wafer fabrication equipment (etch, deposition) to semiconductor manufacturers, plus services and spares (CSBG).",
+      "revenueSegments": [
+        {"item": "Systems (etch, deposition)", "pct": 65},
+        {"item": "Customer Support Business Group (services, spares, upgrades)", "pct": 35}
+      ],
+      "cyclicality": "Cyclical, tied to memory and logic capex spending.",
+      "tailwinds": [
+        "NAND capex resumption from prior trough",
+        "HBM packaging and TSV process step intensity",
+        "Advanced gate-all-around logic increasing etch/dep intensity"
+      ],
+      "headwinds": [
+        "China tool restrictions on advanced memory",
+        "Memory capex slow to recover at trough",
+        "Customer concentration with top memory makers"
+      ],
+      "threats": [
+        "Tightening US export controls reducing China revenue",
+        "Customer pull-in to mature node tools normalizing",
+        "Competitive pressure from AMAT and TEL on selective steps"
+      ],
+      "opportunities": [
+        "HBM and 3D NAND etch/dep step share gains",
+        "Backside power delivery and advanced packaging",
+        "Growing CSBG installed base recurring revenue"
+      ],
+      "customerConcentration": "Top memory makers (Samsung, SK hynix, Micron) plus TSMC are concentrated buyers."
+    }
+  },
+  {
+    "ticker": "LT.NS",
+    "profile": {
+      "revenueModel": "Engineering, procurement and construction (EPC) for infrastructure, plus heavy engineering, defense, IT services and financial services.",
+      "revenueSegments": [
+        {"item": "Infrastructure Projects", "pct": 45},
+        {"item": "IT services (LTIMindtree/LTTS)", "pct": 25},
+        {"item": "Hi-tech Manufacturing (defense, heavy engg)", "pct": 10},
+        {"item": "Financial Services", "pct": 5},
+        {"item": "Energy / Hydrocarbon / Other", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, tied to Indian and Middle East infrastructure capex.",
+      "tailwinds": [
+        "Indian capex cycle and government infra spending",
+        "Middle East capex (Saudi NEOM, UAE) for hydrocarbon and infra",
+        "Defense indigenization tailwind for L&T platforms"
+      ],
+      "headwinds": [
+        "Working capital intensity in long-cycle EPC projects",
+        "Commodity price volatility in fixed-price contracts",
+        "Election-cycle ordering pauses"
+      ],
+      "threats": [
+        "Margin compression on large fixed-price project execution",
+        "Geopolitical risk in Middle East exposure",
+        "Subsidiary value/dividend dependence on listed IT entities"
+      ],
+      "opportunities": [
+        "Defense and aerospace order book growth",
+        "Green hydrogen and renewables EPC",
+        "Subsidiary value unlock and capital return"
+      ],
+      "customerConcentration": "Order book diversified across Indian government, PSUs and Middle East NOCs."
+    }
+  },
+  {
+    "ticker": "LVMUY",
+    "profile": {
+      "revenueModel": "Sales of luxury fashion, leather goods, wines/spirits, perfumes/cosmetics, watches/jewelry and selective retailing (Sephora, DFS).",
+      "revenueSegments": [
+        {"item": "Fashion & Leather Goods", "pct": 50},
+        {"item": "Selective Retailing (Sephora, DFS)", "pct": 20},
+        {"item": "Perfumes & Cosmetics", "pct": 10},
+        {"item": "Wines & Spirits", "pct": 8},
+        {"item": "Watches & Jewelry", "pct": 12}
+      ],
+      "cyclicality": "Cyclical aspirational luxury with secular wealth-driven growth.",
+      "tailwinds": [
+        "Sephora outperformance in US and international markets",
+        "Long-run global wealth creation in Asia",
+        "Pricing power on iconic Louis Vuitton/Dior leather goods"
+      ],
+      "headwinds": [
+        "Chinese luxury demand softness and outbound travel slow",
+        "Aspirational customer pullback in US and Europe",
+        "Cognac weakness amid US/China headwinds"
+      ],
+      "threats": [
+        "EU/China consumer sentiment shifts",
+        "Counterfeit and grey-market reseller channels",
+        "Tax/regulatory scrutiny of family-run conglomerate structure"
+      ],
+      "opportunities": [
+        "Tiffany US flagship driving jewelry growth",
+        "Watch & Jewelry consolidation",
+        "Luxury hospitality (Cheval Blanc, Belmond) expansion"
+      ],
+      "customerConcentration": "Diversified global high-net-worth and aspirational luxury customer base."
+    }
+  },
+  {
+    "ticker": "LYFT",
+    "profile": {
+      "revenueModel": "Take rate on rideshare bookings, plus advertising and bike/scooter share.",
+      "revenueSegments": [
+        {"item": "Rideshare", "pct": 95},
+        {"item": "Bikes, scooters & other (incl. media)", "pct": 5}
+      ],
+      "cyclicality": "Moderately cyclical with consumer discretionary spending and travel.",
+      "tailwinds": [
+        "Higher driver supply lowering surge and improving ETA",
+        "Price-lock and Wait & Save attracting cost-conscious riders",
+        "Advertising attach growing margins"
+      ],
+      "headwinds": [
+        "Smaller scale than Uber limits cross-platform monetization",
+        "Insurance cost inflation in US",
+        "Driver classification regulation"
+      ],
+      "threats": [
+        "Uber pricing aggression in US/Canada",
+        "Robotaxi (Waymo) threatening rideshare TAM in select cities",
+        "California PAGA/Prop 22 outcomes"
+      ],
+      "opportunities": [
+        "Lyft Media advertising business growth",
+        "Partnerships with AV operators (Mobileye, May Mobility)",
+        "Canada/US business travel TaaS contracts"
+      ],
+      "customerConcentration": "Diversified consumer rider base."
+    }
+  },
+  {
+    "ticker": "MA",
+    "profile": {
+      "revenueModel": "Network fees on payment volume (gross dollar volume), plus value-added services and data analytics.",
+      "revenueSegments": [
+        {"item": "Payment network (domestic, cross-border, switching fees)", "pct": 65},
+        {"item": "Value-added services & solutions", "pct": 35}
+      ],
+      "cyclicality": "Moderately cyclical with consumer spend and global travel.",
+      "tailwinds": [
+        "Cross-border travel volume growth carrying high-margin fees",
+        "Cash-to-card conversion in emerging markets",
+        "B2B and contactless payments expansion"
+      ],
+      "headwinds": [
+        "Stablecoin and account-to-account rails competing in select corridors",
+        "Regulatory scrutiny on interchange in EU/US/UK",
+        "Forex volatility on international rebates"
+      ],
+      "threats": [
+        "Mexico and EU interchange regulation",
+        "DOJ/CFPB scrutiny of network fees",
+        "Account-to-account/PIX-style schemes substituting card volume"
+      ],
+      "opportunities": [
+        "Open banking and data services monetization",
+        "Cyber and fraud-prevention services attach",
+        "B2B accounts payable digitization"
+      ],
+      "customerConcentration": "Diversified issuing banks and merchants worldwide."
+    }
+  },
+  {
+    "ticker": "MAR",
+    "profile": {
+      "revenueModel": "Asset-light hotel franchise and management fees plus Marriott Bonvoy loyalty distribution and credit card co-brand.",
+      "revenueSegments": [
+        {"item": "Franchise fees", "pct": 60},
+        {"item": "Base & incentive management fees", "pct": 20},
+        {"item": "Owned, leased & other", "pct": 5},
+        {"item": "Co-brand credit card & loyalty", "pct": 15}
+      ],
+      "cyclicality": "Cyclical, tied to global RevPAR and travel.",
+      "tailwinds": [
+        "Group and international leisure travel recovery",
+        "Net-unit growth >5% with rich pipeline",
+        "Bonvoy co-brand card economics"
+      ],
+      "headwinds": [
+        "US transient business travel slower to recover",
+        "Wage inflation pressuring owner economics",
+        "Higher rates limit owner financing for new builds"
+      ],
+      "threats": [
+        "Airbnb continuing to absorb leisure share",
+        "China property/construction slowdown affecting pipeline",
+        "Cyber breaches at scale (data of millions of guests)"
+      ],
+      "opportunities": [
+        "Midscale (City Express, Four Points Express) expansion",
+        "Luxury and Ritz-Carlton Yachts segment growth",
+        "Conversions accelerating system size"
+      ],
+      "customerConcentration": "Diversified global franchisee and traveler base."
+    }
+  },
+  {
+    "ticker": "MARA",
+    "profile": {
+      "revenueModel": "Bitcoin self-mining and energy infrastructure operations; small treasury and services revenue.",
+      "revenueSegments": [
+        {"item": "Bitcoin mining", "pct": 95},
+        {"item": "Hosting & other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, levered to bitcoin price and hashrate.",
+      "tailwinds": [
+        "Bitcoin price reaching new highs supports mining margins",
+        "Vertical integration into owned power and data-center sites",
+        "Network hashrate growth indirectly favoring largest operators"
+      ],
+      "headwinds": [
+        "Halving compressed block rewards",
+        "Equity dilution to fund fleet upgrades and acquisitions",
+        "Variable power costs in Texas summer"
+      ],
+      "threats": [
+        "Sustained drop in bitcoin price",
+        "Regulatory pressure on US miner electricity use",
+        "ASIC supply concentration with Bitmain"
+      ],
+      "opportunities": [
+        "AI/HPC site monetization at owned datacenters",
+        "International expansion (UAE, Paraguay)",
+        "Treasury bitcoin appreciating with price"
+      ],
+      "customerConcentration": "Self-mining; minimal external customer concentration."
+    }
+  },
+  {
+    "ticker": "MBLY",
+    "profile": {
+      "revenueModel": "Sales of EyeQ chips and ADAS/autonomous driving software stacks to global OEMs; growing data and mapping services.",
+      "revenueSegments": [
+        {"item": "EyeQ ADAS chips & software", "pct": 90},
+        {"item": "Mobileye SuperVision & higher-tier ADAS", "pct": 5},
+        {"item": "Other (mapping, services)", "pct": 5}
+      ],
+      "cyclicality": "Cyclical, tied to global auto production and OEM ADAS adoption.",
+      "tailwinds": [
+        "Regulatory mandates for AEB and ADAS in US, EU, China",
+        "OEM adoption of SuperVision and Chauffeur higher-tier products",
+        "Robotaxi partnerships (Volkswagen, Holon)"
+      ],
+      "headwinds": [
+        "OEM (esp. Chinese) inventory destocking on EyeQ chips",
+        "Competition from Nvidia Orin and Qualcomm Ride",
+        "EV demand slowdown delaying ADAS launches"
+      ],
+      "threats": [
+        "Tesla/Nvidia in-house and end-to-end stacks taking share",
+        "Chinese local players (Horizon Robotics) winning domestic OEMs",
+        "Large customer concentration (VW, BMW, GM)"
+      ],
+      "opportunities": [
+        "SuperVision wins outside Geely",
+        "Chauffeur eyes-off launch with European OEM",
+        "Drive (robotaxi) software stack contracts"
+      ],
+      "customerConcentration": "Concentrated with top global automakers (Volkswagen, BMW, GM, Geely)."
+    }
+  },
+  {
+    "ticker": "MDKA.JK",
+    "profile": {
+      "revenueModel": "Mining and processing of gold, copper and downstream nickel/copper products in Indonesia.",
+      "revenueSegments": [
+        {"item": "Gold (Tujuh Bukit, Pani)", "pct": 35},
+        {"item": "Copper (Wetar, Tujuh Bukit)", "pct": 25},
+        {"item": "Nickel (AIM, ESG smelters)", "pct": 35},
+        {"item": "Other", "pct": 5}
+      ],
+      "cyclicality": "Highly cyclical, tied to gold, copper and nickel prices.",
+      "tailwinds": [
+        "Gold price strength benefiting Tujuh Bukit and Pani",
+        "EV battery demand for Indonesian nickel longer-term",
+        "Government partnership consolidating Indonesian nickel supply"
+      ],
+      "headwinds": [
+        "Nickel price weakness from Indonesian NPI oversupply",
+        "Coal cost inflation feeding smelter opex",
+        "Project execution and capex on Pani gold and HPAL"
+      ],
+      "threats": [
+        "Resource nationalism and export rules",
+        "ESG concerns over coal-fired smelting and tailings",
+        "Permitting and community-relations risk"
+      ],
+      "opportunities": [
+        "Pani gold project ramp",
+        "AIM and ESG smelter capacity additions",
+        "Battery-grade nickel partnerships with auto OEMs"
+      ],
+      "customerConcentration": "Several offtake partners across smelter and gold doré."
+    }
+  },
+  {
+    "ticker": "MELI",
+    "profile": {
+      "revenueModel": "E-commerce marketplace fees and 1P sales, plus Mercado Pago payments/fintech (TPV/credit) and logistics (Mercado Envios) and ads.",
+      "revenueSegments": [
+        {"item": "Commerce (marketplace, 1P, ads, logistics)", "pct": 55},
+        {"item": "Fintech (Mercado Pago, credit)", "pct": 45}
+      ],
+      "cyclicality": "Cyclical, tied to Latin American consumer spend and credit cycles.",
+      "tailwinds": [
+        "Latam e-commerce penetration still well below DM",
+        "Advertising business scaling profitably",
+        "Mercado Pago credit and acquiring growth"
+      ],
+      "headwinds": [
+        "Argentine peso volatility and currency translation",
+        "Brazilian credit cycle and asset quality in Mercado Credito",
+        "Increased Shein/Shopee/Temu competition"
+      ],
+      "threats": [
+        "Cross-border Asian marketplaces gaining share",
+        "Brazilian taxation changes on cross-border parcels",
+        "Open-finance and PIX disintermediation"
+      ],
+      "opportunities": [
+        "Logistics fulfillment penetration deepening",
+        "Mercado Ads scaling toward Amazon-like attach",
+        "Mexico and Brazil fintech monetization deepening"
+      ],
+      "customerConcentration": "Diversified consumer and SME base across Latam."
+    }
+  }
+]

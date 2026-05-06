@@ -443,6 +443,17 @@ export const scannerUniverse = sqliteTable("scanner_universe", {
   source: text("source").default("curated"), // curated, discovered, user
   enabled: integer("enabled", { mode: "boolean" }).default(true),
   notes: text("notes"), // Optional notes about why this ticker is included
+  // Qualitative profile fields (LLM-drafted, human-edited).
+  // JSON-as-text for the structured ones; parsed in app code.
+  revenueModel: text("revenue_model"),
+  revenueSegments: text("revenue_segments"), // JSON: [{ item, pct }]
+  cyclicality: text("cyclicality"),
+  tailwinds: text("tailwinds"), // JSON: string[]
+  headwinds: text("headwinds"), // JSON: string[]
+  threats: text("threats"), // JSON: string[]
+  opportunities: text("opportunities"), // JSON: string[]
+  customerConcentration: text("customer_concentration"),
+  profileGeneratedAt: text("profile_generated_at"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
   updatedAt: text("updated_at").default(sql`(datetime('now'))`),
 });
