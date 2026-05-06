@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
 import { logger } from "@/lib/logger";
-import { normalizeTickerForYahoo } from "@/lib/yahoo-utils";
+import { normalizeTickerForYahoo } from "@/lib/markets/yahoo-utils";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 

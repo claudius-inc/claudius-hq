@@ -21,7 +21,7 @@ import { formatPercent, getPercentColor } from "./utils";
 import {
   getCrowdingBgColor,
   getCrowdingDescription,
-} from "@/lib/crowding-utils";
+} from "@/lib/markets/crowding-utils";
 import { Skeleton } from "@/components/Skeleton";
 
 type SortField = "1w" | "1m" | "3m";

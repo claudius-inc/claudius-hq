@@ -8,7 +8,7 @@
  */
 import YahooFinance from "yahoo-finance2";
 import { logger } from "@/lib/logger";
-import { getGoldPrice } from "@/lib/gold-price";
+import { getGoldPrice } from "@/lib/markets/gold-price";
 import type {
   ExpectedReturnsResponse,
   AssetValuation,

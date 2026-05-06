@@ -7,7 +7,7 @@
 
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
-import { getCache, setCache } from "@/lib/market-cache";
+import { getCache, setCache } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
 import {
   calculateDailyReturns,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, stockReports } from "@/db";
 import { desc } from "drizzle-orm";
-import { isApiAuthenticated } from "@/lib/auth";
+import { isApiAuthenticated } from "@/lib/auth/auth";
 
 // GET /api/stocks — list all stock reports
 export async function GET(request: NextRequest) {

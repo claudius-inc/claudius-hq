@@ -14,7 +14,7 @@ import { acpOfferings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 import { assertAllowedOffering } from "@/config/acp-offerings-manifest";
-import { SyncBodySchema, formatZodError } from "@/lib/acp-schemas";
+import { SyncBodySchema, formatZodError } from "@/lib/acp/acp-schemas";
 
 const API_KEY = process.env.HQ_API_KEY;
 

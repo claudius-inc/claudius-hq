@@ -5,7 +5,7 @@
  * so it can also be invoked directly from Server Components during SSR.
  */
 import { NextResponse } from "next/server";
-import { getCache, setCache } from "@/lib/market-cache";
+import { getCache, setCache } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
 import type { ExpectedReturnsResponse } from "@/lib/valuation/types";
 import { fetchExpectedReturnsData } from "@/lib/valuation/fetch-expected-returns";

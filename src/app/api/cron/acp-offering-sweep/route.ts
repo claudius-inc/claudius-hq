@@ -21,7 +21,7 @@ import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { getV2AgentInfo, getV2AgentId, deleteV2Offering } from "@/lib/virtuals-client";
+import { getV2AgentInfo, getV2AgentId, deleteV2Offering } from "@/lib/acp/virtuals-client";
 import {
   isAllowedOffering,
   getManifestMode,

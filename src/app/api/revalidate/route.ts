@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isApiAuthenticated } from "@/lib/auth";
+import { isApiAuthenticated } from "@/lib/auth/auth";
 import {
   revalidatePaths,
   revalidateTags,
   revalidateByScope,
   CACHE_TAGS,
   type RevalidationScope,
-} from "@/lib/revalidate";
+} from "@/lib/cache/revalidate";
 
 /**
  * POST /api/revalidate

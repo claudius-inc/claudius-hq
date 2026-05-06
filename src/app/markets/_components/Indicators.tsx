@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { categoryOrder, categoryLabels, categoryIcons } from "../_lib/constants";
 import { getStatusColor, getTrendArrow, formatIndicatorVal } from "../_lib/helpers";
 import { IndicatorDetails } from "./IndicatorDetails";
-import { MACRO_INDICATORS } from "@/lib/macro-indicators";
+import { MACRO_INDICATORS } from "@/lib/markets/macro-indicators";
 import type { MacroIndicator } from "../_lib/types";
 
 interface IndicatorsProps {

@@ -7,13 +7,13 @@ import {
   findV2OfferingByName,
   updateV2Offering,
   createV2Offering,
-} from "@/lib/virtuals-client";
+} from "@/lib/acp/virtuals-client";
 import { logger } from "@/lib/logger";
 import {
   assertAllowedOffering,
   loadOfferingMetadata,
 } from "@/config/acp-offerings-manifest";
-import { PublishBodySchema, formatZodError } from "@/lib/acp-schemas";
+import { PublishBodySchema, formatZodError } from "@/lib/acp/acp-schemas";
 
 // Set isHidden=false on the V2 marketplace offering, mirroring it as
 // isActive=1 in the local DB.

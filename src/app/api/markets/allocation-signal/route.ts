@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCache, setCache } from "@/lib/market-cache";
+import { getCache, setCache } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
-import { computeGavekalQuadrant } from "@/lib/gavekal";
-import { fetchValuationData } from "@/lib/market-valuation";
-import { fetchSentimentData } from "@/lib/sentiment";
-import { fetchBreadthData } from "@/lib/breadth";
-import { fetchThemePerformanceAll } from "@/lib/themes";
+import { computeGavekalQuadrant } from "@/lib/markets/gavekal";
+import { fetchValuationData } from "@/lib/markets/market-valuation";
+import { fetchSentimentData } from "@/lib/markets/sentiment";
+import { fetchBreadthData } from "@/lib/markets/breadth";
+import { fetchThemePerformanceAll } from "@/lib/markets/themes";
 
 export const dynamic = "force-dynamic";
 

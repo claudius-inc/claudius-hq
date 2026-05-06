@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Pencil } from "lucide-react";
-import type { TickerProfile as TickerProfileData } from "@/lib/ticker-ai";
+import type { TickerProfile as TickerProfileData } from "@/lib/ai/ticker-ai";
 import type { TickerMetric } from "@/db/schema";
 import { EditTickerProfileModal } from "./EditTickerProfileModal";
 

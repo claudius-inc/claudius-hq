@@ -11,7 +11,7 @@ import {
   getCrowdingDescription,
   type CrowdingScore,
   type CrowdingLevel,
-} from "@/lib/crowding";
+} from "@/lib/markets/crowding";
 import { logger } from "@/lib/logger";
 
 const MARKET_ETFS = [

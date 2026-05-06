@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { seedGavekalData } from "@/lib/gavekal";
+import { seedGavekalData } from "@/lib/markets/gavekal";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";

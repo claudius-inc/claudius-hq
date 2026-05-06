@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchCongressData } from "@/lib/congress";
+import { fetchCongressData } from "@/lib/markets/congress";
 
 export const revalidate = 300; // 5 min cache
 

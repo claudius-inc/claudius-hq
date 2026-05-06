@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getV2WalletAddress } from "@/lib/virtuals-client";
+import { getV2WalletAddress } from "@/lib/acp/virtuals-client";
 import { logger } from "@/lib/logger";
 import { ethers } from "ethers";
 

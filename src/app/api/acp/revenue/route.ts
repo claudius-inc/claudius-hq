@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { marketCache } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getV2WalletAddress } from "@/lib/virtuals-client";
+import { getV2WalletAddress } from "@/lib/acp/virtuals-client";
 
 const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 

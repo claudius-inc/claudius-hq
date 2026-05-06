@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { TickerMetric } from "@/db/schema";
 import { EditTickerButton } from "@/app/markets/scanner/stocks/_components/EditTickerButton";
-import { formatLocalPrice } from "@/lib/yahoo-utils";
+import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
 
 interface QuoteInput {
   regularMarketPrice?: number;

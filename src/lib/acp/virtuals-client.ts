@@ -7,7 +7,7 @@
  * `claw-api.virtuals.io` V1 client was removed on 2026-04-26.
  */
 
-import { v2AuthenticatedFetch } from "@/lib/v2-auth";
+import { v2AuthenticatedFetch } from "@/lib/auth/v2-auth";
 import { assertAllowedOffering } from "@/config/acp-offerings-manifest";
 
 const V2_BASE_URL = "https://api.acp.virtuals.io";

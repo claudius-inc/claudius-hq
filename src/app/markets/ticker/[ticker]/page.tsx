@@ -16,7 +16,7 @@ import {
 } from "@/db";
 import type { StockReport } from "@/lib/types";
 import { logger } from "@/lib/logger";
-import { columnsToProfile } from "@/lib/ticker-ai";
+import { columnsToProfile } from "@/lib/ai/ticker-ai";
 import { TickerHeader } from "./_components/TickerHeader";
 import { TickerProfile } from "./_components/TickerProfile";
 import { TickerHoldings } from "./_components/TickerHoldings";

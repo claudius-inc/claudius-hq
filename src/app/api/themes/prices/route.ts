@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { fetchThemePrices } from "@/lib/themes";
+import { fetchThemePrices } from "@/lib/markets/themes";
 
 // GET /api/themes/prices?tickers=AAPL,MSFT,GOOG
 // Fetches prices for given tickers (max 20 at a time to prevent timeout)

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { marketCache } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { getV2AgentInfo, getV2WalletAddress } from "@/lib/virtuals-client";
+import { getV2AgentInfo, getV2WalletAddress } from "@/lib/acp/virtuals-client";
 import { logger } from "@/lib/logger";
 
 const REVENUE_CACHE_KEY = "acp_onchain_revenue";

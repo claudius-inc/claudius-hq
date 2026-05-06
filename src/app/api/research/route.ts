@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, researchPages } from "@/db";
 import { eq, and, asc } from "drizzle-orm";
-import { isApiAuthenticated } from "@/lib/auth";
+import { isApiAuthenticated } from "@/lib/auth/auth";
 
 // GET /api/research?projectId=7 — list research pages for a project
 export async function GET(req: NextRequest) {

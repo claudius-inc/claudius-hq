@@ -3,9 +3,9 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { acpOfferings } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { findV2OfferingByName, updateV2Offering } from "@/lib/virtuals-client";
+import { findV2OfferingByName, updateV2Offering } from "@/lib/acp/virtuals-client";
 import { logger } from "@/lib/logger";
-import { PublishBodySchema, formatZodError } from "@/lib/acp-schemas";
+import { PublishBodySchema, formatZodError } from "@/lib/acp/acp-schemas";
 
 // Set isHidden=true on the V2 marketplace offering, mirroring it as
 // isActive=0 in the local DB.

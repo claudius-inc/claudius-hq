@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getCache, setCache } from "@/lib/market-cache";
-import { computeGavekalHistory, type GavekalHistoricalEntry } from "@/lib/gavekal";
+import { getCache, setCache } from "@/lib/cache/market-cache";
+import { computeGavekalHistory, type GavekalHistoricalEntry } from "@/lib/markets/gavekal";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";

@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { db, themes } from "@/db";
-import { listAllTags } from "@/lib/tags";
+import { listAllTags } from "@/lib/markets/tags";
 import { logger } from "@/lib/logger";
 
 // Single Gemini call that returns everything we want to know about a ticker:

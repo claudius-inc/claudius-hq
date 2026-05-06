@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionCookie } from "@/lib/auth";
+import { getSessionCookie } from "@/lib/auth/auth";
 import { logger } from "@/lib/logger";
 
 // In-memory rate limiter: max 5 attempts per IP per 15-minute window

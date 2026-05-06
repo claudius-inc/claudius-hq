@@ -10,12 +10,12 @@ import {
   tickerTags,
   portfolioHoldings,
 } from "@/db";
-import { getTagsForTicker, setTickerTags, setThemeTags } from "@/lib/tags";
+import { getTagsForTicker, setTickerTags, setThemeTags } from "@/lib/markets/tags";
 import {
   type TickerProfile,
   columnsToProfile,
   profileToColumns,
-} from "@/lib/ticker-ai";
+} from "@/lib/ai/ticker-ai";
 import { logger } from "@/lib/logger";
 
 interface NewThemeInput {

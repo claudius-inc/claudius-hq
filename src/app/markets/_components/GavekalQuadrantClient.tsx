@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { GavekalQuadrant } from "./GavekalQuadrant";
 import { fetcher, ssrHydratedConfig } from "@/lib/swr-config";
-import type { GavekalData } from "@/lib/gavekal";
+import type { GavekalData } from "@/lib/markets/gavekal";
 
 /**
  * Client-side SWR wrapper around GavekalQuadrant. Server fetches the

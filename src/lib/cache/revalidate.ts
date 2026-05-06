@@ -5,7 +5,7 @@
  * Next.js ISR cache when data changes.
  * 
  * Usage from API routes:
- *   import { revalidateProjects, revalidateResearch } from "@/lib/revalidate";
+ *   import { revalidateProjects, revalidateResearch } from "@/lib/cache/revalidate";
  *   await revalidateProjects();
  *   await revalidateResearch("AAPL");
  */

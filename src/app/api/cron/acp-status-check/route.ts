@@ -21,7 +21,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { getV2AgentInfo } from "@/lib/virtuals-client";
+import { getV2AgentInfo } from "@/lib/acp/virtuals-client";
 import { MAX_OFFERINGS } from "@/config/acp-offerings-manifest";
 
 export const dynamic = "force-dynamic";

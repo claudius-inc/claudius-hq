@@ -5,8 +5,8 @@ import { db, themes, themeStocks, themeTags, tags as tagsTable } from "@/db";
 import YahooFinance from "yahoo-finance2";
 import { ThemeWithPerformance, ThemePerformance } from "@/lib/types";
 import { logger } from "@/lib/logger";
-import { setThemeTags } from "@/lib/tags";
-import { getCrowdingScores, aggregateCrowdingScores, CrowdingScore } from "@/lib/crowding";
+import { setThemeTags } from "@/lib/markets/tags";
+import { getCrowdingScores, aggregateCrowdingScores, CrowdingScore } from "@/lib/markets/crowding";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });

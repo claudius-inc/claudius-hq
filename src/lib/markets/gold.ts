@@ -11,7 +11,7 @@ import { db } from "@/db";
 import { goldAnalysis, goldFlows } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
-import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });

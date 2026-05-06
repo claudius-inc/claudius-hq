@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
-import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/cache/market-cache";
 import { db, themes, themeStocks } from "@/db";
 import { eq } from "drizzle-orm";
 import { logger } from "@/lib/logger";

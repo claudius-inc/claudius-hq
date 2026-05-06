@@ -17,7 +17,7 @@ export function formatPrice(price: number | null | undefined): string {
   return `$${price.toFixed(2)}`;
 }
 
-export { getCurrencyForTicker, formatLocalPrice } from "@/lib/yahoo-utils";
+export { getCurrencyForTicker, formatLocalPrice } from "@/lib/markets/yahoo-utils";
 
 export function getTradingViewUrl(ticker: string): string {
   if (ticker.includes(".")) {

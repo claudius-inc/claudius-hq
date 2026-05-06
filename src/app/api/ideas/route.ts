@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db, ideas } from "@/db";
 import { and, desc, eq } from "drizzle-orm";
-import { isApiAuthenticated } from "@/lib/auth";
+import { isApiAuthenticated } from "@/lib/auth/auth";
 
 export async function GET(request: NextRequest) {
   try {

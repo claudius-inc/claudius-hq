@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchRegimePanelData } from "@/lib/regime-panel";
+import { fetchRegimePanelData } from "@/lib/markets/regime-panel";
 
 // Cache for 15 minutes
 export const revalidate = 900;

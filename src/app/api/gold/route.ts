@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { goldAnalysis } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
-import { fetchGoldData } from "@/lib/gold";
+import { fetchGoldData } from "@/lib/markets/gold";
 
 export const dynamic = "force-dynamic";
 

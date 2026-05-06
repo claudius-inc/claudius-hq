@@ -20,7 +20,7 @@
 import YahooFinance from "yahoo-finance2";
 import { db, gavekalPrices } from "@/db";
 import { eq, and, gte, desc } from "drizzle-orm";
-import { logger } from "./logger";
+import { logger } from "@/lib/logger";
 import {
   loadHistoricalRegimeHistory,
   loadHistoricalRatioHistories,

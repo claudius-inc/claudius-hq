@@ -12,14 +12,14 @@ import {
   findV2OfferingByName,
   updateV2Offering,
   type UpdateV2OfferingBody,
-} from "@/lib/virtuals-client";
+} from "@/lib/acp/virtuals-client";
 import { assertAllowedOffering } from "@/config/acp-offerings-manifest";
 import {
   BulkSyncBodySchema,
   CreateOfferingBodySchema,
   PatchOfferingBodySchema,
   formatZodError,
-} from "@/lib/acp-schemas";
+} from "@/lib/acp/acp-schemas";
 
 const ACP_DIR = "/root/.openclaw/workspace/skills/acp";
 const OFFERINGS_DIR = path.join(ACP_DIR, "src/seller/offerings");

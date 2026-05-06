@@ -1,5 +1,5 @@
 import type { PortfolioHolding, TradeJournalEntry } from "@/db/schema";
-import { formatLocalPrice, getCurrencyForTicker } from "@/lib/yahoo-utils";
+import { formatLocalPrice, getCurrencyForTicker } from "@/lib/markets/yahoo-utils";
 
 interface TickerHoldingsProps {
   ticker: string;

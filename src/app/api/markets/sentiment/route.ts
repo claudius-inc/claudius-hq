@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
-import { fetchSentimentData } from "@/lib/sentiment";
+import { fetchSentimentData } from "@/lib/markets/sentiment";
 
 export const dynamic = "force-dynamic";
 

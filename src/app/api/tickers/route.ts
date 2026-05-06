@@ -12,12 +12,12 @@ import {
   getTagsForTicker,
   setTickerTags,
   setThemeTags,
-} from "@/lib/tags";
+} from "@/lib/markets/tags";
 import {
   type TickerProfile,
   profileToColumns,
   isProfileEmpty,
-} from "@/lib/ticker-ai";
+} from "@/lib/ai/ticker-ai";
 import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });

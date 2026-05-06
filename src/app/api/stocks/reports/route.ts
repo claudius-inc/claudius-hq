@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db, stockReports, researchJobs } from "@/db";
 import { desc, eq } from "drizzle-orm";
-import { isApiAuthenticated } from "@/lib/auth";
+import { isApiAuthenticated } from "@/lib/auth/auth";
 
 // GET /api/stocks/reports — list all reports, optionally filter by ticker or slug
 export async function GET(req: NextRequest) {

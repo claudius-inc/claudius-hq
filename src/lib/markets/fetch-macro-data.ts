@@ -1,4 +1,4 @@
-import { MACRO_INDICATORS, interpretValue, calculatePercentile } from "@/lib/macro-indicators";
+import { MACRO_INDICATORS, interpretValue, calculatePercentile } from "@/lib/markets/macro-indicators";
 import { logger } from "@/lib/logger";
 import YahooFinance from "yahoo-finance2";
 

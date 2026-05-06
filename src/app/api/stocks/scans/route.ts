@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, stockScans } from "@/db";
 import { desc, eq } from "drizzle-orm";
-import { isApiAuthenticated } from "@/lib/auth";
+import { isApiAuthenticated } from "@/lib/auth/auth";
 
 // GET /api/stocks/scans — list all scans (latest first)
 export async function GET(req: NextRequest) {

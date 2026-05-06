@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { fetchInsiderData } from "@/lib/insider";
+import { fetchInsiderData } from "@/lib/markets/insider";
 
 export const revalidate = 300; // 5 min cache
 

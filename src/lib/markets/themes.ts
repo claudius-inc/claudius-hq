@@ -2,8 +2,8 @@ import { db, themes, themeStocks, stockPricesDaily, rawClient } from "@/db";
 import YahooFinance from "yahoo-finance2";
 import { and, eq, gte } from "drizzle-orm";
 import { logger } from "@/lib/logger";
-import { getCrowdingScores, aggregateCrowdingScores, CrowdingScore } from "@/lib/crowding";
-import { normalizeTickerForYahoo } from "@/lib/yahoo-utils";
+import { getCrowdingScores, aggregateCrowdingScores, CrowdingScore } from "@/lib/markets/crowding";
+import { normalizeTickerForYahoo } from "@/lib/markets/yahoo-utils";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 

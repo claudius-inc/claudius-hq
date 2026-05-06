@@ -1,5 +1,5 @@
 import YahooFinance from "yahoo-finance2";
-import { logger } from "./logger";
+import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 

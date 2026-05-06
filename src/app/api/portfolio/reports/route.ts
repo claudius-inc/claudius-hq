@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, portfolioReports } from "@/db";
 import { desc } from "drizzle-orm";
-import { isApiAuthenticated } from "@/lib/auth";
+import { isApiAuthenticated } from "@/lib/auth/auth";
 
 // GET /api/portfolio/reports — List all portfolio reports
 export async function GET(_request: NextRequest) {

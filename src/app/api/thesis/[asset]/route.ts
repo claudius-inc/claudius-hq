@@ -4,7 +4,7 @@ import { thesisConfigs, thesisDecisionLog } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getThesisEntry, getSupportedAssets, type ThesisRegistryEntry } from "@/lib/thesis/registry";
 import { evaluateSignals, evaluatePreCommitments } from "@/lib/thesis/engine";
-import { getCache, setCache } from "@/lib/market-cache";
+import { getCache, setCache } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
 
 export const dynamic = "force-dynamic";

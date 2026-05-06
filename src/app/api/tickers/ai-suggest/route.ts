@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateTickerAiResult } from "@/lib/ticker-ai";
+import { generateTickerAiResult } from "@/lib/ai/ticker-ai";
 import { logger } from "@/lib/logger";
 
 interface AiSuggestBody {

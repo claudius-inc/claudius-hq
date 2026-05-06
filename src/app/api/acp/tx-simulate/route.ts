@@ -32,8 +32,8 @@ import {
   fetchVerifiedAbi,
   lookup4ByteEvent,
   SUPPORTED_CHAIN_IDS,
-} from "@/lib/evm-chains";
-import { formatZodError } from "@/lib/acp-schemas";
+} from "@/lib/acp/evm-chains";
+import { formatZodError } from "@/lib/acp/acp-schemas";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;

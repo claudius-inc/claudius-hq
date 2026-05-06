@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Users, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp } from "lucide-react";
-import { getCrowdingBgColor, type CrowdingLevel } from "@/lib/crowding-utils";
+import { getCrowdingBgColor, type CrowdingLevel } from "@/lib/markets/crowding-utils";
 
 interface RegimeData {
   overall: {

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, scannerUniverse } from "@/db";
-import { generateTickerAiResult } from "@/lib/ticker-ai";
+import { generateTickerAiResult } from "@/lib/ai/ticker-ai";
 import { logger } from "@/lib/logger";
 
 // POST /api/tickers/:ticker/redraft

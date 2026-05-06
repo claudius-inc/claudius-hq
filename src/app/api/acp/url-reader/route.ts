@@ -27,7 +27,7 @@ import { parseHTML } from "linkedom";
 import { Readability } from "@mozilla/readability";
 import TurndownService from "turndown";
 import { logger } from "@/lib/logger";
-import { formatZodError } from "@/lib/acp-schemas";
+import { formatZodError } from "@/lib/acp/acp-schemas";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;

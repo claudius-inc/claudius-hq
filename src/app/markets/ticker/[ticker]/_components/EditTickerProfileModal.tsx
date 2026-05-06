@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, Sparkles, ArrowLeft } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import type { TickerProfile } from "@/lib/ticker-ai";
+import type { TickerProfile } from "@/lib/ai/ticker-ai";
 
 interface EditTickerProfileModalProps {
   open: boolean;

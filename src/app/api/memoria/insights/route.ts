@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { db, memoriaEntries, memoriaInsights } from "@/db";
 import { eq, desc } from "drizzle-orm";
-import { analyzePatterns, analyzeConnections, analyzeDistillation } from "@/lib/gemini";
+import { analyzePatterns, analyzeConnections, analyzeDistillation } from "@/lib/ai/gemini";
 import { logger } from "@/lib/logger";
 
 // GET /api/memoria/insights — List all insights

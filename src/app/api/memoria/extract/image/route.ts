@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { extractFromImage } from "@/lib/gemini";
+import { extractFromImage } from "@/lib/ai/gemini";
 import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {

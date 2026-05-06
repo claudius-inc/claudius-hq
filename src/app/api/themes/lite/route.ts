@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { fetchThemesLite } from "@/lib/themes";
+import { fetchThemesLite } from "@/lib/markets/themes";
 
 // GET /api/themes/lite - Fast theme list (no price fetching)
 // Returns theme metadata + stock lists from DB only

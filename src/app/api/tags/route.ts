@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { listAllTags } from "@/lib/tags";
+import { listAllTags } from "@/lib/markets/tags";
 import { logger } from "@/lib/logger";
 
 // GET /api/tags?q=&limit=50 - Tag autocomplete from the normalized `tags` table.

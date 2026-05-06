@@ -11,7 +11,7 @@ import { eq, inArray } from "drizzle-orm";
 import YahooFinance from "yahoo-finance2";
 import { ThemeWithPerformance, ThemePerformance, ThemeStockStatus } from "@/lib/types";
 import { logger } from "@/lib/logger";
-import { getTagsForTheme, setThemeTags } from "@/lib/tags";
+import { getTagsForTheme, setThemeTags } from "@/lib/markets/tags";
 
 // Instantiate Yahoo Finance client
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });

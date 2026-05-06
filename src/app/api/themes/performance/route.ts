@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
-import { getCache, setCache, CACHE_KEYS } from "@/lib/market-cache";
-import { fetchThemePerformanceAll, ThemePerformanceResponse } from "@/lib/themes";
+import { getCache, setCache, CACHE_KEYS } from "@/lib/cache/market-cache";
+import { fetchThemePerformanceAll, ThemePerformanceResponse } from "@/lib/markets/themes";
 
 // GET /api/themes/performance
 // Returns pre-aggregated performance for ALL themes (no client-side ticker fan-out).

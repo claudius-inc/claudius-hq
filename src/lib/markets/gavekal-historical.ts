@@ -11,7 +11,7 @@
 
 import { db, gavekalPrices, gavekalHistoricalSnapshot } from "@/db";
 import { eq } from "drizzle-orm";
-import { logger } from "./logger";
+import { logger } from "@/lib/logger";
 import type { GavekalQuadrantName, GavekalRegimePoint } from "./gavekal";
 
 const LOG_SRC = "lib/gavekal-historical";

@@ -5,7 +5,7 @@
  * with background data refresh from external APIs.
  * 
  * NOTE: This module imports db and should only be used in server code.
- * For client components, import from '@/lib/cache-utils' instead.
+ * For client components, import from '@/lib/cache/cache-utils' instead.
  */
 
 import { db, marketCache } from "@/db";

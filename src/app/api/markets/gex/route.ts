@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import YahooFinance from "yahoo-finance2";
-import { calculateGex, interpretGex, formatGex } from "@/lib/gex";
+import { calculateGex, interpretGex, formatGex } from "@/lib/markets/gex";
 import { logger } from "@/lib/logger";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });

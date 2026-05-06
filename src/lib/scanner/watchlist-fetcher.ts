@@ -6,7 +6,7 @@
  * because the latter uses the deprecated default export of yahoo-finance2 which throws
  * "Call `new YahooFinance()` first." at runtime.
  */
-import { normalizeTickerForYahoo } from "@/lib/yahoo-utils";
+import { normalizeTickerForYahoo } from "@/lib/markets/yahoo-utils";
 import { logger } from "@/lib/logger";
 import type { ScoringInputs } from "@/lib/scanner/watchlist";
 import { computeIndicators } from "@/lib/scanner/watchlist-indicators";
