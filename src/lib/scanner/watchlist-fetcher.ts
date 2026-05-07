@@ -23,6 +23,8 @@ export interface FetchedTicker {
   pc1m: number | null;
   pc3m: number | null;
   name: string;
+  /** Yahoo's `quote.currency` (e.g. "USD", "GBp"); null when missing. */
+  currency: string | null;
 }
 
 interface YahooQuoteSummaryResult {
@@ -36,6 +38,8 @@ interface YahooQuoteSummaryResult {
     regularMarketPrice?: number;
     /** Yahoo returns this as a fraction (-0.028 = -2.8%), not a percent. */
     regularMarketChangePercent?: number;
+    /** Yahoo's currency code, e.g. "USD", "GBp" (LSE pence). */
+    currency?: string;
   };
 }
 
@@ -147,6 +151,7 @@ export async function buildScoringInputs(ticker: string): Promise<FetchedTicker 
     quoteSummary?.price?.shortName ??
     quoteSummary?.price?.longName ??
     ticker;
+  const currency = quoteSummary?.price?.currency ?? null;
 
   if (price === null) {
     logger.warn("watchlist-fetcher", `Could not derive price for ${ticker}`);
@@ -155,6 +160,7 @@ export async function buildScoringInputs(ticker: string): Promise<FetchedTicker 
 
   return {
     name,
+    currency,
     price,
     pc1d,
     pc1w,

@@ -11,6 +11,7 @@ import {
 import type { TweetData, PriceData } from "../types";
 
 import { Skeleton } from "@/components/Skeleton";
+import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
 
 interface TickerTimelineProps {
   ticker: string;
@@ -26,10 +27,9 @@ function formatNumber(n: number): string {
   return n.toString();
 }
 
-function formatPrice(val: number | null): string {
+function formatPrice(ticker: string, val: number | null): string {
   if (val === null) return "—";
-  if (val >= 1000) return "$" + val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return "$" + val.toFixed(2);
+  return formatLocalPrice(ticker, val);
 }
 
 function formatDate(dateStr: string): string {
@@ -190,7 +190,7 @@ export function TickerTimeline({ ticker, tweets, price, priceLoading, onBack }: 
         </div>
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-gray-900">
-            {priceLoading && !price?.current_price ? <Skeleton className="h-5 w-16 inline-block" /> : formatPrice(price?.current_price ?? null)}
+            {priceLoading && !price?.current_price ? <Skeleton className="h-5 w-16 inline-block" /> : formatPrice(ticker, price?.current_price ?? null)}
           </span>
           {price?.change_1d != null && (
             <span

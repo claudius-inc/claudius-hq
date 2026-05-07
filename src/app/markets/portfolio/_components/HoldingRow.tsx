@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Pencil, Trash2, X, Check, StickyNote } from "lucide-react";
 import { PortfolioHolding } from "@/lib/types";
+import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
 
 interface HoldingRowProps {
   holding: PortfolioHolding;
@@ -23,9 +24,9 @@ interface HoldingRowProps {
   onOpenJournal: () => void;
 }
 
-function formatPrice(price: number | null | undefined) {
+function formatPrice(ticker: string, price: number | null | undefined) {
   if (price === null || price === undefined) return "-";
-  return `$${price.toFixed(2)}`;
+  return formatLocalPrice(ticker, price);
 }
 
 function calculatePL(current: number | undefined, costBasis: number | null) {
@@ -89,7 +90,7 @@ export function HoldingRow({
         {loadingPrices ? (
           <span className="text-gray-400">...</span>
         ) : (
-          formatPrice(price)
+          formatPrice(holding.ticker, price)
         )}
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
@@ -102,7 +103,7 @@ export function HoldingRow({
             className="input w-24 text-right"
           />
         ) : (
-          formatPrice(holding.cost_basis)
+          formatPrice(holding.ticker, holding.cost_basis)
         )}
       </td>
       <td className="px-4 py-3 whitespace-nowrap text-right text-sm">

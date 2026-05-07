@@ -7,6 +7,7 @@ interface QuoteInput {
   regularMarketPrice?: number;
   regularMarketChangePercent?: number;
   regularMarketChange?: number;
+  currency?: string;
 }
 
 interface ThemeChip {
@@ -20,6 +21,8 @@ interface TickerHeaderProps {
   ticker: string;
   name: string | null;
   sector: string | null;
+  /** Yahoo's `quote.currency` if available; otherwise the column from `scanner_universe`. */
+  currency: string | null;
   quote: QuoteInput | null;
   metrics: TickerMetric | null;
   themes: ThemeChip[];
@@ -68,6 +71,7 @@ export function TickerHeader({
   ticker,
   name,
   sector,
+  currency,
   quote,
   metrics,
   themes,
@@ -142,7 +146,7 @@ export function TickerHeader({
               Price
             </span>
             <span className="text-2xl font-semibold tabular-nums text-gray-900">
-              {price == null ? "—" : formatLocalPrice(ticker, price)}
+              {price == null ? "—" : formatLocalPrice(ticker, price, currency)}
             </span>
           </div>
           <PctCell label="1D" value={change1d} />

@@ -72,7 +72,12 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
   const newRows: NewTickerMetric[] = [];
   // Side-table of the registry data we resolved from Yahoo so we can keep
   // `scanner_universe` in sync with what the scanner observes.
-  const registryUpdates: { ticker: string; market: WatchlistMarket; name: string }[] = [];
+  const registryUpdates: {
+    ticker: string;
+    market: WatchlistMarket;
+    name: string;
+    currency: string | null;
+  }[] = [];
   let okCount = 0, partialCount = 0, failedCount = 0;
 
   const CONCURRENCY = 8;
@@ -120,6 +125,7 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
       ticker,
       market: detectMarket(ticker),
       name: fetched?.name ?? ticker,
+      currency: fetched?.currency ?? null,
     });
   }
 
@@ -181,8 +187,10 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
     }
 
     // Keep `scanner_universe` in sync — every ticker we score should have a
-    // registry row with up-to-date name/market. Don't overwrite source/notes/
-    // enabled, which are user-managed.
+    // registry row with up-to-date name/market/currency. Don't overwrite
+    // source/notes/enabled, which are user-managed. Currency is only written
+    // when Yahoo handed us a non-null value, so a transient failure doesn't
+    // blank a previously-good column.
     for (const u of registryUpdates) {
       await tx
         .insert(scannerUniverse)
@@ -190,6 +198,7 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
           ticker: u.ticker,
           market: u.market,
           name: u.name,
+          currency: u.currency,
           source: "discovered",
         })
         .onConflictDoUpdate({
@@ -197,6 +206,7 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
           set: {
             market: u.market,
             name: u.name,
+            ...(u.currency ? { currency: u.currency } : {}),
             updatedAt: sql`datetime('now')`,
           },
         });

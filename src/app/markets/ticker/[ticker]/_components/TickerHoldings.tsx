@@ -1,16 +1,22 @@
 import type { PortfolioHolding, TradeJournalEntry } from "@/db/schema";
-import { formatLocalPrice, getCurrencyForTicker } from "@/lib/markets/yahoo-utils";
+import { formatLocalPrice, getCurrencyMeta } from "@/lib/markets/yahoo-utils";
 
 interface TickerHoldingsProps {
   ticker: string;
+  /** Yahoo's `quote.currency` or the column from `scanner_universe`. */
+  currency: string | null;
   holding: PortfolioHolding | null;
   currentPrice: number | null;
   journal: TradeJournalEntry[];
 }
 
-function formatPrice(ticker: string, value: number | null | undefined): string {
+function formatPrice(
+  ticker: string,
+  value: number | null | undefined,
+  currency: string | null,
+): string {
   if (value === null || value === undefined) return "—";
-  return formatLocalPrice(ticker, value);
+  return formatLocalPrice(ticker, value, currency);
 }
 
 function formatDate(value: string | null | undefined): string {
@@ -35,6 +41,7 @@ const ACTION_CLS: Record<string, string> = {
 
 export function TickerHoldings({
   ticker,
+  currency,
   holding,
   currentPrice,
   journal,
@@ -67,7 +74,7 @@ export function TickerHoldings({
               Cost basis
             </span>
             <p className="text-sm font-semibold tabular-nums text-gray-900">
-              {formatPrice(ticker, holding.costBasis)}
+              {formatPrice(ticker, holding.costBasis, currency)}
             </p>
           </div>
           <div>
@@ -94,7 +101,7 @@ export function TickerHoldings({
               {pl === null ? "—" : `${pl >= 0 ? "+" : ""}${pl.toFixed(1)}%`}
               {marketValue !== null && (
                 <span className="block text-[10px] text-gray-400 font-normal">
-                  {getCurrencyForTicker(ticker).symbol}
+                  {getCurrencyMeta(currency, ticker).symbol}
                   {marketValue.toFixed(0)} mkt val
                 </span>
               )}
@@ -133,7 +140,7 @@ export function TickerHoldings({
                     {entry.thesis}
                   </span>
                   <span className="text-gray-400 tabular-nums shrink-0">
-                    {formatPrice(ticker, entry.price)}
+                    {formatPrice(ticker, entry.price, currency)}
                   </span>
                 </li>
               );

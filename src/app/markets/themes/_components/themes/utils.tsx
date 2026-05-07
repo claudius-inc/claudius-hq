@@ -12,9 +12,11 @@ export function getPercentColor(value: number | null | undefined): string {
   return value >= 0 ? "text-emerald-600" : "text-red-600";
 }
 
-export function formatPrice(price: number | null | undefined): string {
+import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
+
+export function formatPrice(ticker: string, price: number | null | undefined): string {
   if (price === null || price === undefined) return "-";
-  return `$${price.toFixed(2)}`;
+  return formatLocalPrice(ticker, price);
 }
 
 export { getCurrencyForTicker, formatLocalPrice } from "@/lib/markets/yahoo-utils";

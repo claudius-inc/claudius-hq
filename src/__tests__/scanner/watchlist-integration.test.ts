@@ -78,7 +78,7 @@ const okFetch = (ticker: string) => ({
     closesAbove20SmaPct60d: 0.5, sma200: 90, sma50: 95, sma20: 98,
     rsi14: 55, macdLine: 1, macdSignal: 0.5, avgVol20d: 1_100_000, avgVol60d: 1_000_000, adx14: 22,
   },
-  price: 100, pc1d: 0.5, pc1w: 1.0, pc1m: 2.0, pc3m: 3.0, name: `Name of ${ticker}`,
+  price: 100, pc1d: 0.5, pc1w: 1.0, pc1m: 2.0, pc3m: 3.0, name: `Name of ${ticker}`, currency: "USD",
 });
 
 describe("computeWatchlistScores", () => {

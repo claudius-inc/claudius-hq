@@ -19,6 +19,8 @@ interface YahooQuote {
   sector?: string;
   industry?: string;
   quoteType?: string;
+  /** Yahoo's currency code, e.g. "USD", "GBp" (LSE pence). */
+  currency?: string;
 }
 
 const MARKET_CANDIDATES = ["US", "SGX", "HK", "JP", "CN", "LSE"] as const;
@@ -100,6 +102,7 @@ export async function GET(request: NextRequest) {
       exchange: quote.fullExchangeName || quote.exchange || null,
       price: quote.regularMarketPrice ?? null,
       quoteType: quote.quoteType || null,
+      currency: quote.currency || null,
     });
   } catch (e) {
     logger.error("api/tickers/lookup", "Lookup failed", { error: e, ticker });

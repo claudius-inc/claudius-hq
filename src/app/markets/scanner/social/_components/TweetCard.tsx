@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Sparkline } from "./Sparkline";
 import { Skeleton } from "@/components/Skeleton";
+import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
 import type { TweetData, PriceData } from "../types";
 
 
@@ -32,10 +33,9 @@ function getPercentColor(val: number | null): string {
   return val >= 0 ? "text-emerald-600" : "text-red-600";
 }
 
-function formatPrice(val: number | null): string {
+function formatPrice(ticker: string | undefined, val: number | null): string {
   if (val === null) return "—";
-  if (val >= 1000) return "$" + val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return "$" + val.toFixed(2);
+  return formatLocalPrice(ticker ?? "", val);
 }
 
 function timeAgo(dateStr: string): string {
@@ -142,7 +142,7 @@ export function TweetCard({ tweet, prices, priceLoading, tickerFilter, onTickerC
             <>
               {/* Current price */}
               <span className="text-sm font-semibold text-gray-900 mt-0.5">
-                {formatPrice(price?.current_price ?? null)}
+                {formatPrice(primaryTicker, price?.current_price ?? null)}
               </span>
 
               {/* 1D change */}

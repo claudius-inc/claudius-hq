@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const results = [];
     for (const item of tickersToAdd) {
-      const { ticker, market, name, sector, source, notes } = item;
+      const { ticker, market, name, sector, source, notes, currency } = item;
 
       if (!ticker || !market) {
         results.push({ ticker, error: "ticker and market required" });
@@ -76,7 +76,10 @@ export async function POST(request: NextRequest) {
         const normalizedTicker = normalizeTickerForMarket(ticker, market);
         // Normalize market code (CN -> CN, CHINA -> CN, etc.)
         const normalizedMarket = normalizeMarketCode(market);
-        
+
+        const normalizedCurrency =
+          typeof currency === "string" && currency.trim() ? currency.trim() : null;
+
         await db
           .insert(scannerUniverse)
           .values({
@@ -84,6 +87,7 @@ export async function POST(request: NextRequest) {
             market: normalizedMarket,
             name,
             sector,
+            currency: normalizedCurrency,
             source: source || "user",
             notes,
           })
@@ -92,6 +96,8 @@ export async function POST(request: NextRequest) {
             set: {
               name,
               sector,
+              // Don't blank a previously-good currency on update.
+              ...(normalizedCurrency ? { currency: normalizedCurrency } : {}),
               notes,
               updatedAt: sql`datetime('now')`,
             },

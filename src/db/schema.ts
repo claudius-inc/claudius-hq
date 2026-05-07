@@ -440,6 +440,13 @@ export const scannerUniverse = sqliteTable("scanner_universe", {
   market: text("market").notNull(), // US, SGX, HK
   name: text("name"), // Company name (optional, populated on first scan)
   sector: text("sector"), // Optional sector/industry
+  // Yahoo's `quote.currency` for the listing — captured at fetch time so we
+  // don't have to guess from the ticker suffix at render. Required to
+  // disambiguate dual-listings/ADRs that don't follow their exchange's
+  // conventional currency (e.g. IHG.L is quoted in USD, not GBp). Nullable
+  // for legacy rows pre-dating this column; the formatter falls back to a
+  // suffix heuristic when null.
+  currency: text("currency"),
   source: text("source").default("curated"), // curated, discovered, user
   enabled: integer("enabled", { mode: "boolean" }).default(true),
   notes: text("notes"), // Optional notes about why this ticker is included

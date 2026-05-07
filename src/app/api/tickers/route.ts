@@ -31,6 +31,8 @@ interface YahooQuote {
   fullExchangeName?: string;
   sector?: string;
   industry?: string;
+  /** Yahoo's currency code, e.g. "USD", "GBp" (LSE pence), "HKD". */
+  currency?: string;
 }
 
 interface NewThemeInput {
@@ -164,11 +166,14 @@ export async function POST(request: NextRequest) {
         : null;
     const profileStampedAt = profileCols ? sql`datetime('now')` : null;
 
+    const quoteCurrency = quote.currency?.trim() || null;
+
     const insertValues: Record<string, unknown> = {
       ticker: normalized,
       market,
       name: finalName,
       sector: finalSector,
+      currency: quoteCurrency,
       source: "user",
       notes: body.notes?.trim() || null,
       enabled: true,
@@ -183,6 +188,9 @@ export async function POST(request: NextRequest) {
       market,
       name: finalName,
       sector: finalSector,
+      // Only overwrite when Yahoo handed us a non-empty value, so a one-off
+      // missing currency on a refresh doesn't blank the column.
+      ...(quoteCurrency ? { currency: quoteCurrency } : {}),
       notes: body.notes?.trim() || null,
       updatedAt: sql`datetime('now')`,
     };

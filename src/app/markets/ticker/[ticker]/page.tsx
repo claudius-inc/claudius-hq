@@ -42,6 +42,8 @@ interface QuoteResult {
   regularMarketPreviousClose?: number;
   fullExchangeName?: string;
   exchange?: string;
+  /** Yahoo's currency code, e.g. "USD", "GBp" (LSE pence). */
+  currency?: string;
 }
 
 export async function generateMetadata({
@@ -211,6 +213,10 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
 
   const market = universeRow?.market || null;
   const sector = universeRow?.sector || null;
+  // Prefer the live Yahoo quote — it's the freshest. Fall back to the stored
+  // column on `scanner_universe` (populated at upsert/scan time) when the
+  // page-load Yahoo call fails or is rate-limited.
+  const currency = quote?.currency || universeRow?.currency || null;
 
   const exists =
     !!universeRow ||
@@ -246,6 +252,7 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
           ticker={ticker}
           name={displayName}
           sector={sector}
+          currency={currency}
           quote={quote}
           metrics={metricsRow}
           themes={themeLinks.map((t) => ({
@@ -272,6 +279,7 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
         {(holdingRow || journalRows.length > 0) && (
           <TickerHoldings
             ticker={ticker}
+            currency={currency}
             holding={holdingRow}
             currentPrice={quote?.regularMarketPrice ?? metricsRow?.price ?? null}
             journal={journalRows}
