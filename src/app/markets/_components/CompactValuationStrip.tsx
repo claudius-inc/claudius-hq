@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import useSWR from "swr";
 import { Skeleton } from "@/components/Skeleton";
 import {
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { fetcher, ssrHydratedConfig } from "@/lib/swr-config";
 import { RefreshIndicator } from "@/components/ui/RefreshIndicator";
+import { MarketDetailModal } from "./MarketDetailModal";
 
 interface MarketValuation {
   market: string;
@@ -96,7 +98,13 @@ function flagEmojiToIso(flag: string): string | null {
   return chars.join("");
 }
 
-function CompactValuationRow({ data }: { data: MarketValuation }) {
+function CompactValuationRow({
+  data,
+  onClick,
+}: {
+  data: MarketValuation;
+  onClick: () => void;
+}) {
   const zoneStyle = ZONE_STYLES[data.zone];
   const metricLabel = data.metric === "CAPE" ? "CAPE" : "P/E";
   const { min, max } = data.historicalRange;
@@ -146,7 +154,12 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
   }
 
   return (
-    <div className="px-3 py-1.5 hover:bg-gray-50 transition-colors">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={`Open ${data.country} market detail`}
+      className="block w-full text-left px-3 py-1.5 hover:bg-gray-50 transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-gray-400"
+    >
       {/* Top row: flag, country, badge, value */}
       <div className="flex items-center gap-2">
         {iso ? (
@@ -168,15 +181,27 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
         {showChevron && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                type="button"
+              {/*
+                Rendered as a <span> rather than a <button> because this
+                element sits inside the row-level <button>. Nested
+                interactive elements are invalid HTML and React will fire
+                the outer onClick when the inner is clicked. Stopping
+                propagation here keeps the chevron click from also
+                opening the market detail modal.
+              */}
+              <span
+                role="img"
                 aria-label={`Tactical momentum ${tacticalDirection === "up" ? "bullish" : tacticalDirection === "down" ? "bearish" : "neutral"}`}
+                tabIndex={0}
                 // Touch-fix: Radix Tooltip on mobile opens on touchstart
                 // but the subsequent click event triggers an immediate
                 // close. Calling preventDefault here stops the click from
                 // toggling the open state away. Hover behavior on desktop
                 // is unaffected.
-                onClick={(e) => e.preventDefault()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 className="inline-flex items-center justify-center shrink-0 focus:outline-none focus-visible:ring-1 focus-visible:ring-gray-400 rounded-full"
               >
                 {tacticalDirection === "up" ? (
@@ -186,7 +211,7 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
                 ) : (
                   <MinusCircle className="w-3.5 h-3.5 text-gray-400" />
                 )}
-              </button>
+              </span>
             </TooltipTrigger>
             <TooltipContent
               side="top"
@@ -255,7 +280,7 @@ function CompactValuationRow({ data }: { data: MarketValuation }) {
           />
         </div>
       )}
-    </div>
+    </button>
   );
 }
 
@@ -280,6 +305,14 @@ export function CompactValuationStrip(props: CompactValuationStripProps = {}) {
   const valuations = data?.valuations ?? [];
   const loading = !data;
 
+  // Selected market drives the per-market detail modal. Held inside this
+  // component because (a) only this component knows the full
+  // `MarketValuation` shape, (b) the detail modal needs the same data the
+  // row already has so we don't refetch valuation in the modal.
+  const [selectedMarket, setSelectedMarket] = useState<MarketValuation | null>(
+    null,
+  );
+
   return (
     <TooltipProvider delayDuration={150}>
       <div className="h-full relative">
@@ -300,10 +333,32 @@ export function CompactValuationStrip(props: CompactValuationStripProps = {}) {
                 </div>
               ))
             : valuations.map((v) => (
-                <CompactValuationRow key={v.market} data={v} />
+                <CompactValuationRow
+                  key={v.market}
+                  data={v}
+                  onClick={() => setSelectedMarket(v)}
+                />
               ))}
         </div>
       </div>
+      {selectedMarket && (
+        <MarketDetailModal
+          open={selectedMarket !== null}
+          onClose={() => setSelectedMarket(null)}
+          market={selectedMarket.market}
+          country={selectedMarket.country}
+          flag={selectedMarket.flag}
+          valuation={{
+            metric: selectedMarket.metric,
+            value: selectedMarket.value,
+            historicalMean: selectedMarket.historicalMean,
+            historicalRange: selectedMarket.historicalRange,
+            thresholds: selectedMarket.thresholds,
+            zone: selectedMarket.zone,
+            tacticalBias: selectedMarket.tacticalBias,
+          }}
+        />
+      )}
     </TooltipProvider>
   );
 }
