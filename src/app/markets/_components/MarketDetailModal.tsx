@@ -7,9 +7,9 @@ import {
   ChevronDownCircle,
   MinusCircle,
   Activity,
-  Building2,
   ArrowRightLeft,
   DollarSign,
+  Percent,
   Info,
 } from "lucide-react";
 import {
@@ -72,13 +72,25 @@ interface USMarketContextAggregate {
   asOf: string;
 }
 
-interface SGXFlagsAggregate {
-  type: "SGX_FLAGS";
-  glcCount: number;
-  schipCount: number;
-  glcByParent: Record<string, number>;
-  glcs: Array<{ ticker: string; name: string | null; parent: string | null }>;
-  schips: Array<{ ticker: string; name: string | null }>;
+interface SGXFlowPayload {
+  metric: "sti_yield_spread";
+  stiYield: number;
+  sgs10yYield: number;
+  spread: number;
+  direction: "supportive" | "neutral" | "headwind";
+  recent: Array<{ date: string; spread: number }>;
+  recentFrequency: "daily" | "monthly" | "snapshot";
+  interpretation: string;
+  stiProxy: string;
+  sgsDate?: string;
+  source: string;
+  fetchedAt: string;
+  note?: string;
+}
+
+interface SGXFlowAggregate {
+  type: "SGX_FLOW";
+  flow: SGXFlowPayload | null;
 }
 
 interface CNNorthboundFlowPayload {
@@ -144,7 +156,7 @@ interface PlaceholderAggregate {
 
 type SignalAggregate =
   | USMarketContextAggregate
-  | SGXFlagsAggregate
+  | SGXFlowAggregate
   | CNFlowAggregate
   | JPFXAggregate
   | HKFlowAggregate
@@ -533,81 +545,121 @@ function USContextView({ data }: { data: USMarketContextAggregate }) {
   );
 }
 
-function SGXFlagsView({ data }: { data: SGXFlagsAggregate }) {
-  const parents = Object.entries(data.glcByParent).sort((a, b) => b[1] - a[1]);
+// ── SGX yield-spread view ───────────────────────────────────────────
+
+const SGX_DIRECTION_STYLES = {
+  supportive: {
+    label: "Supportive",
+    badge: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    headline: "text-emerald-700",
+    line: "#10b981",
+  },
+  neutral: {
+    label: "Neutral",
+    badge: "bg-gray-100 text-gray-700 border-gray-200",
+    headline: "text-gray-900",
+    line: "#6b7280",
+  },
+  headwind: {
+    label: "Headwind",
+    badge: "bg-red-100 text-red-700 border-red-200",
+    headline: "text-red-700",
+    line: "#ef4444",
+  },
+} as const;
+
+function SGXFlowView({ data }: { data: SGXFlowAggregate }) {
+  const flow = data.flow;
+  if (!flow) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+        <div className="text-xs text-gray-500">
+          STI − SGS 10y yield spread unavailable.
+        </div>
+      </div>
+    );
+  }
+
+  const style = SGX_DIRECTION_STYLES[flow.direction];
+  const spreadText = `${flow.spread >= 0 ? "+" : ""}${flow.spread.toFixed(2)}pp`;
+
+  // Sparkline only when we actually have a series.
+  const hasHistory = flow.recent.length > 1;
+  const sparkData = flow.recent.map((p) => ({ date: p.date, spread: p.spread }));
+  const freqLabel =
+    flow.recentFrequency === "daily"
+      ? "daily history"
+      : flow.recentFrequency === "monthly"
+        ? "monthly history"
+        : "snapshot only";
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <StatCard
-          label="GLCs"
-          value={`${data.glcCount}`}
-          hint="Temasek-linked"
-          tone="positive"
-        />
-        <StatCard
-          label="S-Chips"
-          value={`${data.schipCount}`}
-          hint="China-domiciled"
-          tone={data.schipCount > 0 ? "negative" : "default"}
-        />
-      </div>
-      {parents.length > 0 && (
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">
-            GLC by Parent
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {parents.map(([parent, count]) => (
+      <div className="rounded-lg border border-gray-200 bg-white p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+              STI yield − SGS 10y
+            </div>
+            <div className={`text-2xl font-bold tabular-nums ${style.headline}`}>
+              {spreadText}
+            </div>
+            <div className="mt-1">
               <span
-                key={parent}
-                className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700"
+                className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${style.badge}`}
               >
-                {parent}: {count}
+                {style.label}
               </span>
-            ))}
+            </div>
           </div>
+          {hasHistory && (
+            <div className="w-32 h-12 shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={sparkData}
+                  margin={{ top: 2, right: 0, bottom: 2, left: 0 }}
+                >
+                  <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="2 2" />
+                  <Line
+                    type="monotone"
+                    dataKey="spread"
+                    stroke={style.line}
+                    strokeWidth={1.5}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <StatCard
+            label="STI yield"
+            value={`${flow.stiYield.toFixed(2)}%`}
+            hint={`via ${flow.stiProxy}`}
+          />
+          <StatCard
+            label="SGS 10y"
+            value={`${flow.sgs10yYield.toFixed(2)}%`}
+            hint={flow.sgsDate ?? undefined}
+          />
+        </div>
+      </div>
+
+      <div className="text-[11px] text-gray-500 leading-snug">
+        {flow.interpretation}
+      </div>
+      {flow.note && (
+        <div className="text-[10px] text-gray-600 leading-snug flex items-start gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1.5">
+          <Info className="w-3 h-3 mt-0.5 shrink-0 text-gray-400" />
+          <span>{flow.note}</span>
         </div>
       )}
-      {data.glcs.length > 0 && (
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">
-            GLC Names
-          </div>
-          <div className="grid grid-cols-2 gap-1">
-            {data.glcs.map((g) => (
-              <div
-                key={g.ticker}
-                className="text-[11px] bg-white border border-gray-100 rounded px-2 py-1"
-              >
-                <span className="font-medium text-gray-900">{g.ticker}</span>
-                {g.name && (
-                  <span className="text-gray-500 ml-1 truncate">— {g.name}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {data.schips.length > 0 && (
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">
-            S-Chips
-          </div>
-          <div className="grid grid-cols-2 gap-1">
-            {data.schips.map((s) => (
-              <div
-                key={s.ticker}
-                className="text-[11px] bg-white border border-orange-100 rounded px-2 py-1"
-              >
-                <span className="font-medium text-gray-900">{s.ticker}</span>
-                {s.name && (
-                  <span className="text-gray-500 ml-1 truncate">— {s.name}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <div className="text-[10px] text-gray-400 flex items-center gap-1">
+        <Percent className="w-3 h-3" />
+        Source: {flow.source} · {freqLabel}
+      </div>
     </div>
   );
 }
@@ -1056,8 +1108,8 @@ function getSignalHeader(market: string): { title: string; icon: React.ReactNode
       };
     case "SGX":
       return {
-        title: "SGX Ownership Flags",
-        icon: <Building2 className="w-4 h-4 text-gray-500" />,
+        title: "Yield spread — STI vs SGS 10y",
+        icon: <Percent className="w-4 h-4 text-gray-500" />,
       };
     case "CN":
       return {
@@ -1175,8 +1227,8 @@ export function MarketDetailModal({
               {data.signals.type === "US_MARKET_CONTEXT" && (
                 <USContextView data={data.signals} />
               )}
-              {data.signals.type === "SGX_FLAGS" && (
-                <SGXFlagsView data={data.signals} />
+              {data.signals.type === "SGX_FLOW" && (
+                <SGXFlowView data={data.signals} />
               )}
               {data.signals.type === "CN_NORTHBOUND_FLOW" && (
                 <CNFlowView data={data.signals} />

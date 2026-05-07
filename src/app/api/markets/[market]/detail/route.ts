@@ -3,8 +3,10 @@
  *
  * Returns market-level context per market. Returned shape varies:
  *  - US  → US_MARKET_CONTEXT     (sentiment + breadth, market-wide)
- *  - SGX → SGX_FLAGS             (GLC / S-Chip distribution — structural,
- *                                 not flow, but factually accurate)
+ *  - SGX → SGX_FLOW              (STI dividend yield − SGS 10y yield —
+ *                                 the cleanest "is Singapore equities
+ *                                 attractive vs risk-free" signal for an
+ *                                 income-heavy market)
  *  - CN  → CN_NORTHBOUND_FLOW    (HK→SH+SZ Stock Connect daily turnover
  *                                 from Eastmoney HSGT; market-wide)
  *  - JP  → JP_FX                 (USD/JPY spot + 50/200-day MAs from
@@ -18,12 +20,9 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { db, scannerUniverse, tickerMetrics } from "@/db";
 import { WATCHLIST_MARKETS, type WatchlistMarket } from "@/db/schema";
-import { and, desc, eq } from "drizzle-orm";
 import { getCache, setCache } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
-import { fetchSGMarketFlags } from "@/lib/scanner/signals";
 import { fetchSentimentData } from "@/lib/markets/sentiment";
 import { fetchBreadthData } from "@/lib/markets/breadth";
 import {
@@ -35,11 +34,11 @@ import {
   fetchHKSouthboundFlow,
   type HKFlowData,
 } from "@/lib/markets/flows/hk";
+import { fetchSGXFlow, type SGXFlowData } from "@/lib/markets/flows/sgx";
 
 export const dynamic = "force-dynamic";
 
 const CACHE_MAX_AGE = 5 * 60; // 5 minutes
-const TICKER_CAP = 20;
 
 function isWatchlistMarket(value: string): value is WatchlistMarket {
   return (WATCHLIST_MARKETS as readonly string[]).includes(value);
@@ -55,13 +54,9 @@ interface USMarketContextAggregate {
   asOf: string;
 }
 
-interface SGXFlagsAggregate {
-  type: "SGX_FLAGS";
-  glcCount: number;
-  schipCount: number;
-  glcByParent: Record<string, number>;
-  glcs: Array<{ ticker: string; name: string | null; parent: string | null }>;
-  schips: Array<{ ticker: string; name: string | null }>;
+interface SGXFlowAggregate {
+  type: "SGX_FLOW";
+  flow: SGXFlowData | null;
 }
 
 interface CNNorthboundFlowAggregate {
@@ -86,7 +81,7 @@ interface PlaceholderAggregate {
 
 type SignalAggregate =
   | USMarketContextAggregate
-  | SGXFlagsAggregate
+  | SGXFlowAggregate
   | CNNorthboundFlowAggregate
   | JPFXAggregate
   | HKFlowAggregate
@@ -97,39 +92,6 @@ interface MarketDetailResponse {
   tickerCount: number; // number of watchlist tickers actually queried (0 when not used)
   signals: SignalAggregate;
   generatedAt: string;
-}
-
-interface UniverseRow {
-  ticker: string;
-  name: string | null;
-}
-
-/**
- * Pick the top N enabled tickers in a market, ranked by `momentumScore`
- * desc (nulls last). The momentum join is left so tickers without a
- * computed metric still appear at the bottom.
- */
-async function pickTickers(
-  market: WatchlistMarket,
-  cap: number,
-): Promise<UniverseRow[]> {
-  const rows = await db
-    .select({
-      ticker: scannerUniverse.ticker,
-      name: scannerUniverse.name,
-      momentumScore: tickerMetrics.momentumScore,
-    })
-    .from(scannerUniverse)
-    .leftJoin(tickerMetrics, eq(tickerMetrics.ticker, scannerUniverse.ticker))
-    .where(
-      and(
-        eq(scannerUniverse.market, market),
-        eq(scannerUniverse.enabled, true),
-      ),
-    )
-    .orderBy(desc(tickerMetrics.momentumScore));
-
-  return rows.slice(0, cap).map((r) => ({ ticker: r.ticker, name: r.name }));
 }
 
 async function buildUSContextAggregate(): Promise<USMarketContextAggregate> {
@@ -176,39 +138,6 @@ async function buildUSContextAggregate(): Promise<USMarketContextAggregate> {
   return { type: "US_MARKET_CONTEXT", ...payload };
 }
 
-function buildSGAggregate(rows: UniverseRow[]): SGXFlagsAggregate {
-  // Synchronous fetcher
-  const fetched = rows.map((r) => ({
-    ticker: r.ticker,
-    name: r.name,
-    signals: fetchSGMarketFlags(r.ticker),
-  }));
-
-  const glcs: SGXFlagsAggregate["glcs"] = [];
-  const schips: SGXFlagsAggregate["schips"] = [];
-  const glcByParent: Record<string, number> = {};
-
-  for (const f of fetched) {
-    if (f.signals.isGLC) {
-      const parent = f.signals.glcParent ?? "Unknown";
-      glcs.push({ ticker: f.ticker, name: f.name, parent });
-      glcByParent[parent] = (glcByParent[parent] ?? 0) + 1;
-    }
-    if (f.signals.isSChip) {
-      schips.push({ ticker: f.ticker, name: f.name });
-    }
-  }
-
-  return {
-    type: "SGX_FLAGS",
-    glcCount: glcs.length,
-    schipCount: schips.length,
-    glcByParent,
-    glcs,
-    schips,
-  };
-}
-
 async function buildCNAggregate(): Promise<CNNorthboundFlowAggregate> {
   const flow = await fetchCNNorthboundFlow();
   return { type: "CN_NORTHBOUND_FLOW", flow };
@@ -224,15 +153,19 @@ async function buildHKAggregate(): Promise<HKFlowAggregate> {
   return { type: "HK_FLOW", flow };
 }
 
+async function buildSGXAggregate(): Promise<SGXFlowAggregate> {
+  const flow = await fetchSGXFlow();
+  return { type: "SGX_FLOW", flow };
+}
+
 async function buildAggregate(
   market: WatchlistMarket,
-  rows: UniverseRow[],
 ): Promise<{ signals: SignalAggregate; tickerCount: number }> {
   switch (market) {
     case "US":
       return { signals: await buildUSContextAggregate(), tickerCount: 0 };
     case "SGX":
-      return { signals: buildSGAggregate(rows), tickerCount: rows.length };
+      return { signals: await buildSGXAggregate(), tickerCount: 0 };
     case "CN":
       return { signals: await buildCNAggregate(), tickerCount: 0 };
     case "JP":
@@ -274,10 +207,9 @@ export async function GET(
       return NextResponse.json(cached.data);
     }
 
-    // Only pick tickers for markets that still need them (SGX).
-    const needsTickers = market === "SGX";
-    const rows = needsTickers ? await pickTickers(market, TICKER_CAP) : [];
-    const { signals, tickerCount } = await buildAggregate(market, rows);
+    // None of the current markets requires per-ticker aggregation any
+    // more — SGX moved from GLC/S-Chip flags to a yield-spread flow.
+    const { signals, tickerCount } = await buildAggregate(market);
 
     const response: MarketDetailResponse = {
       market,
