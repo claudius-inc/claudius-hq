@@ -82,6 +82,7 @@ const okFetch = (ticker: string) => ({
   price: 100, pc1d: 0.5, pc1w: 1.0, pc1m: 2.0, pc3m: 3.0, name: `Name of ${ticker}`,
   // LSE tickers quote in pence; everything else defaults to USD for tests.
   currency: ticker.toUpperCase().endsWith(".L") ? "GBp" : "USD",
+  marketCap: 1e10, trailingPE: 22, forwardPE: 18, debtToEquity: 0.4,
 });
 
 describe("computeWatchlistScores", () => {

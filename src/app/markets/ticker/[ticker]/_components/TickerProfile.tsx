@@ -4,6 +4,11 @@ import { useState } from "react";
 import { Pencil } from "lucide-react";
 import type { TickerProfile as TickerProfileData } from "@/lib/ai/ticker-ai";
 import type { TickerMetric } from "@/db/schema";
+import {
+  formatMarketCap,
+  formatPE,
+  formatDebtToEquity,
+} from "@/lib/markets/format-fundamentals";
 import { EditTickerProfileModal } from "./EditTickerProfileModal";
 
 interface TickerProfileProps {
@@ -73,6 +78,41 @@ function ScoresBlock({ metrics }: { metrics: TickerMetric }) {
       >
         {QUALITY_LABEL[quality] || quality}
       </span>
+    </div>
+  );
+}
+
+function FundamentalCell({ label, value }: { label: string; value: string }) {
+  const isMissing = value === "—";
+  return (
+    <div className="flex flex-col">
+      <span className="text-[10px] uppercase tracking-wider text-gray-400">
+        {label}
+      </span>
+      <span
+        className={`text-sm font-semibold tabular-nums ${isMissing ? "text-gray-300" : "text-gray-700"}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+// Snapshotted fundamentals from `ticker_metrics`. Hidden entirely if all four
+// are null — a Yahoo coverage gap shouldn't add an empty card.
+function FundamentalsBlock({ metrics }: { metrics: TickerMetric }) {
+  const allNull =
+    metrics.marketCap == null &&
+    metrics.trailingPE == null &&
+    metrics.forwardPE == null &&
+    metrics.debtToEquity == null;
+  if (allNull) return null;
+  return (
+    <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2">
+      <FundamentalCell label="Market Cap" value={formatMarketCap(metrics.marketCap)} />
+      <FundamentalCell label="P/E" value={formatPE(metrics.trailingPE)} />
+      <FundamentalCell label="Fwd P/E" value={formatPE(metrics.forwardPE)} />
+      <FundamentalCell label="D/E" value={formatDebtToEquity(metrics.debtToEquity)} />
     </div>
   );
 }
@@ -233,6 +273,7 @@ export function TickerProfile({
             </button>
           </div>
           {metrics && <ScoresBlock metrics={metrics} />}
+          {metrics && <FundamentalsBlock metrics={metrics} />}
           {description && (
             <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
           )}
@@ -273,6 +314,7 @@ export function TickerProfile({
         </div>
 
         {metrics && <ScoresBlock metrics={metrics} />}
+        {metrics && <FundamentalsBlock metrics={metrics} />}
 
         {description && (
           <p className="text-xs text-gray-500 leading-relaxed">{description}</p>

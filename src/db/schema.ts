@@ -393,6 +393,13 @@ export const tickerMetrics = sqliteTable("ticker_metrics", {
   priceChange1w: real("price_change_1w"),
   priceChange1m: real("price_change_1m"),
   priceChange3m: real("price_change_3m"),
+  // Fundamentals snapshotted at scan time. All nullable — Yahoo coverage is
+  // patchy for non-US small/mid caps. `debtToEquity` is stored as a decimal
+  // (e.g. 0.5 for a 50% D/E), matching the convention in yahoo-fetcher.ts.
+  marketCap: real("market_cap"),
+  trailingPE: real("trailing_pe"),
+  forwardPE: real("forward_pe"),
+  debtToEquity: real("debt_to_equity"),
   dataQuality: text("data_quality").$type<TickerMetricsDataQuality>().notNull(),
   computedAt: text("computed_at").notNull(),
 });

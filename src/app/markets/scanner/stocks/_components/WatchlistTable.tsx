@@ -3,6 +3,11 @@
 import { useMemo, useState, useRef, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Info, Newspaper } from "lucide-react";
+import {
+  formatMarketCap,
+  formatPE,
+  formatDebtToEquity,
+} from "@/lib/markets/format-fundamentals";
 import { EditTickerButton } from "./EditTickerButton";
 
 export type WatchlistRow = {
@@ -20,6 +25,10 @@ export type WatchlistRow = {
   dataQuality: "ok" | "partial" | "failed";
   description?: string | null;
   momentumDelta: number | null;
+  marketCap: number | null;
+  trailingPE: number | null;
+  forwardPE: number | null;
+  debtToEquity: number | null;
 };
 
 export type ThemeNameMap = Record<number, string>;
@@ -248,7 +257,19 @@ function Row({
       <td className="px-3 py-2.5 whitespace-nowrap max-w-[22rem]">
         <div className="flex items-center gap-1.5">
           <span className="truncate" title={row.name}>{row.name}</span>
-          {row.description && <InfoHover content={row.description} />}
+          {(row.description ||
+            row.marketCap != null ||
+            row.trailingPE != null ||
+            row.forwardPE != null ||
+            row.debtToEquity != null) && (
+            <InfoHover
+              description={row.description ?? null}
+              marketCap={row.marketCap}
+              trailingPE={row.trailingPE}
+              forwardPE={row.forwardPE}
+              debtToEquity={row.debtToEquity}
+            />
+          )}
           <NewsHover ticker={row.ticker} />
         </div>
       </td>
@@ -507,30 +528,78 @@ function useHoverTooltip() {
   return { open, ref, show, hide };
 }
 
-/* ── Info icon: shows company description on hover ── */
-function InfoHover({ content }: { content: string }) {
+/* ── Info icon: shows description + fundamentals on hover ── */
+interface InfoHoverPayload {
+  description: string | null;
+  marketCap: number | null;
+  trailingPE: number | null;
+  forwardPE: number | null;
+  debtToEquity: number | null;
+}
+
+function InfoHover(props: InfoHoverPayload) {
   const { open, ref, show, hide } = useHoverTooltip();
   return (
     <div ref={ref} className="relative inline-flex" onMouseEnter={show} onMouseLeave={hide}>
       <Info className="w-3.5 h-3.5 text-gray-400 hover:text-blue-500 transition-colors cursor-default flex-shrink-0" />
-      {open && (
-        <DescriptionTooltip content={content} anchorRef={ref} />
-      )}
+      {open && <DescriptionTooltip {...props} anchorRef={ref} />}
     </div>
   );
 }
 
-function DescriptionTooltip({ content, anchorRef }: { content: string; anchorRef: React.RefObject<HTMLDivElement | null> }) {
+// Single fundamentals cell inside the tooltip's 2x2 grid.
+function MetricCell({ label, value }: { label: string; value: string }) {
+  const isMissing = value === "—";
+  return (
+    <div className="flex flex-col">
+      <span className="text-[9px] uppercase tracking-wider text-gray-400">
+        {label}
+      </span>
+      <span
+        className={`text-xs tabular-nums ${isMissing ? "text-gray-500" : "text-gray-100"}`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function DescriptionTooltip({
+  description,
+  marketCap,
+  trailingPE,
+  forwardPE,
+  debtToEquity,
+  anchorRef,
+}: InfoHoverPayload & {
+  anchorRef: React.RefObject<HTMLDivElement | null>;
+}) {
   const rect = anchorRef.current?.getBoundingClientRect();
   if (!rect) return null;
+  const hasFundamentals =
+    marketCap != null ||
+    trailingPE != null ||
+    forwardPE != null ||
+    debtToEquity != null;
   return (
-    <div className="fixed z-[9999] bg-gray-900 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2 shadow-xl pointer-events-none max-w-[280px] break-words whitespace-normal"
+    <div
+      className="fixed z-[9999] bg-gray-900 text-white text-[11px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl pointer-events-none w-[300px] break-words whitespace-normal"
       style={{
         bottom: `calc(100vh - ${rect.top - 8}px)`,
-        left: Math.max(8, Math.min(rect.left - 100, window.innerWidth - 300)),
+        left: Math.max(8, Math.min(rect.left - 100, window.innerWidth - 320)),
       }}
     >
-      {content}
+      {description && <p className="mb-2">{description}</p>}
+      {hasFundamentals && (
+        <div
+          className={`grid grid-cols-2 gap-x-4 gap-y-1.5 ${description ? "pt-2 border-t border-gray-700/60" : ""}`}
+        >
+          <MetricCell label="Market Cap" value={formatMarketCap(marketCap)} />
+          <MetricCell label="P/E" value={formatPE(trailingPE)} />
+          <MetricCell label="Fwd P/E" value={formatPE(forwardPE)} />
+          <MetricCell label="D/E" value={formatDebtToEquity(debtToEquity)} />
+        </div>
+      )}
       <div className="absolute top-full left-6 border-4 border-transparent border-t-gray-900" />
     </div>
   );

@@ -25,12 +25,29 @@ export interface FetchedTicker {
   name: string;
   /** Yahoo's `quote.currency` (e.g. "USD", "GBp"); null when missing. */
   currency: string | null;
+  /** Raw market cap in dollars (Yahoo's native unit). */
+  marketCap: number | null;
+  /** Trailing 12-month P/E. */
+  trailingPE: number | null;
+  /** Forward (next-12m estimated) P/E. */
+  forwardPE: number | null;
+  /** D/E as a decimal (Yahoo returns percent; we divide by 100 here). */
+  debtToEquity: number | null;
 }
 
 interface YahooQuoteSummaryResult {
   summaryDetail?: {
     fiftyTwoWeekHigh?: number;
     fiftyTwoWeekLow?: number;
+    marketCap?: number;
+    trailingPE?: number;
+  };
+  defaultKeyStatistics?: {
+    forwardPE?: number;
+  };
+  financialData?: {
+    /** Yahoo returns this as a percent (e.g. 50 means 50% / 0.5x). */
+    debtToEquity?: number;
   };
   price?: {
     shortName?: string;
@@ -106,7 +123,12 @@ async function fetchQuoteSummary(
     await acquireYahooSlot();
     return (await withYahooRetry(`quoteSummary(${yahooTicker})`, () =>
       yahooFinance.quoteSummary(yahooTicker, {
-        modules: ["summaryDetail", "price"],
+        modules: [
+          "summaryDetail",
+          "price",
+          "defaultKeyStatistics",
+          "financialData",
+        ],
       }),
     )) as YahooQuoteSummaryResult;
   } catch {
@@ -153,6 +175,14 @@ export async function buildScoringInputs(ticker: string): Promise<FetchedTicker 
     ticker;
   const currency = quoteSummary?.price?.currency ?? null;
 
+  // Fundamentals — null when Yahoo doesn't expose them (common for non-US
+  // small caps). D/E divided by 100 to match yahoo-fetcher.ts:373-375.
+  const marketCap = quoteSummary?.summaryDetail?.marketCap ?? null;
+  const trailingPE = quoteSummary?.summaryDetail?.trailingPE ?? null;
+  const forwardPE = quoteSummary?.defaultKeyStatistics?.forwardPE ?? null;
+  const dteRaw = quoteSummary?.financialData?.debtToEquity ?? null;
+  const debtToEquity = dteRaw != null ? dteRaw / 100 : null;
+
   if (price === null) {
     logger.warn("watchlist-fetcher", `Could not derive price for ${ticker}`);
     return null;
@@ -166,6 +196,10 @@ export async function buildScoringInputs(ticker: string): Promise<FetchedTicker 
     pc1w,
     pc1m,
     pc3m,
+    marketCap,
+    trailingPE,
+    forwardPE,
+    debtToEquity,
     inputs: {
       price,
       return12mEx1m: indicators.return12mEx1m,

@@ -92,6 +92,10 @@ async function loadData(): Promise<{
       dataQuality: r.dataQuality as WatchlistRow["dataQuality"],
       description: universe?.notes ?? null,
       momentumDelta: deltas.get(r.ticker)?.momentumDelta ?? null,
+      marketCap: r.marketCap,
+      trailingPE: r.trailingPE,
+      forwardPE: r.forwardPE,
+      debtToEquity: r.debtToEquity,
     };
   });
 
