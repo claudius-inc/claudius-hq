@@ -123,13 +123,6 @@ export function WatchlistTable({
                   align="right"
                 />
                 <Th
-                  label="Mtm Δ"
-                  active={sortKey === "momentumDelta"}
-                  dir={sortDir}
-                  onClick={() => onHeader("momentumDelta")}
-                  align="right"
-                />
-                <Th
                   label="1D Δ"
                   active={sortKey === "priceChange1d"}
                   dir={sortDir}
@@ -260,10 +253,10 @@ function Row({
         </div>
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap text-right">
-        <ScoreBadge value={row.momentumScore} />
-      </td>
-      <td className="px-3 py-2.5 whitespace-nowrap text-right">
-        <MomentumDeltaBadge value={row.momentumDelta} />
+        <div className="flex items-center justify-end gap-1">
+          <ScoreBadge value={row.momentumScore} />
+          <MomentumDeltaBadge value={row.momentumDelta} />
+        </div>
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap text-right">
         <Delta value={row.priceChange1d} />
