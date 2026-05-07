@@ -6,4 +6,3 @@
 export * from "./indicators";
 export * from "./scoring";
 export * from "./yahoo-fetcher";
-export * from "./refresh";
