@@ -9,8 +9,17 @@ import {
   Activity,
   Building2,
   ArrowRightLeft,
+  DollarSign,
 } from "lucide-react";
-import { Bar, BarChart, Cell, ResponsiveContainer } from "recharts";
+import {
+  Bar,
+  BarChart,
+  Cell,
+  Line,
+  LineChart,
+  ReferenceLine,
+  ResponsiveContainer,
+} from "recharts";
 
 // ── Shared types (mirror the API route) ─────────────────────────────
 
@@ -88,6 +97,25 @@ interface CNFlowAggregate {
   flow: CNNorthboundFlowPayload | null;
 }
 
+interface JPFXPayload {
+  metric: "usdjpy";
+  rate: number;
+  changePercent: number;
+  ma50: number;
+  ma200: number;
+  position: "above_both" | "below_both" | "between";
+  recent: Array<{ date: string; rate: number }>;
+  interpretation: string;
+  source: string;
+  fetchedAt: string;
+  note?: string;
+}
+
+interface JPFXAggregate {
+  type: "JP_FX";
+  flow: JPFXPayload | null;
+}
+
 interface PlaceholderAggregate {
   type: "PLACEHOLDER";
   message: string;
@@ -97,6 +125,7 @@ type SignalAggregate =
   | USMarketContextAggregate
   | SGXFlagsAggregate
   | CNFlowAggregate
+  | JPFXAggregate
   | PlaceholderAggregate;
 
 interface MarketDetailResponse {
@@ -692,6 +721,142 @@ function CNFlowView({ data }: { data: CNFlowAggregate }) {
   );
 }
 
+// ── JP USD/JPY view ─────────────────────────────────────────────────
+
+const JP_POSITION_STYLES = {
+  above_both: {
+    label: "Above both MAs",
+    badge: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    headline: "text-emerald-700",
+    line: "#10b981",
+  },
+  between: {
+    label: "Between MAs",
+    badge: "bg-amber-100 text-amber-700 border-amber-200",
+    headline: "text-gray-900",
+    line: "#6b7280",
+  },
+  below_both: {
+    label: "Below both MAs",
+    badge: "bg-red-100 text-red-700 border-red-200",
+    headline: "text-red-700",
+    line: "#ef4444",
+  },
+} as const;
+
+function JPFXView({ data }: { data: JPFXAggregate }) {
+  const flow = data.flow;
+  if (!flow) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+        <div className="text-xs text-gray-500">
+          USD/JPY data unavailable.
+        </div>
+      </div>
+    );
+  }
+
+  const style = JP_POSITION_STYLES[flow.position];
+
+  const changeTone =
+    flow.changePercent > 0
+      ? "text-emerald-700"
+      : flow.changePercent < 0
+        ? "text-red-700"
+        : "text-gray-500";
+  const changeText = `${flow.changePercent >= 0 ? "+" : ""}${flow.changePercent.toFixed(2)}% today`;
+
+  // Sparkline domain: pad min/max ~0.2% so the line doesn't sit flush
+  // against the edges. Recharts default yAxis would auto-fit anyway, but
+  // forcing a tight domain keeps the visual change visible.
+  const rates = flow.recent.map((p) => p.rate);
+  const min = rates.length ? Math.min(...rates) : flow.rate;
+  const max = rates.length ? Math.max(...rates) : flow.rate;
+  const pad = (max - min) * 0.1 || max * 0.002;
+  const domain: [number, number] = [min - pad, max + pad];
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-gray-200 bg-white p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+              USD/JPY spot
+            </div>
+            <div
+              className={`text-2xl font-bold tabular-nums ${style.headline}`}
+            >
+              {flow.rate.toFixed(2)}
+            </div>
+            <div className={`text-[11px] tabular-nums mt-0.5 ${changeTone}`}>
+              {changeText}
+            </div>
+          </div>
+          {flow.recent.length > 1 && (
+            <div className="w-32 h-12 shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={flow.recent}
+                  margin={{ top: 2, right: 0, bottom: 2, left: 0 }}
+                >
+                  <ReferenceLine
+                    y={flow.ma50}
+                    stroke="#9ca3af"
+                    strokeDasharray="2 2"
+                    strokeWidth={1}
+                  />
+                  <ReferenceLine
+                    y={flow.ma200}
+                    stroke="#d1d5db"
+                    strokeDasharray="2 2"
+                    strokeWidth={1}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="rate"
+                    stroke={style.line}
+                    strokeWidth={1.5}
+                    dot={false}
+                    isAnimationActive={false}
+                  />
+                  {/* Hidden y domain hint via a 0-stroke line */}
+                  <ReferenceLine y={domain[0]} stroke="transparent" />
+                  <ReferenceLine y={domain[1]} stroke="transparent" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-3 gap-2 items-stretch">
+          <StatCard label="50d MA" value={flow.ma50.toFixed(1)} />
+          <StatCard label="200d MA" value={flow.ma200.toFixed(1)} />
+          <div className="bg-gray-50 rounded-lg p-2.5 flex flex-col justify-center">
+            <div className="text-[10px] text-gray-500 mb-1">Position</div>
+            <span
+              className={`text-[10px] font-medium px-2 py-0.5 rounded-full border self-start ${style.badge}`}
+            >
+              {style.label}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="text-[11px] text-gray-500 leading-snug">
+        {flow.interpretation}
+      </div>
+      {flow.note && (
+        <div className="text-[10px] text-gray-500 leading-snug">
+          {flow.note}
+        </div>
+      )}
+      <div className="text-[10px] text-gray-400 flex items-center gap-1">
+        <DollarSign className="w-3 h-3" />
+        Source: {flow.source} · {flow.fetchedAt.slice(0, 10)}
+      </div>
+    </div>
+  );
+}
+
 function PlaceholderView({ data }: { data: PlaceholderAggregate }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
@@ -719,6 +884,11 @@ function getSignalHeader(market: string): { title: string; icon: React.ReactNode
       return {
         title: "Stock Connect — Northbound flow",
         icon: <ArrowRightLeft className="w-4 h-4 text-gray-500" />,
+      };
+    case "JP":
+      return {
+        title: "FX — USD/JPY",
+        icon: <DollarSign className="w-4 h-4 text-gray-500" />,
       };
     default:
       return {
@@ -826,6 +996,9 @@ export function MarketDetailModal({
               )}
               {data.signals.type === "CN_NORTHBOUND_FLOW" && (
                 <CNFlowView data={data.signals} />
+              )}
+              {data.signals.type === "JP_FX" && (
+                <JPFXView data={data.signals} />
               )}
               {data.signals.type === "PLACEHOLDER" && (
                 <PlaceholderView data={data.signals} />

@@ -7,7 +7,10 @@
  *                                 not flow, but factually accurate)
  *  - CN  → CN_NORTHBOUND_FLOW    (HK→SH+SZ Stock Connect daily turnover
  *                                 from Eastmoney HSGT; market-wide)
- *  - HK / JP → PLACEHOLDER       (proper market-level flow fetchers pending)
+ *  - JP  → JP_FX                 (USD/JPY spot + 50/200-day MAs from
+ *                                 Yahoo Finance; the dominant macro
+ *                                 variable for Nikkei earnings)
+ *  - HK  → PLACEHOLDER           (proper market-level flow fetcher pending)
  *  - LSE / KS → PLACEHOLDER      (no fetcher wired)
  *
  * Caches the response in `market_cache` for 5 minutes keyed by market.
@@ -26,6 +29,7 @@ import {
   fetchCNNorthboundFlow,
   type CNNorthboundFlowData,
 } from "@/lib/markets/flows/cn";
+import { fetchJPFX, type JPFXData } from "@/lib/markets/flows/jp";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +64,11 @@ interface CNNorthboundFlowAggregate {
   flow: CNNorthboundFlowData | null;
 }
 
+interface JPFXAggregate {
+  type: "JP_FX";
+  flow: JPFXData | null;
+}
+
 interface PlaceholderAggregate {
   type: "PLACEHOLDER";
   message: string;
@@ -69,6 +78,7 @@ type SignalAggregate =
   | USMarketContextAggregate
   | SGXFlagsAggregate
   | CNNorthboundFlowAggregate
+  | JPFXAggregate
   | PlaceholderAggregate;
 
 interface MarketDetailResponse {
@@ -193,6 +203,11 @@ async function buildCNAggregate(): Promise<CNNorthboundFlowAggregate> {
   return { type: "CN_NORTHBOUND_FLOW", flow };
 }
 
+async function buildJPAggregate(): Promise<JPFXAggregate> {
+  const flow = await fetchJPFX();
+  return { type: "JP_FX", flow };
+}
+
 async function buildAggregate(
   market: WatchlistMarket,
   rows: UniverseRow[],
@@ -204,21 +219,14 @@ async function buildAggregate(
       return { signals: buildSGAggregate(rows), tickerCount: rows.length };
     case "CN":
       return { signals: await buildCNAggregate(), tickerCount: 0 };
+    case "JP":
+      return { signals: await buildJPAggregate(), tickerCount: 0 };
     case "HK":
       return {
         signals: {
           type: "PLACEHOLDER",
           message:
             "Market-level flow data (south-bound flow, HIBOR, HSI dividend yield) not yet wired",
-        },
-        tickerCount: 0,
-      };
-    case "JP":
-      return {
-        signals: {
-          type: "PLACEHOLDER",
-          message:
-            "Market-level flow data (USD/JPY, BOJ stance, foreign equity buying) not yet wired",
         },
         tickerCount: 0,
       };
