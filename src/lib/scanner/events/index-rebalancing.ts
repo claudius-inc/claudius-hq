@@ -8,12 +8,13 @@
  * - CN: CSI 300
  * - HK: Hang Seng Index
  * - SG: Straits Times Index (STI)
+ * - LSE: FTSE 100, FTSE 250
  */
 
 export interface IndexRebalanceEvent {
   indexName: string;
   indexCode: string;
-  market: "US" | "JP" | "CN" | "HK" | "SG";
+  market: "US" | "JP" | "CN" | "HK" | "SG" | "LSE";
   rebalanceDate: string; // YYYY-MM-DD
   announcementDate?: string;
   additions: string[]; // Tickers being added
@@ -88,6 +89,25 @@ export const INDEX_METADATA = {
     rebalanceMonths: [3, 6, 9, 12],
     typicalDay: 3, // Third week
   },
+  // UK Indices (FTSE Russell)
+  "UKX": {
+    name: "FTSE 100",
+    market: "LSE" as const,
+    // FTSE 100 reviews quarterly: review meeting on the first Wednesday of
+    // March/June/September/December (based on close-of-business prices on
+    // the prior Tuesday). Constituent changes effective from the open of
+    // the third Friday following the review meeting.
+    rebalanceMonths: [3, 6, 9, 12],
+    typicalDay: 3, // Third Friday following the first-Wednesday review
+  },
+  "MCX": {
+    name: "FTSE 250",
+    market: "LSE" as const,
+    // Same quarterly cycle as FTSE 100 (next 250 LSE-listed companies by
+    // market cap, ranks 101-350). Operated by FTSE Russell.
+    rebalanceMonths: [3, 6, 9, 12],
+    typicalDay: 3, // Third Friday following the first-Wednesday review
+  },
 };
 
 /**
@@ -96,13 +116,12 @@ export const INDEX_METADATA = {
  *
  * Sources:
  * - S&P Global indices
- * - FTSE Russell
+ * - FTSE Russell (FTSE 100, FTSE 250, STI)
  * - JPX (Nikkei, TOPIX)
  * - China Securities Index Co. (CSI)
  * - Hang Seng Indexes Company
- * - SPH/FTSE (STI)
  *
- * Last updated: 2026-03-26
+ * Last updated: 2026-05-07
  */
 const REBALANCE_EVENTS: IndexRebalanceEvent[] = [
   // Example entries - to be populated with real data
@@ -184,7 +203,7 @@ export function getUpcomingRebalances(
  * Get rebalancing events for a specific market.
  */
 export function getRebalancesByMarket(
-  market: "US" | "JP" | "CN" | "HK" | "SG"
+  market: "US" | "JP" | "CN" | "HK" | "SG" | "LSE"
 ): IndexRebalanceEvent[] {
   return REBALANCE_EVENTS.filter((e) => e.market === market).sort(
     (a, b) =>
