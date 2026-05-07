@@ -177,10 +177,16 @@ export async function buildScoringInputs(ticker: string): Promise<FetchedTicker 
 
   // Fundamentals — null when Yahoo doesn't expose them (common for non-US
   // small caps). D/E divided by 100 to match yahoo-fetcher.ts:373-375.
-  const marketCap = quoteSummary?.summaryDetail?.marketCap ?? null;
-  const trailingPE = quoteSummary?.summaryDetail?.trailingPE ?? null;
-  const forwardPE = quoteSummary?.defaultKeyStatistics?.forwardPE ?? null;
-  const dteRaw = quoteSummary?.financialData?.debtToEquity ?? null;
+  // Yahoo can serve Infinity / NaN for trailing or forward P/E when EPS is
+  // ~0 or sign-flipping (seen on 0100.HK), and libsql's Hrana protocol
+  // rejects non-finite numbers — null them at the source so the scan write
+  // doesn't crash the whole batch.
+  const finiteOrNull = (v: number | null | undefined) =>
+    v != null && Number.isFinite(v) ? v : null;
+  const marketCap = finiteOrNull(quoteSummary?.summaryDetail?.marketCap);
+  const trailingPE = finiteOrNull(quoteSummary?.summaryDetail?.trailingPE);
+  const forwardPE = finiteOrNull(quoteSummary?.defaultKeyStatistics?.forwardPE);
+  const dteRaw = finiteOrNull(quoteSummary?.financialData?.debtToEquity);
   const debtToEquity = dteRaw != null ? dteRaw / 100 : null;
 
   if (price === null) {
