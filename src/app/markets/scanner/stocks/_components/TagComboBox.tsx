@@ -37,6 +37,9 @@ interface TagComboBoxProps {
   lowerCase?: boolean;
   /** Optional aria-label for the input */
   ariaLabel?: string;
+  /** Disables typing, opening the dropdown, and removing chips. Used while
+   *  an upstream auto-fill is in flight so the user doesn't fight the form. */
+  disabled?: boolean;
 }
 
 export function TagComboBox({
@@ -49,6 +52,7 @@ export function TagComboBox({
   placeholder = "Search or create…",
   lowerCase = false,
   ariaLabel,
+  disabled = false,
 }: TagComboBoxProps) {
   const [input, setInput] = useState("");
   const [open, setOpen] = useState(false);
@@ -162,8 +166,13 @@ export function TagComboBox({
   return (
     <div ref={containerRef} className="relative">
       <div
-        className="flex flex-wrap gap-1.5 items-center min-h-[2.25rem] px-2 py-1.5 border border-gray-300 rounded-md bg-white focus-within:ring-2 focus-within:ring-emerald-500/40 focus-within:border-emerald-500"
-        onClick={() => inputRef.current?.focus()}
+        className={`flex flex-wrap gap-1.5 items-center min-h-[2.25rem] px-2 py-1.5 border border-gray-300 rounded-md focus-within:ring-2 focus-within:ring-emerald-500/40 focus-within:border-emerald-500 ${
+          disabled
+            ? "bg-gray-50 cursor-not-allowed opacity-60"
+            : "bg-white"
+        }`}
+        onClick={() => !disabled && inputRef.current?.focus()}
+        aria-disabled={disabled}
       >
         {selected.map((value) => {
           const isNew = newValues?.has(value);
@@ -181,11 +190,12 @@ export function TagComboBox({
               {labels[value] ?? value}
               <button
                 type="button"
+                disabled={disabled}
                 onClick={(e) => {
                   e.stopPropagation();
-                  removeAt(value);
+                  if (!disabled) removeAt(value);
                 }}
-                className={removeCls}
+                className={`${removeCls} disabled:opacity-50 disabled:cursor-not-allowed`}
                 aria-label={`Remove ${labels[value] ?? value}`}
               >
                 <X className="w-3 h-3" />
@@ -197,18 +207,19 @@ export function TagComboBox({
           ref={inputRef}
           type="text"
           value={input}
+          disabled={disabled}
           onChange={(e) =>
             setInput(lowerCase ? e.target.value.toLowerCase() : e.target.value)
           }
-          onFocus={() => setOpen(true)}
+          onFocus={() => !disabled && setOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder={selected.length === 0 ? placeholder : ""}
           aria-label={ariaLabel}
-          className="flex-1 min-w-[6rem] outline-none text-sm bg-transparent"
+          className="flex-1 min-w-[6rem] outline-none text-sm bg-transparent disabled:cursor-not-allowed"
         />
       </div>
 
-      {open && (
+      {open && !disabled && (
         <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-56 overflow-y-auto text-sm">
           {loading && (
             <div className="px-3 py-2 text-xs text-gray-400">Loading…</div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import { Sparkles, ArrowLeft, Check } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
@@ -23,6 +23,15 @@ interface LookupResult {
   price: number | null;
   quoteType: string | null;
   currency: string | null;
+}
+
+interface SearchCandidate {
+  symbol: string;
+  name: string | null;
+  exchange: string | null;
+  market: string | null;
+  quoteType: string | null;
+  sector: string | null;
 }
 
 interface ThemeRow {
@@ -133,6 +142,17 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
   const [aiPendingNewThemes, setAiPendingNewThemes] = useState<string[]>([]);
 
   const [allThemes, setAllThemes] = useState<ThemeRow[]>([]);
+
+  // Search → resolve flow:
+  //  1. User types a query → /yahoo-search returns ranked candidates.
+  //  2. We auto-select the top candidate (or keep the user's pick if still in
+  //     the result set) and call /lookup for full quote details.
+  //  3. Once resolved, the AI auto-suggest fires.
+  const [candidates, setCandidates] = useState<SearchCandidate[]>([]);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   const [lookup, setLookup] = useState<LookupResult | null>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
@@ -164,6 +184,10 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     setAiPendingNewTags([]);
     setAiThemeIds([]);
     setAiPendingNewThemes([]);
+    setCandidates([]);
+    setSelectedSymbol(null);
+    setSearching(false);
+    setSearchError(null);
     setLookup(null);
     setLookupLoading(false);
     setLookupError(null);
@@ -200,44 +224,128 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     };
   }, [open]);
 
-  // Debounced ticker lookup whenever tickerInput / explicit market changes.
+  // Debounced search whenever tickerInput / market filter changes. Yahoo's
+  // search() is the source of truth for "what listings match this query?" —
+  // we no longer try to short-circuit with a single suffix-iterating quote()
+  // because that picks the wrong listing for ambiguous symbols (e.g. ENSI
+  // would resolve to the synthetic .YHD instead of LSE's ENSI.L).
   useEffect(() => {
     const trimmed = tickerInput.trim();
-    setLookupError(null);
+    setSearchError(null);
     if (!trimmed) {
+      setCandidates([]);
+      setSelectedSymbol(null);
       setLookup(null);
+      setLookupError(null);
+      setSearching(false);
       return;
     }
     if (lookupDebounceRef.current) clearTimeout(lookupDebounceRef.current);
     lookupDebounceRef.current = setTimeout(async () => {
-      setLookupLoading(true);
+      setSearching(true);
       try {
-        const params = new URLSearchParams({ ticker: trimmed });
+        const params = new URLSearchParams({ q: trimmed, limit: "6" });
         if (market) params.set("market", market);
-        const res = await fetch(`/api/tickers/lookup?${params}`);
-        const data = (await res.json()) as LookupResult & { error?: string };
+        const res = await fetch(`/api/tickers/yahoo-search?${params}`);
+        const data = (await res.json()) as {
+          candidates?: SearchCandidate[];
+          error?: string;
+        };
         if (!res.ok) {
-          setLookupError(data.error || "Ticker not found");
+          setSearchError(data.error || "Search failed");
+          setCandidates([]);
+          setSelectedSymbol(null);
           setLookup(null);
-        } else {
-          setLookup(data);
-          setLookupError(null);
-          if (!market && data.market) setMarket(data.market);
-          if (!name && data.name) setName(data.name);
-          if (!sector && data.sector) setSector(data.sector);
+          return;
         }
+        const list = data.candidates ?? [];
+        setCandidates(list);
+        if (list.length === 0) {
+          setSearchError(`No matches for "${trimmed}"`);
+          setSelectedSymbol(null);
+          setLookup(null);
+          return;
+        }
+        // Keep current selection if still in the result set, else pick top.
+        setSelectedSymbol((prev) => {
+          if (prev && list.some((c) => c.symbol === prev)) return prev;
+          return list[0].symbol;
+        });
       } catch (e) {
-        setLookupError(String(e));
+        setSearchError(String(e));
+        setCandidates([]);
+        setSelectedSymbol(null);
         setLookup(null);
       } finally {
-        setLookupLoading(false);
+        setSearching(false);
       }
-    }, 400);
+    }, 350);
     return () => {
       if (lookupDebounceRef.current) clearTimeout(lookupDebounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tickerInput, market]);
+
+  // Resolve full quote details for the currently-selected candidate. Fires on
+  // selectedSymbol change. Triggers the AI auto-suggest indirectly via the
+  // `lookup` state. We clear `lookup` synchronously at the start so the AI
+  // effect doesn't transiently fire for the previous selection while the new
+  // fetch is in flight.
+  useEffect(() => {
+    setLookup(null);
+    setLookupError(null);
+
+    if (!selectedSymbol) {
+      setLookupLoading(false);
+      return;
+    }
+    const candidate = candidates.find((c) => c.symbol === selectedSymbol);
+    if (!candidate) {
+      setLookupLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLookupLoading(true);
+
+    (async () => {
+      try {
+        const params = new URLSearchParams({ ticker: candidate.symbol });
+        if (candidate.market) params.set("market", candidate.market);
+        const res = await fetch(`/api/tickers/lookup?${params}`);
+        const data = (await res.json()) as LookupResult & { error?: string };
+        if (cancelled) return;
+        if (!res.ok) {
+          setLookupError(data.error || "Lookup failed");
+          setLookup(null);
+          return;
+        }
+        setLookup(data);
+        // Auto-fill core fields only if currently empty (preserves user edits).
+        if (!market && data.market) setMarket(data.market);
+        if (!name && data.name) setName(data.name);
+        if (!sector && data.sector) setSector(data.sector);
+      } catch (e) {
+        if (!cancelled) {
+          setLookupError(String(e));
+          setLookup(null);
+        }
+      } finally {
+        if (!cancelled) setLookupLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSymbol]);
+
+  // Reset the AI auto-suggest "already populated" guard whenever the user
+  // switches candidates so AI re-runs against the new ticker.
+  useEffect(() => {
+    setAiPopulated(false);
+  }, [selectedSymbol]);
 
   // Helper that takes an AiSuggestion response and applies it to the live
   // form fields where they're empty (auto-fill semantics).
@@ -402,6 +510,27 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
   const newThemeValueSet = useMemo(
     () => new Set(pendingNewThemes.map((n) => `new:${n}`)),
     [pendingNewThemes],
+  );
+
+  // Switching candidates is an explicit "I want this different listing" — wipe
+  // the core fields and AI-derived state so the resolve effect can repopulate
+  // them from the new candidate. (Auto-selection of the top result on initial
+  // search keeps existing values via the empty-checks in the resolve effect.)
+  const onSelectCandidate = useCallback(
+    (symbol: string) => {
+      if (symbol === selectedSymbol) return;
+      setMarket("");
+      setName("");
+      setSector("");
+      setNotes("");
+      setTags([]);
+      setPendingNewTags([]);
+      setThemeIds([]);
+      setPendingNewThemes([]);
+      setAiProfile(null);
+      setSelectedSymbol(symbol);
+    },
+    [selectedSymbol],
   );
 
   const onTagsChange = (next: string[]) => {
@@ -616,8 +745,18 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     setMode("edit");
   };
 
+  // AI loading deliberately does NOT block submit — the AI fill is enrichment,
+  // not gating. If the user is happy with what they see, let them ship.
   const canSubmit =
-    !!lookup && !submitting && tickerInput.trim().length > 0 && !lookupLoading;
+    !!lookup &&
+    !submitting &&
+    tickerInput.trim().length > 0 &&
+    !lookupLoading &&
+    !searching;
+
+  // Phase flags for field-level disabling. The `resolveBusy` umbrella covers
+  // the search→resolve chain so Market/Sector/Name don't fight the auto-fill.
+  const resolveBusy = searching || lookupLoading;
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -763,25 +902,95 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
               required
             />
             <div className="mt-1 min-h-[1.25rem] text-xs">
-              {lookupLoading && (
+              {searching && (
                 <span className="text-gray-500 inline-flex items-center gap-1">
                   <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
-                  Looking up…
+                  Searching…
                 </span>
               )}
-              {lookupError && !lookupLoading && (
+              {!searching && lookupLoading && (
+                <span className="text-gray-500 inline-flex items-center gap-1">
+                  <span className="h-3 w-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  Resolving quote…
+                </span>
+              )}
+              {!searching && !lookupLoading && searchError && (
+                <span className="text-red-600">{searchError}</span>
+              )}
+              {!searching && !lookupLoading && !searchError && lookupError && (
                 <span className="text-red-600">{lookupError}</span>
               )}
-              {lookup && !lookupLoading && !lookupError && (
-                <span className="text-emerald-600">
-                  ✓ {lookup.normalized}
-                  {lookup.exchange ? ` · ${lookup.exchange}` : ""}
-                  {lookup.price != null
-                    ? ` · ${formatLocalPrice(lookup.normalized, lookup.price, lookup.currency)}`
-                    : ""}
-                </span>
-              )}
+              {!searching &&
+                !lookupLoading &&
+                !searchError &&
+                !lookupError &&
+                lookup && (
+                  <span className="text-emerald-600">
+                    ✓ {lookup.normalized}
+                    {lookup.exchange ? ` · ${lookup.exchange}` : ""}
+                    {lookup.price != null
+                      ? ` · ${formatLocalPrice(lookup.normalized, lookup.price, lookup.currency)}`
+                      : ""}
+                  </span>
+                )}
             </div>
+
+            {candidates.length >= 2 && (
+              <div className="mt-2 border border-gray-200 rounded-md overflow-hidden bg-white">
+                <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-gray-500 bg-gray-50 border-b border-gray-100">
+                  {candidates.length} listings found — pick one
+                </div>
+                <ul className="divide-y divide-gray-100">
+                  {candidates.map((c) => {
+                    const isSelected = c.symbol === selectedSymbol;
+                    return (
+                      <li key={c.symbol}>
+                        <button
+                          type="button"
+                          onClick={() => onSelectCandidate(c.symbol)}
+                          className={`w-full text-left px-3 py-2 flex items-start gap-2 hover:bg-gray-50 ${
+                            isSelected ? "bg-emerald-50/60" : ""
+                          }`}
+                          aria-pressed={isSelected}
+                        >
+                          <span
+                            className={`mt-0.5 inline-flex items-center justify-center w-4 h-4 rounded-full border ${
+                              isSelected
+                                ? "bg-emerald-500 border-emerald-500 text-white"
+                                : "border-gray-300 text-transparent"
+                            }`}
+                          >
+                            <Check className="w-2.5 h-2.5" strokeWidth={3} />
+                          </span>
+                          <span className="flex-1 min-w-0">
+                            <span className="flex items-baseline gap-2">
+                              <span className="font-mono text-sm text-gray-900">
+                                {c.symbol}
+                              </span>
+                              {c.market && (
+                                <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
+                                  {c.market}
+                                </span>
+                              )}
+                              {c.exchange && c.exchange !== c.market && (
+                                <span className="text-[11px] text-gray-500 truncate">
+                                  {c.exchange}
+                                </span>
+                              )}
+                            </span>
+                            {c.name && (
+                              <span className="block text-xs text-gray-600 truncate">
+                                {c.name}
+                              </span>
+                            )}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -810,8 +1019,11 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
                 type="text"
                 value={sector}
                 onChange={(e) => setSector(e.target.value)}
-                placeholder="e.g. Technology"
-                className="input w-full"
+                placeholder={
+                  resolveBusy && !sector ? "Auto-filling…" : "e.g. Technology"
+                }
+                disabled={resolveBusy && !sector}
+                className="input w-full disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
               />
             </div>
           </div>
@@ -824,8 +1036,11 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Auto-filled from quote"
-              className="input w-full"
+              placeholder={
+                resolveBusy && !name ? "Auto-filling…" : "Auto-filled from quote"
+              }
+              disabled={resolveBusy && !name}
+              className="input w-full disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -845,8 +1060,13 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              placeholder="1-2 sentence summary of what the company does"
-              className="input w-full resize-none"
+              placeholder={
+                aiLoading && !notes.trim()
+                  ? "AI is drafting a summary…"
+                  : "1-2 sentence summary of what the company does"
+              }
+              disabled={aiLoading && !notes.trim()}
+              className="input w-full resize-none disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -861,9 +1081,14 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
               onCreate={onCreateTag}
               labels={tagLabels}
               newValues={pendingNewTagSet}
-              placeholder="Search or create tags…"
+              placeholder={
+                aiLoading && tags.length === 0
+                  ? "AI is suggesting tags…"
+                  : "Search or create tags…"
+              }
               lowerCase
               ariaLabel="Tags"
+              disabled={aiLoading && tags.length === 0}
             />
             {pendingNewTags.length > 0 ? (
               <p className="text-xs text-amber-600 mt-1">
@@ -889,8 +1114,19 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
               onCreate={onCreateTheme}
               labels={themeLabels}
               newValues={newThemeValueSet}
-              placeholder="Search or create themes…"
+              placeholder={
+                aiLoading &&
+                themeIds.length === 0 &&
+                pendingNewThemes.length === 0
+                  ? "AI is suggesting themes…"
+                  : "Search or create themes…"
+              }
               ariaLabel="Themes"
+              disabled={
+                aiLoading &&
+                themeIds.length === 0 &&
+                pendingNewThemes.length === 0
+              }
             />
             {pendingNewThemes.length > 0 && (
               <p className="text-xs text-amber-600 mt-1">

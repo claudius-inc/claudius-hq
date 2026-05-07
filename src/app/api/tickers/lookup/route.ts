@@ -25,12 +25,18 @@ interface YahooQuote {
 
 const MARKET_CANDIDATES = ["US", "SGX", "HK", "JP", "CN", "LSE"] as const;
 
+// Reject anything Yahoo classifies outside of equities/ETFs. Skips synthetic
+// artefacts like `ENSI.YHD` (mutualfund/index quoteType) which would otherwise
+// answer `quote()` and shadow the real listing the user wants.
+const ALLOWED_QUOTE_TYPES = new Set(["EQUITY", "ETF"]);
+
 async function tryQuote(symbol: string): Promise<YahooQuote | null> {
   try {
     const result = (await yahooFinance.quote(symbol)) as YahooQuote | YahooQuote[];
     const q = Array.isArray(result) ? result[0] : result;
     if (!q || !q.symbol) return null;
     if (q.regularMarketPrice == null && !q.shortName && !q.longName) return null;
+    if (q.quoteType && !ALLOWED_QUOTE_TYPES.has(q.quoteType.toUpperCase())) return null;
     return q;
   } catch {
     return null;
