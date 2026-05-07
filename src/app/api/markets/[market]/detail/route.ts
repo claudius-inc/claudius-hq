@@ -2,13 +2,13 @@
  * GET /api/markets/{market}/detail
  *
  * Returns market-level context per market. Returned shape varies:
- *  - US  → US_MARKET_CONTEXT (sentiment + breadth, market-wide)
- *  - SGX → SGX_FLAGS         (GLC / S-Chip distribution — structural,
- *                             not flow, but factually accurate)
- *  - CN  → CN_CONNECT        (Stock Connect inflows / outflows from
- *                             watchlist sample, with caveat)
- *  - HK / JP → PLACEHOLDER   (proper market-level flow fetchers pending)
- *  - LSE / KS → PLACEHOLDER  (no fetcher wired)
+ *  - US  → US_MARKET_CONTEXT     (sentiment + breadth, market-wide)
+ *  - SGX → SGX_FLAGS             (GLC / S-Chip distribution — structural,
+ *                                 not flow, but factually accurate)
+ *  - CN  → CN_NORTHBOUND_FLOW    (HK→SH+SZ Stock Connect daily turnover
+ *                                 from Eastmoney HSGT; market-wide)
+ *  - HK / JP → PLACEHOLDER       (proper market-level flow fetchers pending)
+ *  - LSE / KS → PLACEHOLDER      (no fetcher wired)
  *
  * Caches the response in `market_cache` for 5 minutes keyed by market.
  */
@@ -19,12 +19,13 @@ import { WATCHLIST_MARKETS, type WatchlistMarket } from "@/db/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { getCache, setCache } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
-import {
-  fetchSGMarketFlags,
-  fetchCNStockConnectSignals,
-} from "@/lib/scanner/signals";
+import { fetchSGMarketFlags } from "@/lib/scanner/signals";
 import { fetchSentimentData } from "@/lib/markets/sentiment";
 import { fetchBreadthData } from "@/lib/markets/breadth";
+import {
+  fetchCNNorthboundFlow,
+  type CNNorthboundFlowData,
+} from "@/lib/markets/flows/cn";
 
 export const dynamic = "force-dynamic";
 
@@ -54,24 +55,9 @@ interface SGXFlagsAggregate {
   schips: Array<{ ticker: string; name: string | null }>;
 }
 
-interface CNConnectAggregate {
-  type: "CN_CONNECT";
-  totalNorthboundHolding: number;
-  totalDailyChange: number;
-  averagePercentOfFloat: number;
-  topInflows: Array<{
-    ticker: string;
-    name: string | null;
-    percentOfFloat: number;
-    dailyChange: number;
-  }>;
-  topOutflows: Array<{
-    ticker: string;
-    name: string | null;
-    percentOfFloat: number;
-    dailyChange: number;
-  }>;
-  caveat: string;
+interface CNNorthboundFlowAggregate {
+  type: "CN_NORTHBOUND_FLOW";
+  flow: CNNorthboundFlowData | null;
 }
 
 interface PlaceholderAggregate {
@@ -82,7 +68,7 @@ interface PlaceholderAggregate {
 type SignalAggregate =
   | USMarketContextAggregate
   | SGXFlagsAggregate
-  | CNConnectAggregate
+  | CNNorthboundFlowAggregate
   | PlaceholderAggregate;
 
 interface MarketDetailResponse {
@@ -202,57 +188,9 @@ function buildSGAggregate(rows: UniverseRow[]): SGXFlagsAggregate {
   };
 }
 
-async function buildCNAggregate(rows: UniverseRow[]): Promise<CNConnectAggregate> {
-  const fetched = await Promise.all(
-    rows.map(async (r) => ({
-      ticker: r.ticker,
-      name: r.name,
-      signals: await fetchCNStockConnectSignals(r.ticker),
-    })),
-  );
-
-  const valid = fetched.filter((f) => f.signals !== null);
-
-  let totalNorthboundHolding = 0;
-  let totalDailyChange = 0;
-  let percentSum = 0;
-  for (const f of valid) {
-    const s = f.signals!;
-    totalNorthboundHolding += s.northboundHolding;
-    totalDailyChange += s.dailyChange;
-    percentSum += s.percentOfFloat;
-  }
-
-  const averagePercentOfFloat =
-    valid.length > 0 ? percentSum / valid.length : 0;
-
-  const ranked = valid.map((f) => ({
-    ticker: f.ticker,
-    name: f.name,
-    percentOfFloat: f.signals!.percentOfFloat,
-    dailyChange: f.signals!.dailyChange,
-  }));
-
-  const topInflows = ranked
-    .filter((r) => r.dailyChange > 0)
-    .sort((a, b) => b.dailyChange - a.dailyChange)
-    .slice(0, 5);
-
-  const topOutflows = ranked
-    .filter((r) => r.dailyChange < 0)
-    .sort((a, b) => a.dailyChange - b.dailyChange) // most negative first
-    .slice(0, 5);
-
-  return {
-    type: "CN_CONNECT",
-    totalNorthboundHolding,
-    totalDailyChange,
-    averagePercentOfFloat,
-    topInflows,
-    topOutflows,
-    caveat:
-      "Watchlist sample (20 tickers); market-wide source via HKEX northbound feed pending",
-  };
+async function buildCNAggregate(): Promise<CNNorthboundFlowAggregate> {
+  const flow = await fetchCNNorthboundFlow();
+  return { type: "CN_NORTHBOUND_FLOW", flow };
 }
 
 async function buildAggregate(
@@ -265,7 +203,7 @@ async function buildAggregate(
     case "SGX":
       return { signals: buildSGAggregate(rows), tickerCount: rows.length };
     case "CN":
-      return { signals: await buildCNAggregate(rows), tickerCount: rows.length };
+      return { signals: await buildCNAggregate(), tickerCount: 0 };
     case "HK":
       return {
         signals: {
@@ -319,8 +257,8 @@ export async function GET(
       return NextResponse.json(cached.data);
     }
 
-    // Only pick tickers for markets that still need them (SGX, CN).
-    const needsTickers = market === "SGX" || market === "CN";
+    // Only pick tickers for markets that still need them (SGX).
+    const needsTickers = market === "SGX";
     const rows = needsTickers ? await pickTickers(market, TICKER_CAP) : [];
     const { signals, tickerCount } = await buildAggregate(market, rows);
 

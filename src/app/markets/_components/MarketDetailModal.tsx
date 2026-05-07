@@ -6,11 +6,11 @@ import {
   ChevronUpCircle,
   ChevronDownCircle,
   MinusCircle,
-  TrendingUp,
-  TrendingDown,
   Activity,
   Building2,
+  ArrowRightLeft,
 } from "lucide-react";
+import { Bar, BarChart, Cell, ResponsiveContainer } from "recharts";
 
 // ── Shared types (mirror the API route) ─────────────────────────────
 
@@ -71,24 +71,21 @@ interface SGXFlagsAggregate {
   schips: Array<{ ticker: string; name: string | null }>;
 }
 
-interface CNConnectAggregate {
-  type: "CN_CONNECT";
-  totalNorthboundHolding: number;
-  totalDailyChange: number;
-  averagePercentOfFloat: number;
-  topInflows: Array<{
-    ticker: string;
-    name: string | null;
-    percentOfFloat: number;
-    dailyChange: number;
-  }>;
-  topOutflows: Array<{
-    ticker: string;
-    name: string | null;
-    percentOfFloat: number;
-    dailyChange: number;
-  }>;
-  caveat: string;
+interface CNNorthboundFlowPayload {
+  metric: "turnover_proxy" | "net_flow";
+  value: number;
+  value20dAvg: number;
+  activity: "elevated" | "normal" | "subdued";
+  recent: Array<{ date: string; value: number }>;
+  dataDate: string;
+  source: string;
+  fetchedAt: string;
+  note: string;
+}
+
+interface CNFlowAggregate {
+  type: "CN_NORTHBOUND_FLOW";
+  flow: CNNorthboundFlowPayload | null;
 }
 
 interface PlaceholderAggregate {
@@ -99,7 +96,7 @@ interface PlaceholderAggregate {
 type SignalAggregate =
   | USMarketContextAggregate
   | SGXFlagsAggregate
-  | CNConnectAggregate
+  | CNFlowAggregate
   | PlaceholderAggregate;
 
 interface MarketDetailResponse {
@@ -564,99 +561,133 @@ function SGXFlagsView({ data }: { data: SGXFlagsAggregate }) {
   );
 }
 
-function CNConnectView({ data }: { data: CNConnectAggregate }) {
+// ── CN Northbound flow view ─────────────────────────────────────────
+
+function formatRmb(n: number, signed = false): string {
+  const sign = signed ? (n >= 0 ? "+" : "−") : "";
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000_000) return `${sign}¥${(abs / 1_000_000_000).toFixed(2)}B`;
+  if (abs >= 1_000_000) return `${sign}¥${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}¥${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}¥${abs.toFixed(0)}`;
+}
+
+function CNFlowView({ data }: { data: CNFlowAggregate }) {
+  const flow = data.flow;
+  if (!flow) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+        <div className="text-xs text-gray-500">
+          Northbound flow data unavailable.
+        </div>
+      </div>
+    );
+  }
+
+  const isNetFlow = flow.metric === "net_flow";
+  const headlineLabel = isNetFlow ? "Net flow today" : "Turnover today";
+  const avgLabel = isNetFlow ? "20d avg net flow" : "20d avg turnover";
+
+  // Activity / direction tone.
+  // For net_flow: green if positive, red if negative.
+  // For turnover_proxy: tone reflects elevated/subdued (informational, not directional).
+  let tone: "default" | "positive" | "negative" = "default";
+  let interpretation = "";
+  if (isNetFlow) {
+    if (flow.value > 0) {
+      tone = "positive";
+      interpretation = "Foreign capital buying";
+    } else if (flow.value < 0) {
+      tone = "negative";
+      interpretation = "Foreign capital selling";
+    } else {
+      interpretation = "Mixed";
+    }
+  } else {
+    if (flow.activity === "elevated") {
+      tone = "positive";
+      interpretation = "Activity elevated vs 20d";
+    } else if (flow.activity === "subdued") {
+      tone = "negative";
+      interpretation = "Activity subdued vs 20d";
+    } else {
+      interpretation = "Activity in line with 20d";
+    }
+  }
+
+  const headlineColor =
+    tone === "positive"
+      ? "text-emerald-700"
+      : tone === "negative"
+        ? "text-red-700"
+        : "text-gray-900";
+
+  // Sparkline data — bars colored consistently. For turnover all bars
+  // share a tone; for net_flow each bar is colored by sign.
+  const sparkData = flow.recent.map((p) => ({ date: p.date, value: p.value }));
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-2">
-        <StatCard
-          label="N. Holding"
-          value={formatNumberCompact(data.totalNorthboundHolding)}
-          hint="Total shares"
-        />
-        <StatCard
-          label="Daily Δ"
-          value={`${data.totalDailyChange >= 0 ? "+" : ""}${formatNumberCompact(data.totalDailyChange)}`}
-          tone={data.totalDailyChange >= 0 ? "positive" : "negative"}
-        />
-        <StatCard
-          label="Avg % of Float"
-          value={`${data.averagePercentOfFloat.toFixed(2)}%`}
-        />
+      <div className="rounded-lg border border-gray-200 bg-white p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+              {headlineLabel}
+            </div>
+            <div className={`text-2xl font-bold tabular-nums ${headlineColor}`}>
+              {formatRmb(flow.value, isNetFlow)}
+            </div>
+            <div className="text-[11px] text-gray-500 mt-0.5">
+              {interpretation}
+            </div>
+          </div>
+          {sparkData.length > 1 && (
+            <div className="w-32 h-12 shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={sparkData} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
+                  <Bar dataKey="value" radius={[1, 1, 0, 0]}>
+                    {sparkData.map((d, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          isNetFlow
+                            ? d.value >= 0
+                              ? "#10b981"
+                              : "#ef4444"
+                            : "#6b7280"
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <StatCard
+            label={avgLabel}
+            value={formatRmb(flow.value20dAvg, isNetFlow)}
+          />
+          <StatCard
+            label="Today vs 20d"
+            value={
+              flow.value20dAvg
+                ? `${((flow.value / flow.value20dAvg) * 100).toFixed(0)}%`
+                : "—"
+            }
+            hint={flow.activity}
+          />
+        </div>
       </div>
-      {data.topInflows.length > 0 && (
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-emerald-700 mb-1.5 flex items-center gap-1">
-            <TrendingUp className="w-3 h-3" /> Top Inflows
-          </div>
-          <div className="space-y-1">
-            {data.topInflows.map((r) => (
-              <div
-                key={r.ticker}
-                className="flex items-center justify-between bg-white border border-gray-100 rounded p-2"
-              >
-                <div className="min-w-0 flex-1 mr-2">
-                  <div className="text-xs font-medium text-gray-900">
-                    {r.ticker}
-                  </div>
-                  {r.name && (
-                    <div className="text-[10px] text-gray-500 truncate">
-                      {r.name}
-                    </div>
-                  )}
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-xs font-semibold text-emerald-700 tabular-nums">
-                    +{formatNumberCompact(r.dailyChange)}
-                  </div>
-                  <div className="text-[9px] text-gray-400">
-                    {r.percentOfFloat.toFixed(2)}% float
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {data.topOutflows.length > 0 && (
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-red-700 mb-1.5 flex items-center gap-1">
-            <TrendingDown className="w-3 h-3" /> Top Outflows
-          </div>
-          <div className="space-y-1">
-            {data.topOutflows.map((r) => (
-              <div
-                key={r.ticker}
-                className="flex items-center justify-between bg-white border border-gray-100 rounded p-2"
-              >
-                <div className="min-w-0 flex-1 mr-2">
-                  <div className="text-xs font-medium text-gray-900">
-                    {r.ticker}
-                  </div>
-                  {r.name && (
-                    <div className="text-[10px] text-gray-500 truncate">
-                      {r.name}
-                    </div>
-                  )}
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-xs font-semibold text-red-700 tabular-nums">
-                    {formatNumberCompact(r.dailyChange)}
-                  </div>
-                  <div className="text-[9px] text-gray-400">
-                    {r.percentOfFloat.toFixed(2)}% float
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {data.topInflows.length === 0 && data.topOutflows.length === 0 && (
-        <div className="text-xs text-gray-500 italic">
-          No Stock Connect flow data for current watchlist (cache may need refresh).
-        </div>
-      )}
-      <div className="text-[10px] text-gray-500 italic mt-1">{data.caveat}</div>
+
+      <div className="text-[10px] text-gray-500 leading-snug">
+        {flow.note}
+      </div>
+      <div className="text-[10px] text-gray-400 flex items-center gap-1">
+        <ArrowRightLeft className="w-3 h-3" />
+        Source: {flow.source} · {flow.dataDate}
+      </div>
     </div>
   );
 }
@@ -686,8 +717,8 @@ function getSignalHeader(market: string): { title: string; icon: React.ReactNode
       };
     case "CN":
       return {
-        title: "CN Stock Connect Flows",
-        icon: <Activity className="w-4 h-4 text-gray-500" />,
+        title: "Stock Connect — Northbound flow",
+        icon: <ArrowRightLeft className="w-4 h-4 text-gray-500" />,
       };
     default:
       return {
@@ -793,8 +824,8 @@ export function MarketDetailModal({
               {data.signals.type === "SGX_FLAGS" && (
                 <SGXFlagsView data={data.signals} />
               )}
-              {data.signals.type === "CN_CONNECT" && (
-                <CNConnectView data={data.signals} />
+              {data.signals.type === "CN_NORTHBOUND_FLOW" && (
+                <CNFlowView data={data.signals} />
               )}
               {data.signals.type === "PLACEHOLDER" && (
                 <PlaceholderView data={data.signals} />
