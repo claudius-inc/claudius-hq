@@ -36,7 +36,7 @@ export async function handlePortfolio(): Promise<string> {
       const quote = await yahooFinance.quote(h.ticker) as QuoteResult;
       const price = quote?.regularMarketPrice ?? 0;
       const change = quote?.regularMarketChangePercent ?? 0;
-      lines.push(`${h.ticker}  ${formatPrice(price)}  ${formatPercent(change)} ${getEmoji(change)}`);
+      lines.push(`${h.ticker}  ${formatPrice(h.ticker, price)}  ${formatPercent(change)} ${getEmoji(change)}`);
     } catch {
       lines.push(`${h.ticker}  - (error)`);
     }
@@ -120,26 +120,29 @@ export async function handleThemes(period: TimePeriod = "1m"): Promise<ThemesRes
 
 export async function handlePrice(ticker: string): Promise<string> {
   try {
-    const quote = await yahooFinance.quote(ticker.toUpperCase()) as QuoteResult & { 
+    const upper = ticker.toUpperCase();
+    const quote = await yahooFinance.quote(upper) as QuoteResult & {
       regularMarketDayHigh?: number;
       regularMarketDayLow?: number;
       regularMarketVolume?: number;
       fiftyTwoWeekHigh?: number;
       fiftyTwoWeekLow?: number;
+      currency?: string;
     };
-    
+
     if (!quote || !quote.regularMarketPrice) {
-      return `❌ Could not find price for ${ticker.toUpperCase()}`;
+      return `❌ Could not find price for ${upper}`;
     }
 
+    const ccy = quote.currency ?? null;
     const lines = [
-      `📈 <b>${quote.shortName || ticker.toUpperCase()}</b>`,
+      `📈 <b>${quote.shortName || upper}</b>`,
       ``,
-      `Price: <b>${formatPrice(quote.regularMarketPrice)}</b>`,
+      `Price: <b>${formatPrice(upper, quote.regularMarketPrice, ccy)}</b>`,
       `Change: ${formatPercent(quote.regularMarketChangePercent)} ${getEmoji(quote.regularMarketChangePercent)}`,
       ``,
-      `Day Range: ${formatPrice(quote.regularMarketDayLow)} - ${formatPrice(quote.regularMarketDayHigh)}`,
-      `52w Range: ${formatPrice(quote.fiftyTwoWeekLow)} - ${formatPrice(quote.fiftyTwoWeekHigh)}`,
+      `Day Range: ${formatPrice(upper, quote.regularMarketDayLow, ccy)} - ${formatPrice(upper, quote.regularMarketDayHigh, ccy)}`,
+      `52w Range: ${formatPrice(upper, quote.fiftyTwoWeekLow, ccy)} - ${formatPrice(upper, quote.fiftyTwoWeekHigh, ccy)}`,
     ];
 
     if (quote.regularMarketVolume) {

@@ -17,6 +17,7 @@ import {
   HoverCardTrigger,
   HoverCardContent,
 } from "@/components/ui/HoverCard";
+import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
 import type { ParsedScan, ScanResult, ScoreComponent } from "../types";
 
 interface Props {
@@ -323,7 +324,11 @@ function StockRow({
             </div>
             <div>
               <span className="text-gray-500">Price</span>
-              <p className="font-medium">${stock.price?.toFixed(2) || "N/A"}</p>
+              <p className="font-medium">
+                {stock.price != null
+                  ? formatLocalPrice(stock.ticker, stock.price)
+                  : "N/A"}
+              </p>
             </div>
             <div>
               <span className="text-gray-500">Rev Growth</span>

@@ -3,6 +3,7 @@
 import type { InlineKeyboardButton, TimePeriod } from "./types";
 import { db, telegramUsers } from "@/db";
 import { eq } from "drizzle-orm";
+import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
 
 // Ensure user exists in database
 export async function ensureUser(
@@ -42,9 +43,12 @@ export function formatPercent(value: number | null | undefined): string {
   return `${sign}${value.toFixed(2)}%`;
 }
 
-export function formatPrice(price: number | null | undefined): string {
-  if (price === null || price === undefined) return "-";
-  return `$${price.toFixed(2)}`;
+export function formatPrice(
+  ticker: string,
+  price: number | null | undefined,
+  currency?: string | null,
+): string {
+  return formatLocalPrice(ticker, price, currency);
 }
 
 export function getEmoji(value: number | null | undefined): string {

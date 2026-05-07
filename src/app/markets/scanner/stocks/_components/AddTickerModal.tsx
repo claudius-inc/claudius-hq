@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkles, ArrowLeft } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
+import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
 import { TagComboBox, type ComboOption } from "./TagComboBox";
 
 interface AddTickerModalProps {
@@ -21,6 +22,7 @@ interface LookupResult {
   exchange: string | null;
   price: number | null;
   quoteType: string | null;
+  currency: string | null;
 }
 
 interface ThemeRow {
@@ -774,7 +776,9 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
                 <span className="text-emerald-600">
                   ✓ {lookup.normalized}
                   {lookup.exchange ? ` · ${lookup.exchange}` : ""}
-                  {lookup.price != null ? ` · $${lookup.price.toFixed(2)}` : ""}
+                  {lookup.price != null
+                    ? ` · ${formatLocalPrice(lookup.normalized, lookup.price, lookup.currency)}`
+                    : ""}
                 </span>
               )}
             </div>
