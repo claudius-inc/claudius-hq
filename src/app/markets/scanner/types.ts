@@ -1,3 +1,5 @@
+import type { MarketSignals } from "@/lib/scanner/signals/types";
+
 // Score breakdown component for hover cards
 export interface ScoreComponent {
   [category: string]: { score: number; max: number };
@@ -44,6 +46,9 @@ export interface ScanResult {
   fundamentalScore?: number;
   technicalScore?: number;
   momentumScore?: number;
+
+  // Per-market supplementary signals (US insider, HK short, JP gov, SGX, CN connect)
+  marketSignals?: MarketSignals;
 }
 
 export interface ScanSummary {

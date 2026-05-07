@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/HoverCard";
 import { formatLocalPrice } from "@/lib/markets/yahoo-utils";
 import type { ParsedScan, ScanResult, ScoreComponent } from "../types";
+import { MarketSignalsCard } from "./MarketSignalsCard";
 
 interface Props {
   scan: ParsedScan | null;
@@ -437,6 +438,14 @@ function StockRow({
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Per-market supplementary signals */}
+          {stock.marketSignals && stock.market && (
+            <MarketSignalsCard
+              market={stock.market}
+              signals={stock.marketSignals}
+            />
           )}
 
           {/* Score breakdown - 3 categories only */}
