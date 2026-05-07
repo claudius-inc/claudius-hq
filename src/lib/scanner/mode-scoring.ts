@@ -8,6 +8,7 @@
  */
 
 import type { ScoreComponent } from "@/app/markets/scanner/types";
+import type { WatchlistMarket } from "@/db/schema";
 import type { PiotroskiResult } from "./piotroski";
 import type { AcademicFactorsResult } from "./academic-factors";
 
@@ -34,7 +35,10 @@ export interface AllModeScores {
   academicScore?: number; // Combined academic factor score (0-30)
 }
 
-export type Market = "US" | "SGX" | "HK" | "JP" | "CN" | "LSE";
+// Single source of truth: WATCHLIST_MARKETS in src/db/schema.ts.
+// Re-exported here so existing scanner code keeps importing `Market` from
+// mode-scoring while the canonical tuple lives next to the schema.
+export type Market = WatchlistMarket;
 
 /**
  * Yahoo Finance data structure expected by scoring functions.
@@ -171,17 +175,24 @@ function tieredScore(
 
 /**
  * Determine ROIC threshold based on market.
- * US: 15%, JP: 8%, EM Asia (HK, CN, SGX): 10%
+ * US/LSE: 15%, JP/KS: 8%, EM Asia (HK, CN, SGX): 10%
+ *
+ * KS (Korea) is treated like JP — Korean equities have idiosyncratic
+ * accounting (chaebol cross-holdings, opaque conglomerate structures), so a
+ * conservative developed-market threshold matches JP's 8% better than the
+ * 15% US/LSE bar.
  */
 function getROICThreshold(market: Market): number {
   switch (market) {
     case "JP":
+    case "KS":
       return 0.08;
     case "HK":
     case "CN":
     case "SGX":
       return 0.1;
     case "US":
+    case "LSE":
     default:
       return 0.15;
   }
