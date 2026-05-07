@@ -16,6 +16,7 @@
 
 import { createClient } from "@libsql/client";
 import YahooFinance from "yahoo-finance2";
+import { normalizeScannerName } from "../../src/lib/text/normalize-scanner-name";
 
 const yahooFinance = new YahooFinance();
 
@@ -743,7 +744,7 @@ async function getFundamentals(ticker: string): Promise<FundamentalsData | null>
     const reco = recoTrend[0] || {};
 
     return {
-      name: (price.longName || price.shortName || ticker).substring(0, 40),
+      name: normalizeScannerName(ticker, price.longName || price.shortName || ticker),
       sector: profile.sector || null,
       industry: profile.industry || null,
       mcapRaw: price.marketCap || 0,

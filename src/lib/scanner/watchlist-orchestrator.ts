@@ -14,6 +14,7 @@ import { logger } from "@/lib/logger";
 import { eq, sql } from "drizzle-orm";
 import { buildScoringInputs } from "@/lib/scanner/watchlist-fetcher";
 import { scoreMomentum, scoreTechnical } from "@/lib/scanner/watchlist";
+import { normalizeScannerName } from "@/lib/text/normalize-scanner-name";
 import type { ScoringInputs } from "@/lib/scanner/watchlist";
 import type { NewTickerMetric, WatchlistMarket } from "@/db/schema";
 
@@ -124,7 +125,7 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
     registryUpdates.push({
       ticker,
       market: detectMarket(ticker),
-      name: fetched?.name ?? ticker,
+      name: normalizeScannerName(ticker, fetched?.name ?? ticker),
       currency: fetched?.currency ?? null,
     });
   }

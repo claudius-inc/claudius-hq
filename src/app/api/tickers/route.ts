@@ -19,6 +19,7 @@ import {
   isProfileEmpty,
 } from "@/lib/ai/ticker-ai";
 import { logger } from "@/lib/logger";
+import { normalizeScannerName } from "@/lib/text/normalize-scanner-name";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
@@ -139,8 +140,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const finalName =
-      body.name?.trim() || quote.shortName || quote.longName || null;
+    const rawName = body.name?.trim() || quote.shortName || quote.longName || null;
+    const finalName = rawName ? normalizeScannerName(normalized, rawName) : null;
     const finalSector = body.sector?.trim() || quote.sector || quote.industry || null;
     const tagList = normalizeTagList(body.tags);
     const newThemes = Array.isArray(body.newThemes) ? body.newThemes : [];
