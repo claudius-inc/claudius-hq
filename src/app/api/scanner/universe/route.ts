@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
         HK: tickers.filter((t) => t.market === "HK").length,
         JP: tickers.filter((t) => t.market === "JP").length,
         CN: tickers.filter((t) => t.market === "CN").length,
+        LSE: tickers.filter((t) => t.market === "LSE").length,
       },
     };
 

@@ -1,5 +1,5 @@
 /**
- * Normalize a free-form market label to one of: US, SGX, HK, JP, CN.
+ * Normalize a free-form market label to one of: US, SGX, HK, JP, CN, LSE.
  */
 export function normalizeMarketCode(market: string): string {
   const upper = market.toUpperCase().trim();
@@ -27,6 +27,11 @@ export function normalizeMarketCode(market: string): string {
     case "NASDAQ":
     case "AMEX":
       return "US";
+    case "LSE":
+    case "LON":
+    case "UK":
+    case "LONDON":
+      return "LSE";
     default:
       return upper;
   }
@@ -38,6 +43,7 @@ export function normalizeMarketCode(market: string): string {
  * - HK:    pad to 4 digits and append .HK
  * - JP:    append .T
  * - SGX:   append .SI
+ * - LSE:   append .L (no padding, no digit stripping)
  * - US:    no suffix
  *
  * If the input already contains a dot suffix it is returned as-is.
@@ -75,6 +81,11 @@ export function normalizeTickerForMarket(ticker: string, market: string): string
     case "SGX":
     case "SINGAPORE":
       return `${cleaned}.SI`;
+    case "LSE":
+    case "LON":
+    case "UK":
+    case "LONDON":
+      return `${cleaned}.L`;
     case "US":
     case "NYSE":
     case "NASDAQ":
@@ -100,6 +111,7 @@ export function detectMarketFromYahoo(opts: {
     if (upper.endsWith(".SI")) return "SGX";
     if (upper.endsWith(".T")) return "JP";
     if (upper.endsWith(".SS") || upper.endsWith(".SZ")) return "CN";
+    if (upper.endsWith(".L")) return "LSE";
   }
 
   const ex = (exchange || "").toUpperCase();
@@ -108,6 +120,7 @@ export function detectMarketFromYahoo(opts: {
   if (ex === "JPX") return "JP";
   if (ex === "SHH" || ex === "SHZ") return "CN";
   if (ex === "NMS" || ex === "NYQ" || ex === "ASE" || ex === "PCX" || ex === "BTS") return "US";
+  if (ex === "LSE") return "LSE";
 
   const full = (fullExchangeName || "").toLowerCase();
   if (full.includes("hong kong")) return "HK";
@@ -115,6 +128,7 @@ export function detectMarketFromYahoo(opts: {
   if (full.includes("tokyo") || full.includes("japan")) return "JP";
   if (full.includes("shanghai") || full.includes("shenzhen")) return "CN";
   if (full.includes("nasdaq") || full.includes("nyse") || full.includes("amex")) return "US";
+  if (full.includes("london")) return "LSE";
 
   return null;
 }

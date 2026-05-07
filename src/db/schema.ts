@@ -393,7 +393,7 @@ export type NewStockScan = typeof stockScans.$inferInsert;
 // theme membership) lives elsewhere.
 // ============================================================================
 
-export const WATCHLIST_MARKETS = ["US", "SGX", "HK", "JP", "KS", "CN"] as const;
+export const WATCHLIST_MARKETS = ["US", "SGX", "HK", "JP", "KS", "CN", "LSE"] as const;
 export type WatchlistMarket = (typeof WATCHLIST_MARKETS)[number];
 
 export const TICKER_METRICS_DATA_QUALITY = ["ok", "partial", "failed"] as const;

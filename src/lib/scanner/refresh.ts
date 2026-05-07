@@ -337,6 +337,7 @@ export async function runScannerRefresh(): Promise<{
       hkCount: enhancedResults.filter((r) => r.market === "HK").length,
       jpCount: enhancedResults.filter((r) => r.market === "JP").length,
       cnCount: enhancedResults.filter((r) => r.market === "CN").length,
+      lseCount: enhancedResults.filter((r) => r.market === "LSE").length,
     };
 
     // Save to database

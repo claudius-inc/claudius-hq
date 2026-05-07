@@ -26,7 +26,7 @@ interface Props {
 type ScoringMode = "combined" | "quant" | "value" | "growth";
 type TierFilter = "all" | "high" | "speculative" | "watchlist";
 type RiskFilter = "all" | "TIER 1" | "TIER 2" | "TIER 3";
-type MarketFilter = "all" | "US" | "SGX" | "HK" | "JP" | "CN";
+type MarketFilter = "all" | "US" | "SGX" | "HK" | "JP" | "CN" | "LSE";
 
 const SCORING_MODES: { value: ScoringMode; label: string }[] = [
   { value: "combined", label: "Combined" },
@@ -60,6 +60,7 @@ function getScoreColor(score: number): string {
 
 function getMarketBadgeColor(market: string): string {
   if (market === "US") return "bg-indigo-50 text-indigo-700";
+  if (market === "LSE") return "bg-rose-50 text-rose-700";
   return "bg-teal-50 text-teal-700";
 }
 
@@ -621,6 +622,9 @@ export function ScannerResults({ scan }: Props) {
   const jpCount =
     scan.summary?.jpCount ??
     scan.results.filter((r) => r.market === "JP").length;
+  const lseCount =
+    scan.summary?.lseCount ??
+    scan.results.filter((r) => r.market === "LSE").length;
 
   return (
     <div className="space-y-3">
@@ -690,6 +694,7 @@ export function ScannerResults({ scan }: Props) {
               { value: "HK", label: "HK" },
               { value: "JP", label: "Japan" },
               { value: "CN", label: "China" },
+              { value: "LSE", label: "LSE" },
             ]}
           />
           <Select
@@ -762,6 +767,7 @@ export function ScannerResults({ scan }: Props) {
               { value: "HK", label: "HK" },
               { value: "JP", label: "Japan" },
               { value: "CN", label: "China" },
+              { value: "LSE", label: "LSE" },
             ]}
           />
           <Select

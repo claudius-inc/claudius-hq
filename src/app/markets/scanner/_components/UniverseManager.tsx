@@ -28,6 +28,7 @@ interface Summary {
     HK: number;
     JP: number;
     CN: number;
+    LSE: number;
   };
 }
 
@@ -155,6 +156,7 @@ export function UniverseManager() {
     HK: "bg-rose-100 text-rose-700",
     JP: "bg-slate-100 text-slate-700",
     CN: "bg-amber-100 text-amber-700",
+    LSE: "bg-rose-50 text-rose-700",
   };
 
   return (
@@ -185,6 +187,10 @@ export function UniverseManager() {
                 <span className="inline-flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                   SGX: {summary.byMarket.SGX}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-rose-400"></span>
+                  LSE: {summary.byMarket.LSE || 0}
                 </span>
               </div>
             </div>
@@ -221,6 +227,7 @@ export function UniverseManager() {
               <option value="HK">HK</option>
               <option value="JP">Japan</option>
               <option value="CN">China</option>
+              <option value="LSE">UK (LSE)</option>
             </select>
             <input
               type="text"
@@ -272,6 +279,7 @@ export function UniverseManager() {
             <option value="HK">HK</option>
             <option value="JP">Japan</option>
             <option value="CN">China</option>
+            <option value="LSE">UK (LSE)</option>
           </select>
         </div>
       </div>

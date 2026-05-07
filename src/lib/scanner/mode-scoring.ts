@@ -34,7 +34,7 @@ export interface AllModeScores {
   academicScore?: number; // Combined academic factor score (0-30)
 }
 
-export type Market = "US" | "SGX" | "HK" | "JP" | "CN";
+export type Market = "US" | "SGX" | "HK" | "JP" | "CN" | "LSE";
 
 /**
  * Yahoo Finance data structure expected by scoring functions.

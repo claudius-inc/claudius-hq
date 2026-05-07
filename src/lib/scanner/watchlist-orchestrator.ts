@@ -32,6 +32,7 @@ function detectMarket(ticker: string): WatchlistMarket {
   if (t.endsWith(".T")) return "JP";
   if (t.endsWith(".KS") || t.endsWith(".KQ")) return "KS";
   if (t.endsWith(".SZ") || t.endsWith(".SS")) return "CN";
+  if (t.endsWith(".L")) return "LSE";
   return "US";
 }
 

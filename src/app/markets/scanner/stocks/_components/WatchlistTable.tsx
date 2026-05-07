@@ -8,7 +8,7 @@ import { EditTickerButton } from "./EditTickerButton";
 export type WatchlistRow = {
   ticker: string;
   name: string;
-  market: "US" | "SGX" | "HK" | "JP" | "KS" | "CN";
+  market: "US" | "SGX" | "HK" | "JP" | "KS" | "CN" | "LSE";
   price: number | null;
   momentumScore: number | null;
   technicalScore: number | null;
@@ -36,7 +36,7 @@ type SortKey =
 type SortDir = "asc" | "desc";
 
 interface Filters {
-  markets: Set<"US" | "SGX" | "HK" | "JP" | "KS" | "CN">;
+  markets: Set<"US" | "SGX" | "HK" | "JP" | "KS" | "CN" | "LSE">;
   momentumTier: "all" | "ge40" | "ge70";
   positive1wOnly: boolean;
   themeIds: Set<number>;
@@ -362,17 +362,18 @@ function FilterBar({
   themeNames: ThemeNameMap;
 }) {
   const [themesExpanded, setThemesExpanded] = useState(false);
-  const markets: ("US" | "SGX" | "HK" | "JP" | "KS" | "CN")[] = [
+  const markets: ("US" | "SGX" | "HK" | "JP" | "KS" | "CN" | "LSE")[] = [
     "US",
     "SGX",
     "HK",
     "JP",
     "KS",
     "CN",
+    "LSE",
   ];
   const themeEntries = Object.entries(themeNames);
 
-  const toggleMarket = (m: "US" | "SGX" | "HK" | "JP" | "KS" | "CN") => {
+  const toggleMarket = (m: "US" | "SGX" | "HK" | "JP" | "KS" | "CN" | "LSE") => {
     const next = new Set(filters.markets);
     if (next.has(m)) next.delete(m);
     else next.add(m);

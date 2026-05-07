@@ -13,7 +13,7 @@ export interface ScanResult {
   tier: string;
   tierColor: string;
   riskTier: string;
-  market?: "US" | "SGX" | "HK" | "JP" | "CN";
+  market?: "US" | "SGX" | "HK" | "JP" | "CN" | "LSE";
 
   // Multi-mode scores (each 0-100)
   quantScore?: number;
@@ -58,6 +58,7 @@ export interface ScanSummary {
   hkCount?: number;
   jpCount?: number;
   cnCount?: number;
+  lseCount?: number;
 }
 
 export interface ParsedScan {

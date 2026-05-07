@@ -51,7 +51,7 @@ interface AddTickerBody {
   profile?: TickerProfile;
 }
 
-const MARKET_CANDIDATES = ["US", "SGX", "HK", "JP", "CN"] as const;
+const MARKET_CANDIDATES = ["US", "SGX", "HK", "JP", "CN", "LSE"] as const;
 
 async function tryQuote(symbol: string): Promise<YahooQuote | null> {
   try {

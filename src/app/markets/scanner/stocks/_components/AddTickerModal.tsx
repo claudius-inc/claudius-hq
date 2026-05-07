@@ -46,7 +46,7 @@ interface AiSuggestion {
   profile: AiProfile;
 }
 
-const MARKETS = ["US", "SGX", "HK", "JP", "CN"] as const;
+const MARKETS = ["US", "SGX", "HK", "JP", "CN", "LSE"] as const;
 
 type Mode = "edit" | "review";
 
