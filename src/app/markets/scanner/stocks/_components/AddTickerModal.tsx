@@ -266,10 +266,13 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
           setLookup(null);
           return;
         }
-        // Keep current selection if still in the result set, else pick top.
+        // Keep current selection if still in the result set. Otherwise only
+        // auto-select when unambiguous — for 2+ matches, leave selection
+        // empty so the user picks explicitly (no flash of wrong listing).
         setSelectedSymbol((prev) => {
           if (prev && list.some((c) => c.symbol === prev)) return prev;
-          return list[0].symbol;
+          if (list.length === 1) return list[0].symbol;
+          return null;
         });
       } catch (e) {
         setSearchError(String(e));
