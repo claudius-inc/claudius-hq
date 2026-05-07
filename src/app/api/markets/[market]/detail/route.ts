@@ -10,7 +10,8 @@
  *  - JP  → JP_FX                 (USD/JPY spot + 50/200-day MAs from
  *                                 Yahoo Finance; the dominant macro
  *                                 variable for Nikkei earnings)
- *  - HK  → PLACEHOLDER           (proper market-level flow fetcher pending)
+ *  - HK  → HK_FLOW               (southbound (CN→HK) Stock Connect net
+ *                                 flow from Eastmoney; market-wide)
  *  - LSE / KS → PLACEHOLDER      (no fetcher wired)
  *
  * Caches the response in `market_cache` for 5 minutes keyed by market.
@@ -30,6 +31,10 @@ import {
   type CNNorthboundFlowData,
 } from "@/lib/markets/flows/cn";
 import { fetchJPFX, type JPFXData } from "@/lib/markets/flows/jp";
+import {
+  fetchHKSouthboundFlow,
+  type HKFlowData,
+} from "@/lib/markets/flows/hk";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +74,11 @@ interface JPFXAggregate {
   flow: JPFXData | null;
 }
 
+interface HKFlowAggregate {
+  type: "HK_FLOW";
+  flow: HKFlowData | null;
+}
+
 interface PlaceholderAggregate {
   type: "PLACEHOLDER";
   message: string;
@@ -79,6 +89,7 @@ type SignalAggregate =
   | SGXFlagsAggregate
   | CNNorthboundFlowAggregate
   | JPFXAggregate
+  | HKFlowAggregate
   | PlaceholderAggregate;
 
 interface MarketDetailResponse {
@@ -208,6 +219,11 @@ async function buildJPAggregate(): Promise<JPFXAggregate> {
   return { type: "JP_FX", flow };
 }
 
+async function buildHKAggregate(): Promise<HKFlowAggregate> {
+  const flow = await fetchHKSouthboundFlow();
+  return { type: "HK_FLOW", flow };
+}
+
 async function buildAggregate(
   market: WatchlistMarket,
   rows: UniverseRow[],
@@ -222,14 +238,7 @@ async function buildAggregate(
     case "JP":
       return { signals: await buildJPAggregate(), tickerCount: 0 };
     case "HK":
-      return {
-        signals: {
-          type: "PLACEHOLDER",
-          message:
-            "Market-level flow data (south-bound flow, HIBOR, HSI dividend yield) not yet wired",
-        },
-        tickerCount: 0,
-      };
+      return { signals: await buildHKAggregate(), tickerCount: 0 };
     case "KS":
     case "LSE":
     default:

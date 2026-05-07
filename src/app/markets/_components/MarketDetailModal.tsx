@@ -10,6 +10,7 @@ import {
   Building2,
   ArrowRightLeft,
   DollarSign,
+  Info,
 } from "lucide-react";
 import {
   Bar,
@@ -116,6 +117,26 @@ interface JPFXAggregate {
   flow: JPFXPayload | null;
 }
 
+interface HKFlowPayload {
+  metric: "southbound_net" | "southbound_turnover_proxy" | "hsi_yield_spread" | "hibor";
+  primaryValue: number;
+  primaryLabel: string;
+  direction: "supportive" | "neutral" | "headwind";
+  contextValue?: number;
+  contextLabel?: string;
+  recent: Array<{ date: string; value: number }>;
+  interpretation: string;
+  dataDate?: string;
+  source: string;
+  fetchedAt: string;
+  note?: string;
+}
+
+interface HKFlowAggregate {
+  type: "HK_FLOW";
+  flow: HKFlowPayload | null;
+}
+
 interface PlaceholderAggregate {
   type: "PLACEHOLDER";
   message: string;
@@ -126,6 +147,7 @@ type SignalAggregate =
   | SGXFlagsAggregate
   | CNFlowAggregate
   | JPFXAggregate
+  | HKFlowAggregate
   | PlaceholderAggregate;
 
 interface MarketDetailResponse {
@@ -857,6 +879,163 @@ function JPFXView({ data }: { data: JPFXAggregate }) {
   );
 }
 
+// ── HK southbound flow view ─────────────────────────────────────────
+
+function formatHkd(n: number, signed = false): string {
+  const sign = signed ? (n >= 0 ? "+" : "−") : "";
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000_000) return `${sign}HK$${(abs / 1_000_000_000).toFixed(2)}B`;
+  if (abs >= 1_000_000) return `${sign}HK$${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}HK$${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}HK$${abs.toFixed(0)}`;
+}
+
+function formatPp(n: number): string {
+  return `${n >= 0 ? "+" : ""}${n.toFixed(2)}pp`;
+}
+
+function formatPct(n: number): string {
+  return `${n.toFixed(2)}%`;
+}
+
+function formatHkValue(metric: HKFlowPayload["metric"], v: number, signed = false): string {
+  switch (metric) {
+    case "southbound_net":
+    case "southbound_turnover_proxy":
+      return formatHkd(v, signed);
+    case "hsi_yield_spread":
+      return formatPp(v);
+    case "hibor":
+      return formatPct(v);
+  }
+}
+
+const HK_DIRECTION_STYLES = {
+  supportive: {
+    label: "Supportive",
+    badge: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    headline: "text-emerald-700",
+    bar: "#10b981",
+  },
+  neutral: {
+    label: "Neutral",
+    badge: "bg-gray-100 text-gray-700 border-gray-200",
+    headline: "text-gray-900",
+    bar: "#6b7280",
+  },
+  headwind: {
+    label: "Headwind",
+    badge: "bg-red-100 text-red-700 border-red-200",
+    headline: "text-red-700",
+    bar: "#ef4444",
+  },
+} as const;
+
+function HKFlowView({ data }: { data: HKFlowAggregate }) {
+  const flow = data.flow;
+  if (!flow) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+        <div className="text-xs text-gray-500">
+          Southbound flow data unavailable.
+        </div>
+      </div>
+    );
+  }
+
+  const style = HK_DIRECTION_STYLES[flow.direction];
+
+  // Headline value: signed for monetary metrics, unsigned for yield/hibor
+  // (hsi_yield_spread already includes its own sign via formatPp).
+  const isMonetary =
+    flow.metric === "southbound_net" || flow.metric === "southbound_turnover_proxy";
+  const headlineText = formatHkValue(flow.metric, flow.primaryValue, isMonetary);
+
+  // Sparkline bars colored by sign for monetary metrics; flat tone otherwise.
+  const sparkData = flow.recent.map((p) => ({ date: p.date, value: p.value }));
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-gray-200 bg-white p-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1">
+              {flow.primaryLabel}
+            </div>
+            <div className={`text-2xl font-bold tabular-nums ${style.headline}`}>
+              {headlineText}
+            </div>
+            <div className="mt-1">
+              <span
+                className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${style.badge}`}
+              >
+                {style.label}
+              </span>
+            </div>
+          </div>
+          {sparkData.length > 1 && (
+            <div className="w-32 h-12 shrink-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={sparkData}
+                  margin={{ top: 2, right: 0, bottom: 2, left: 0 }}
+                >
+                  <Bar dataKey="value" radius={[1, 1, 0, 0]}>
+                    {sparkData.map((d, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          isMonetary
+                            ? d.value >= 0
+                              ? "#10b981"
+                              : "#ef4444"
+                            : style.bar
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+        {typeof flow.contextValue === "number" && flow.contextLabel && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <StatCard
+              label={flow.contextLabel}
+              value={formatHkValue(flow.metric, flow.contextValue, isMonetary)}
+            />
+            <StatCard
+              label="Today vs avg"
+              value={
+                flow.contextValue
+                  ? `${((flow.primaryValue / flow.contextValue) * 100).toFixed(0)}%`
+                  : "—"
+              }
+              hint={style.label.toLowerCase()}
+            />
+          </div>
+        )}
+      </div>
+
+      <div className="text-[11px] text-gray-500 leading-snug">
+        {flow.interpretation}
+      </div>
+      {flow.note && (
+        <div className="text-[10px] text-gray-600 leading-snug flex items-start gap-1.5 bg-gray-50 border border-gray-200 rounded px-2 py-1.5">
+          <Info className="w-3 h-3 mt-0.5 shrink-0 text-gray-400" />
+          <span>{flow.note}</span>
+        </div>
+      )}
+      <div className="text-[10px] text-gray-400 flex items-center gap-1">
+        <ArrowRightLeft className="w-3 h-3" />
+        Source: {flow.source}
+        {flow.dataDate ? ` · ${flow.dataDate}` : ` · ${flow.fetchedAt.slice(0, 10)}`}
+      </div>
+    </div>
+  );
+}
+
 function PlaceholderView({ data }: { data: PlaceholderAggregate }) {
   return (
     <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
@@ -889,6 +1068,11 @@ function getSignalHeader(market: string): { title: string; icon: React.ReactNode
       return {
         title: "FX — USD/JPY",
         icon: <DollarSign className="w-4 h-4 text-gray-500" />,
+      };
+    case "HK":
+      return {
+        title: "Stock Connect — Southbound flow",
+        icon: <ArrowRightLeft className="w-4 h-4 text-gray-500" />,
       };
     default:
       return {
@@ -999,6 +1183,9 @@ export function MarketDetailModal({
               )}
               {data.signals.type === "JP_FX" && (
                 <JPFXView data={data.signals} />
+              )}
+              {data.signals.type === "HK_FLOW" && (
+                <HKFlowView data={data.signals} />
               )}
               {data.signals.type === "PLACEHOLDER" && (
                 <PlaceholderView data={data.signals} />
