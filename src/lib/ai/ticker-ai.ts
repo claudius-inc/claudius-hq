@@ -3,13 +3,17 @@ import { db, themes } from "@/db";
 import { listAllTags } from "@/lib/markets/tags";
 import { logger } from "@/lib/logger";
 
-// Single Gemini call that returns everything we want to know about a ticker:
-// the AddTickerModal classification (description + tags + themes) PLUS the
-// qualitative profile (revenue model, segments, cyclicality, SWOT, customer
-// concentration). Splitting these would mean two Gemini calls per add — same
-// prompt context, twice the cost — so we batch.
+// Two Gemini paths so the modal-time call is fast:
+//   - FAST_MODEL (Flash) handles the classification (description + tags +
+//     themes) shown directly in the AddTickerModal. Cheap, ~3-5s.
+//   - DEEP_MODEL (Pro) handles the qualitative SWOT profile that backs the
+//     ticker detail page. Slower, ~15-25s, only run by backfill / explicit
+//     re-draft / `generateTickerAiResult` (parallel batch).
+// Both calls use `responseMimeType: "application/json"` so Gemini commits to
+// valid JSON without spending tokens on prose framing.
 
-const MODEL_NAME = "gemini-3.1-pro-preview";
+const FAST_MODEL = "gemini-2.0-flash";
+const DEEP_MODEL = "gemini-3.1-pro-preview";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -120,60 +124,111 @@ function parseProfile(raw: unknown): TickerProfile {
   };
 }
 
-function buildPrompt(
+function tickerHeader(input: TickerAiInput): string {
+  return `Ticker: ${input.ticker}
+Company: ${input.name || "(unknown)"}
+Sector: ${input.sector || "(unknown)"}
+Exchange: ${input.exchange || "(unknown)"}
+Market: ${input.market || "(unknown)"}`;
+}
+
+function buildClassificationPrompt(
   input: TickerAiInput,
   tagVocabulary: string,
   themeVocabulary: string,
 ): string {
-  return `You're classifying and profiling a publicly traded stock for an investment research tool.
+  return `You're classifying a publicly traded stock for an investment research tool.
 
-Ticker: ${input.ticker}
-Company: ${input.name || "(unknown)"}
-Sector: ${input.sector || "(unknown)"}
-Exchange: ${input.exchange || "(unknown)"}
-Market: ${input.market || "(unknown)"}
+${tickerHeader(input)}
 
 Existing tag vocabulary (lowercase, hyphenated): ${tagVocabulary || "(none yet)"}
 Existing themes: ${themeVocabulary || "(none yet)"}
 
-Return STRICT JSON with this exact shape, and nothing else (no code fences, no commentary):
+Return STRICT JSON with this exact shape:
 {
   "description": "1-2 sentences describing what the company does. Plain prose. No marketing fluff.",
   "tags": ["tag1", "tag2"],
-  "themes": ["Theme A", "Theme B"],
-  "profile": {
-    "revenueModel": "1 sentence on HOW the company makes money (e.g. transactional fees per trade; subscription SaaS; product sales + services).",
-    "revenueSegments": [{"item": "Segment name", "pct": 60}, {"item": "Other", "pct": 40}],
-    "cyclicality": "1 short clause on cyclicality (e.g. 'highly cyclical, tied to capex spend' or 'defensive, recession-resistant consumer staples' or 'secular growth, AI compute demand').",
-    "tailwinds": ["concrete macro/secular tailwind 1", "tailwind 2"],
-    "headwinds": ["concrete macro/structural headwind 1", "headwind 2"],
-    "threats": ["firm-specific threat 1 (regulatory, competitive, technological)", "threat 2"],
-    "opportunities": ["firm-specific opportunity 1 (new market, product, geography)", "opportunity 2"],
-    "customerConcentration": "1 short sentence: top customers, % of revenue from largest customer if known, or 'diversified' / 'unknown' if not concentrated or unclear."
-  }
+  "themes": ["Theme A", "Theme B"]
 }
 
 Rules:
 - tags: 2-5 items. Prefer existing vocabulary verbatim. Lowercase, hyphenated. Suggest a NEW tag only when no existing tag fits.
 - themes: 1-3 items. Prefer existing theme names verbatim (case-sensitive).
-- profile.revenueSegments: 2-5 segments, percentages should approximately sum to 100. If you don't know exact splits, give your best-estimate breakdown — DO NOT invent precise numbers; round to 5% or 10%. If truly unknown, return an empty array [].
-- profile lists (tailwinds/headwinds/threats/opportunities): 2-4 items each. Be specific to THIS company, not generic platitudes. If unknown for a field, return an empty array [].
-- All profile string fields: factual, terse, no hype. If unknown, return an empty string "".
 - Do not include any keys other than the ones shown above.`;
 }
 
-// Generate a full ticker profile + classification via Gemini.
-//
-// Throws on:
-//   - missing GEMINI_API_KEY
-//   - Gemini API failure
-//   - response that can't be parsed as JSON
-//
-// Caller is expected to handle errors. The function does NOT mutate the DB —
-// it returns the parsed/normalized result for the caller to persist.
-export async function generateTickerAiResult(
+function buildProfilePrompt(input: TickerAiInput): string {
+  return `You're profiling a publicly traded stock for an investment research tool.
+
+${tickerHeader(input)}
+
+Return STRICT JSON with this exact shape:
+{
+  "revenueModel": "1 sentence on HOW the company makes money (e.g. transactional fees per trade; subscription SaaS; product sales + services).",
+  "revenueSegments": [{"item": "Segment name", "pct": 60}, {"item": "Other", "pct": 40}],
+  "cyclicality": "1 short clause on cyclicality (e.g. 'highly cyclical, tied to capex spend' or 'defensive, recession-resistant consumer staples' or 'secular growth, AI compute demand').",
+  "tailwinds": ["concrete macro/secular tailwind 1", "tailwind 2"],
+  "headwinds": ["concrete macro/structural headwind 1", "headwind 2"],
+  "threats": ["firm-specific threat 1 (regulatory, competitive, technological)", "threat 2"],
+  "opportunities": ["firm-specific opportunity 1 (new market, product, geography)", "opportunity 2"],
+  "customerConcentration": "1 short sentence: top customers, % of revenue from largest customer if known, or 'diversified' / 'unknown' if not concentrated or unclear."
+}
+
+Rules:
+- revenueSegments: 2-5 segments, percentages should approximately sum to 100. If you don't know exact splits, give your best-estimate breakdown — DO NOT invent precise numbers; round to 5% or 10%. If truly unknown, return an empty array [].
+- Lists (tailwinds/headwinds/threats/opportunities): 2-4 items each. Be specific to THIS company, not generic platitudes. If unknown for a field, return an empty array [].
+- All string fields: factual, terse, no hype. If unknown, return an empty string "".
+- Do not include any keys other than the ones shown above.`;
+}
+
+// Normalize the model's tags array against the existing tag vocabulary.
+function normalizeTags(
+  raw: unknown,
+  existingTagSet: Set<string>,
+): SuggestedTag[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const seen = new Set<string>();
+  const out: SuggestedTag[] = [];
+  for (const t of list) {
+    if (typeof t !== "string") continue;
+    const norm = t.trim().toLowerCase();
+    if (!norm || seen.has(norm)) continue;
+    seen.add(norm);
+    out.push({ name: norm, isExisting: existingTagSet.has(norm) });
+  }
+  return out;
+}
+
+// Normalize the model's themes array against the existing themes table.
+function normalizeThemes(
+  raw: unknown,
+  themeByName: Map<string, { id: number; name: string }>,
+): SuggestedTheme[] {
+  const list = Array.isArray(raw) ? raw : [];
+  const seen = new Set<string>();
+  const out: SuggestedTheme[] = [];
+  for (const t of list) {
+    if (typeof t !== "string") continue;
+    const trimmed = t.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const match = themeByName.get(key);
+    if (match) {
+      out.push({ name: match.name, id: match.id, isExisting: true });
+    } else {
+      out.push({ name: trimmed, id: null, isExisting: false });
+    }
+  }
+  return out;
+}
+
+// Fast classification path used by the AddTickerModal — Flash + JSON mode.
+// Returns description + tags + themes only. Typical latency 3-5s.
+export async function generateTickerClassification(
   input: TickerAiInput,
-): Promise<TickerAiResult> {
+): Promise<Pick<TickerAiResult, "description" | "tags" | "themes">> {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY not configured");
   }
@@ -194,59 +249,78 @@ export async function generateTickerAiResult(
     .join(", ");
   const themeVocabulary = allThemes.map((t) => `"${t.name}"`).join(", ");
 
-  const prompt = buildPrompt(input, tagVocabulary, themeVocabulary);
+  const prompt = buildClassificationPrompt(input, tagVocabulary, themeVocabulary);
 
-  const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+  const model = genAI.getGenerativeModel({
+    model: FAST_MODEL,
+    generationConfig: { responseMimeType: "application/json" },
+  });
   const result = await model.generateContent(prompt);
   const text = result.response.text();
 
   const parsed = pickJsonObject(text);
   if (!parsed) {
-    logger.warn("ticker-ai", "Could not parse Gemini response", {
+    logger.warn("ticker-ai", "Could not parse classification response", {
       ticker: input.ticker,
       textPreview: text.slice(0, 200),
     });
     throw new Error("AI response could not be parsed");
   }
 
-  const description = asString(parsed.description) || "";
-
-  const rawTags = Array.isArray(parsed.tags) ? parsed.tags : [];
-  const rawThemes = Array.isArray(parsed.themes) ? parsed.themes : [];
-
-  const seenTags = new Set<string>();
-  const tags: SuggestedTag[] = [];
-  for (const t of rawTags) {
-    if (typeof t !== "string") continue;
-    const norm = t.trim().toLowerCase();
-    if (!norm || seenTags.has(norm)) continue;
-    seenTags.add(norm);
-    tags.push({ name: norm, isExisting: existingTagSet.has(norm) });
-  }
-
-  const seenThemes = new Set<string>();
-  const themesOut: SuggestedTheme[] = [];
-  for (const t of rawThemes) {
-    if (typeof t !== "string") continue;
-    const trimmed = t.trim();
-    if (!trimmed) continue;
-    const key = trimmed.toLowerCase();
-    if (seenThemes.has(key)) continue;
-    seenThemes.add(key);
-    const match = themeByName.get(key);
-    if (match) {
-      themesOut.push({ name: match.name, id: match.id, isExisting: true });
-    } else {
-      themesOut.push({ name: trimmed, id: null, isExisting: false });
-    }
-  }
-
   return {
-    description,
-    tags,
-    themes: themesOut,
-    profile: parseProfile(parsed.profile),
+    description: asString(parsed.description) || "",
+    tags: normalizeTags(parsed.tags, existingTagSet),
+    themes: normalizeThemes(parsed.themes, themeByName),
   };
+}
+
+// Slow profile path used by backfill / explicit re-draft — Pro + JSON mode.
+// Typical latency 15-25s.
+export async function generateTickerProfile(
+  input: TickerAiInput,
+): Promise<TickerProfile> {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY not configured");
+  }
+
+  const prompt = buildProfilePrompt(input);
+
+  const model = genAI.getGenerativeModel({
+    model: DEEP_MODEL,
+    generationConfig: { responseMimeType: "application/json" },
+  });
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+
+  const parsed = pickJsonObject(text);
+  if (!parsed) {
+    logger.warn("ticker-ai", "Could not parse profile response", {
+      ticker: input.ticker,
+      textPreview: text.slice(0, 200),
+    });
+    throw new Error("AI response could not be parsed");
+  }
+
+  return parseProfile(parsed);
+}
+
+// Generate a full ticker profile + classification via Gemini. Runs the two
+// paths in parallel — classification (fast) + profile (slow). Used by the
+// re-draft flow and the backfill script. Modal auto-suggest uses
+// `generateTickerClassification` directly to avoid waiting on profile.
+//
+// Throws on:
+//   - missing GEMINI_API_KEY
+//   - Gemini API failure
+//   - response that can't be parsed as JSON
+export async function generateTickerAiResult(
+  input: TickerAiInput,
+): Promise<TickerAiResult> {
+  const [classification, profile] = await Promise.all([
+    generateTickerClassification(input),
+    generateTickerProfile(input),
+  ]);
+  return { ...classification, profile };
 }
 
 // ============================================================================

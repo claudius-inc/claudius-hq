@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateTickerAiResult } from "@/lib/ai/ticker-ai";
+import { generateTickerClassification } from "@/lib/ai/ticker-ai";
 import { logger } from "@/lib/logger";
 
 interface AiSuggestBody {
@@ -12,9 +12,10 @@ interface AiSuggestBody {
 
 // POST /api/tickers/ai-suggest
 // Body: { ticker, name?, sector?, exchange?, market? }
-// Returns description + tags + themes + qualitative profile, marking each
-// classification item as existing-or-new. Does NOT mutate the DB —
-// persistence happens when the user submits the modal (POST /api/tickers).
+// Returns description + tags + themes only. Profile generation is split out
+// to a slower Pro-model path so the modal isn't blocked on a 20s+ call —
+// callers that need the profile (backfill, explicit re-draft) use
+// `/api/tickers/[ticker]/redraft` which runs `generateTickerAiResult`.
 export async function POST(req: NextRequest) {
   let body: AiSuggestBody;
   try {
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await generateTickerAiResult({
+    const result = await generateTickerClassification({
       ticker,
       name: body.name,
       sector: body.sector,
@@ -50,10 +51,6 @@ export async function POST(req: NextRequest) {
       newTags: result.tags.filter((t) => !t.isExisting).length,
       themeCount: result.themes.length,
       newThemes: result.themes.filter((t) => !t.isExisting).length,
-      hasProfile:
-        !!result.profile.revenueModel ||
-        !!result.profile.cyclicality ||
-        (result.profile.revenueSegments?.length ?? 0) > 0,
     });
 
     return NextResponse.json(result);

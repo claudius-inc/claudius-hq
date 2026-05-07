@@ -748,14 +748,16 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     setMode("edit");
   };
 
-  // AI loading deliberately does NOT block submit — the AI fill is enrichment,
-  // not gating. If the user is happy with what they see, let them ship.
+  // Submit is blocked during every auto-fill phase (search, resolve, AI). The
+  // AI fill is fast enough now that gating it is no worse than letting users
+  // ship a half-populated form.
   const canSubmit =
     !!lookup &&
     !submitting &&
     tickerInput.trim().length > 0 &&
     !lookupLoading &&
-    !searching;
+    !searching &&
+    !aiLoading;
 
   // Phase flags for field-level disabling. The `resolveBusy` umbrella covers
   // the search→resolve chain so Market/Sector/Name don't fight the auto-fill.
@@ -1047,95 +1049,86 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
             />
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-sm font-medium text-gray-700">
+          {/* Description + Tags + Themes — populated together by the AI
+              auto-suggest, so we lock them as a single group while the AI is
+              working. One overlay over the whole region beats per-field
+              disabled states (less visual noise; clearer "wait" signal). */}
+          <div className="relative space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Description (optional)
               </label>
-              {aiLoading && (
-                <span className="text-[11px] text-gray-500 inline-flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-500" />
-                  AI suggesting…
-                </span>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+                placeholder="1-2 sentence summary of what the company does"
+                disabled={aiLoading}
+                className="input w-full resize-none disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tags
+              </label>
+              <TagComboBox
+                selected={tags}
+                onChange={onTagsChange}
+                loadOptions={loadTagOptions}
+                onCreate={onCreateTag}
+                labels={tagLabels}
+                newValues={pendingNewTagSet}
+                placeholder="Search or create tags…"
+                lowerCase
+                ariaLabel="Tags"
+                disabled={aiLoading}
+              />
+              {pendingNewTags.length > 0 ? (
+                <p className="text-xs text-amber-600 mt-1">
+                  Will create {pendingNewTags.length} new tag
+                  {pendingNewTags.length === 1 ? "" : "s"} on submit.
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 mt-1">
+                  Reuse existing tags where possible. Tags share one normalized{" "}
+                  <code className="text-[11px]">tags</code> pool across tickers and themes.
+                </p>
               )}
             </div>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder={
-                aiLoading && !notes.trim()
-                  ? "AI is drafting a summary…"
-                  : "1-2 sentence summary of what the company does"
-              }
-              disabled={aiLoading && !notes.trim()}
-              className="input w-full resize-none disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-            />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tags
-            </label>
-            <TagComboBox
-              selected={tags}
-              onChange={onTagsChange}
-              loadOptions={loadTagOptions}
-              onCreate={onCreateTag}
-              labels={tagLabels}
-              newValues={pendingNewTagSet}
-              placeholder={
-                aiLoading && tags.length === 0
-                  ? "AI is suggesting tags…"
-                  : "Search or create tags…"
-              }
-              lowerCase
-              ariaLabel="Tags"
-              disabled={aiLoading && tags.length === 0}
-            />
-            {pendingNewTags.length > 0 ? (
-              <p className="text-xs text-amber-600 mt-1">
-                Will create {pendingNewTags.length} new tag
-                {pendingNewTags.length === 1 ? "" : "s"} on submit.
-              </p>
-            ) : (
-              <p className="text-xs text-gray-400 mt-1">
-                Reuse existing tags where possible. Tags share one normalized{" "}
-                <code className="text-[11px]">tags</code> pool across tickers and themes.
-              </p>
-            )}
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Themes
+              </label>
+              <TagComboBox
+                selected={themeSelectionForCombo}
+                onChange={onThemesChange}
+                loadOptions={loadThemeOptions}
+                onCreate={onCreateTheme}
+                labels={themeLabels}
+                newValues={newThemeValueSet}
+                placeholder="Search or create themes…"
+                ariaLabel="Themes"
+                disabled={aiLoading}
+              />
+              {pendingNewThemes.length > 0 && (
+                <p className="text-xs text-amber-600 mt-1">
+                  Will create {pendingNewThemes.length} new theme
+                  {pendingNewThemes.length === 1 ? "" : "s"} on submit.
+                </p>
+              )}
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Themes
-            </label>
-            <TagComboBox
-              selected={themeSelectionForCombo}
-              onChange={onThemesChange}
-              loadOptions={loadThemeOptions}
-              onCreate={onCreateTheme}
-              labels={themeLabels}
-              newValues={newThemeValueSet}
-              placeholder={
-                aiLoading &&
-                themeIds.length === 0 &&
-                pendingNewThemes.length === 0
-                  ? "AI is suggesting themes…"
-                  : "Search or create themes…"
-              }
-              ariaLabel="Themes"
-              disabled={
-                aiLoading &&
-                themeIds.length === 0 &&
-                pendingNewThemes.length === 0
-              }
-            />
-            {pendingNewThemes.length > 0 && (
-              <p className="text-xs text-amber-600 mt-1">
-                Will create {pendingNewThemes.length} new theme
-                {pendingNewThemes.length === 1 ? "" : "s"} on submit.
-              </p>
+            {aiLoading && (
+              <div className="absolute inset-0 -m-2 rounded-md bg-white/70 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-auto">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-amber-200 shadow-sm">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                  <span className="text-xs font-medium text-amber-800">
+                    AI is drafting description, tags, and themes…
+                  </span>
+                </div>
+              </div>
             )}
           </div>
 
