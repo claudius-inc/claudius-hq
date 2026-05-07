@@ -25,7 +25,6 @@ async function main() {
       ticker: schema.scannerUniverse.ticker,
       market: schema.scannerUniverse.market,
       name: schema.scannerUniverse.name,
-      sector: schema.scannerUniverse.sector,
     })
     .from(schema.scannerUniverse)
     .where(isNull(schema.scannerUniverse.profileGeneratedAt))

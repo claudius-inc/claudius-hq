@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const results = [];
     for (const item of tickersToAdd) {
-      const { ticker, market, name, sector, source, notes, currency } = item;
+      const { ticker, market, name, source, notes, currency } = item;
 
       if (!ticker || !market) {
         results.push({ ticker, error: "ticker and market required" });
@@ -86,7 +86,6 @@ export async function POST(request: NextRequest) {
             ticker: normalizedTicker,
             market: normalizedMarket,
             name,
-            sector,
             currency: normalizedCurrency,
             source: source || "user",
             notes,
@@ -95,7 +94,6 @@ export async function POST(request: NextRequest) {
             target: scannerUniverse.ticker,
             set: {
               name,
-              sector,
               // Don't blank a previously-good currency on update.
               ...(normalizedCurrency ? { currency: normalizedCurrency } : {}),
               notes,
@@ -154,7 +152,7 @@ export async function DELETE(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { ticker, enabled, name, sector, notes } = body;
+    const { ticker, enabled, name, notes } = body;
 
     if (!ticker) {
       return NextResponse.json(
@@ -169,7 +167,6 @@ export async function PATCH(request: NextRequest) {
 
     if (typeof enabled === "boolean") updates.enabled = enabled;
     if (name !== undefined) updates.name = name;
-    if (sector !== undefined) updates.sector = sector;
     if (notes !== undefined) updates.notes = notes;
 
     await db

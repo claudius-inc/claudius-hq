@@ -30,8 +30,6 @@ interface YahooQuote {
   regularMarketPrice?: number;
   exchange?: string;
   fullExchangeName?: string;
-  sector?: string;
-  industry?: string;
   /** Yahoo's currency code, e.g. "USD", "GBp" (LSE pence), "HKD". */
   currency?: string;
 }
@@ -46,7 +44,6 @@ interface AddTickerBody {
   ticker?: string;
   market?: string;
   name?: string;
-  sector?: string;
   notes?: string;
   tags?: string[];
   themeIds?: number[];
@@ -83,7 +80,7 @@ function normalizeTagList(input: unknown): string[] {
 }
 
 // POST /api/tickers
-// Body: { ticker, market?, name?, sector?, notes?, tags: string[], themeIds: number[], newThemes?: [...] }
+// Body: { ticker, market?, name?, notes?, tags: string[], themeIds: number[], newThemes?: [...] }
 export async function POST(request: NextRequest) {
   let body: AddTickerBody;
   try {
@@ -142,7 +139,6 @@ export async function POST(request: NextRequest) {
 
     const rawName = body.name?.trim() || quote.shortName || quote.longName || null;
     const finalName = rawName ? normalizeScannerName(normalized, rawName) : null;
-    const finalSector = body.sector?.trim() || quote.sector || quote.industry || null;
     const tagList = normalizeTagList(body.tags);
     const newThemes = Array.isArray(body.newThemes) ? body.newThemes : [];
     const requestedThemeIds = Array.isArray(body.themeIds)
@@ -173,7 +169,6 @@ export async function POST(request: NextRequest) {
       ticker: normalized,
       market,
       name: finalName,
-      sector: finalSector,
       currency: quoteCurrency,
       source: "user",
       notes: body.notes?.trim() || null,
@@ -188,7 +183,6 @@ export async function POST(request: NextRequest) {
     const updateValues: Record<string, unknown> = {
       market,
       name: finalName,
-      sector: finalSector,
       // Only overwrite when Yahoo handed us a non-empty value, so a one-off
       // missing currency on a refresh doesn't blank the column.
       ...(quoteCurrency ? { currency: quoteCurrency } : {}),
@@ -294,7 +288,6 @@ export async function POST(request: NextRequest) {
         original: tickerRaw.toUpperCase(),
         market,
         name: finalName,
-        sector: finalSector,
         tags: mergedTags,
         themeIds: allThemeIds,
         created: isNewTicker,

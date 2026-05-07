@@ -16,8 +16,6 @@ interface YahooQuote {
   regularMarketPrice?: number;
   exchange?: string;
   fullExchangeName?: string;
-  sector?: string;
-  industry?: string;
   quoteType?: string;
   /** Yahoo's currency code, e.g. "USD", "GBp" (LSE pence). */
   currency?: string;
@@ -104,7 +102,6 @@ export async function GET(request: NextRequest) {
       normalized,
       market,
       name: quote.shortName || quote.longName || null,
-      sector: quote.sector || quote.industry || null,
       exchange: quote.fullExchangeName || quote.exchange || null,
       price: quote.regularMarketPrice ?? null,
       quoteType: quote.quoteType || null,

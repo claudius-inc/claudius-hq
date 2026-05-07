@@ -34,7 +34,7 @@ async function main() {
   const db = drizzle(client, { schema });
 
   const r = await db.run(sql`
-    SELECT u.ticker, u.market, u.name, u.sector
+    SELECT u.ticker, u.market, u.name
     FROM scanner_universe u
     WHERE u.profile_generated_at IS NULL
       AND (
@@ -50,7 +50,6 @@ async function main() {
     ticker: row.ticker as string,
     market: row.market as string,
     name: row.name as string | null,
-    sector: row.sector as string | null,
   }));
 
   console.log(`Total tickers to backfill: ${rows.length}`);

@@ -26,7 +26,6 @@ interface NewThemeInput {
 
 interface PatchTickerBody {
   name?: string | null;
-  sector?: string | null;
   notes?: string | null;
   tags?: string[];
   themeIds?: number[];
@@ -86,7 +85,6 @@ export async function GET(
       ticker: universe.ticker,
       market: universe.market,
       name: universe.name,
-      sector: universe.sector,
       notes: universe.notes,
       tags,
       themeIds: themeLinks.map((t) => t.themeId),
@@ -139,10 +137,6 @@ export async function PATCH(
     if (body.name !== undefined) {
       const trimmed = typeof body.name === "string" ? body.name.trim() : "";
       updates.name = trimmed || null;
-    }
-    if (body.sector !== undefined) {
-      const trimmed = typeof body.sector === "string" ? body.sector.trim() : "";
-      updates.sector = trimmed || null;
     }
     if (body.notes !== undefined) {
       const trimmed = typeof body.notes === "string" ? body.notes.trim() : "";

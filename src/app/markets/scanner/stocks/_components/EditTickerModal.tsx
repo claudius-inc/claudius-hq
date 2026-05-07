@@ -26,7 +26,6 @@ interface TickerData {
   ticker: string;
   market: string;
   name: string | null;
-  sector: string | null;
   notes: string | null;
   tags: string[];
   themeIds: number[];
@@ -123,7 +122,6 @@ export function EditTickerModal({
 
   // Live form state — what the user types and what gets PATCH'd.
   const [name, setName] = useState("");
-  const [sector, setSector] = useState("");
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [pendingNewTags, setPendingNewTags] = useState<string[]>([]);
@@ -158,7 +156,6 @@ export function EditTickerModal({
 
   const reset = useCallback(() => {
     setName("");
-    setSector("");
     setNotes("");
     setTags([]);
     setPendingNewTags([]);
@@ -203,7 +200,6 @@ export function EditTickerModal({
           const data = (await tickerRes.json()) as TickerData;
           if (cancelled) return;
           setName(data.name ?? "");
-          setSector(data.sector ?? "");
           setNotes(data.notes ?? "");
           setTags(data.tags ?? []);
           setThemeIds((data.themeIds ?? []).map((id) => String(id)));
@@ -514,7 +510,6 @@ export function EditTickerModal({
     try {
       const body = {
         name: name.trim() || null,
-        sector: sector.trim() || null,
         notes: notes.trim() || null,
         tags,
         themeIds: themeIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)),
@@ -550,8 +545,8 @@ export function EditTickerModal({
     setSubmitError(null);
     try {
       const body = {
-        // Keep name + sector untouched in this PATCH — review only covers
-        // description / tags / themes. Existing structural fields persist.
+        // Keep name untouched in this PATCH — review only covers description /
+        // tags / themes. Existing structural fields persist.
         notes: aiNotes.trim() || null,
         tags: aiTags,
         themeIds: aiThemeIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)),
@@ -714,19 +709,6 @@ export function EditTickerModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="input w-full"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Sector (optional)
-            </label>
-            <input
-              type="text"
-              value={sector}
-              onChange={(e) => setSector(e.target.value)}
-              placeholder="e.g. Technology"
               className="input w-full"
             />
           </div>

@@ -66,7 +66,6 @@ async function main() {
     ticker: string;
     market: string;
     name: string | null;
-    sector: string | null;
     profileGeneratedAt: string | null;
   }[];
 
@@ -76,7 +75,6 @@ async function main() {
         ticker: schema.scannerUniverse.ticker,
         market: schema.scannerUniverse.market,
         name: schema.scannerUniverse.name,
-        sector: schema.scannerUniverse.sector,
         profileGeneratedAt: schema.scannerUniverse.profileGeneratedAt,
       })
       .from(schema.scannerUniverse)
@@ -87,7 +85,6 @@ async function main() {
         ticker: schema.scannerUniverse.ticker,
         market: schema.scannerUniverse.market,
         name: schema.scannerUniverse.name,
-        sector: schema.scannerUniverse.sector,
         profileGeneratedAt: schema.scannerUniverse.profileGeneratedAt,
       })
       .from(schema.scannerUniverse);
@@ -97,7 +94,6 @@ async function main() {
         ticker: schema.scannerUniverse.ticker,
         market: schema.scannerUniverse.market,
         name: schema.scannerUniverse.name,
-        sector: schema.scannerUniverse.sector,
         profileGeneratedAt: schema.scannerUniverse.profileGeneratedAt,
       })
       .from(schema.scannerUniverse)
@@ -133,7 +129,6 @@ async function main() {
       const result = await generateTickerAiResult({
         ticker: r.ticker,
         name: r.name,
-        sector: r.sector,
         market: r.market,
       });
       const cols = profileToColumns(result.profile);

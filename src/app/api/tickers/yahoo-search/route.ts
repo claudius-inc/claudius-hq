@@ -21,8 +21,6 @@ interface YahooSearchQuote {
   quoteType?: string;
   isYahooFinance?: boolean;
   score?: number;
-  sector?: string;
-  industry?: string;
 }
 
 interface YahooSearchResult {
@@ -35,7 +33,6 @@ interface SearchCandidate {
   exchange: string | null;
   market: string | null;
   quoteType: string | null;
-  sector: string | null;
 }
 
 // GET /api/tickers/yahoo-search?q=ENSI&market=LSE&limit=6
@@ -82,7 +79,6 @@ export async function GET(request: NextRequest) {
           symbol: qq.symbol,
         }),
         quoteType: qq.quoteType ?? null,
-        sector: qq.sector || qq.industry || null,
       }))
       .filter((c) => (filterMarket ? c.market === filterMarket : true))
       .slice(0, limit);

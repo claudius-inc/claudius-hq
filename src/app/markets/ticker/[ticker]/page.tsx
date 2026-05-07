@@ -212,7 +212,6 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
     null;
 
   const market = universeRow?.market || null;
-  const sector = universeRow?.sector || null;
   // Prefer the live Yahoo quote — it's the freshest. Fall back to the stored
   // column on `scanner_universe` (populated at upsert/scan time) when the
   // page-load Yahoo call fails or is rate-limited.
@@ -251,7 +250,6 @@ export default async function TickerPage({ params, searchParams }: PageProps) {
         <TickerHeader
           ticker={ticker}
           name={displayName}
-          sector={sector}
           currency={currency}
           quote={quote}
           metrics={metricsRow}

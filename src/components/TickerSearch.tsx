@@ -17,7 +17,6 @@ interface SearchHit {
   ticker: string;
   name: string | null;
   market: string;
-  sector: string | null;
 }
 
 function useIsMobile() {
@@ -410,7 +409,7 @@ function ResultsList({
               {hit.ticker}
             </span>
             <span className="text-xs text-gray-500 truncate flex-1 min-w-0">
-              {hit.name ?? hit.sector ?? ""}
+              {hit.name ?? ""}
             </span>
             <span className="text-[10px] uppercase tracking-wider text-gray-500 flex-shrink-0 px-1.5 py-0.5 rounded bg-gray-50 border border-gray-100 font-medium">
               {hit.market}

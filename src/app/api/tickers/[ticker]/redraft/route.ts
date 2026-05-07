@@ -34,7 +34,6 @@ export async function POST(
         ticker: scannerUniverse.ticker,
         market: scannerUniverse.market,
         name: scannerUniverse.name,
-        sector: scannerUniverse.sector,
       })
       .from(scannerUniverse)
       .where(eq(scannerUniverse.ticker, ticker))
@@ -51,7 +50,6 @@ export async function POST(
     const result = await generateTickerAiResult({
       ticker: row.ticker,
       name: row.name,
-      sector: row.sector,
       market: row.market,
     });
 

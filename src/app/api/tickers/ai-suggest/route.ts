@@ -5,7 +5,6 @@ import { logger } from "@/lib/logger";
 interface AiSuggestBody {
   ticker?: string;
   name?: string;
-  sector?: string;
   exchange?: string;
   market?: string;
 }
@@ -40,7 +39,6 @@ export async function POST(req: NextRequest) {
     const result = await generateTickerClassification({
       ticker,
       name: body.name,
-      sector: body.sector,
       exchange: body.exchange,
       market: body.market,
     });

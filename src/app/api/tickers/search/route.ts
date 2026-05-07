@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
         ticker: scannerUniverse.ticker,
         name: scannerUniverse.name,
         market: scannerUniverse.market,
-        sector: scannerUniverse.sector,
       })
       .from(scannerUniverse)
       .where(

@@ -49,7 +49,6 @@ export interface TickerAiResult {
 export interface TickerAiInput {
   ticker: string;
   name?: string | null;
-  sector?: string | null;
   exchange?: string | null;
   market?: string | null;
 }
@@ -127,7 +126,6 @@ function parseProfile(raw: unknown): TickerProfile {
 function tickerHeader(input: TickerAiInput): string {
   return `Ticker: ${input.ticker}
 Company: ${input.name || "(unknown)"}
-Sector: ${input.sector || "(unknown)"}
 Exchange: ${input.exchange || "(unknown)"}
 Market: ${input.market || "(unknown)"}`;
 }

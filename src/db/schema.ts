@@ -370,8 +370,8 @@ export type NewMacroInsight = typeof macroInsights.$inferInsert;
 // ============================================================================
 // Ticker Metrics — computed snapshot, refreshed by the scanner job. Pairs
 // with `scanner_universe` (registry) by ticker. Volatile-only columns; all
-// durable per-ticker data (name, market, sector, notes/description, tags,
-// theme membership) lives elsewhere.
+// durable per-ticker data (name, market, notes/description, tags, theme
+// membership) lives elsewhere.
 // ============================================================================
 
 export const WATCHLIST_MARKETS = ["US", "SGX", "HK", "JP", "KS", "CN", "LSE"] as const;
@@ -443,7 +443,6 @@ export const scannerUniverse = sqliteTable("scanner_universe", {
   ticker: text("ticker").notNull().unique(),
   market: text("market").notNull(), // US, SGX, HK
   name: text("name"), // Company name (optional, populated on first scan)
-  sector: text("sector"), // Optional sector/industry
   // Yahoo's `quote.currency` for the listing — captured at fetch time so we
   // don't have to guess from the ticker suffix at render. Required to
   // disambiguate dual-listings/ADRs that don't follow their exchange's

@@ -18,7 +18,6 @@ interface LookupResult {
   normalized: string;
   market: string;
   name: string | null;
-  sector: string | null;
   exchange: string | null;
   price: number | null;
   quoteType: string | null;
@@ -31,7 +30,6 @@ interface SearchCandidate {
   exchange: string | null;
   market: string | null;
   quoteType: string | null;
-  sector: string | null;
 }
 
 interface ThemeRow {
@@ -126,7 +124,6 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
   const [tickerInput, setTickerInput] = useState("");
   const [market, setMarket] = useState<string>("");
   const [name, setName] = useState("");
-  const [sector, setSector] = useState("");
   const [notes, setNotes] = useState("");
 
   const [tags, setTags] = useState<string[]>([]);
@@ -173,7 +170,6 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     setTickerInput("");
     setMarket("");
     setName("");
-    setSector("");
     setNotes("");
     setTags([]);
     setPendingNewTags([]);
@@ -327,7 +323,6 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
         // Auto-fill core fields only if currently empty (preserves user edits).
         if (!market && data.market) setMarket(data.market);
         if (!name && data.name) setName(data.name);
-        if (!sector && data.sector) setSector(data.sector);
       } catch (e) {
         if (!cancelled) {
           setLookupError(String(e));
@@ -421,7 +416,6 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
           body: JSON.stringify({
             ticker: lookup.normalized,
             name: lookup.name,
-            sector: lookup.sector,
             exchange: lookup.exchange,
             market: lookup.market,
           }),
@@ -524,7 +518,6 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
       if (symbol === selectedSymbol) return;
       setMarket("");
       setName("");
-      setSector("");
       setNotes("");
       setTags([]);
       setPendingNewTags([]);
@@ -679,7 +672,6 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
         body: JSON.stringify({
           ticker: lookup.normalized,
           name: name || lookup.name,
-          sector: sector || lookup.sector,
           exchange: lookup.exchange,
           market: market || lookup.market,
         }),
@@ -760,7 +752,7 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
     !aiLoading;
 
   // Phase flags for field-level disabling. The `resolveBusy` umbrella covers
-  // the search→resolve chain so Market/Sector/Name don't fight the auto-fill.
+  // the search→resolve chain so Market/Name don't fight the auto-fill.
   const resolveBusy = searching || lookupLoading;
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -774,7 +766,6 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
         ticker: tickerInput.trim(),
         market: market || lookup.market,
         name: name.trim() || undefined,
-        sector: sector.trim() || undefined,
         notes: notes.trim() || undefined,
         tags,
         themeIds: themeIds.map((id) => Number(id)).filter((n) => !Number.isNaN(n)),
@@ -998,39 +989,22 @@ export function AddTickerModal({ open, onClose }: AddTickerModalProps) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Market
-              </label>
-              <select
-                value={market}
-                onChange={(e) => setMarket(e.target.value)}
-                className="input w-full"
-              >
-                <option value="">Auto-detect</option>
-                {MARKETS.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sector (optional)
-              </label>
-              <input
-                type="text"
-                value={sector}
-                onChange={(e) => setSector(e.target.value)}
-                placeholder={
-                  resolveBusy && !sector ? "Auto-filling…" : "e.g. Technology"
-                }
-                disabled={resolveBusy && !sector}
-                className="input w-full disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Market
+            </label>
+            <select
+              value={market}
+              onChange={(e) => setMarket(e.target.value)}
+              className="input w-full"
+            >
+              <option value="">Auto-detect</option>
+              {MARKETS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

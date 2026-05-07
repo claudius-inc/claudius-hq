@@ -20,7 +20,6 @@ interface ThemeChip {
 interface TickerHeaderProps {
   ticker: string;
   name: string | null;
-  sector: string | null;
   /** Yahoo's `quote.currency` if available; otherwise the column from `scanner_universe`. */
   currency: string | null;
   quote: QuoteInput | null;
@@ -70,7 +69,6 @@ function PctCell({
 export function TickerHeader({
   ticker,
   name,
-  sector,
   currency,
   quote,
   metrics,
@@ -103,9 +101,6 @@ export function TickerHeader({
               redirectAfterDelete="/markets/scanner/stocks"
             />
           </div>
-          {sector && (
-            <p className="text-xs text-gray-400">{sector}</p>
-          )}
           {hasChips && (
             <div className="flex flex-wrap gap-1.5">
               {themes.map((t) => {

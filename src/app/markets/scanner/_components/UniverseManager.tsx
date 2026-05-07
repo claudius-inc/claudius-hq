@@ -12,7 +12,6 @@ interface ScannerTicker {
   ticker: string;
   market: string;
   name: string | null;
-  sector: string | null;
   source: string;
   enabled: boolean;
   notes: string | null;
