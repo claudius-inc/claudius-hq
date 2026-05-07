@@ -5,6 +5,7 @@ const themeStocksRows = [
   { themeId: 1, ticker: "MSFT" },
   { themeId: 2, ticker: "AAPL" },     // duplicate across themes
   { themeId: 2, ticker: "D05.SI" },
+  { themeId: 3, ticker: "BARC.L" },   // LSE ticker; Yahoo reports GBp pence
 ];
 
 let priorMetricsRows: { ticker: string; dataQuality: string }[] = [];
@@ -78,7 +79,9 @@ const okFetch = (ticker: string) => ({
     closesAbove20SmaPct60d: 0.5, sma200: 90, sma50: 95, sma20: 98,
     rsi14: 55, macdLine: 1, macdSignal: 0.5, avgVol20d: 1_100_000, avgVol60d: 1_000_000, adx14: 22,
   },
-  price: 100, pc1d: 0.5, pc1w: 1.0, pc1m: 2.0, pc3m: 3.0, name: `Name of ${ticker}`, currency: "USD",
+  price: 100, pc1d: 0.5, pc1w: 1.0, pc1m: 2.0, pc3m: 3.0, name: `Name of ${ticker}`,
+  // LSE tickers quote in pence; everything else defaults to USD for tests.
+  currency: ticker.toUpperCase().endsWith(".L") ? "GBp" : "USD",
 });
 
 describe("computeWatchlistScores", () => {
@@ -95,21 +98,26 @@ describe("computeWatchlistScores", () => {
   it("dedupes tickers across themes and writes one metrics row per ticker", async () => {
     vi.mocked(buildScoringInputs).mockImplementation(async (t) => okFetch(t));
     const result = await computeWatchlistScores();
-    expect(result.tickersProcessed).toBe(3); // AAPL, MSFT, D05.SI
+    expect(result.tickersProcessed).toBe(4); // AAPL, MSFT, D05.SI, BARC.L
     const written = new Set(upsertedRows.map((r: any) => r.ticker));
-    expect(written).toEqual(new Set(["AAPL", "MSFT", "D05.SI"]));
+    expect(written).toEqual(new Set(["AAPL", "MSFT", "D05.SI", "BARC.L"]));
   });
 
   it("upserts scanner_universe for every observed ticker (registry sync)", async () => {
     vi.mocked(buildScoringInputs).mockImplementation(async (t) => okFetch(t));
     await computeWatchlistScores();
     const tickers = new Set(universeUpserts.map((r: any) => r.ticker));
-    expect(tickers).toEqual(new Set(["AAPL", "MSFT", "D05.SI"]));
+    expect(tickers).toEqual(new Set(["AAPL", "MSFT", "D05.SI", "BARC.L"]));
     const aapl = universeUpserts.find((r: any) => r.ticker === "AAPL");
     expect(aapl.name).toBe("Name of AAPL");
     expect(aapl.market).toBe("US");
     const dbs = universeUpserts.find((r: any) => r.ticker === "D05.SI");
     expect(dbs.market).toBe("SGX");
+    // LSE ticker is classified as such and its pence-denominated currency
+    // (GBp) is persisted alongside the row, so the UI can format prices.
+    const barc = universeUpserts.find((r: any) => r.ticker === "BARC.L");
+    expect(barc.market).toBe("LSE");
+    expect(barc.currency).toBe("GBp");
   });
 
   it("metrics row no longer carries name/market/themeIds/description", async () => {

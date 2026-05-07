@@ -59,6 +59,20 @@ To enable the GitHub Actions scanner, add these secrets to your repository:
 3. Click **Run workflow**
 4. Optionally specify markets (default: `US,SGX`)
 
+#### Supported Markets
+
+The scanner can target any of the following markets. Pass them as a
+comma-separated list via `SCAN_MARKETS` or the workflow input.
+
+| Code  | Exchange                    | Notes                                                            |
+| ----- | --------------------------- | ---------------------------------------------------------------- |
+| `US`  | NYSE / NASDAQ / AMEX        | Plain ticker (e.g. `AAPL`).                                       |
+| `SGX` | Singapore Exchange          | `.SI` suffix (e.g. `D05.SI`).                                     |
+| `HK`  | Hong Kong Stock Exchange    | 4-digit code with `.HK` suffix (e.g. `0700.HK`).                  |
+| `JP`  | Tokyo Stock Exchange        | `.T` suffix (e.g. `7203.T`).                                      |
+| `CN`  | Shanghai / Shenzhen         | `.SS` (Shanghai) or `.SZ` (Shenzhen) suffix.                      |
+| `LSE` | London Stock Exchange       | `.L` suffix (e.g. `BARC.L`). Yahoo quotes in pence (`GBp`).       |
+
 ### Legacy CLI Scanner
 
 The original CLI scanner is still available for local testing:

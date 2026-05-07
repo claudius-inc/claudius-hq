@@ -77,6 +77,12 @@ const HK_TICKERS = [
   "0966.HK", "1336.HK", "6186.HK", "1339.HK", "2328.HK",
 ];
 
+// Curated LSE blue chips
+const LSE_TICKERS = [
+  "HSBA.L", "BARC.L", "RIO.L", "AZN.L", "SHEL.L",
+  "ULVR.L", "GSK.L", "BP.L", "LLOY.L", "VOD.L",
+];
+
 // POST /api/scanner/universe/seed - Seed the database with initial tickers
 export async function POST() {
   try {
@@ -87,6 +93,7 @@ export async function POST() {
       ...US_CURATED.map((t) => ({ ticker: t, market: "US" })),
       ...SGX_TICKERS.map((t) => ({ ticker: t, market: "SGX" })),
       ...HK_TICKERS.map((t) => ({ ticker: t, market: "HK" })),
+      ...LSE_TICKERS.map((t) => ({ ticker: t, market: "LSE" })),
     ];
 
     // Deduplicate
@@ -123,6 +130,7 @@ export async function POST() {
         US: US_CURATED.length,
         SGX: new Set(SGX_TICKERS).size,
         HK: new Set(HK_TICKERS).size,
+        LSE: new Set(LSE_TICKERS).size,
       },
     });
   } catch (error) {
