@@ -1,24 +1,16 @@
 /**
  * GET /api/markets/{market}/detail
  *
- * Aggregates the per-market signal type across the watchlist tickers in
- * that market. Returned shape varies by market:
- *  - US  → US_INSIDER     (cluster buys, totals, top buyers)
- *  - HK  → HK_SHORT       (avg short turnover, top shorts)
- *  - JP  → JP_GOVERNANCE  (high-catalyst names, PBR<1 counts)
- *  - SGX → SGX_FLAGS      (GLC / S-Chip distribution)
- *  - CN  → CN_CONNECT     (Stock Connect inflows / outflows)
- *  - LSE / KS → PLACEHOLDER (no fetcher wired yet)
+ * Returns market-level context per market. Returned shape varies:
+ *  - US  → US_MARKET_CONTEXT (sentiment + breadth, market-wide)
+ *  - SGX → SGX_FLAGS         (GLC / S-Chip distribution — structural,
+ *                             not flow, but factually accurate)
+ *  - CN  → CN_CONNECT        (Stock Connect inflows / outflows from
+ *                             watchlist sample, with caveat)
+ *  - HK / JP → PLACEHOLDER   (proper market-level flow fetchers pending)
+ *  - LSE / KS → PLACEHOLDER  (no fetcher wired)
  *
- * Caches the aggregated response in `market_cache` for 5 minutes keyed
- * by market.
- *
- * Performance note: per-ticker signal fetching is bounded to the top 20
- * watchlist tickers by `momentumScore` to keep cold-cache latency
- * predictable. The US insider fetcher in particular scrapes OpenInsider
- * with no shared cache, so 100+ tickers would push us past 30s+. HK / JP
- * / SGX / CN fetchers are either daily-cached or synchronous and would
- * be cheaper, but we cap them too for consistency.
+ * Caches the response in `market_cache` for 5 minutes keyed by market.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -28,12 +20,11 @@ import { and, desc, eq } from "drizzle-orm";
 import { getCache, setCache } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
 import {
-  fetchUSInsiderSignals,
-  fetchHKShortSellingSignals,
-  fetchJPGovernanceSignals,
   fetchSGMarketFlags,
   fetchCNStockConnectSignals,
 } from "@/lib/scanner/signals";
+import { fetchSentimentData } from "@/lib/markets/sentiment";
+import { fetchBreadthData } from "@/lib/markets/breadth";
 
 export const dynamic = "force-dynamic";
 
@@ -44,46 +35,14 @@ function isWatchlistMarket(value: string): value is WatchlistMarket {
   return (WATCHLIST_MARKETS as readonly string[]).includes(value);
 }
 
-interface USInsiderAggregate {
-  type: "US_INSIDER";
-  totalBuyValue: number;
-  totalSellValue: number;
-  clusterBuyCount: number;
-  netInsiderActivity: number;
-  topBuyers: Array<{
-    ticker: string;
-    name: string | null;
-    totalBuyValue: number;
-    insiderBuyCount: number;
-    isClusterBuy: boolean;
-  }>;
+type SentimentData = Awaited<ReturnType<typeof fetchSentimentData>>;
+type BreadthData = Awaited<ReturnType<typeof fetchBreadthData>>;
+
+interface USMarketContextAggregate {
+  type: "US_MARKET_CONTEXT";
+  sentiment: SentimentData | null;
+  breadth: BreadthData | null;
   asOf: string;
-}
-
-interface HKShortAggregate {
-  type: "HK_SHORT";
-  averageShortTurnoverRatio: number;
-  topShorts: Array<{
-    ticker: string;
-    name: string | null;
-    shortTurnoverRatio: number;
-    shortVolume: number;
-  }>;
-  dataDate: string;
-}
-
-interface JPGovernanceAggregate {
-  type: "JP_GOVERNANCE";
-  highCatalystCount: number;
-  pbrBelowOneCount: number;
-  capitalEfficiencyPlanCount: number;
-  topCatalysts: Array<{
-    ticker: string;
-    name: string | null;
-    score: number;
-    hasPBRBelowOne: boolean;
-    hasCapitalEfficiencyPlan: boolean;
-  }>;
 }
 
 interface SGXFlagsAggregate {
@@ -112,6 +71,7 @@ interface CNConnectAggregate {
     percentOfFloat: number;
     dailyChange: number;
   }>;
+  caveat: string;
 }
 
 interface PlaceholderAggregate {
@@ -120,16 +80,14 @@ interface PlaceholderAggregate {
 }
 
 type SignalAggregate =
-  | USInsiderAggregate
-  | HKShortAggregate
-  | JPGovernanceAggregate
+  | USMarketContextAggregate
   | SGXFlagsAggregate
   | CNConnectAggregate
   | PlaceholderAggregate;
 
 interface MarketDetailResponse {
   market: WatchlistMarket;
-  tickerCount: number; // number of watchlist tickers actually queried
+  tickerCount: number; // number of watchlist tickers actually queried (0 when not used)
   signals: SignalAggregate;
   generatedAt: string;
 }
@@ -167,128 +125,48 @@ async function pickTickers(
   return rows.slice(0, cap).map((r) => ({ ticker: r.ticker, name: r.name }));
 }
 
-async function buildUSAggregate(rows: UniverseRow[]): Promise<USInsiderAggregate> {
-  const fetched = await Promise.all(
-    rows.map(async (r) => ({
-      ticker: r.ticker,
-      name: r.name,
-      signals: await fetchUSInsiderSignals(r.ticker),
-    })),
-  );
+async function buildUSContextAggregate(): Promise<USMarketContextAggregate> {
+  const contextCacheKey = "markets:detail:US:context";
+  const cached = await getCache<{
+    sentiment: SentimentData | null;
+    breadth: BreadthData | null;
+    asOf: string;
+  }>(contextCacheKey, CACHE_MAX_AGE);
 
-  let totalBuyValue = 0;
-  let totalSellValue = 0;
-  let clusterBuyCount = 0;
-  let mostRecent: string | undefined;
+  if (cached && !cached.isStale) {
+    return { type: "US_MARKET_CONTEXT", ...cached.data };
+  }
 
-  const buyers = fetched
-    .filter((f) => f.signals !== null)
-    .map((f) => {
-      const s = f.signals!;
-      totalBuyValue += s.totalBuyValue;
-      totalSellValue += s.totalSellValue;
-      if (s.isClusterBuy) clusterBuyCount += 1;
-      if (s.lastTransactionDate && (!mostRecent || s.lastTransactionDate > mostRecent)) {
-        mostRecent = s.lastTransactionDate;
-      }
-      return {
-        ticker: f.ticker,
-        name: f.name,
-        totalBuyValue: s.totalBuyValue,
-        insiderBuyCount: s.insiderBuyCount,
-        isClusterBuy: s.isClusterBuy,
-      };
+  const [sentimentResult, breadthResult] = await Promise.allSettled([
+    fetchSentimentData(),
+    fetchBreadthData(),
+  ]);
+
+  const sentiment =
+    sentimentResult.status === "fulfilled" ? sentimentResult.value : null;
+  const breadth =
+    breadthResult.status === "fulfilled" ? breadthResult.value : null;
+
+  if (sentimentResult.status === "rejected") {
+    logger.warn("api/markets/detail", "US sentiment fetch failed", {
+      error: sentimentResult.reason,
     });
+  }
+  if (breadthResult.status === "rejected") {
+    logger.warn("api/markets/detail", "US breadth fetch failed", {
+      error: breadthResult.reason,
+    });
+  }
 
-  const topBuyers = buyers
-    .filter((b) => b.totalBuyValue > 0)
-    .sort((a, b) => b.totalBuyValue - a.totalBuyValue)
-    .slice(0, 5);
-
-  return {
-    type: "US_INSIDER",
-    totalBuyValue,
-    totalSellValue,
-    clusterBuyCount,
-    netInsiderActivity: totalBuyValue - totalSellValue,
-    topBuyers,
-    asOf: mostRecent ?? new Date().toISOString().split("T")[0],
+  const payload = {
+    sentiment,
+    breadth,
+    asOf: new Date().toISOString(),
   };
-}
 
-async function buildHKAggregate(rows: UniverseRow[]): Promise<HKShortAggregate> {
-  const fetched = await Promise.all(
-    rows.map(async (r) => ({
-      ticker: r.ticker,
-      name: r.name,
-      signals: await fetchHKShortSellingSignals(r.ticker),
-    })),
-  );
+  await setCache(contextCacheKey, payload);
 
-  const valid = fetched.filter((f) => f.signals !== null);
-  const ratios = valid.map((f) => f.signals!.shortTurnoverRatio);
-  const averageShortTurnoverRatio =
-    ratios.length > 0 ? ratios.reduce((a, b) => a + b, 0) / ratios.length : 0;
-
-  const topShorts = valid
-    .map((f) => ({
-      ticker: f.ticker,
-      name: f.name,
-      shortTurnoverRatio: f.signals!.shortTurnoverRatio,
-      shortVolume: f.signals!.shortVolume,
-    }))
-    .sort((a, b) => b.shortTurnoverRatio - a.shortTurnoverRatio)
-    .slice(0, 5);
-
-  const dataDate = valid[0]?.signals?.dataDate ?? new Date().toISOString().split("T")[0];
-
-  return {
-    type: "HK_SHORT",
-    averageShortTurnoverRatio,
-    topShorts,
-    dataDate,
-  };
-}
-
-function buildJPAggregate(rows: UniverseRow[]): JPGovernanceAggregate {
-  // Synchronous fetcher — no Promise.all needed
-  const fetched = rows.map((r) => ({
-    ticker: r.ticker,
-    name: r.name,
-    // PBR data isn't stored in scannerUniverse, so we pass undefined
-    // (governance score still works, just without the PBR<1 boost).
-    signals: fetchJPGovernanceSignals(r.ticker),
-  }));
-
-  let highCatalystCount = 0;
-  let pbrBelowOneCount = 0;
-  let capitalEfficiencyPlanCount = 0;
-
-  const allCatalysts = fetched.map((f) => {
-    if (f.signals.governanceCatalystScore >= 7) highCatalystCount += 1;
-    if (f.signals.hasPBRBelowOne) pbrBelowOneCount += 1;
-    if (f.signals.hasCapitalEfficiencyPlan) capitalEfficiencyPlanCount += 1;
-    return {
-      ticker: f.ticker,
-      name: f.name,
-      score: f.signals.governanceCatalystScore,
-      hasPBRBelowOne: f.signals.hasPBRBelowOne,
-      hasCapitalEfficiencyPlan: f.signals.hasCapitalEfficiencyPlan,
-    };
-  });
-
-  const topCatalysts = allCatalysts
-    .filter((c) => c.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
-
-  return {
-    type: "JP_GOVERNANCE",
-    highCatalystCount,
-    pbrBelowOneCount,
-    capitalEfficiencyPlanCount,
-    topCatalysts,
-  };
+  return { type: "US_MARKET_CONTEXT", ...payload };
 }
 
 function buildSGAggregate(rows: UniverseRow[]): SGXFlagsAggregate {
@@ -372,30 +250,49 @@ async function buildCNAggregate(rows: UniverseRow[]): Promise<CNConnectAggregate
     averagePercentOfFloat,
     topInflows,
     topOutflows,
+    caveat:
+      "Watchlist sample (20 tickers); market-wide source via HKEX northbound feed pending",
   };
 }
 
 async function buildAggregate(
   market: WatchlistMarket,
   rows: UniverseRow[],
-): Promise<SignalAggregate> {
+): Promise<{ signals: SignalAggregate; tickerCount: number }> {
   switch (market) {
     case "US":
-      return buildUSAggregate(rows);
-    case "HK":
-      return buildHKAggregate(rows);
-    case "JP":
-      return buildJPAggregate(rows);
+      return { signals: await buildUSContextAggregate(), tickerCount: 0 };
     case "SGX":
-      return buildSGAggregate(rows);
+      return { signals: buildSGAggregate(rows), tickerCount: rows.length };
     case "CN":
-      return buildCNAggregate(rows);
+      return { signals: await buildCNAggregate(rows), tickerCount: rows.length };
+    case "HK":
+      return {
+        signals: {
+          type: "PLACEHOLDER",
+          message:
+            "Market-level flow data (south-bound flow, HIBOR, HSI dividend yield) not yet wired",
+        },
+        tickerCount: 0,
+      };
+    case "JP":
+      return {
+        signals: {
+          type: "PLACEHOLDER",
+          message:
+            "Market-level flow data (USD/JPY, BOJ stance, foreign equity buying) not yet wired",
+        },
+        tickerCount: 0,
+      };
     case "KS":
     case "LSE":
     default:
       return {
-        type: "PLACEHOLDER",
-        message: "Per-market signals not yet wired for this market",
+        signals: {
+          type: "PLACEHOLDER",
+          message: "Per-market signals not yet wired for this market",
+        },
+        tickerCount: 0,
       };
   }
 }
@@ -422,12 +319,14 @@ export async function GET(
       return NextResponse.json(cached.data);
     }
 
-    const rows = await pickTickers(market, TICKER_CAP);
-    const signals = await buildAggregate(market, rows);
+    // Only pick tickers for markets that still need them (SGX, CN).
+    const needsTickers = market === "SGX" || market === "CN";
+    const rows = needsTickers ? await pickTickers(market, TICKER_CAP) : [];
+    const { signals, tickerCount } = await buildAggregate(market, rows);
 
     const response: MarketDetailResponse = {
       market,
-      tickerCount: rows.length,
+      tickerCount,
       signals,
       generatedAt: new Date().toISOString(),
     };

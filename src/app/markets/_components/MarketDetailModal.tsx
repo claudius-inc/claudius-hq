@@ -8,54 +8,58 @@ import {
   MinusCircle,
   TrendingUp,
   TrendingDown,
-  Shield,
-  AlertTriangle,
   Activity,
   Building2,
 } from "lucide-react";
 
 // ── Shared types (mirror the API route) ─────────────────────────────
 
-interface USInsiderAggregate {
-  type: "US_INSIDER";
-  totalBuyValue: number;
-  totalSellValue: number;
-  clusterBuyCount: number;
-  netInsiderActivity: number;
-  topBuyers: Array<{
-    ticker: string;
-    name: string | null;
-    totalBuyValue: number;
-    insiderBuyCount: number;
-    isClusterBuy: boolean;
-  }>;
+interface VixSentiment {
+  value: number | null;
+  change: number | null;
+  changePercent: number | null;
+  level: "low" | "moderate" | "elevated" | "fear" | null;
+}
+
+interface VolatilityContext {
+  termStructure: number;
+  contango: string;
+  interpretation: string;
+}
+
+interface SentimentData {
+  vix: VixSentiment;
+  volatilityContext: VolatilityContext | null;
+  updatedAt: string;
+}
+
+interface BreadthData {
+  advanceDecline: {
+    advances: number | null;
+    declines: number | null;
+    unchanged: number | null;
+    ratio: number | null;
+    netAdvances: number | null;
+  };
+  newHighsLows: {
+    newHighs: number | null;
+    newLows: number | null;
+    ratio: number | null;
+    netHighs: number | null;
+  };
+  level: "bullish" | "neutral" | "bearish";
+  interpretation: string;
+  mcclellan?: { oscillator: number | null; signal: string | null };
+  source?: string;
+  note?: string;
+  updatedAt?: string;
+}
+
+interface USMarketContextAggregate {
+  type: "US_MARKET_CONTEXT";
+  sentiment: SentimentData | null;
+  breadth: BreadthData | null;
   asOf: string;
-}
-
-interface HKShortAggregate {
-  type: "HK_SHORT";
-  averageShortTurnoverRatio: number;
-  topShorts: Array<{
-    ticker: string;
-    name: string | null;
-    shortTurnoverRatio: number;
-    shortVolume: number;
-  }>;
-  dataDate: string;
-}
-
-interface JPGovernanceAggregate {
-  type: "JP_GOVERNANCE";
-  highCatalystCount: number;
-  pbrBelowOneCount: number;
-  capitalEfficiencyPlanCount: number;
-  topCatalysts: Array<{
-    ticker: string;
-    name: string | null;
-    score: number;
-    hasPBRBelowOne: boolean;
-    hasCapitalEfficiencyPlan: boolean;
-  }>;
 }
 
 interface SGXFlagsAggregate {
@@ -84,6 +88,7 @@ interface CNConnectAggregate {
     percentOfFloat: number;
     dailyChange: number;
   }>;
+  caveat: string;
 }
 
 interface PlaceholderAggregate {
@@ -92,9 +97,7 @@ interface PlaceholderAggregate {
 }
 
 type SignalAggregate =
-  | USInsiderAggregate
-  | HKShortAggregate
-  | JPGovernanceAggregate
+  | USMarketContextAggregate
   | SGXFlagsAggregate
   | CNConnectAggregate
   | PlaceholderAggregate;
@@ -186,13 +189,6 @@ function flagEmojiToIso(flag: string): string | null {
   const base = 0x1f1e6;
   const chars = codePoints.map((cp) => String.fromCharCode(cp - base + 97));
   return chars.join("");
-}
-
-function formatUsdCompact(n: number): string {
-  if (Math.abs(n) >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(2)}B`;
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-  return `$${Math.round(n)}`;
 }
 
 function formatNumberCompact(n: number): string {
@@ -360,199 +356,129 @@ function StatCard({
 
 // ── Per-type signal renderers ───────────────────────────────────────
 
-function USInsiderView({ data }: { data: USInsiderAggregate }) {
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-2">
-        <StatCard
-          label="Total Buys (30d)"
-          value={formatUsdCompact(data.totalBuyValue)}
-          tone="positive"
-        />
-        <StatCard
-          label="Total Sells (30d)"
-          value={formatUsdCompact(data.totalSellValue)}
-          tone="negative"
-        />
-        <StatCard
-          label="Cluster Buys"
-          value={`${data.clusterBuyCount}`}
-          hint="3+ insiders buying"
-        />
-      </div>
-      <div>
-        <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">
-          Net Insider Flow
-        </div>
-        <div
-          className={`text-sm font-semibold ${data.netInsiderActivity >= 0 ? "text-emerald-700" : "text-red-700"}`}
-        >
-          {data.netInsiderActivity >= 0 ? "+" : ""}
-          {formatUsdCompact(data.netInsiderActivity)}
-        </div>
-      </div>
-      {data.topBuyers.length > 0 && (
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">
-            Top Buys
-          </div>
-          <div className="space-y-1">
-            {data.topBuyers.map((b) => (
-              <div
-                key={b.ticker}
-                className="flex items-center justify-between bg-white border border-gray-100 rounded p-2"
-              >
-                <div className="min-w-0 flex-1 mr-2">
-                  <div className="text-xs font-medium text-gray-900 flex items-center gap-1.5">
-                    {b.ticker}
-                    {b.isClusterBuy && (
-                      <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-100 text-emerald-700 font-medium">
-                        cluster
-                      </span>
-                    )}
-                  </div>
-                  {b.name && (
-                    <div className="text-[10px] text-gray-500 truncate">
-                      {b.name}
-                    </div>
-                  )}
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-xs font-semibold text-emerald-700 tabular-nums">
-                    {formatUsdCompact(b.totalBuyValue)}
-                  </div>
-                  <div className="text-[9px] text-gray-400">
-                    {b.insiderBuyCount} buyer{b.insiderBuyCount === 1 ? "" : "s"}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="text-[9px] text-gray-400">As of {data.asOf}</div>
-    </div>
-  );
+function vixTone(level: VixSentiment["level"]): "default" | "positive" | "negative" {
+  if (level === "low") return "positive";
+  if (level === "fear" || level === "elevated") return "negative";
+  return "default";
 }
 
-function HKShortView({ data }: { data: HKShortAggregate }) {
-  return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <StatCard
-          label="Avg Short Turnover"
-          value={`${data.averageShortTurnoverRatio.toFixed(2)}%`}
-          hint="Watchlist average"
-        />
-        <StatCard
-          label="Names Reporting"
-          value={`${data.topShorts.length}+`}
-          hint="With short data"
-        />
-      </div>
-      {data.topShorts.length > 0 && (
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">
-            Highest Short Turnover
-          </div>
-          <div className="space-y-1">
-            {data.topShorts.map((s) => (
-              <div
-                key={s.ticker}
-                className="flex items-center justify-between bg-white border border-gray-100 rounded p-2"
-              >
-                <div className="min-w-0 flex-1 mr-2">
-                  <div className="text-xs font-medium text-gray-900">
-                    {s.ticker}
-                  </div>
-                  {s.name && (
-                    <div className="text-[10px] text-gray-500 truncate">
-                      {s.name}
-                    </div>
-                  )}
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-xs font-semibold text-amber-700 tabular-nums">
-                    {s.shortTurnoverRatio.toFixed(2)}%
-                  </div>
-                  <div className="text-[9px] text-gray-400">
-                    {formatNumberCompact(s.shortVolume)} vol
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      <div className="text-[9px] text-gray-400">Data date {data.dataDate}</div>
-    </div>
-  );
+function breadthTone(level: BreadthData["level"]): "default" | "positive" | "negative" {
+  if (level === "bullish") return "positive";
+  if (level === "bearish") return "negative";
+  return "default";
 }
 
-function JPGovernanceView({ data }: { data: JPGovernanceAggregate }) {
+function USContextView({ data }: { data: USMarketContextAggregate }) {
+  const { sentiment, breadth } = data;
+  const hasSentiment = sentiment !== null && sentiment.vix.value !== null;
+  const hasBreadth =
+    breadth !== null &&
+    breadth.advanceDecline.advances !== null &&
+    breadth.advanceDecline.declines !== null;
+
+  if (!hasSentiment && !hasBreadth) {
+    return (
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+        <div className="text-xs text-gray-500">
+          Market context unavailable.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 gap-2">
-        <StatCard
-          label="High Catalyst"
-          value={`${data.highCatalystCount}`}
-          hint="Score >= 7"
-          tone="positive"
-        />
-        <StatCard
-          label="PBR < 1"
-          value={`${data.pbrBelowOneCount}`}
-          hint="Below book"
-        />
-        <StatCard
-          label="Cap Efficiency"
-          value={`${data.capitalEfficiencyPlanCount}`}
-          hint="Disclosed plans"
-        />
-      </div>
-      {data.topCatalysts.length > 0 ? (
+      {hasSentiment && sentiment && (
         <div>
           <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">
-            Top Governance Catalysts
+            Sentiment
           </div>
-          <div className="space-y-1">
-            {data.topCatalysts.map((c) => (
-              <div
-                key={c.ticker}
-                className="flex items-center justify-between bg-white border border-gray-100 rounded p-2"
-              >
-                <div className="min-w-0 flex-1 mr-2">
-                  <div className="text-xs font-medium text-gray-900">
-                    {c.ticker}
-                  </div>
-                  {c.name && (
-                    <div className="text-[10px] text-gray-500 truncate">
-                      {c.name}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {c.hasCapitalEfficiencyPlan && (
-                    <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-100 text-emerald-700">
-                      plan
-                    </span>
-                  )}
-                  {c.hasPBRBelowOne && (
-                    <span className="text-[9px] px-1 py-0.5 rounded bg-blue-100 text-blue-700">
-                      PBR&lt;1
-                    </span>
-                  )}
-                  <div className="text-xs font-semibold text-gray-900 tabular-nums">
-                    {c.score}/10
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-2">
+            <StatCard
+              label="VIX"
+              value={sentiment.vix.value!.toFixed(2)}
+              hint={
+                sentiment.vix.changePercent !== null
+                  ? `${sentiment.vix.changePercent >= 0 ? "+" : ""}${sentiment.vix.changePercent.toFixed(2)}% today`
+                  : sentiment.vix.level
+                    ? `Level: ${sentiment.vix.level}`
+                    : undefined
+              }
+              tone={vixTone(sentiment.vix.level)}
+            />
+            {sentiment.volatilityContext && (
+              <StatCard
+                label="VIX Term"
+                value={sentiment.volatilityContext.termStructure.toFixed(2)}
+                hint={sentiment.volatilityContext.contango}
+                tone={
+                  sentiment.volatilityContext.contango === "backwardation"
+                    ? "negative"
+                    : "default"
+                }
+              />
+            )}
           </div>
+          {sentiment.volatilityContext && (
+            <div className="text-[10px] text-gray-500 mt-1.5">
+              {sentiment.volatilityContext.interpretation}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="text-xs text-gray-500 italic">
-          No governance catalysts in current watchlist top 20.
+      )}
+
+      {hasBreadth && breadth && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5">
+            Breadth (NYSE)
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <StatCard
+              label="A/D Ratio"
+              value={
+                breadth.advanceDecline.ratio !== null
+                  ? breadth.advanceDecline.ratio.toFixed(2)
+                  : "—"
+              }
+              hint={`${breadth.advanceDecline.advances ?? 0} adv / ${breadth.advanceDecline.declines ?? 0} dec`}
+              tone={breadthTone(breadth.level)}
+            />
+            <StatCard
+              label="Net Adv"
+              value={
+                breadth.advanceDecline.netAdvances !== null
+                  ? `${breadth.advanceDecline.netAdvances >= 0 ? "+" : ""}${formatNumberCompact(breadth.advanceDecline.netAdvances)}`
+                  : "—"
+              }
+              tone={
+                breadth.advanceDecline.netAdvances !== null
+                  ? breadth.advanceDecline.netAdvances >= 0
+                    ? "positive"
+                    : "negative"
+                  : "default"
+              }
+            />
+            <StatCard
+              label="New H − L"
+              value={
+                breadth.newHighsLows.netHighs !== null
+                  ? `${breadth.newHighsLows.netHighs >= 0 ? "+" : ""}${formatNumberCompact(breadth.newHighsLows.netHighs)}`
+                  : "—"
+              }
+              hint={`${breadth.newHighsLows.newHighs ?? 0} hi / ${breadth.newHighsLows.newLows ?? 0} lo`}
+              tone={
+                breadth.newHighsLows.netHighs !== null
+                  ? breadth.newHighsLows.netHighs >= 0
+                    ? "positive"
+                    : "negative"
+                  : "default"
+              }
+            />
+          </div>
+          <div className="text-[10px] text-gray-500 mt-1.5">
+            {breadth.interpretation}
+            {breadth.source ? ` · ${breadth.source}` : ""}
+          </div>
         </div>
       )}
     </div>
@@ -730,6 +656,7 @@ function CNConnectView({ data }: { data: CNConnectAggregate }) {
           No Stock Connect flow data for current watchlist (cache may need refresh).
         </div>
       )}
+      <div className="text-[10px] text-gray-500 italic mt-1">{data.caveat}</div>
     </div>
   );
 }
@@ -749,18 +676,8 @@ function getSignalHeader(market: string): { title: string; icon: React.ReactNode
   switch (wm) {
     case "US":
       return {
-        title: "US Insider Activity (last 30d)",
+        title: "Market context",
         icon: <Activity className="w-4 h-4 text-gray-500" />,
-      };
-    case "HK":
-      return {
-        title: "HK Short Selling",
-        icon: <AlertTriangle className="w-4 h-4 text-gray-500" />,
-      };
-    case "JP":
-      return {
-        title: "JP Governance Catalysts",
-        icon: <Shield className="w-4 h-4 text-gray-500" />,
       };
     case "SGX":
       return {
@@ -791,10 +708,9 @@ export function MarketDetailModal({
   valuation,
 }: MarketDetailModalProps) {
   const watchlistMarket = STRIP_TO_WATCHLIST[market] ?? market;
-  const isPlaceholder = watchlistMarket === "KS" || watchlistMarket === "LSE";
 
   const { data, isLoading, error } = useSWR<MarketDetailResponse>(
-    open && !isPlaceholder ? `/api/markets/${watchlistMarket}/detail` : null,
+    open ? `/api/markets/${watchlistMarket}/detail` : null,
     fetcher,
   );
 
@@ -836,24 +752,14 @@ export function MarketDetailModal({
         {/* Section 1: Valuation snapshot */}
         <ValuationSnapshot valuation={valuation} />
 
-        {/* Section 2: Market-specific signal aggregate */}
+        {/* Section 2: Market-level context */}
         <div>
           <h2 className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
             {header.icon}
             {header.title}
           </h2>
 
-          {isPlaceholder && (
-            <PlaceholderView
-              data={{
-                type: "PLACEHOLDER",
-                message:
-                  "Per-market signals not yet wired for this market.",
-              }}
-            />
-          )}
-
-          {!isPlaceholder && isLoading && (
+          {isLoading && (
             <div className="space-y-2">
               <div className="grid grid-cols-3 gap-2">
                 {[1, 2, 3].map((i) => (
@@ -867,28 +773,22 @@ export function MarketDetailModal({
             </div>
           )}
 
-          {!isPlaceholder && error && (
+          {error && (
             <div className="text-xs text-gray-500 italic">
               Failed to load signals.
             </div>
           )}
 
-          {!isPlaceholder && !isLoading && data && "error" in data && (
+          {!isLoading && data && "error" in data && (
             <div className="text-xs text-gray-500 italic">
               Failed to load signals.
             </div>
           )}
 
-          {!isPlaceholder && !isLoading && data && !("error" in data) && (
+          {!isLoading && data && !("error" in data) && (
             <>
-              {data.signals.type === "US_INSIDER" && (
-                <USInsiderView data={data.signals} />
-              )}
-              {data.signals.type === "HK_SHORT" && (
-                <HKShortView data={data.signals} />
-              )}
-              {data.signals.type === "JP_GOVERNANCE" && (
-                <JPGovernanceView data={data.signals} />
+              {data.signals.type === "US_MARKET_CONTEXT" && (
+                <USContextView data={data.signals} />
               )}
               {data.signals.type === "SGX_FLAGS" && (
                 <SGXFlagsView data={data.signals} />
@@ -899,9 +799,6 @@ export function MarketDetailModal({
               {data.signals.type === "PLACEHOLDER" && (
                 <PlaceholderView data={data.signals} />
               )}
-              <div className="text-[9px] text-gray-400 mt-2">
-                Aggregated across {data.tickerCount} watchlist tickers
-              </div>
             </>
           )}
         </div>
