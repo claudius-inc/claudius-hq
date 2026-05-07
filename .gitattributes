@@ -1,0 +1,5 @@
+# Force LF for shell scripts and husky hooks so they execute correctly
+# on Windows checkouts (autocrlf would otherwise rewrite to CRLF and the
+# kernel/shell rejects them with "Exec format error").
+.husky/* text eol=lf
+*.sh text eol=lf
