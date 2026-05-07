@@ -19,6 +19,7 @@ export type WatchlistRow = {
   themeIds: number[];
   dataQuality: "ok" | "partial" | "failed";
   description?: string | null;
+  momentumDelta: number | null;
 };
 
 export type ThemeNameMap = Record<number, string>;
@@ -26,6 +27,7 @@ export type ThemeNameMap = Record<number, string>;
 type SortKey =
   | "momentumScore"
   | "technicalScore"
+  | "momentumDelta"
   | "priceChange1d"
   | "priceChange1w"
   | "priceChange1m"
@@ -39,6 +41,7 @@ interface Filters {
   markets: Set<"US" | "SGX" | "HK" | "JP" | "KS" | "CN" | "LSE">;
   momentumTier: "all" | "ge40" | "ge70";
   positive1wOnly: boolean;
+  positiveMomentumDelta: boolean;
   themeIds: Set<number>;
 }
 
@@ -55,6 +58,7 @@ export function WatchlistTable({
     markets: new Set(),
     momentumTier: "all",
     positive1wOnly: false,
+    positiveMomentumDelta: false,
     themeIds: new Set(),
   });
 
@@ -116,6 +120,13 @@ export function WatchlistTable({
                   active={sortKey === "momentumScore"}
                   dir={sortDir}
                   onClick={() => onHeader("momentumScore")}
+                  align="right"
+                />
+                <Th
+                  label="Mtm Δ"
+                  active={sortKey === "momentumDelta"}
+                  dir={sortDir}
+                  onClick={() => onHeader("momentumDelta")}
                   align="right"
                 />
                 <Th
@@ -252,6 +263,9 @@ function Row({
         <ScoreBadge value={row.momentumScore} />
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap text-right">
+        <MomentumDeltaBadge value={row.momentumDelta} />
+      </td>
+      <td className="px-3 py-2.5 whitespace-nowrap text-right">
         <Delta value={row.priceChange1d} />
       </td>
       <td className="px-3 py-2.5 whitespace-nowrap text-right">
@@ -301,6 +315,17 @@ function ScoreBadge({ value }: { value: number | null }) {
   );
 }
 
+function MomentumDeltaBadge({ value }: { value: number | null }) {
+  if (value === null) return <span className="text-gray-400">—</span>;
+  const v = Math.round(value);
+  if (v === 0) return <span className="text-gray-400">0</span>;
+  const cls = v > 0 ? "text-emerald-600" : "text-red-600";
+  const sign = v > 0 ? "+" : "";
+  return (
+    <span className={`font-semibold ${cls}`}>{sign}{v}</span>
+  );
+}
+
 function Delta({ value }: { value: number | null }) {
   if (value === null) return <span className="text-gray-400">—</span>;
   const cls = value >= 0 ? "text-emerald-600" : "text-red-600";
@@ -319,6 +344,7 @@ function filterRows(rows: WatchlistRow[], f: Filters): WatchlistRow[] {
     if (f.momentumTier === "ge40" && (r.momentumScore ?? -1) < 40) return false;
     if (f.momentumTier === "ge70" && (r.momentumScore ?? -1) < 70) return false;
     if (f.positive1wOnly && !((r.priceChange1w ?? 0) > 0)) return false;
+    if (f.positiveMomentumDelta && !((r.momentumDelta ?? 0) > 0)) return false;
     if (f.themeIds.size > 0 && !r.themeIds.some((id) => f.themeIds.has(id)))
       return false;
     return true;
@@ -422,6 +448,18 @@ function FilterBar({
         }
       >
         1W positive
+      </Chip>
+
+      <Chip
+        active={filters.positiveMomentumDelta}
+        onClick={() =>
+          setFilters({
+            ...filters,
+            positiveMomentumDelta: !filters.positiveMomentumDelta,
+          })
+        }
+      >
+        Gainers
       </Chip>
 
       {themeEntries.length > 0 && (

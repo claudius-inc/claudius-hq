@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, primaryKey, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real, primaryKey, uniqueIndex, index } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
 // ============================================================================
@@ -404,6 +404,29 @@ export type NewTickerMetric = typeof tickerMetrics.$inferInsert;
 export const watchlistScores = tickerMetrics;
 export type WatchlistScore = TickerMetric;
 export type NewWatchlistScore = NewTickerMetric;
+
+// ============================================================================
+// Momentum Snapshots — daily snapshots for day-over-day gainers/losers
+// ============================================================================
+
+export const momentumSnapshots = sqliteTable(
+  "momentum_snapshots",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    ticker: text("ticker").notNull(),
+    momentumScore: real("momentum_score"),
+    technicalScore: real("technical_score"),
+    snapshotDate: text("snapshot_date").notNull(), // YYYY-MM-DD
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    uniqTickerDate: uniqueIndex("idx_momentum_snapshots_ticker_date").on(table.ticker, table.snapshotDate),
+    dateIdx: index("idx_momentum_snapshots_date").on(table.snapshotDate),
+  }),
+);
+
+export type MomentumSnapshot = typeof momentumSnapshots.$inferSelect;
+export type NewMomentumSnapshot = typeof momentumSnapshots.$inferInsert;
 
 // ============================================================================
 // Scanner Universe - Tickers to scan

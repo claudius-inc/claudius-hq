@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { db, tickerMetrics, themes, themeStocks, scannerUniverse } from "@/db";
 import { desc } from "drizzle-orm";
+import { getMomentumDeltas } from "@/lib/markets/momentum-gainers";
 import { PageHero } from "@/components/PageHero";
 import { ScanAge } from "../_components/ScanAge";
 import { WatchlistMethodologyModal } from "./_components/WatchlistMethodologyModal";
@@ -24,27 +25,29 @@ async function loadData(): Promise<{
   themeNames: ThemeNameMap;
   lastComputedAt: string | null;
 }> {
-  const [scoreRows, themeRows, universeRows, themeStockRows] = await Promise.all([
-    db
-      .select()
-      .from(tickerMetrics)
-      .orderBy(desc(tickerMetrics.momentumScore)),
-    db.select({ id: themes.id, name: themes.name }).from(themes),
-    db
-      .select({
-        ticker: scannerUniverse.ticker,
-        name: scannerUniverse.name,
-        market: scannerUniverse.market,
-        notes: scannerUniverse.notes,
-      })
-      .from(scannerUniverse),
-    db
-      .select({
-        ticker: themeStocks.ticker,
-        themeId: themeStocks.themeId,
-      })
-      .from(themeStocks),
-  ]);
+  const [scoreRows, themeRows, universeRows, themeStockRows, deltas] =
+    await Promise.all([
+      db
+        .select()
+        .from(tickerMetrics)
+        .orderBy(desc(tickerMetrics.momentumScore)),
+      db.select({ id: themes.id, name: themes.name }).from(themes),
+      db
+        .select({
+          ticker: scannerUniverse.ticker,
+          name: scannerUniverse.name,
+          market: scannerUniverse.market,
+          notes: scannerUniverse.notes,
+        })
+        .from(scannerUniverse),
+      db
+        .select({
+          ticker: themeStocks.ticker,
+          themeId: themeStocks.themeId,
+        })
+        .from(themeStocks),
+      getMomentumDeltas(),
+    ]);
 
   // Per-ticker registry data (name, market, description) is sourced from
   // `scanner_universe` after the 0008 migration; metrics no longer carry it.
@@ -88,6 +91,7 @@ async function loadData(): Promise<{
       themeIds: Array.from(themesByTicker.get(r.ticker) ?? []),
       dataQuality: r.dataQuality as WatchlistRow["dataQuality"],
       description: universe?.notes ?? null,
+      momentumDelta: deltas.get(r.ticker)?.momentumDelta ?? null,
     };
   });
 
