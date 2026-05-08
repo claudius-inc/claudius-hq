@@ -18,7 +18,7 @@ export async function Nav() {
             <Link href="/" className="flex items-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/logo.png"
+                src="/logo.svg"
                 alt="Claudius HQ"
                 width={24}
                 height={24}
