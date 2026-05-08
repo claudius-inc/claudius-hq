@@ -1,0 +1,167 @@
+name: Momentum Gainers Report
+
+on:
+  schedule:
+    # Weekdays at 00:30 UTC = 08:30 SGT (after scanner refresh, Asian market open)
+    - cron: '30 0 * * 1-5'
+  workflow_dispatch: {}
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate momentum gainers report
+        id: gainers
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+        run: |
+          OUTPUT=$(npx tsx -e '
+          import { db, rawClient, momentumSnapshots, tickerMetrics } from "@/db";
+          import { sql, desc } from "drizzle-orm";
+
+          async function main() {
+            const today = new Date().toISOString().split("T")[0];
+
+            const dates = await db
+              .select({ date: momentumSnapshots.snapshotDate })
+              .from(momentumSnapshots)
+              .where(sql`snapshot_date < ${today}`)
+              .orderBy(desc(momentumSnapshots.snapshotDate))
+              .limit(1);
+
+            if (dates.length === 0) {
+              console.log(JSON.stringify({ gainers: [], count: 0, priorDate: null, today }));
+              return;
+            }
+
+            const priorDate = dates[0].date;
+            const rows = await rawClient.execute({
+              sql: `
+                SELECT
+                  tm.ticker,
+                  tm.price,
+                  tm.momentum_score,
+                  tm.technical_score,
+                  tm.price_change_1w,
+                  tm.price_change_1m,
+                  ms.momentum_score AS yesterday_score,
+                  (tm.momentum_score - ms.momentum_score) AS momentum_delta
+                FROM ticker_metrics tm
+                JOIN momentum_snapshots ms ON ms.ticker = tm.ticker AND ms.snapshot_date = ?
+                WHERE tm.momentum_score IS NOT NULL
+                  AND ms.momentum_score IS NOT NULL
+                  AND (tm.momentum_score - ms.momentum_score) > 0
+                ORDER BY momentum_delta DESC
+                LIMIT 25
+              `,
+              args: [priorDate],
+            });
+
+            console.log(JSON.stringify({
+              gainers: rows.rows,
+              count: rows.rows.length,
+              priorDate,
+              today,
+            }));
+          }
+          main().catch((err) => {
+            console.error(JSON.stringify({ error: err.message }));
+            process.exit(1);
+          });
+          ')
+          echo "$OUTPUT"
+          echo "GAINERS_JSON<<EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Format and send Telegram report
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          GAINERS_JSON: ${{ steps.gainers.outputs.GAINERS_JSON }}
+        run: |
+          npx tsx -e '
+          const raw = JSON.parse(process.env.GAINERS_JSON || "{}");
+
+          if (raw.error) {
+            console.log("Error:", raw.error);
+            process.exit(1);
+          }
+
+          if (!raw.gainers || raw.gainers.length === 0) {
+            const msg = "📊 *Momentum Gainers Report*\n\nNo gainers data — no prior snapshot available yet.";
+            fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: process.env.TELEGRAM_ADMIN_CHAT_ID,
+                text: msg,
+                parse_mode: "Markdown",
+              }),
+            }).catch(console.error);
+            return;
+          }
+
+          // Build message
+          const lines = ["📈 *Fastest Momentum Gainers*", "", "```"];
+          lines.push("Rank  Ticker       Delta   Now  1W%   1M%  ");
+          lines.push("────  ───────────  ─────  ───  ─────  ────");
+          raw.gainers.forEach((g: any, i: number) => {
+            const delta = Math.round(g.momentum_delta);
+            const score = g.momentum_score !== null ? Math.round(g.momentum_score) : "—";
+            const w1 = g.price_change_1w !== null ? (g.price_change_1w >= 0 ? "+" : "") + g.price_change_1w.toFixed(1) + "%" : "—";
+            const m1 = g.price_change_1m !== null ? (g.price_change_1m >= 0 ? "+" : "") + g.price_change_1m.toFixed(1) + "%" : "—";
+            const ticker = (g.ticker + "           ").slice(0, 13);
+            lines.push(` ${String(i+1).padStart(2)}   ${ticker}  +${String(delta).padStart(3)}   ${String(score).padStart(3)}  ${(w1 + "         ").slice(0, 6)}  ${(m1 + "         ").slice(0, 6)}`);
+          });
+          lines.push("```");
+          lines.push("");
+          lines.push(`Compared: day before (${raw.priorDate}) vs today (${raw.today})`);
+
+          const msg = lines.join("\n");
+
+          fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: process.env.TELEGRAM_ADMIN_CHAT_ID,
+              text: msg,
+              parse_mode: "Markdown",
+            }),
+          }).then(async (r) => {
+            const body = await r.text();
+            if (!r.ok) console.error("Telegram send failed:", body);
+            else console.log("Telegram report sent OK");
+          });
+          '
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Momentum Gainers Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+            -d "text=⚠️ Momentum gainers report failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
