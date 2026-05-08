@@ -64,6 +64,7 @@ export async function getMomentumGainers(
     .select({ date: momentumSnapshots.snapshotDate })
     .from(momentumSnapshots)
     .where(sql`snapshot_date < ${today}`)
+    .groupBy(momentumSnapshots.snapshotDate)
     .orderBy(desc(momentumSnapshots.snapshotDate))
     .limit(1);
 
@@ -118,6 +119,7 @@ export async function getMomentumDeltas(): Promise<
     .select({ date: momentumSnapshots.snapshotDate })
     .from(momentumSnapshots)
     .where(sql`snapshot_date < ${today}`)
+    .groupBy(momentumSnapshots.snapshotDate)
     .orderBy(desc(momentumSnapshots.snapshotDate))
     .limit(1);
 
