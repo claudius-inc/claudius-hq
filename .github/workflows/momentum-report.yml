@@ -115,7 +115,7 @@ jobs:
                 parse_mode: "Markdown",
               }),
             }).catch(console.error);
-            return;
+            process.exit(0);
           }
 
           // Build message
