@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Star, BookOpen, FileText, Headphones, MessageCircle, Lightbulb, Twitter, Video, Loader2 } from "lucide-react";
+import { Star, BookOpen, FileText, Headphones, MessageCircle, Lightbulb, Twitter, Video, Link2, Loader2 } from "lucide-react";
 import type { MemoriaEntry } from "../page";
 import { TagBadge } from "./TagBadge";
 
@@ -73,7 +73,7 @@ export function EntryCard({ entry, onToggleFavorite, togglingFavoriteId, onClick
       </div>
 
       {/* Content */}
-      <div className="text-sm text-gray-800 leading-relaxed">
+      <div className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
         {isLong && !expanded ? (
           <>
             {entry.content.slice(0, 200)}...
@@ -109,9 +109,23 @@ export function EntryCard({ entry, onToggleFavorite, togglingFavoriteId, onClick
         </div>
       )}
 
+      {/* Source URL */}
+      {entry.sourceUrl && (
+        <a
+          href={entry.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 hover:underline mt-2"
+        >
+          <Link2 size={12} />
+          <span className="truncate">{entry.sourceUrl}</span>
+        </a>
+      )}
+
       {/* Note */}
       {entry.myNote && (
-        <div className="text-xs text-gray-500 mt-2 italic border-l-2 border-gray-200 pl-2">
+        <div className="text-xs text-gray-500 mt-2 italic border-l-2 border-gray-200 pl-2 whitespace-pre-wrap">
           {entry.myNote}
         </div>
       )}
