@@ -7,7 +7,7 @@ const client = createClient({
 });
 
 // Exclude large regeneratable tables
-const EXCLUDE = ['stock_prices_daily', 'gavekal_prices', 'gavekal_historical_snapshot', 'market_cache', 'scanner_universe', 'sqlite_sequence'];
+const EXCLUDE = ['stock_prices_daily', 'gavekal_prices', 'gavekal_historical_snapshot', 'market_cache', 'scanner_universe', 'stock_scans', 'sqlite_sequence'];
 
 async function dumpTable(client, tableName) {
   let sql = '';

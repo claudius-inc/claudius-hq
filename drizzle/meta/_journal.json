@@ -29,6 +29,13 @@
       "when": 1773098979609,
       "tag": "0003_ancient_ozymandias",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1772700000000,
+      "tag": "0015_add_memoria_wiki_and_mnemon_snapshots",
+      "breakpoints": true
     }
   ]
 }

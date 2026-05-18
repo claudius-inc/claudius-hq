@@ -776,7 +776,38 @@ export type MemoriaEntryTag = typeof memoriaEntryTags.$inferSelect;
 export type NewMemoriaEntryTag = typeof memoriaEntryTags.$inferInsert;
 
 export type MemoriaInsight = typeof memoriaInsights.$inferSelect;
-export type NewMemoriaInsight = typeof memoriaInsights.$inferInsert;
+// ============================================================================
+// Memoria Wiki Pages — generated from mnemon knowledge graph clusters
+// ============================================================================
+
+export const memoriaWikiPages = sqliteTable("memoria_wiki_pages", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  slug: text("slug").notNull().unique(),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  sourceInsightIds: text("source_insight_ids").default("[]"), // JSON array of mnemon insight IDs
+  clusterTopic: text("cluster_topic"), // Main topic/entity for this wiki page
+  generatedAt: text("generated_at").default(sql`(datetime('now'))`),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export type MemoriaWikiPage = typeof memoriaWikiPages.$inferSelect;
+export type NewMemoriaWikiPage = typeof memoriaWikiPages.$inferInsert;
+
+// ============================================================================
+// Mnemon Graph Snapshots — cached knowledge graph data from VPS mnemon
+// ============================================================================
+
+export const mnemonGraphSnapshots = sqliteTable("mnemon_graph_snapshots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  snapshotJson: text("snapshot_json").notNull(), // JSON: { nodes: [...], edges: [...], meta: {...} }
+  nodeCount: integer("node_count").default(0),
+  edgeCount: integer("edge_count").default(0),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type MnemonGraphSnapshot = typeof mnemonGraphSnapshots.$inferSelect;
+export type NewMnemonGraphSnapshot = typeof mnemonGraphSnapshots.$inferInsert;
 
 // ============================================================================
 // ACP Experimentation — Track A/B tests, metrics, price changes, competitors
