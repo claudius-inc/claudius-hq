@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { MemoriaHeader } from "../_components/MemoriaHeader";
+import { GraphQAPanel } from "../_components/GraphQAPanel";
 
 // Dynamically import ForceGraph2D to avoid SSR issues with canvas
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), {
@@ -418,6 +419,19 @@ function GraphPageContent() {
         onAddClick={() => {}}
         onRandomClick={() => {}}
         total={totalNodes}
+      />
+
+      {/* Graph Q&A Panel */}
+      <GraphQAPanel
+        allNodes={graphData?.nodes || []}
+        onCitationClick={(nodeId) => {
+          const node = graphData?.nodes.find((n) => n.id === nodeId) || null;
+          if (node) {
+            setSelectedNode(node);
+            setSelectedCluster(null);
+            setSidebarOpen(true);
+          }
+        }}
       />
 
       {/* Search bar */}
