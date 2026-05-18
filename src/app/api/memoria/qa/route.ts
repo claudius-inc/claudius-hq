@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { client } from "@/db";
+import { recallMnemon } from "@/lib/memoria/mnemon-recall";
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
 
@@ -64,23 +65,42 @@ export async function POST(req: NextRequest) {
       .sort((a, b) => b.score - a.score)
       .slice(0, 15);
 
-    // Build context
+    // Build context — entries first
     const contextEntries = scored.map((e, i) => {
       const source = [e.source_title, e.source_author].filter(Boolean).join(" by ");
       return `[${i + 1}] (${source || "Unknown"}) ${e.content}`;
     }).join("\n\n");
 
-    const systemPrompt = `You are a knowledgeable assistant answering questions based ONLY on the user's personal collection of notes, highlights, and quotes from books and other sources.
+    // Pull top-5 synthesized mnemon insights via keyword recall.
+    const mnemonInsights = await recallMnemon(question, 5).catch(() => []);
+    const synthesizedBlock = mnemonInsights.length
+      ? mnemonInsights
+          .map(
+            (n, i) =>
+              `[S${i + 1}] (${n.category}, importance ${n.importance}) ${n.content}`
+          )
+          .join("\n\n")
+      : "";
 
-CONTEXT (the user's collection):
+    const systemPrompt = `You are a knowledgeable assistant answering questions based ONLY on the user's personal collection of notes, highlights, quotes, and synthesized insights.
+
+CONTEXT — SOURCE ENTRIES (raw quotes, highlights, tweets from the user's collection):
 ${contextEntries}
+${
+  synthesizedBlock
+    ? `
+
+CONTEXT — SYNTHESIZED INSIGHTS (the user's own reasoning + agent-generated conclusions, weighted by importance):
+${synthesizedBlock}`
+    : ""
+}
 
 RULES:
 - Answer based ONLY on the provided context
 - If the context doesn't contain enough information, say so honestly
-- Cite specific entries by their source (book title + author)
-- When referencing a quote or insight, mention which book it came from
-- Format citations as [1], [2] etc. referencing the numbered entries
+- Cite source entries as [1], [2] and synthesized insights as [S1], [S2]
+- When referencing a source entry, mention which book/source it came from
+- Prefer synthesized insights when they directly address the question; use source entries for grounding evidence
 - Be concise but thorough`;
 
     // Stream Gemini response

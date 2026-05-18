@@ -16,6 +16,8 @@ import {
   Network,
   ArrowLeft,
   Maximize2,
+  BookPlus,
+  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import { MemoriaHeader } from "../_components/MemoriaHeader";
@@ -151,6 +153,33 @@ function GraphPageContent() {
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [selectedCluster, setSelectedCluster] = useState<ClusterNode | null>(null);
+  const [generatingWiki, setGeneratingWiki] = useState(false);
+  const [wikiError, setWikiError] = useState<string | null>(null);
+
+  const generateWikiFromCluster = useCallback(async (cluster: ClusterNode) => {
+    setGeneratingWiki(true);
+    setWikiError(null);
+    try {
+      const res = await fetch("/api/memoria/wiki", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          insightIds: cluster.nodeIds,
+          title: cluster.label,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setWikiError(data.error || "Failed to generate wiki article");
+        return;
+      }
+      window.location.href = `/memoria/wiki/${data.page.slug}`;
+    } catch (e: any) {
+      setWikiError(String(e?.message || e));
+    } finally {
+      setGeneratingWiki(false);
+    }
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useLocalStorage("memoria-graph-filters-open", false);
   const [activeCategories, setActiveCategories] = useState<string[]>(DEFAULT_CATEGORIES);
@@ -818,13 +847,32 @@ function GraphPageContent() {
                     {selectedCluster.label}
                   </h4>
 
-                  <button
-                    onClick={() => expandCluster(selectedCluster)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    <Maximize2 size={12} />
-                    Expand cluster in node view
-                  </button>
+                  <div className="flex flex-col gap-1.5">
+                    <button
+                      onClick={() => expandCluster(selectedCluster)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                      <Maximize2 size={12} />
+                      Expand cluster in node view
+                    </button>
+                    <button
+                      onClick={() => generateWikiFromCluster(selectedCluster)}
+                      disabled={generatingWiki || selectedCluster.size < 2}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      {generatingWiki ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <BookPlus size={12} />
+                      )}
+                      {generatingWiki
+                        ? "Synthesizing…"
+                        : `Generate wiki article (${selectedCluster.size} insights)`}
+                    </button>
+                    {wikiError && (
+                      <div className="text-[11px] text-red-600">{wikiError}</div>
+                    )}
+                  </div>
 
                   <div>
                     <p className="text-xs font-medium text-gray-700 mb-1.5">

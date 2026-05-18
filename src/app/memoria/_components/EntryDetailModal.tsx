@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Trash2, Link2, Sparkles, Plus, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Trash2, Link2, Sparkles, Plus, Loader2, Brain, BookOpen } from "lucide-react";
 import type { MemoriaEntry, MemoriaTag } from "../page";
 
 const SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video"];
@@ -34,15 +35,25 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
   const [suggestingTags, setSuggestingTags] = useState(false);
   const [related, setRelated] = useState<MemoriaEntry[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
+  const [derived, setDerived] = useState<{
+    insights: Array<{ id: string; content: string; category: string; importance: number }>;
+    wikis: Array<{ slug: string; title: string }>;
+  }>({ insights: [], wikis: [] });
 
   const fetchRelated = useCallback(async () => {
     setLoadingRelated(true);
     try {
-      const res = await fetch(`/api/memoria/${entry.id}/related`);
-      const data = await res.json();
-      setRelated(data.related || []);
+      const [relRes, derRes] = await Promise.all([
+        fetch(`/api/memoria/${entry.id}/related`),
+        fetch(`/api/memoria/${entry.id}/derived`),
+      ]);
+      const relData = await relRes.json();
+      const derData = await derRes.json();
+      setRelated(relData.related || []);
+      setDerived({ insights: derData.insights || [], wikis: derData.wikis || [] });
     } catch {
       setRelated([]);
+      setDerived({ insights: [], wikis: [] });
     } finally {
       setLoadingRelated(false);
     }
@@ -213,6 +224,46 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
           <div className="text-[10px] text-gray-300">
             Created {entry.createdAt}
           </div>
+          {/* Derived mnemon insights */}
+          {!loadingRelated && derived.insights.length > 0 && (
+            <div className="pt-2 border-t border-gray-100 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                <Brain size={12} />
+                <span className="font-medium">Derived insights ({derived.insights.length})</span>
+              </div>
+              {derived.insights.slice(0, 5).map((i) => (
+                <div
+                  key={i.id}
+                  className="text-xs text-gray-600 bg-purple-50 rounded-lg px-3 py-2 leading-relaxed"
+                >
+                  <div className="line-clamp-3">{i.content}</div>
+                  <div className="text-[10px] text-gray-400 mt-1">
+                    {i.category} · importance {i.importance}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Wiki articles citing this entry */}
+          {!loadingRelated && derived.wikis.length > 0 && (
+            <div className="pt-2 border-t border-gray-100 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                <BookOpen size={12} />
+                <span className="font-medium">In wiki articles</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {derived.wikis.map((w) => (
+                  <Link
+                    key={w.slug}
+                    href={`/memoria/wiki/${w.slug}`}
+                    className="text-[11px] text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full"
+                  >
+                    {w.title}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Related entries */}
           {!loadingRelated && related.length > 0 && (
             <div className="pt-2 border-t border-gray-100 space-y-2">

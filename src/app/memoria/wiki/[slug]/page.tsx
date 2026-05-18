@@ -17,6 +17,7 @@ import {
   Calendar,
   FileText,
   Check,
+  Quote,
 } from "lucide-react";
 
 interface WikiPage {
@@ -43,6 +44,15 @@ export default function WikiDetailPage() {
   const [editContent, setEditContent] = useState("");
   const [saving, setSaving] = useState(false);
   const [allPages, setAllPages] = useState<WikiPage[]>([]);
+  const [sourceEntries, setSourceEntries] = useState<
+    Array<{
+      id: number;
+      content: string;
+      sourceType: string;
+      sourceTitle?: string | null;
+      sourceAuthor?: string | null;
+    }>
+  >([]);
 
   const fetchPage = useCallback(async () => {
     setLoading(true);
@@ -77,10 +87,21 @@ export default function WikiDetailPage() {
     }
   }, []);
 
+  const fetchSources = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/memoria/wiki/${slug}/sources`);
+      const data = await res.json();
+      setSourceEntries(data.entries || []);
+    } catch {
+      setSourceEntries([]);
+    }
+  }, [slug]);
+
   useEffect(() => {
     fetchPage();
     fetchAllPages();
-  }, [fetchPage, fetchAllPages]);
+    fetchSources();
+  }, [fetchPage, fetchAllPages, fetchSources]);
 
   const handleSave = async () => {
     if (!page) return;
@@ -322,6 +343,39 @@ export default function WikiDetailPage() {
               )}
             </div>
           </div>
+
+          {/* Source memoria entries */}
+          {sourceEntries.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-gray-50">
+                <Quote size={14} className="text-emerald-500" />
+                <h3 className="text-xs font-semibold text-gray-700">
+                  Source Entries
+                </h3>
+                <span className="ml-auto text-xs text-gray-400">
+                  {sourceEntries.length}
+                </span>
+              </div>
+              <div className="p-2 max-h-72 overflow-y-auto space-y-1.5">
+                {sourceEntries.map((e) => (
+                  <Link
+                    key={e.id}
+                    href={`/memoria?entry=${e.id}`}
+                    className="block bg-gray-50 hover:bg-emerald-50 rounded-lg px-2 py-1.5"
+                  >
+                    <div className="text-xs text-gray-700 line-clamp-2">
+                      {e.content}
+                    </div>
+                    <div className="text-[10px] text-gray-400 mt-0.5">
+                      {e.sourceType}
+                      {e.sourceTitle ? ` — ${e.sourceTitle}` : ""}
+                      {e.sourceAuthor ? ` by ${e.sourceAuthor}` : ""}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Backlinks */}
           <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
