@@ -101,6 +101,8 @@ export default function WikiIndexPage() {
       <MemoriaHeader
         searchQuery=""
         onSearchChange={() => {}}
+        searchMode="text"
+        onSearchModeChange={() => {}}
         onAddClick={() => {}}
         onRandomClick={() => {}}
         total={pages.length}

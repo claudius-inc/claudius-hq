@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MemoriaHeader } from "./_components/MemoriaHeader";
+import { MemoriaHeader, SearchMode } from "./_components/MemoriaHeader";
 import { MemoriaFilters } from "./_components/MemoriaFilters";
 import { MemoriaGrid, SortOption } from "./_components/MemoriaGrid";
 import { AddEntryModal } from "./_components/AddEntryModal";
@@ -50,6 +50,8 @@ export default function MemoriaPage() {
   const totalRef = useRef(0);
   const [activeSourceFilter, setActiveSourceFilter] = useState<string | null>(null);
   const [activeTagFilter, setActiveTagFilter] = useState<number | null>(null);
+  const [searchMode, setSearchMode] = useState<SearchMode>("text");
+  const [semanticResults, setSemanticResults] = useState<Array<{ id: string; content: string; category: string; importance: number; entities: string[]; tags: string[] }>>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [favouriteFilter, setFavouriteFilter] = useState(false);
   const [titleFilter, setTitleFilter] = useState<string | null>(null);
@@ -78,13 +80,29 @@ export default function MemoriaPage() {
     }
 
     try {
+      if (searchQuery && searchMode === "semantic") {
+        const res = await fetch("/api/memoria/search/semantic", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: searchQuery, limit: 30 }),
+        });
+        const data = await res.json();
+        setSemanticResults(data.results || []);
+        setEntries([]);
+        setHasMore(false);
+        return;
+      }
+
       if (searchQuery) {
         const res = await fetch(`/api/memoria/search?q=${encodeURIComponent(searchQuery)}`);
         const data = await res.json();
         setEntries(data.entries || []);
+        setSemanticResults([]);
         setHasMore(false);
         return;
       }
+
+      setSemanticResults([]);
 
       const params = new URLSearchParams();
       if (activeSourceFilter) params.set("source_type", activeSourceFilter);
@@ -115,13 +133,13 @@ export default function MemoriaPage() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, titleFilter, authorFilter, sort, entries.length]);
+  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, titleFilter, authorFilter, sort, entries.length, searchMode]);
 
   // Re-fetch when filters change
   useEffect(() => {
     fetchEntries(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, titleFilter, authorFilter, sort]);
+  }, [activeSourceFilter, activeTagFilter, searchQuery, favouriteFilter, titleFilter, authorFilter, sort, searchMode]);
 
   const fetchTags = useCallback(async () => {
     try {
@@ -198,6 +216,8 @@ export default function MemoriaPage() {
       <MemoriaHeader
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
+        searchMode={searchMode}
+        onSearchModeChange={setSearchMode}
         onAddClick={() => setShowAddModal(true)}
         onRandomClick={() => setShowRandomModal(true)}
         total={totalRef.current}
@@ -220,6 +240,49 @@ export default function MemoriaPage() {
         const entry = entries.find((e) => e.id === entryId);
         if (entry) setSelectedEntry(entry);
       }} />
+      {/* Semantic search results */}
+      {searchMode === "semantic" && semanticResults.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Knowledge Graph Results
+          </div>
+          <div className="grid grid-cols-1 gap-2">
+            {semanticResults.map((result) => (
+              <div
+                key={result.id}
+                className="p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-800 leading-relaxed">{result.content}</p>
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">
+                        {result.category}
+                      </span>
+                      {result.importance >= 8 && (
+                        <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full">
+                          High importance
+                        </span>
+                      )}
+                      {result.tags.slice(0, 4).map((tag) => (
+                        <span key={tag} className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded-full">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {searchMode === "semantic" && semanticResults.length === 0 && !loading && searchQuery && (
+        <div className="text-sm text-gray-400 text-center py-8">
+          No knowledge graph matches found.
+        </div>
+      )}
+
       <MemoriaGrid
         entries={entries}
         loading={loading}
