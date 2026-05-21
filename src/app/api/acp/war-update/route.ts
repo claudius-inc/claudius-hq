@@ -1,8 +1,66 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import YahooFinance from "yahoo-finance2";
+
+const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 // War started on Feb 28, 2026
 const WAR_START_DATE = new Date("2026-02-28T00:00:00Z");
+
+interface OilPrice {
+  price: number | null;
+  changePercent: number | null;
+}
+
+async function fetchOilPrices(): Promise<{ brent: OilPrice; wti: OilPrice }> {
+  let brent: OilPrice = { price: null, changePercent: null };
+  let wti: OilPrice = { price: null, changePercent: null };
+
+  try {
+    const brentQuote = await yahooFinance.quote("BZ=F") as {
+      regularMarketPrice?: number;
+      regularMarketChangePercent?: number;
+    };
+    if (brentQuote?.regularMarketPrice) {
+      brent = {
+        price: brentQuote.regularMarketPrice,
+        changePercent: brentQuote.regularMarketChangePercent ?? null,
+      };
+    }
+  } catch (e) {
+    logger.error("api/acp/war-update", "Failed to fetch Brent", { error: e });
+  }
+
+  try {
+    const wtiQuote = await yahooFinance.quote("CL=F") as {
+      regularMarketPrice?: number;
+      regularMarketChangePercent?: number;
+    };
+    if (wtiQuote?.regularMarketPrice) {
+      wti = {
+        price: wtiQuote.regularMarketPrice,
+        changePercent: wtiQuote.regularMarketChangePercent ?? null,
+      };
+    }
+  } catch (e) {
+    logger.error("api/acp/war-update", "Failed to fetch WTI", { error: e });
+  }
+
+  return { brent, wti };
+}
+
+function formatOilPrices(oil: { brent: OilPrice; wti: OilPrice }): string {
+  const brentPrice = oil.brent.price ? `~$${oil.brent.price.toFixed(2)}` : "N/A";
+  const brentChange = oil.brent.changePercent !== null
+    ? `(${oil.brent.changePercent >= 0 ? "+" : ""}${oil.brent.changePercent.toFixed(2)}%)`
+    : "";
+  const wtiPrice = oil.wti.price ? `~$${oil.wti.price.toFixed(2)}` : "N/A";
+  const wtiChange = oil.wti.changePercent !== null
+    ? `(${oil.wti.changePercent >= 0 ? "+" : ""}${oil.wti.changePercent.toFixed(2)}%)`
+    : "";
+
+  return `⛽️ Oil: Brent ${brentPrice} ${brentChange} | WTI: ${wtiPrice} ${wtiChange}`;
+}
 
 interface WarMonitorState {
   lastUpdate: string;
@@ -44,6 +102,7 @@ interface WarUpdateResponse {
     us: string;
     gulf: string;
   };
+  oilPrices: string;
   lastUpdate: string;
   totalEventsTracked: number;
   eventsReturned: number;
@@ -247,6 +306,7 @@ export async function POST(req: NextRequest) {
         keyDevelopments,
       },
       casualties: extractCasualties(state.reportedEvents),
+      oilPrices: "⛽️ Oil: Brent ~$110.16 (-2.87%) | WTI: ~$100 (-3%)", // placeholder until fetch completes
       lastUpdate: state.lastUpdate,
       totalEventsTracked: state.reportedEvents.length,
       eventsReturned: warEvents.length,
@@ -256,6 +316,10 @@ export async function POST(req: NextRequest) {
     if (includeMarketImpact) {
       response.marketImpact = calculateMarketImpact(warEvents, riskLevel);
     }
+
+    // Fetch and format oil prices
+    const oil = await fetchOilPrices();
+    response.oilPrices = formatOilPrices(oil);
     
     logger.info("api/acp/war-update", `Returned ${warEvents.length} events`, {
       conflictDay,
