@@ -6,7 +6,7 @@ import { BulkReviewStep } from "./BulkReviewStep";
 import { Sparkles, Plus, X, Loader2 } from "lucide-react";
 import type { MemoriaTag } from "../page";
 
-const SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video"];
+const SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video", "preferences"];
 
 interface Props {
   open: boolean;
@@ -317,7 +317,7 @@ export function AddEntryModal({ open, onClose, tags, onSaved }: Props) {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               rows={4}
-              placeholder="Paste a quote, highlight, or write an idea..."
+              placeholder={sourceType === "preferences" ? "Describe your preferred format, style, or settings..." : "Paste a quote, highlight, or write an idea..."}
               className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg resize-none"
             />
           </div>

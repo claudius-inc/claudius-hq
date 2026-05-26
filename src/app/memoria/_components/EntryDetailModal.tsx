@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Trash2, Link2, Sparkles, Plus, Loader2, Brain, BookOpen } from "lucide-react";
 import type { MemoriaEntry, MemoriaTag } from "../page";
 
-const SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video"];
+const SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video", "preferences"];
 
 interface Props {
   open: boolean;

@@ -13,6 +13,7 @@ const SOURCE_TYPES = [
   { value: "thought", label: "Thought" },
   { value: "tweet", label: "Tweet" },
   { value: "video", label: "Video" },
+  { value: "preferences", label: "Preferences" },
 ] as const;
 
 interface Props {
