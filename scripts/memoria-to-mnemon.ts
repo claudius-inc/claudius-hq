@@ -20,6 +20,7 @@ const BATCH_SIZE = parseInt(
   10
 );
 const SINCE = process.argv.find((a, i, arr) => arr[i - 1] === "--since" && a);
+const SOURCE_TYPE = process.argv.find((a, i, arr) => arr[i - 1] === "--source-type" && a);
 
 const TURSO_URL = process.env.TURSO_DATABASE_URL;
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
@@ -80,15 +81,20 @@ function buildFact(entry) {
   if (entry.my_note) {
     fact += `\n\n[Note] ${entry.my_note.trim()}`;
   }
+  // mnemon caps facts at 8000 chars; truncate long ones (full text still lives in Turso/vault).
+  if (fact.length > 7900) {
+    fact = fact.slice(0, 7900) + "\n\n[truncated]";
+  }
   return fact;
 }
 
 /** Run mnemon remember and return parsed JSON */
 function mnemonRemember(fact, category, importance, entities) {
   return new Promise((resolve, reject) => {
+    // Flags first, then "--", then the fact — so facts starting with "-"
+    // (markdown bullet lists) aren't parsed as CLI flags.
     const args = [
       "remember",
-      fact,
       "--cat",
       category,
       "--imp",
@@ -97,6 +103,8 @@ function mnemonRemember(fact, category, importance, entities) {
       entities,
       "--source",
       "memoria-import",
+      "--",
+      fact,
     ];
     const child = spawn("mnemon", args, {
       env: process.env,
@@ -131,6 +139,10 @@ async function fetchBatch(offset) {
   if (SINCE) {
     sql += ` AND created_at >= ?`;
     args.push(SINCE);
+  }
+  if (SOURCE_TYPE) {
+    sql += ` AND source_type = ?`;
+    args.push(SOURCE_TYPE);
   }
   sql += ` ORDER BY id LIMIT ? OFFSET ?`;
   args.push(BATCH_SIZE, offset);
