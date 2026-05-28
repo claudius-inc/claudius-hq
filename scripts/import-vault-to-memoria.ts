@@ -20,7 +20,16 @@ const argv = process.argv.slice(2);
 const DRY_RUN = argv.includes("--dry-run");
 const vaultArg = argv.indexOf("--vault");
 const VAULT = path.resolve(vaultArg >= 0 ? argv[vaultArg + 1] : "/root/memoria-vault");
-const ENTRIES_DIR = path.join(VAULT, "Entries");
+
+function listEntryFiles(vault) {
+  const dirs = [path.join(vault, "Entries"), path.join(vault, "Notion")];
+  const files = [];
+  for (const d of dirs) {
+    if (!fs.existsSync(d)) continue;
+    for (const f of fs.readdirSync(d)) if (f.endsWith(".md")) files.push(path.join(d, f));
+  }
+  return files;
+}
 
 const db = createClient({
   url: process.env.TURSO_DATABASE_URL,
@@ -89,14 +98,14 @@ async function setTags(entryId, tagNames) {
 async function main() {
   console.log(`[vault→memoria] VAULT=${VAULT} DRY_RUN=${DRY_RUN}`);
   const dbRows = await loadDbRows();
-  const files = fs.readdirSync(ENTRIES_DIR).filter((f) => f.endsWith(".md"));
+  const files = listEntryFiles(VAULT);
   console.log(`Vault files: ${files.length} | DB rows: ${dbRows.size}`);
 
   const seenIds = new Set();
   let inserted = 0, updated = 0, unchanged = 0;
 
-  for (const fname of files) {
-    const fpath = path.join(ENTRIES_DIR, fname);
+  for (const fpath of files) {
+    const fname = path.basename(fpath);
     const file = parseEntryFile(fs.readFileSync(fpath, "utf8"));
 
     if (file.id == null) {
