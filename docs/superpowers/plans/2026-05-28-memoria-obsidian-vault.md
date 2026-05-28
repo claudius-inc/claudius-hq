@@ -60,8 +60,9 @@ memoria-vault/                 (PRIVATE git repo — contains memory about the u
 - `src/app/memoria/graph/`, `src/app/memoria/wiki/` (pages).
 - `src/app/api/memoria/graph-qa/`, `src/app/api/memoria/wiki/`, `src/app/api/memoria/mnemon/graph/` (APIs).
 - `src/app/memoria/_components/AddEntryModal.tsx`, `GraphQAPanel.tsx` (write/graph UI).
-- `scripts/generate-wiki-pages.ts`, `scripts/sync-mnemon-to-hq.ts`.
-- `/root/.openclaw/workspace/scripts/sync-mnemon-to-hq.sh`.
+- `scripts/generate-wiki-pages.ts`.
+
+**CORRECTION (during execution):** `mnemonGraphSnapshots` (table + the `sync-mnemon-to-hq.ts` script + its cron) are NOT graph-only — they back **semantic search**, the **QA recall hook** (`mnemon-recall.ts`), and the **derived-insights** panel, all of which are kept. So they are **NOT deleted**. Only `memoriaWikiPages` is removed from the schema. The graph snapshot keeps refreshing nightly.
 
 ---
 
