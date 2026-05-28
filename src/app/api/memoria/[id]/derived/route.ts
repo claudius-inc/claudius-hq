@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db, mnemonGraphSnapshots, memoriaWikiPages } from "@/db";
+import { db, mnemonGraphSnapshots } from "@/db";
 import { desc } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
@@ -15,7 +15,7 @@ interface GraphNode {
 }
 
 // GET /api/memoria/[id]/derived
-// Returns mnemon insights derived from this entry + wiki articles that cite them.
+// Returns mnemon insights derived from this entry.
 export async function GET(
   _req: NextRequest,
   { params }: { params: { id: string } }
@@ -30,7 +30,7 @@ export async function GET(
       .orderBy(desc(mnemonGraphSnapshots.createdAt))
       .limit(1);
 
-    if (!latest) return NextResponse.json({ insights: [], wikis: [] });
+    if (!latest) return NextResponse.json({ insights: [] });
 
     const snapshot: { nodes: GraphNode[] } = JSON.parse(latest.snapshotJson);
     const tag = `memoria-id:${id}`;
@@ -39,20 +39,8 @@ export async function GET(
     );
 
     if (derived.length === 0) {
-      return NextResponse.json({ insights: [], wikis: [] });
+      return NextResponse.json({ insights: [] });
     }
-
-    const derivedIds = new Set(derived.map((d) => d.id));
-    const allWikis = await db.select().from(memoriaWikiPages);
-    const wikis = allWikis.filter((w) => {
-      if (!w.sourceInsightIds) return false;
-      try {
-        const ids: string[] = JSON.parse(w.sourceInsightIds);
-        return ids.some((iid) => derivedIds.has(iid));
-      } catch {
-        return false;
-      }
-    });
 
     return NextResponse.json({
       insights: derived.map((d) => ({
@@ -61,7 +49,6 @@ export async function GET(
         category: d.category,
         importance: d.importance,
       })),
-      wikis: wikis.map((w) => ({ slug: w.slug, title: w.title })),
     });
   } catch (e) {
     logger.error("api/memoria/derived", "Failed", { error: e });

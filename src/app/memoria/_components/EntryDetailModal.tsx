@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { Modal } from "@/components/ui/Modal";
-import Link from "next/link";
-import { Trash2, Link2, Sparkles, Plus, Loader2, Brain, BookOpen } from "lucide-react";
+import { Trash2, Link2, Sparkles, Plus, Loader2, Brain } from "lucide-react";
 import type { MemoriaEntry, MemoriaTag } from "../page";
 
 const SOURCE_TYPES = ["book", "article", "podcast", "conversation", "thought", "tweet", "video", "preferences"];
@@ -37,8 +36,7 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
   const [loadingRelated, setLoadingRelated] = useState(false);
   const [derived, setDerived] = useState<{
     insights: Array<{ id: string; content: string; category: string; importance: number }>;
-    wikis: Array<{ slug: string; title: string }>;
-  }>({ insights: [], wikis: [] });
+  }>({ insights: [] });
 
   const fetchRelated = useCallback(async () => {
     setLoadingRelated(true);
@@ -50,10 +48,10 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
       const relData = await relRes.json();
       const derData = await derRes.json();
       setRelated(relData.related || []);
-      setDerived({ insights: derData.insights || [], wikis: derData.wikis || [] });
+      setDerived({ insights: derData.insights || [] });
     } catch {
       setRelated([]);
-      setDerived({ insights: [], wikis: [] });
+      setDerived({ insights: [] });
     } finally {
       setLoadingRelated(false);
     }
@@ -242,26 +240,6 @@ export function EntryDetailModal({ open, onClose, entry, tags, onSaved, onDelete
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-          {/* Wiki articles citing this entry */}
-          {!loadingRelated && derived.wikis.length > 0 && (
-            <div className="pt-2 border-t border-gray-100 space-y-1.5">
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                <BookOpen size={12} />
-                <span className="font-medium">In wiki articles</span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {derived.wikis.map((w) => (
-                  <Link
-                    key={w.slug}
-                    href={`/memoria/wiki/${w.slug}`}
-                    className="text-[11px] text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-full"
-                  >
-                    {w.title}
-                  </Link>
-                ))}
-              </div>
             </div>
           )}
           {/* Related entries */}

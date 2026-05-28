@@ -1,9 +1,7 @@
 "use client";
 
-import { Search, Shuffle, BookOpen, GitBranch, FileText, Brain } from "lucide-react";
+import { Search, Shuffle, Brain } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 export type SearchMode = "text" | "semantic";
 
@@ -19,7 +17,6 @@ interface Props {
 export function MemoriaHeader({ searchQuery, onSearchChange, searchMode, onSearchModeChange, onRandomClick, total }: Props) {
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
-  const pathname = usePathname();
 
   useEffect(() => {
     timerRef.current = setTimeout(() => {
@@ -28,8 +25,6 @@ export function MemoriaHeader({ searchQuery, onSearchChange, searchMode, onSearc
     return () => clearTimeout(timerRef.current);
   }, [localQuery, onSearchChange]);
 
-  const tab = pathname === "/memoria/graph" ? "graph" : pathname === "/memoria/wiki" ? "wiki" : "entries";
-
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
@@ -37,43 +32,6 @@ export function MemoriaHeader({ searchQuery, onSearchChange, searchMode, onSearc
         <div className="flex items-center gap-1 text-xs text-gray-500">
           <span>{total} entries</span>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex items-center gap-1">
-        <Link
-          href="/memoria"
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-            tab === "entries"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          <BookOpen size={14} />
-          Entries
-        </Link>
-        <Link
-          href="/memoria/graph"
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-            tab === "graph"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          <GitBranch size={14} />
-          Graph
-        </Link>
-        <Link
-          href="/memoria/wiki"
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-            tab === "wiki"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-          }`}
-        >
-          <FileText size={14} />
-          Wiki
-        </Link>
       </div>
 
       {/* Search bar with mode toggle */}

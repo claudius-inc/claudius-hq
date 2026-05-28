@@ -776,23 +776,6 @@ export type MemoriaEntryTag = typeof memoriaEntryTags.$inferSelect;
 export type NewMemoriaEntryTag = typeof memoriaEntryTags.$inferInsert;
 
 export type MemoriaInsight = typeof memoriaInsights.$inferSelect;
-// ============================================================================
-// Memoria Wiki Pages — generated from mnemon knowledge graph clusters
-// ============================================================================
-
-export const memoriaWikiPages = sqliteTable("memoria_wiki_pages", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  slug: text("slug").notNull().unique(),
-  title: text("title").notNull(),
-  content: text("content").notNull().default(""),
-  sourceInsightIds: text("source_insight_ids").default("[]"), // JSON array of mnemon insight IDs
-  clusterTopic: text("cluster_topic"), // Main topic/entity for this wiki page
-  generatedAt: text("generated_at").default(sql`(datetime('now'))`),
-  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
-});
-
-export type MemoriaWikiPage = typeof memoriaWikiPages.$inferSelect;
-export type NewMemoriaWikiPage = typeof memoriaWikiPages.$inferInsert;
 
 // ============================================================================
 // Mnemon Graph Snapshots — cached knowledge graph data from VPS mnemon
