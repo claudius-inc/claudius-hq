@@ -29,7 +29,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 function listFiles() {
   const out = [];
-  for (const d of [path.join(VAULT, "Entries"), path.join(VAULT, "Notion")]) {
+  for (const d of [path.join(VAULT, "Entries"), path.join(VAULT, "Synced", "Notion")]) {
     if (!fs.existsSync(d)) continue;
     for (const f of fs.readdirSync(d)) if (f.endsWith(".md")) out.push(path.join(d, f));
   }

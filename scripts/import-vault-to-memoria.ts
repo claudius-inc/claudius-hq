@@ -22,7 +22,7 @@ const vaultArg = argv.indexOf("--vault");
 const VAULT = path.resolve(vaultArg >= 0 ? argv[vaultArg + 1] : "/root/memoria-vault");
 
 function listEntryFiles(vault) {
-  const dirs = [path.join(vault, "Entries"), path.join(vault, "Notion")];
+  const dirs = [path.join(vault, "Entries"), path.join(vault, "Synced", "Notion")];
   const files = [];
   for (const d of dirs) {
     if (!fs.existsSync(d)) continue;

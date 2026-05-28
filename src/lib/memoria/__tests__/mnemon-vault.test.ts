@@ -38,6 +38,6 @@ describe("insightToMarkdown", () => {
     expect(md).toContain("[[abc12345-other-note|Other note]]");
   });
   it("links memoria-id entities back to the Entries folder", () => {
-    expect(md).toContain("[[../Entries/42-the-entry-title|Source entry #42]]");
+    expect(md).toContain("[[../../Entries/42-the-entry-title|Source entry #42]]");
   });
 });

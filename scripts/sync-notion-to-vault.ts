@@ -21,7 +21,7 @@ const vIdx = argv.indexOf("--vault");
 const lIdx = argv.indexOf("--limit");
 const VAULT = path.resolve(vIdx >= 0 ? argv[vIdx + 1] : "/root/memoria-vault");
 const LIMIT = lIdx >= 0 ? parseInt(argv[lIdx + 1], 10) : Infinity;
-const NOTION_DIR = path.join(VAULT, "Notion");
+const NOTION_DIR = path.join(VAULT, "Synced", "Notion");
 
 const token = process.env.NOTION_TOKEN;
 if (!token) { console.error("NOTION_TOKEN missing"); process.exit(1); }

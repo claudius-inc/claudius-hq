@@ -21,7 +21,7 @@ const vaultArg = argv.indexOf("--vault");
 const dbArg = argv.indexOf("--db");
 const VAULT = path.resolve(vaultArg >= 0 ? argv[vaultArg + 1] : "/root/memoria-vault");
 const DB_PATH = dbArg >= 0 ? argv[dbArg + 1] : "/root/.mnemon/data/default/mnemon.db";
-const MNEMON_DIR = path.join(VAULT, "Mnemon");
+const MNEMON_DIR = path.join(VAULT, "Synced", "Mnemon");
 const ENTRIES_DIR = path.join(VAULT, "Entries");
 
 const db = createClient({ url: `file:${DB_PATH}` });
