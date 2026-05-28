@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
 import { rawClient } from "@/db";
 import { logger } from "@/lib/logger";
 
@@ -103,40 +102,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const { content, source_type, source_title, source_author, source_url, source_location, my_note, tag_ids, captured_at } = body;
-
-    if (!content || !source_type) {
-      return NextResponse.json({ error: "content and source_type are required" }, { status: 400 });
-    }
-
-    const result = await rawClient.execute({
-      sql: `INSERT INTO memoria_entries (content, source_type, source_title, source_author, source_url, source_location, my_note, captured_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [content, source_type, source_title || null, source_author || null, source_url || null, source_location || null, my_note || null, captured_at || null],
-    });
-
-    const entryId = Number(result.lastInsertRowid);
-
-    if (tag_ids && Array.isArray(tag_ids) && tag_ids.length > 0) {
-      for (const tagId of tag_ids) {
-        await rawClient.execute({
-          sql: `INSERT INTO memoria_entry_tags (entry_id, tag_id) VALUES (?, ?)`,
-          args: [entryId, tagId],
-        });
-      }
-    }
-
-    const entryResult = await rawClient.execute({
-      sql: `SELECT * FROM memoria_entries WHERE id = ?`,
-      args: [entryId],
-    });
-
-    revalidateTag('memoria');
-    return NextResponse.json({ entry: entryResult.rows[0] }, { status: 201 });
-  } catch (e) {
-    logger.error("api/memoria", "Failed to create entry", { error: e });
-    return NextResponse.json({ error: String(e) }, { status: 500 });
-  }
+export async function POST() {
+  return NextResponse.json(
+    { error: "Memoria is now authored in the Obsidian vault. Add entries there; they sync to HQ nightly." },
+    { status: 410 }
+  );
 }

@@ -416,7 +416,6 @@ function GraphPageContent() {
         onSearchChange={() => {}}
         searchMode="text"
         onSearchModeChange={() => {}}
-        onAddClick={() => {}}
         onRandomClick={() => {}}
         total={totalNodes}
       />

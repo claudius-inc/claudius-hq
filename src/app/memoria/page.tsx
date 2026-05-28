@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { MemoriaHeader, SearchMode } from "./_components/MemoriaHeader";
 import { MemoriaFilters } from "./_components/MemoriaFilters";
 import { MemoriaGrid, SortOption } from "./_components/MemoriaGrid";
-import { AddEntryModal } from "./_components/AddEntryModal";
 import { RandomModal } from "./_components/RandomModal";
 import { EntryDetailModal } from "./_components/EntryDetailModal";
 import { InsightsPanel } from "./_components/InsightsPanel";
@@ -58,7 +57,6 @@ export default function MemoriaPage() {
   const [authorFilter, setAuthorFilter] = useState<string | null>(null);
   const [sort, setSort] = useState<SortOption>("recent");
   const [togglingFavoriteId, setTogglingFavoriteId] = useState<number | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
   const [showRandomModal, setShowRandomModal] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<MemoriaEntry | null>(null);
 
@@ -218,7 +216,6 @@ export default function MemoriaPage() {
         onSearchChange={setSearchQuery}
         searchMode={searchMode}
         onSearchModeChange={setSearchMode}
-        onAddClick={() => setShowAddModal(true)}
         onRandomClick={() => setShowRandomModal(true)}
         total={totalRef.current}
       />
@@ -297,15 +294,6 @@ export default function MemoriaPage() {
         total={totalRef.current}
         sort={sort}
         onSortChange={setSort}
-      />
-      <AddEntryModal
-        open={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        tags={tags}
-        onSaved={() => {
-          fetchEntries(true);
-          fetchTags();
-        }}
       />
       <RandomModal
         open={showRandomModal}

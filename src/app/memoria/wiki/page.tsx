@@ -103,7 +103,6 @@ export default function WikiIndexPage() {
         onSearchChange={() => {}}
         searchMode="text"
         onSearchModeChange={() => {}}
-        onAddClick={() => {}}
         onRandomClick={() => {}}
         total={pages.length}
       />

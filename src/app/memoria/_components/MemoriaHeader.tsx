@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, Plus, Shuffle, BookOpen, GitBranch, FileText, Brain } from "lucide-react";
+import { Search, Shuffle, BookOpen, GitBranch, FileText, Brain } from "lucide-react";
 import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -12,12 +12,11 @@ interface Props {
   onSearchChange: (q: string) => void;
   searchMode: SearchMode;
   onSearchModeChange: (mode: SearchMode) => void;
-  onAddClick: () => void;
   onRandomClick: () => void;
   total: number;
 }
 
-export function MemoriaHeader({ searchQuery, onSearchChange, searchMode, onSearchModeChange, onAddClick, onRandomClick, total }: Props) {
+export function MemoriaHeader({ searchQuery, onSearchChange, searchMode, onSearchModeChange, onRandomClick, total }: Props) {
   const [localQuery, setLocalQuery] = useState(searchQuery);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
   const pathname = usePathname();
@@ -127,13 +126,6 @@ export function MemoriaHeader({ searchQuery, onSearchChange, searchMode, onSearc
           title="Random entry"
         >
           <Shuffle size={14} />
-        </button>
-        <button
-          onClick={onAddClick}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          <Plus size={14} />
-          Add
         </button>
       </div>
     </div>
