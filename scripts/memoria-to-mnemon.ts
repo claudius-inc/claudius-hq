@@ -121,12 +121,47 @@ function mnemonRemember(fact, category, importance, entities) {
       if (code !== 0) {
         return reject(new Error(`mnemon exited ${code}: ${stderr || stdout}`));
       }
-      const skipped = /already exists|duplicate|merged with existing/i.test(stdout + stderr);
-      resolve({ action: skipped ? "skipped" : "added" });
+      // Parse the JSON result to get action + the new insight id.
+      try {
+        const start = stdout.indexOf("{");
+        const parsed = JSON.parse(stdout.slice(start));
+        resolve({ action: parsed.action || "added", id: parsed.id || null });
+      } catch {
+        const skipped = /already exists|duplicate|merged with existing|skipped/i.test(stdout + stderr);
+        resolve({ action: skipped ? "skipped" : "added", id: null });
+      }
     });
 
     child.on("error", reject);
   });
+}
+
+/**
+ * Upsert support: when an entry's content changes, mnemon adds a NEW insight and the
+ * stale one lingers. After a successful "added", forget any other insights carrying the
+ * same memoria-id:<id> entity (keeping the just-added one). Reads mnemon's local SQLite
+ * directly to find them (read-only), then shells `mnemon forget`.
+ */
+const MNEMON_DB = process.env.MNEMON_DB || "/root/.mnemon/data/default/mnemon.db";
+const mdb = createClient({ url: `file:${MNEMON_DB}` });
+
+async function forgetStaleVersions(memoriaId, keepId) {
+  const res = await mdb.execute({
+    sql: `SELECT id FROM insights WHERE deleted_at IS NULL AND entities LIKE ?`,
+    args: [`%"memoria-id:${memoriaId}"%`],
+  });
+  let forgotten = 0;
+  for (const row of res.rows) {
+    const iid = String(row.id);
+    if (iid === keepId) continue;
+    await new Promise((resolve) => {
+      const c = spawn("mnemon", ["forget", iid], { env: process.env });
+      c.on("close", () => resolve(null));
+      c.on("error", () => resolve(null));
+    });
+    forgotten++;
+  }
+  return forgotten;
 }
 
 async function fetchBatch(offset) {
@@ -137,7 +172,8 @@ async function fetchBatch(offset) {
              WHERE is_archived = 0`;
   const args = [];
   if (SINCE) {
-    sql += ` AND created_at >= ?`;
+    // updated_at (not created_at) so EDITS to existing entries re-sync, not just new ones.
+    sql += ` AND updated_at >= ?`;
     args.push(SINCE);
   }
   if (SOURCE_TYPE) {
@@ -194,7 +230,9 @@ async function main() {
           console.log(`  → skipped (duplicate)`);
         } else {
           imported++;
-          console.log(`  → ${result.action} id=${result.id || "?"}`);
+          // Content changed → forget stale prior versions for this memoria-id.
+          const purged = await forgetStaleVersions(entry.id, result.id);
+          console.log(`  → ${result.action} id=${result.id || "?"}${purged ? ` (purged ${purged} stale)` : ""}`);
         }
       } catch (err) {
         failed++;
