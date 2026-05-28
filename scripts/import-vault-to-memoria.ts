@@ -19,7 +19,7 @@ const { parseEntryFile, serializeEntryFile, rowDirty } = require("../src/lib/mem
 const argv = process.argv.slice(2);
 const DRY_RUN = argv.includes("--dry-run");
 const vaultArg = argv.indexOf("--vault");
-const VAULT = path.resolve(vaultArg >= 0 ? argv[vaultArg + 1] : path.join(process.cwd(), "..", "memoria-vault"));
+const VAULT = path.resolve(vaultArg >= 0 ? argv[vaultArg + 1] : "/root/memoria-vault");
 const ENTRIES_DIR = path.join(VAULT, "Entries");
 
 const db = createClient({
