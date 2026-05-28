@@ -82,6 +82,8 @@ export async function getMomentumGainers(
         tm.momentum_score,
         tm.price,
         tm.technical_score,
+        tm.price_change_1d,
+        tm.price_change_1w,
         ms.momentum_score AS yesterday_score,
         (tm.momentum_score - ms.momentum_score) AS momentum_delta
       FROM ticker_metrics tm

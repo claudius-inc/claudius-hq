@@ -120,15 +120,15 @@ jobs:
 
           // Build message
           const lines = ["📈 *Fastest Momentum Gainers*", "", "```"];
-          lines.push("Rank  Ticker       Delta   Now  1W%   1M%  ");
+          lines.push("Rank  Ticker       Delta   Now  1D%   1W%  ");
           lines.push("────  ───────────  ─────  ───  ─────  ────");
           raw.gainers.forEach((g: any, i: number) => {
             const delta = Math.round(g.momentum_delta);
             const score = g.momentum_score !== null ? Math.round(g.momentum_score) : "—";
-            const w1 = g.price_change_1w !== null ? (g.price_change_1w >= 0 ? "+" : "") + g.price_change_1w.toFixed(1) + "%" : "—";
-            const m1 = g.price_change_1m !== null ? (g.price_change_1m >= 0 ? "+" : "") + g.price_change_1m.toFixed(1) + "%" : "—";
+            const d1 = (g.price_change_1d !== null && g.price_change_1d !== undefined) ? (g.price_change_1d >= 0 ? "+" : "") + g.price_change_1d.toFixed(1) + "%" : "—";
+            const w1 = (g.price_change_1w !== null && g.price_change_1w !== undefined) ? (g.price_change_1w >= 0 ? "+" : "") + g.price_change_1w.toFixed(1) + "%" : "—";
             const ticker = (g.ticker + "           ").slice(0, 13);
-            lines.push(` ${String(i+1).padStart(2)}   ${ticker}  +${String(delta).padStart(3)}   ${String(score).padStart(3)}  ${(w1 + "         ").slice(0, 6)}  ${(m1 + "         ").slice(0, 6)}`);
+            lines.push(` ${String(i+1).padStart(2)}   ${ticker}  +${String(delta).padStart(3)}   ${String(score).padStart(3)}  ${(d1 + "         ").slice(0, 6)}  ${(w1 + "         ").slice(0, 6)}`);
           });
           lines.push("```");
           lines.push("");
