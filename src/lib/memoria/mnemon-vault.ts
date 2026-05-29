@@ -70,7 +70,7 @@ export function insightToMarkdown(
     if (m) {
       const id = Number(m[1]);
       const title = entryTitlesById.get(id);
-      if (title) entryLinks.push(`- [[../../Entries/${title}|Source entry #${id}]]`);
+      if (title) entryLinks.push(`- [[../../entries/${title}|Source entry #${id}]]`);
     }
   }
   if (entryLinks.length) {

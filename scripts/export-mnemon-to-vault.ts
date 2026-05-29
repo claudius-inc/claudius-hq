@@ -2,8 +2,8 @@
 // @ts-nocheck
 /**
  * export-mnemon-to-vault.ts
- * Read-only mirror of the mnemon knowledge graph into vault/Mnemon/*.md.
- * insights → notes, edges → [[wikilinks]]. Wipes Mnemon/ and regenerates.
+ * Read-only mirror of the mnemon knowledge graph into vault/synced/mnemon/*.md.
+ * insights → notes, edges → [[wikilinks]]. Wipes synced/mnemon/ and regenerates.
  *
  * Usage:
  *   npx tsx scripts/export-mnemon-to-vault.ts [--vault DIR] [--db PATH] [--dry-run]
@@ -21,8 +21,8 @@ const vaultArg = argv.indexOf("--vault");
 const dbArg = argv.indexOf("--db");
 const VAULT = path.resolve(vaultArg >= 0 ? argv[vaultArg + 1] : "/root/memoria-vault");
 const DB_PATH = dbArg >= 0 ? argv[dbArg + 1] : "/root/.mnemon/data/default/mnemon.db";
-const MNEMON_DIR = path.join(VAULT, "Synced", "Mnemon");
-const ENTRIES_DIR = path.join(VAULT, "Entries");
+const MNEMON_DIR = path.join(VAULT, "synced", "mnemon");
+const ENTRIES_DIR = path.join(VAULT, "entries");
 
 const db = createClient({ url: `file:${DB_PATH}` });
 

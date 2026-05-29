@@ -2,7 +2,7 @@
 // @ts-nocheck
 /**
  * import-vault-to-memoria.ts
- * Reads vault/Entries/*.md and upserts the Turso memoria_entries table.
+ * Reads vault/entries/*.md and upserts the Turso memoria_entries table.
  * - files WITH memoria-id: update Turso row if changed
  * - files WITHOUT memoria-id: insert, then stamp the new id back into the file
  * - Turso rows whose id is absent from the vault: soft-archive (is_archived=1)
@@ -22,7 +22,7 @@ const vaultArg = argv.indexOf("--vault");
 const VAULT = path.resolve(vaultArg >= 0 ? argv[vaultArg + 1] : "/root/memoria-vault");
 
 function listEntryFiles(vault) {
-  const dirs = [path.join(vault, "Entries"), path.join(vault, "Synced", "Notion")];
+  const dirs = [path.join(vault, "entries"), path.join(vault, "synced", "notion")];
   const files = [];
   for (const d of dirs) {
     if (!fs.existsSync(d)) continue;

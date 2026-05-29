@@ -2,7 +2,7 @@
 // @ts-nocheck
 /**
  * auto-tag-entries.ts
- * Finds vault entries (Entries/ + Notion/) with no tags and assigns 1-4 topical tags
+ * Finds vault entries (entries/ + synced/notion/) with no tags and assigns 1-4 topical tags
  * via Gemini, constrained to the existing tag vocabulary (only inventing a tag when
  * nothing fits). Writes tags into the file's frontmatter — the importer then carries
  * them to Turso, and mnemon re-syncs them. One-way producer into the canonical vault.
@@ -29,7 +29,7 @@ const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 function listFiles() {
   const out = [];
-  for (const d of [path.join(VAULT, "Entries"), path.join(VAULT, "Synced", "Notion")]) {
+  for (const d of [path.join(VAULT, "entries"), path.join(VAULT, "synced", "notion")]) {
     if (!fs.existsSync(d)) continue;
     for (const f of fs.readdirSync(d)) if (f.endsWith(".md")) out.push(path.join(d, f));
   }
