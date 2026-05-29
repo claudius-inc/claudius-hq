@@ -30,7 +30,7 @@ const opt = (name, def) => {
 
 const DRY_RUN = flag("--dry-run");
 const INCLUDE_AI_SUMMARY = flag("--include-ai-summary");
-const OUT_DIR = path.resolve(opt("--out", path.join(process.cwd(), "..", "memoria-vault", "Entries")));
+const OUT_DIR = path.resolve(opt("--out", path.join(process.cwd(), "..", "memoria-vault", "entries")));
 
 const TURSO_URL = process.env.TURSO_DATABASE_URL;
 const TURSO_TOKEN = process.env.TURSO_AUTH_TOKEN;
