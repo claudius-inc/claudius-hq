@@ -250,6 +250,7 @@ I'm the Claudius Stocks Bot. Here's what I can do:
 🏢 /sectors - S&P 500 sector rotation
 💰 /price AAPL - Get stock price
 📚 /research AAPL - Get Sun Tzu report
+📝 /memoria <url> - Save article or tweet to memoria vault
 🔔 /alerts - Manage alerts
 
 Visit claudiusinc.com for full dashboard.`;
@@ -264,6 +265,7 @@ export function handleHelp(): string {
 /sectors - S&P 500 sector rotation
 /price AAPL - Quick stock lookup
 /research AAPL - Sun Tzu research report
+/memoria <url> - Save article or tweet to memoria vault
 /alerts - Alert settings
 /help - This message
 
@@ -352,3 +354,37 @@ export async function handleSectors(period: TimePeriod = "1w"): Promise<SectorsR
 }
 
 
+
+// ===== MEMORIA INGEST =====
+
+export async function handleMemoria(urls: string[], telegramChatId: number): Promise<string> {
+  const inserted: Array<{ url: string; sourceType: string }> = [];
+
+  for (const rawUrl of urls) {
+    const url = rawUrl.trim();
+    if (!url) continue;
+
+    let sourceType = "unknown";
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      sourceType = hostname.includes("x.com") || hostname.includes("twitter.com") ? "tweet" : "article";
+    } catch {
+      sourceType = "unknown";
+    }
+
+    await db.insert(memoriaIngestQueue).values({
+      url,
+      sourceType,
+      telegramChatId,
+    });
+
+    inserted.push({ url, sourceType });
+  }
+
+  if (inserted.length === 0) {
+    return "Usage: /memoria <url> [url2 ...]";
+  }
+
+  const lines = inserted.map((i) => `• ${i.sourceType}: ${i.url}`);
+  return `✅ Queued ${inserted.length} item(s) for ingestion\n\n${lines.join("\n")}\n\nProcessing every 5 min. You'll get a confirmation when done.`;
+}

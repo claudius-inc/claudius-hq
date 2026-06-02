@@ -249,6 +249,28 @@ export const telegramPending = sqliteTable("telegram_pending", {
 });
 
 // ============================================================================
+// Memoria Ingest Queue
+// ============================================================================
+
+export const MEMORIA_INGEST_STATUSES = ["pending", "processing", "done", "failed"] as const;
+export type MemoriaIngestStatus = (typeof MEMORIA_INGEST_STATUSES)[number];
+
+export const memoriaIngestQueue = sqliteTable("memoria_ingest_queue", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  url: text("url").notNull(),
+  sourceType: text("source_type").default("unknown"), // tweet, article, unknown
+  status: text("status").default("pending"),
+  vaultPath: text("vault_path"),
+  errorMessage: text("error_message"),
+  telegramChatId: integer("telegram_chat_id"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+  processedAt: text("processed_at"),
+});
+
+export type MemoriaIngestQueue = typeof memoriaIngestQueue.$inferSelect;
+export type NewMemoriaIngestQueue = typeof memoriaIngestQueue.$inferInsert;
+
+// ============================================================================
 // Type exports
 // ============================================================================
 

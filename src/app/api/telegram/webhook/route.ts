@@ -18,6 +18,7 @@ import {
   handleAlertThreshold,
   handleStart,
   handleHelp,
+  handleMemoria,
 } from "@/lib/telegram/handlers";
 import { ALLOWED_USER_IDS, type TelegramUpdate, type TimePeriod, type InlineKeyboardButton } from "@/lib/telegram/types";
 
@@ -182,6 +183,23 @@ export async function POST(request: NextRequest) {
           response = await handleAlertThreshold(telegramId, parseFloat(arg));
         }
         break;
+        
+      case "/memoria": {
+        if (!arg) {
+          response = "Usage: /memoria <url> [url2 ...]";
+        } else {
+          // Extract all URLs from the message text (not just the first arg)
+          const allText = message.text.trim();
+          const urlRegex = /(https?:\/\/[^\s]+)/g;
+          const urls = allText.match(urlRegex) || [];
+          if (urls.length === 0) {
+            response = "No URLs found. Usage: /memoria <url> [url2 ...]";
+          } else {
+            response = await handleMemoria(urls, chatId);
+          }
+        }
+        break;
+      }
         
       default:
         // Check if it looks like a ticker (no slash)
