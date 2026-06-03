@@ -3,6 +3,7 @@
 
 import { db, portfolioHoldings, themes, themeStocks, stockReports, telegramUsers } from "@/db";
 import { eq, desc } from "drizzle-orm";
+import { memoriaIngestQueue } from "@/db/schema";
 import YahooFinance from "yahoo-finance2";
 import { formatPrice, formatPercent, getEmoji, getPeriodKeyboard } from "../utils";
 import type { QuoteResult, TimePeriod, InlineKeyboardButton, ThemesResult, SectorsResult } from "../types";
