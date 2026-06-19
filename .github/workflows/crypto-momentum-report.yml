@@ -52,6 +52,8 @@ jobs:
           };
 
           const MIN_VOL = 5000000;
+          const W24 = 0.5, W7 = 0.3, W30 = 0.2;
+          const ATH_BOOST = 0.10;   // soft weight on near-ATH proximity (no hard gate)
           const STABLE = new Set([
             "USDT","USDC","DAI","USDE","USDS","FDUSD","TUSD","USD1","PYUSD","BUSD",
             "USDD","GUSD","FRAX","LUSD","USDP","CRVUSD","RLUSD","USDG","USDX",
@@ -60,6 +62,13 @@ jobs:
             STABLE.has(c.sym) ||
             /wrapped|staked|stablecoin/i.test(c.name) ||
             (Math.abs(c.p30 || 0) < 2 && Math.abs(c.p7 || 0) < 1);
+
+          // 0 (far below ATH) .. 100 (at ATH). Feeds the score as a soft bonus.
+          const athProx = (c) =>
+            (c.athc === null || c.athc === undefined) ? 0 : Math.max(0, Math.min(100, 100 + c.athc));
+          // Raw composite = weighted momentum blend + a small near-ATH bonus.
+          const composite = (c) =>
+            W24 * (c.p24 || 0) + W7 * (c.p7 || 0) + W30 * (c.p30 || 0) + ATH_BOOST * athProx(c);
 
           async function main() {
             const url =
@@ -75,9 +84,6 @@ jobs:
             }
             const coins = await res.json();
 
-            // Composite momentum: weight recent timeframes more, so coins that
-            // are accelerating now rank above ones that already ran weeks ago.
-            const W24 = 0.5, W7 = 0.3, W30 = 0.2;
             const all = coins.map((c) => ({
               sym: String(c.symbol || "").toUpperCase(),
               name: c.name || "",
@@ -86,23 +92,35 @@ jobs:
               p24: c.price_change_percentage_24h_in_currency,
               p7: c.price_change_percentage_7d_in_currency,
               p30: c.price_change_percentage_30d_in_currency,
+              athc: c.ath_change_percentage,
             }));
             const btc = all.find((c) => c.sym === "BTC") || { p7: 0 };
+
+            // Normalize the composite to a 0-100 percentile across the
+            // non-stablecoin top-200, so the score reads like an index
+            // (50 = median coin, 90 = top decile) and is stable across calm
+            // vs frothy regimes rather than an open-ended percentage blend.
+            const ref = all.filter((c) => !isStableish(c));
+            const comps = ref.map(composite);
+            const pctRank = (v) => Math.round((100 * comps.filter((x) => x <= v).length) / comps.length);
             const scored = all.map((c) => ({
               ...c,
-              mom: W24 * (c.p24 || 0) + W7 * (c.p7 || 0) + W30 * (c.p30 || 0),
               rs7: (c.p7 || 0) - (btc.p7 || 0),
+              score: pctRank(composite(c)),
             }));
 
-            // Growth screen: drop stables/wrapped/pegged, enforce a liquidity
-            // floor, require trend alignment across 7d+30d (and not crashing
-            // today), and require relative strength versus BTC over 7d.
+            // Screen: drop stables/wrapped/pegged, liquidity floor, trend
+            // alignment across 7d+30d (and not crashing today), relative
+            // strength versus BTC over 7d, and reject one-day pops where today
+            // is over 60% of the weekly gain. ATH proximity is a soft score
+            // bonus (above), not a hard gate.
             const top = scored
               .filter((c) => !isStableish(c))
               .filter((c) => (c.vol || 0) >= MIN_VOL)
               .filter((c) => (c.p7 || 0) > 0 && (c.p30 || 0) > 0 && (c.p24 || 0) > -10)
               .filter((c) => c.rs7 > 0)
-              .sort((a, b) => b.mom - a.mom)
+              .filter((c) => !((c.p24 || 0) > 0 && (c.p7 || 0) > 0 && (c.p24 || 0) > 0.6 * (c.p7 || 0)))
+              .sort((a, b) => b.score - a.score)
               .slice(0, 25);
 
             if (top.length === 0) {
@@ -111,28 +129,33 @@ jobs:
               return;
             }
 
-            const maxMom = Math.max(...top.map((c) => c.mom));
-            const bar = (m) => (maxMom > 0 ? "█".repeat(Math.max(1, Math.round((m / maxMom) * 8))) : "");
-            // Round mom to an integer label, pad it, and render it in inline
-            // code so every heat bar starts at the same column.
-            const labelOf = (c) => String(Math.round(c.mom));
+            // Heat bar scaled across the shown set (min..max) so relative
+            // strength stays scannable even when all scores cluster high.
+            const scores = top.map((c) => c.score);
+            const minS = Math.min(...scores), maxS = Math.max(...scores);
+            const span = (maxS - minS) || 1;
+            const bar = (s) => "█".repeat(Math.max(1, Math.round(((s - minS) / span) * 8)));
+            const labelOf = (c) => String(c.score);
             const labelWidth = Math.max(...top.map((c) => labelOf(c).length));
             const bt = String.fromCharCode(96);
 
             const lines = [
               `🪙 *Crypto Momentum — Top ${top.length}*`,
-              "_top 200 · 7d&30d up · beats BTC · >$5M vol_",
+              "_score 0-100 percentile · uptrend, beats BTC, near-ATH bonus, no pops_",
               "",
             ];
             top.forEach((c, i) => {
               const name = c.name ? " · " + clean(c.name) : "";
               const pr = fmtPrice(c.price);
-              const cell = labelOf(c).padEnd(labelWidth) + " " + bar(c.mom);
-              lines.push(`${i + 1}. ${bt}${c.sym}${bt}${name}${pr ? " · " + pr : ""}`);
+              const ath = (c.athc !== null && c.athc !== undefined)
+                ? (c.athc >= -1 ? "🔺ATH" : "ATH " + Math.round(c.athc) + "%")
+                : "";
+              const cell = labelOf(c).padEnd(labelWidth) + " " + bar(c.score);
+              lines.push(`${i + 1}. ${bt}${c.sym}${bt}${name}${pr ? " · " + pr : ""}${ath ? " · " + ath : ""}`);
               lines.push(`   ${bt}${cell}${bt} · 24h ${pct(c.p24)} · 7d ${pct(c.p7)} · vsBTC ${pct(c.rs7)}`);
               lines.push("");
             });
-            lines.push("mom = 0.5×24h + 0.3×7d + 0.2×30d · vsBTC = 7d minus BTC 7d");
+            lines.push("score = momentum percentile (0-100), with a near-ATH bonus");
 
             const msg = lines.join("\n");
             const r = await send(msg);
