@@ -55,15 +55,15 @@ jobs:
               sql: `
                 SELECT
                   tm.ticker,
-                  tm.price,
+                  su.name AS name,
                   tm.momentum_score,
-                  tm.technical_score,
+                  tm.price_change_1d,
                   tm.price_change_1w,
-                  tm.price_change_1m,
                   ms.momentum_score AS yesterday_score,
                   (tm.momentum_score - ms.momentum_score) AS momentum_delta
                 FROM ticker_metrics tm
                 JOIN momentum_snapshots ms ON ms.ticker = tm.ticker AND ms.snapshot_date = ?
+                LEFT JOIN scanner_universe su ON su.ticker = tm.ticker
                 WHERE tm.momentum_score IS NOT NULL
                   AND ms.momentum_score IS NOT NULL
                   AND (tm.momentum_score - ms.momentum_score) > 0
@@ -118,20 +118,21 @@ jobs:
             process.exit(0);
           }
 
-          // Build message
-          const lines = ["📈 *Fastest Momentum Gainers*", "", "```"];
-          lines.push("Rank  Ticker       Delta   Now  1D%   1W%  ");
-          lines.push("────  ───────────  ─────  ───  ─────  ────");
+          // Build message — two-line entries so long company names wrap
+          // cleanly as normal text instead of clipping in a monospace table.
+          const clean = (s: string) => String(s).replace(/[_*\[\]]/g, "").trim();
+          const pct = (v: number | null) =>
+            (v !== null && v !== undefined) ? (v >= 0 ? "+" : "") + v.toFixed(1) + "%" : "—";
+
+          const lines = ["📈 *Fastest Momentum Gainers*", ""];
           raw.gainers.forEach((g: any, i: number) => {
             const delta = Math.round(g.momentum_delta);
             const score = g.momentum_score !== null ? Math.round(g.momentum_score) : "—";
-            const d1 = (g.price_change_1d !== null && g.price_change_1d !== undefined) ? (g.price_change_1d >= 0 ? "+" : "") + g.price_change_1d.toFixed(1) + "%" : "—";
-            const w1 = (g.price_change_1w !== null && g.price_change_1w !== undefined) ? (g.price_change_1w >= 0 ? "+" : "") + g.price_change_1w.toFixed(1) + "%" : "—";
-            const ticker = (g.ticker + "           ").slice(0, 13);
-            lines.push(` ${String(i+1).padStart(2)}   ${ticker}  +${String(delta).padStart(3)}   ${String(score).padStart(3)}  ${(d1 + "         ").slice(0, 6)}  ${(w1 + "         ").slice(0, 6)}`);
+            const name = g.name && g.name !== g.ticker ? " · " + clean(g.name) : "";
+            lines.push(`${i + 1}. *${g.ticker}*${name}`);
+            lines.push(`   Δ +${delta} · mom ${score} · 1D ${pct(g.price_change_1d)} · 1W ${pct(g.price_change_1w)}`);
+            lines.push("");
           });
-          lines.push("```");
-          lines.push("");
           lines.push(`Compared: day before (${raw.priorDate}) vs today (${raw.today})`);
 
           const msg = lines.join("\n");
