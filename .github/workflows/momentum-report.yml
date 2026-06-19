@@ -70,7 +70,7 @@ jobs:
                   AND ms.momentum_score IS NOT NULL
                   AND (tm.momentum_score - ms.momentum_score) > 0
                 ORDER BY momentum_delta DESC
-                LIMIT 25
+                LIMIT 10
               `,
               args: [priorDate],
             });

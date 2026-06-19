@@ -121,7 +121,7 @@ jobs:
               .filter((c) => c.rs7 > 0)
               .filter((c) => !((c.p24 || 0) > 0 && (c.p7 || 0) > 0 && (c.p24 || 0) > 0.6 * (c.p7 || 0)))
               .sort((a, b) => b.score - a.score)
-              .slice(0, 25);
+              .slice(0, 10);
 
             if (top.length === 0) {
               await send("🪙 *Crypto Momentum*\n\nNo coins cleared the growth screen in the top 200 right now.");
