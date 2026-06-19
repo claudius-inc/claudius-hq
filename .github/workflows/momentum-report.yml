@@ -124,13 +124,20 @@ jobs:
           const pct = (v: number | null) =>
             (v !== null && v !== undefined) ? (v >= 0 ? "+" : "") + v.toFixed(1) + "%" : "—";
 
+          // Heat bar scaled to the day's biggest mover, so bar length lets you
+          // eyeball relative delta size at a glance (max 8 blocks).
+          const maxDelta = Math.max(...raw.gainers.map((g: any) => g.momentum_delta || 0));
+          const bar = (d: number) =>
+            maxDelta > 0 ? "█".repeat(Math.max(1, Math.round((d / maxDelta) * 8))) : "";
+
           const lines = ["📈 *Fastest Momentum Gainers*", ""];
           raw.gainers.forEach((g: any, i: number) => {
             const delta = Math.round(g.momentum_delta);
             const score = g.momentum_score !== null ? Math.round(g.momentum_score) : "—";
             const name = g.name && g.name !== g.ticker ? " · " + clean(g.name) : "";
+            const heat = bar(g.momentum_delta);
             lines.push(`${i + 1}. *${g.ticker}*${name}`);
-            lines.push(`   Δ +${delta} · mom ${score} · 1D ${pct(g.price_change_1d)} · 1W ${pct(g.price_change_1w)}`);
+            lines.push(`   ${score}(+${delta})${heat ? " " + heat : ""} · 1D ${pct(g.price_change_1d)} · 1W ${pct(g.price_change_1w)}`);
             lines.push("");
           });
           lines.push(`Compared: day before (${raw.priorDate}) vs today (${raw.today})`);
