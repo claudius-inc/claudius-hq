@@ -152,7 +152,7 @@ jobs:
                 : "";
               const cell = labelOf(c).padEnd(labelWidth) + " " + bar(c.score);
               lines.push(`${i + 1}. ${bt}${c.sym}${bt}${name}${pr ? " · " + pr : ""}${ath ? " · " + ath : ""}`);
-              lines.push(`   ${bt}${cell}${bt} · 24h ${pct(c.p24)} · 7d ${pct(c.p7)} · vsBTC ${pct(c.rs7)}`);
+              lines.push(`   ${bt}${cell}${bt} · 24h ${pct(c.p24)} · 7d ${pct(c.p7)} · 30d ${pct(c.p30)}`);
               lines.push("");
             });
             lines.push("score = momentum percentile (0-100), with a near-ATH bonus");
