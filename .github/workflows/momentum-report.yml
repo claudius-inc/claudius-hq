@@ -56,6 +56,8 @@ jobs:
                 SELECT
                   tm.ticker,
                   su.name AS name,
+                  su.currency AS currency,
+                  tm.price,
                   tm.momentum_score,
                   tm.price_change_1d,
                   tm.price_change_1w,
@@ -124,11 +126,46 @@ jobs:
           const pct = (v: number | null) =>
             (v !== null && v !== undefined) ? (v >= 0 ? "+" : "") + v.toFixed(1) + "%" : "—";
 
+          // Currency-aware price tag. Symbols are disambiguated where they are
+          // shared (HK$/S$/NT$ for the dollar, JP¥/CN¥ for the yen-yuan).
+          const CCY_PREFIX: Record<string, string> = {
+            USD: "$", HKD: "HK$", SGD: "S$", AUD: "A$", CAD: "C$",
+            TWD: "NT$", JPY: "JP¥", CNY: "CN¥", KRW: "₩", GBP: "£", GBp: "£",
+            EUR: "€", INR: "₹", IDR: "Rp", BRL: "R$",
+          };
+          // Fallback when scanner_universe.currency is null (legacy rows):
+          // infer the currency from the ticker exchange suffix.
+          const SUFFIX_CCY: Record<string, string> = {
+            HK: "HKD", T: "JPY", TW: "TWD", TWO: "TWD", SS: "CNY", SZ: "CNY",
+            SI: "SGD", KS: "KRW", KQ: "KRW", L: "GBP", JK: "IDR", SA: "BRL",
+            DE: "EUR", PA: "EUR", AS: "EUR", MI: "EUR",
+          };
+          const priceTag = (price: number | null, currency: string | null, ticker: string) => {
+            if (price === null || price === undefined) return "";
+            let ccy = currency;
+            if (!ccy) {
+              const suffix = ticker.includes(".") ? ticker.split(".").pop()! : "";
+              ccy = SUFFIX_CCY[suffix] || "USD";
+            }
+            const prefix = CCY_PREFIX[ccy] || (ccy + " ");
+            const num = price >= 10 ? Math.round(price).toLocaleString("en-US") : price.toFixed(2);
+            return prefix + num;
+          };
+
           // Heat bar scaled to the biggest mover in the list, so bar length
           // lets you eyeball relative delta size at a glance (max 8 blocks).
           const maxDelta = Math.max(...raw.gainers.map((g: any) => g.momentum_delta || 0));
           const bar = (d: number) =>
             maxDelta > 0 ? "█".repeat(Math.max(1, Math.round((d / maxDelta) * 8))) : "";
+
+          // score(+delta) label is right-padded and rendered in monospace
+          // (inline code) so every heat bar starts at the same column.
+          const labelOf = (g: any) => {
+            const d = Math.round(g.momentum_delta);
+            const s = g.momentum_score !== null ? Math.round(g.momentum_score) : "—";
+            return `${s}(+${d})`;
+          };
+          const labelWidth = Math.max(...raw.gainers.map((g: any) => labelOf(g).length));
 
           // Wrap tickers in inline code (backtick = char 96) so Telegram does
           // not auto-link suffixes that are real TLDs (.HK, .SI, .DE, .TW…),
@@ -137,12 +174,11 @@ jobs:
 
           const lines = ["📈 *Fastest Momentum Gainers*", ""];
           raw.gainers.forEach((g: any, i: number) => {
-            const delta = Math.round(g.momentum_delta);
-            const score = g.momentum_score !== null ? Math.round(g.momentum_score) : "—";
             const name = g.name && g.name !== g.ticker ? " · " + clean(g.name) : "";
-            const heat = bar(g.momentum_delta);
-            lines.push(`${i + 1}. ${bt}${g.ticker}${bt}${name}`);
-            lines.push(`   ${score}(+${delta})${heat ? " " + heat : ""} · 1D ${pct(g.price_change_1d)} · 1W ${pct(g.price_change_1w)}`);
+            const price = priceTag(g.price, g.currency, g.ticker);
+            const cell = `${labelOf(g).padEnd(labelWidth)} ${bar(g.momentum_delta)}`;
+            lines.push(`${i + 1}. ${bt}${g.ticker}${bt}${name}${price ? " · " + price : ""}`);
+            lines.push(`   ${bt}${cell}${bt} · 1D ${pct(g.price_change_1d)} · 1W ${pct(g.price_change_1w)}`);
             lines.push("");
           });
           lines.push(`Compared: day before (${raw.priorDate}) vs today (${raw.today})`);
