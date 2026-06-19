@@ -1,0 +1,161 @@
+name: Crypto Momentum Report
+
+on:
+  schedule:
+    # Daily at 01:00 UTC = 09:00 SGT. Crypto trades 24/7 so the exact time
+    # does not matter; offset from the stock reports to avoid overlapping sends.
+    - cron: '0 1 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      # No checkout / npm ci needed — the script only uses the global fetch and
+      # built-ins, so we just need a Node runtime.
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Generate and send crypto momentum report
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          # Free CoinGecko Demo API key. Without it the public endpoint still
+          # works but GitHub runner IPs are often rate-limited (HTTP 429).
+          COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+        run: |
+          node -e '
+          const key = process.env.COINGECKO_API_KEY || "";
+          const TG = process.env.TELEGRAM_BOT_TOKEN;
+          const CHAT = process.env.TELEGRAM_ADMIN_CHAT_ID;
+
+          const send = (text) =>
+            fetch(`https://api.telegram.org/bot${TG}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ chat_id: CHAT, text, parse_mode: "Markdown" }),
+            });
+
+          const clean = (s) => String(s).replace(/[_*\[\]]/g, "").trim();
+          const pct = (v) =>
+            (v === null || v === undefined) ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%";
+          const fmtPrice = (p) => {
+            if (p === null || p === undefined) return "";
+            if (p >= 1000) return "$" + Math.round(p).toLocaleString("en-US");
+            if (p >= 1) return "$" + p.toFixed(2);
+            if (p >= 0.01) return "$" + p.toFixed(4);
+            return "$" + Number(p).toPrecision(2);
+          };
+
+          const MIN_VOL = 5000000;
+          const STABLE = new Set([
+            "USDT","USDC","DAI","USDE","USDS","FDUSD","TUSD","USD1","PYUSD","BUSD",
+            "USDD","GUSD","FRAX","LUSD","USDP","CRVUSD","RLUSD","USDG","USDX",
+          ]);
+          const isStableish = (c) =>
+            STABLE.has(c.sym) ||
+            /wrapped|staked|stablecoin/i.test(c.name) ||
+            (Math.abs(c.p30 || 0) < 2 && Math.abs(c.p7 || 0) < 1);
+
+          async function main() {
+            const url =
+              "https://api.coingecko.com/api/v3/coins/markets" +
+              "?vs_currency=usd&order=market_cap_desc&per_page=200&page=1" +
+              "&price_change_percentage=24h,7d,30d&sparkline=false";
+            const headers = { accept: "application/json" };
+            if (key) headers["x-cg-demo-api-key"] = key;
+
+            const res = await fetch(url, { headers });
+            if (!res.ok) {
+              throw new Error("CoinGecko HTTP " + res.status + ": " + (await res.text()).slice(0, 200));
+            }
+            const coins = await res.json();
+
+            // Composite momentum: weight recent timeframes more, so coins that
+            // are accelerating now rank above ones that already ran weeks ago.
+            const W24 = 0.5, W7 = 0.3, W30 = 0.2;
+            const all = coins.map((c) => ({
+              sym: String(c.symbol || "").toUpperCase(),
+              name: c.name || "",
+              price: c.current_price,
+              vol: c.total_volume,
+              p24: c.price_change_percentage_24h_in_currency,
+              p7: c.price_change_percentage_7d_in_currency,
+              p30: c.price_change_percentage_30d_in_currency,
+            }));
+            const btc = all.find((c) => c.sym === "BTC") || { p7: 0 };
+            const scored = all.map((c) => ({
+              ...c,
+              mom: W24 * (c.p24 || 0) + W7 * (c.p7 || 0) + W30 * (c.p30 || 0),
+              rs7: (c.p7 || 0) - (btc.p7 || 0),
+            }));
+
+            // Growth screen: drop stables/wrapped/pegged, enforce a liquidity
+            // floor, require trend alignment across 7d+30d (and not crashing
+            // today), and require relative strength versus BTC over 7d.
+            const top = scored
+              .filter((c) => !isStableish(c))
+              .filter((c) => (c.vol || 0) >= MIN_VOL)
+              .filter((c) => (c.p7 || 0) > 0 && (c.p30 || 0) > 0 && (c.p24 || 0) > -10)
+              .filter((c) => c.rs7 > 0)
+              .sort((a, b) => b.mom - a.mom)
+              .slice(0, 25);
+
+            if (top.length === 0) {
+              await send("🪙 *Crypto Momentum*\n\nNo coins cleared the growth screen in the top 200 right now.");
+              console.log("Sent: no coins passed");
+              return;
+            }
+
+            const maxMom = Math.max(...top.map((c) => c.mom));
+            const bar = (m) => (maxMom > 0 ? "█".repeat(Math.max(1, Math.round((m / maxMom) * 8))) : "");
+            // Round mom to an integer label, pad it, and render it in inline
+            // code so every heat bar starts at the same column.
+            const labelOf = (c) => String(Math.round(c.mom));
+            const labelWidth = Math.max(...top.map((c) => labelOf(c).length));
+            const bt = String.fromCharCode(96);
+
+            const lines = [
+              `🪙 *Crypto Momentum — Top ${top.length}*`,
+              "_top 200 · 7d&30d up · beats BTC · >$5M vol_",
+              "",
+            ];
+            top.forEach((c, i) => {
+              const name = c.name ? " · " + clean(c.name) : "";
+              const pr = fmtPrice(c.price);
+              const cell = labelOf(c).padEnd(labelWidth) + " " + bar(c.mom);
+              lines.push(`${i + 1}. ${bt}${c.sym}${bt}${name}${pr ? " · " + pr : ""}`);
+              lines.push(`   ${bt}${cell}${bt} · 24h ${pct(c.p24)} · 7d ${pct(c.p7)} · vsBTC ${pct(c.rs7)}`);
+              lines.push("");
+            });
+            lines.push("mom = 0.5×24h + 0.3×7d + 0.2×30d · vsBTC = 7d minus BTC 7d");
+
+            const msg = lines.join("\n");
+            const r = await send(msg);
+            const body = await r.text();
+            if (!r.ok) {
+              console.error("Telegram send failed:", body);
+              process.exit(1);
+            }
+            console.log("Crypto momentum report sent OK");
+          }
+
+          main().catch((err) => {
+            console.error("Crypto momentum report crashed:", err.message);
+            process.exit(1);
+          });
+          '
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+            -d "text=⚠️ Crypto momentum report failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
