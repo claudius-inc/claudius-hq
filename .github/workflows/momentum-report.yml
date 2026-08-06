@@ -1,9 +1,15 @@
 name: Momentum Gainers Report
 
 on:
+  # Weekdays at 00:35 UTC = 08:35 SGT.
+  #
+  # The snapshot job (momentum-gainers.yml) runs at 00:00 UTC and the scanner
+  # hourly at :05. Running at :30 raced the 00:05 scan: cron drift meant the
+  # report sometimes saw a scan containing live Tokyo/Seoul session data while
+  # US names still sat at the prior close, so the "today" side of the delta was
+  # a moving target. :35 lands after the 00:05 scan has settled.
   schedule:
-    # Weekdays at 00:30 UTC = 08:30 SGT (after scanner refresh, Asian market open)
-    - cron: '30 0 * * 1-5'
+    - cron: '35 0 * * 1-5'
   workflow_dispatch: {}
 
 jobs:
@@ -24,181 +30,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate momentum gainers report
-        id: gainers
+      # Selection logic: src/lib/markets/momentum-report.ts
+      # Orchestration:   scripts/pipelines/run-momentum-report.ts
+      # (Previously an inline `npx tsx -e` string that could not be typechecked
+      # or unit-tested, and whose SQL literals had to avoid apostrophes.)
+      - name: Generate and send momentum gainers report
+        run: npx tsx scripts/pipelines/run-momentum-report.ts
         env:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-        run: |
-          OUTPUT=$(npx tsx -e '
-          import { db, rawClient, momentumSnapshots, tickerMetrics } from "@/db";
-          import { sql, desc } from "drizzle-orm";
-
-          async function main() {
-            const today = new Date().toISOString().split("T")[0];
-
-            const dates = await db
-              .select({ date: momentumSnapshots.snapshotDate })
-              .from(momentumSnapshots)
-              .where(sql`snapshot_date < ${today}`)
-              .groupBy(momentumSnapshots.snapshotDate)
-              .orderBy(desc(momentumSnapshots.snapshotDate))
-              .limit(1);
-
-            if (dates.length === 0) {
-              console.log(JSON.stringify({ gainers: [], count: 0, priorDate: null, today }));
-              return;
-            }
-
-            const priorDate = dates[0].date;
-            const rows = await rawClient.execute({
-              sql: `
-                SELECT
-                  tm.ticker,
-                  su.name AS name,
-                  su.currency AS currency,
-                  tm.price,
-                  tm.momentum_score,
-                  tm.price_change_1d,
-                  tm.price_change_1w,
-                  ms.momentum_score AS yesterday_score,
-                  (tm.momentum_score - ms.momentum_score) AS momentum_delta
-                FROM ticker_metrics tm
-                JOIN momentum_snapshots ms ON ms.ticker = tm.ticker AND ms.snapshot_date = ?
-                LEFT JOIN scanner_universe su ON su.ticker = tm.ticker
-                WHERE tm.momentum_score IS NOT NULL
-                  AND ms.momentum_score IS NOT NULL
-                  AND (tm.momentum_score - ms.momentum_score) > 0
-                ORDER BY momentum_delta DESC
-                LIMIT 10
-              `,
-              args: [priorDate],
-            });
-
-            console.log(JSON.stringify({
-              gainers: rows.rows,
-              count: rows.rows.length,
-              priorDate,
-              today,
-            }));
-          }
-          main().catch((err) => {
-            console.error(JSON.stringify({ error: err.message }));
-            process.exit(1);
-          });
-          ')
-          echo "$OUTPUT"
-          echo "GAINERS_JSON<<EOF" >> $GITHUB_OUTPUT
-          echo "$OUTPUT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Format and send Telegram report
-        env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
-          GAINERS_JSON: ${{ steps.gainers.outputs.GAINERS_JSON }}
-        run: |
-          npx tsx -e '
-          const raw = JSON.parse(process.env.GAINERS_JSON || "{}");
-
-          if (raw.error) {
-            console.log("Error:", raw.error);
-            process.exit(1);
-          }
-
-          if (!raw.gainers || raw.gainers.length === 0) {
-            const msg = "📊 *Momentum Gainers Report*\n\nNo gainers data — no prior snapshot available yet.";
-            fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                chat_id: process.env.TELEGRAM_ADMIN_CHAT_ID,
-                text: msg,
-                parse_mode: "Markdown",
-              }),
-            }).catch(console.error);
-            process.exit(0);
-          }
-
-          // Build message — two-line entries so long company names wrap
-          // cleanly as normal text instead of clipping in a monospace table.
-          const clean = (s: string) => String(s).replace(/[_*\[\]]/g, "").trim();
-          const pct = (v: number | null) =>
-            (v !== null && v !== undefined) ? (v >= 0 ? "+" : "") + v.toFixed(1) + "%" : "—";
-
-          // Currency-aware price tag. Symbols are disambiguated where they are
-          // shared (HK$/S$/NT$ for the dollar, JP¥/CN¥ for the yen-yuan).
-          const CCY_PREFIX: Record<string, string> = {
-            USD: "$", HKD: "HK$", SGD: "S$", AUD: "A$", CAD: "C$",
-            TWD: "NT$", JPY: "JP¥", CNY: "CN¥", KRW: "₩", GBP: "£", GBp: "£",
-            EUR: "€", INR: "₹", IDR: "Rp", BRL: "R$",
-          };
-          // Fallback when scanner_universe.currency is null (legacy rows):
-          // infer the currency from the ticker exchange suffix.
-          const SUFFIX_CCY: Record<string, string> = {
-            HK: "HKD", T: "JPY", TW: "TWD", TWO: "TWD", SS: "CNY", SZ: "CNY",
-            SI: "SGD", KS: "KRW", KQ: "KRW", L: "GBP", JK: "IDR", SA: "BRL",
-            DE: "EUR", PA: "EUR", AS: "EUR", MI: "EUR",
-          };
-          const priceTag = (price: number | null, currency: string | null, ticker: string) => {
-            if (price === null || price === undefined) return "";
-            let ccy = currency;
-            if (!ccy) {
-              const suffix = ticker.includes(".") ? ticker.split(".").pop()! : "";
-              ccy = SUFFIX_CCY[suffix] || "USD";
-            }
-            const prefix = CCY_PREFIX[ccy] || (ccy + " ");
-            const num = price >= 10 ? Math.round(price).toLocaleString("en-US") : price.toFixed(2);
-            return prefix + num;
-          };
-
-          // Heat bar scaled to the biggest mover in the list, so bar length
-          // lets you eyeball relative delta size at a glance (max 8 blocks).
-          const maxDelta = Math.max(...raw.gainers.map((g: any) => g.momentum_delta || 0));
-          const bar = (d: number) =>
-            maxDelta > 0 ? "█".repeat(Math.max(1, Math.round((d / maxDelta) * 8))) : "";
-
-          // score(+delta) label is right-padded and rendered in monospace
-          // (inline code) so every heat bar starts at the same column.
-          const labelOf = (g: any) => {
-            const d = Math.round(g.momentum_delta);
-            const s = g.momentum_score !== null ? Math.round(g.momentum_score) : "—";
-            return `${s}(+${d})`;
-          };
-          const labelWidth = Math.max(...raw.gainers.map((g: any) => labelOf(g).length));
-
-          // Wrap tickers in inline code (backtick = char 96) so Telegram does
-          // not auto-link suffixes that are real TLDs (.HK, .SI, .DE, .TW…),
-          // which otherwise turn some tickers into blue links and others not.
-          const bt = String.fromCharCode(96);
-
-          const lines = ["📈 *Fastest Momentum Gainers*", ""];
-          raw.gainers.forEach((g: any, i: number) => {
-            const name = g.name && g.name !== g.ticker ? " · " + clean(g.name) : "";
-            const price = priceTag(g.price, g.currency, g.ticker);
-            const cell = `${labelOf(g).padEnd(labelWidth)} ${bar(g.momentum_delta)}`;
-            lines.push(`${i + 1}. ${bt}${g.ticker}${bt}${name}${price ? " · " + price : ""}`);
-            lines.push(`   ${bt}${cell}${bt} · 1D ${pct(g.price_change_1d)} · 1W ${pct(g.price_change_1w)}`);
-            lines.push("");
-          });
-          lines.push(`Compared: day before (${raw.priorDate}) vs today (${raw.today})`);
-
-          const msg = lines.join("\n");
-
-          fetch(`https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              chat_id: process.env.TELEGRAM_ADMIN_CHAT_ID,
-              text: msg,
-              parse_mode: "Markdown",
-            }),
-          }).then(async (r) => {
-            const body = await r.text();
-            if (!r.ok) console.error("Telegram send failed:", body);
-            else console.log("Telegram report sent OK");
-          });
-          '
 
       - name: Summary
         if: always()

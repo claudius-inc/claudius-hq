@@ -10,244 +10,41 @@ on:
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
-      # No checkout / npm ci needed — the script only uses the global fetch and
-      # built-ins, so we just need a Node runtime.
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '20'
+          cache: 'npm'
 
+      - name: Install dependencies
+        run: npm ci
+
+      # Screen logic: src/lib/markets/crypto-screen.ts
+      # Orchestration:  scripts/pipelines/run-crypto-report.ts
+      # (Previously an inline `node -e` string, which could not be typechecked,
+      # unit-tested, or contain an apostrophe.)
       - name: Generate and send crypto report
+        run: npx tsx scripts/pipelines/run-crypto-report.ts
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
           # Free CoinGecko Demo API key. Without it the public endpoint still
           # works but GitHub runner IPs are often rate-limited (HTTP 429).
           COINGECKO_API_KEY: ${{ secrets.COINGECKO_API_KEY }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      - name: Summary
+        if: always()
         run: |
-          node -e '
-          const key = process.env.COINGECKO_API_KEY || "";
-          const TG = process.env.TELEGRAM_BOT_TOKEN;
-          const CHAT = process.env.TELEGRAM_ADMIN_CHAT_ID;
-
-          // ---------- shared helpers ----------
-          const send = (text) =>
-            fetch(`https://api.telegram.org/bot${TG}/sendMessage`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ chat_id: CHAT, text, parse_mode: "Markdown" }),
-            });
-
-          const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-          const clean = (s) => String(s).replace(/[_*\[\]]/g, "").trim();
-          const pct = (v) =>
-            (v === null || v === undefined) ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%";
-          const fmtPrice = (p) => {
-            if (p === null || p === undefined) return "";
-            if (p >= 1000) return "$" + Math.round(p).toLocaleString("en-US");
-            if (p >= 1) return "$" + p.toFixed(2);
-            if (p >= 0.01) return "$" + p.toFixed(4);
-            return "$" + Number(p).toPrecision(2);
-          };
-          const bt = String.fromCharCode(96);
-
-          const MIN_VOL = 5000000;     // liquidity floor, shared by both screens
-
-          const STABLE = new Set([
-            "USDT","USDC","DAI","USDE","USDS","FDUSD","TUSD","USD1","PYUSD","BUSD",
-            "USDD","GUSD","FRAX","LUSD","USDP","CRVUSD","RLUSD","USDG","USDX",
-          ]);
-          const isStableish = (c) =>
-            STABLE.has(c.sym) ||
-            /wrapped|staked|stablecoin/i.test(c.name) ||
-            (Math.abs(c.p30 || 0) < 2 && Math.abs(c.p7 || 0) < 1);
-
-          // ---------- momentum lens (top 200): durable uptrend, beats BTC, no pops ----------
-          const W24 = 0.5, W7 = 0.3, W30 = 0.2;
-          const ATH_BOOST = 0.10;
-          const athProxM = (c) =>
-            (c.athc === null || c.athc === undefined) ? 0 : Math.max(0, Math.min(100, 100 + c.athc));
-          const compositeM = (c) =>
-            W24 * (c.p24 || 0) + W7 * (c.p7 || 0) + W30 * (c.p30 || 0) + ATH_BOOST * athProxM(c);
-
-          // ---------- breakout lens (top 1000): up today with 7d&30d follow-through ----------
-          const MIN_24 = 8;           // must actually be a gainer today
-          const MAX_24 = 60;          // blow-off guard: over 60% in a day usually reverts
-          const MIN_7 = 15;           // 7d follow-through, not a single green candle
-          const MIN_30 = 10;          // up on the month, not a bounce inside a downtrend
-          const MAX_24SHARE = 0.9;    // 24h move under 90% of the 7d move (not all today)
-          const MIN_RISING = 0.5;     // half of recent hourly bars rising = sustained
-          const MAX_DD = -0.10;       // within 10% of its own 7d high (no round-trip)
-          const athProxG = (c) => (c.athc === null || c.athc === undefined) ? 0 : Math.max(0, 100 + c.athc);
-          const turnoverOf = (c) => (c.mcap ? (c.vol || 0) / c.mcap : 0);
-          const compositeG = (c) =>
-            athProxG(c) * 0.25 +
-            ((c.p7 || 0) + 0.5 * (c.p30 || 0)) * 0.4 +
-            Math.min(40, turnoverOf(c) * 100) * 0.3 +
-            (c.p24 || 0) * 0.25;
-
-          // Characterize the 7d hourly sparkline: is the move sustained or a spike?
-          const sparkStats = (px) => {
-            if (!px || px.length < 48) return null;
-            const n = px.length, last = px[n - 1], first = px[0], hi = Math.max(...px);
-            const k = Math.min(24, n - 1);
-            const gain7d = last - first, gain24h = last - px[n - 1 - k];
-            const last24Share = gain7d !== 0 ? gain24h / gain7d : (gain24h > 0 ? 1 : 0);
-            const ddFromHigh = (last - hi) / (hi || 1);
-            let rising = 0, total = 0;
-            for (let i = Math.max(6, n - 72); i < n; i++) { total++; if (px[i] > px[i - 6]) rising++; }
-            return { last24Share, ddFromHigh, risingFrac: total ? rising / total : 0 };
-          };
-
-          // ---------- merge tuning ----------
-          const CONF_BONUS = 8;   // sort nudge for coins flagged by BOTH lenses
-          const TOP_N = 10;
-
-          // ---------- single data pull: top 1000 by market cap, with sparkline ----------
-          async function pull() {
-            const PAGES = 4;
-            const headers = { accept: "application/json" };
-            if (key) headers["x-cg-demo-api-key"] = key;
-            const out = [];
-            for (let p = 1; p <= PAGES; p++) {
-              const url =
-                "https://api.coingecko.com/api/v3/coins/markets" +
-                "?vs_currency=usd&order=market_cap_desc&per_page=250&page=" + p +
-                "&price_change_percentage=24h,7d,30d&sparkline=true";
-              let arr = null;
-              for (let t = 0; t < 4; t++) {
-                const res = await fetch(url, { headers });
-                if (res.ok) { arr = await res.json(); break; }
-                if (res.status === 429) { await sleep(8000); continue; }
-                throw new Error("CoinGecko HTTP " + res.status + ": " + (await res.text()).slice(0, 200));
-              }
-              if (!arr) throw new Error("CoinGecko 429 retries exhausted on page " + p);
-              out.push(...arr);
-              if (p < PAGES) await sleep(2500);
-            }
-            return out;
-          }
-
-          async function main() {
-            const raw = await pull();
-            const all = raw.map((c, idx) => ({
-              rank: idx + 1,
-              sym: String(c.symbol || "").toUpperCase(),
-              name: c.name || "",
-              price: c.current_price,
-              vol: c.total_volume,
-              mcap: c.market_cap,
-              athc: c.ath_change_percentage,
-              p24: c.price_change_percentage_24h_in_currency,
-              p7: c.price_change_percentage_7d_in_currency,
-              p30: c.price_change_percentage_30d_in_currency,
-              spark: sparkStats(c.sparkline_in_7d && c.sparkline_in_7d.price),
-            }));
-            const btc = all.find((c) => c.sym === "BTC") || { p7: 0 };
-
-            // Membership lenses. Momentum looks only at the top 200; breakout
-            // scans the full top 1000. A coin can pass either or both.
-            const passM = (c) =>
-              c.rank <= 200 &&
-              !isStableish(c) &&
-              (c.vol || 0) >= MIN_VOL &&
-              (c.p7 || 0) > 0 && (c.p30 || 0) > 0 && (c.p24 || 0) > -10 &&
-              ((c.p7 || 0) - (btc.p7 || 0)) > 0 &&
-              !((c.p24 || 0) > 0 && (c.p7 || 0) > 0 && (c.p24 || 0) > 0.6 * (c.p7 || 0));
-            const passG = (c) => {
-              if (isStableish(c)) return false;
-              if ((c.vol || 0) < MIN_VOL) return false;
-              if ((c.p24 || 0) < MIN_24 || (c.p24 || 0) > MAX_24) return false;
-              if ((c.p7 || 0) < MIN_7) return false;
-              if ((c.p30 || 0) < MIN_30) return false;
-              const s = c.spark; if (!s) return false;
-              if (s.last24Share > MAX_24SHARE) return false;
-              if (s.risingFrac < MIN_RISING) return false;
-              if (s.ddFromHigh < MAX_DD) return false;
-              return true;
-            };
-
-            // Common scale: percentile the momentum and breakout composites
-            // across one universe (liquid, non-stable top 1000) so the two
-            // sub-scores are directly comparable, then average them. Research
-            // showed the two composites agree closely, so the average is a
-            // stable 0-100 read on overall strength.
-            const uni = all.filter((c) => !isStableish(c) && (c.vol || 0) >= MIN_VOL);
-            const compsM = uni.map(compositeM), compsG = uni.map(compositeG);
-            const prM = (v) => (compsM.length ? Math.round((100 * compsM.filter((x) => x <= v).length) / compsM.length) : 0);
-            const prG = (v) => (compsG.length ? Math.round((100 * compsG.filter((x) => x <= v).length) / compsG.length) : 0);
-
-            // Union of both lenses, deduped (one row per coin), tagged, scored.
-            // ⭐ = both lenses agree (highest conviction), 📈 momentum-only,
-            // 🚀 breakout-only. Confluence gets a small sort bonus so dual-
-            // flagged coins float up among near-ties (score shown is honest).
-            const ranked = uni
-              .map((c) => {
-                const m = passM(c), g = passG(c);
-                if (!m && !g) return null;
-                const both = m && g;
-                const score = Math.round((prM(compositeM(c)) + prG(compositeG(c))) / 2);
-                return {
-                  ...c,
-                  tag: both ? "⭐" : m ? "📈" : "🚀",
-                  score,
-                  sortKey: score + (both ? CONF_BONUS : 0),
-                };
-              })
-              .filter(Boolean)
-              .sort((a, b) => b.sortKey - a.sortKey || b.score - a.score)
-              .slice(0, TOP_N);
-
-            if (ranked.length === 0) {
-              const r0 = await send("🪙 *Crypto Movers*\n\nNo coins cleared the momentum or breakout screen right now.");
-              if (!r0.ok) { console.error("Telegram send failed:", await r0.text()); process.exit(1); }
-              console.log("Crypto report sent OK (empty)");
-              return;
-            }
-
-            // Heat bar min-max scaled across the shown scores so relative
-            // strength stays scannable even when scores cluster high.
-            const scores = ranked.map((c) => c.score);
-            const minS = Math.min(...scores), maxS = Math.max(...scores), span = (maxS - minS) || 1;
-            const bar = (s) => "█".repeat(Math.max(1, Math.round(((s - minS) / span) * 8)));
-            const labelWidth = Math.max(...ranked.map((c) => String(c.score).length));
-
-            const lines = [
-              `🪙 *Crypto Movers — Top ${ranked.length}*`,
-              "_⭐ both · 📈 momentum · 🚀 breakout · score 0-100_",
-              "",
-            ];
-            ranked.forEach((c, i) => {
-              const name = c.name ? " · " + clean(c.name) : "";
-              const pr = fmtPrice(c.price);
-              const ath = (c.athc === null || c.athc === undefined)
-                ? ""
-                : (c.athc >= -1 ? "🔺ATH" : "ATH " + Math.round(c.athc) + "%");
-              const cell = String(c.score).padEnd(labelWidth) + " " + bar(c.score);
-              lines.push(`${i + 1}. ${bt}${c.sym}${bt} ${c.tag}${name}${pr ? " · " + pr : ""}${ath ? " · " + ath : ""}`);
-              lines.push(`   ${bt}${cell}${bt} · 24h ${pct(c.p24)} · 7d ${pct(c.p7)} · 30d ${pct(c.p30)}`);
-              lines.push("");
-            });
-            lines.push("⭐ = passed both screens (highest conviction) · score = momentum+breakout percentile");
-
-            const msg = lines.join("\n");
-            const r = await send(msg);
-            const body = await r.text();
-            if (!r.ok) {
-              console.error("Telegram send failed:", body);
-              process.exit(1);
-            }
-            console.log("Crypto report sent OK");
-          }
-
-          main().catch((err) => {
-            console.error("Crypto report crashed:", err.message);
-            process.exit(1);
-          });
-          '
+          echo "## Crypto Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
 
       - name: Notify on failure
         if: failure()

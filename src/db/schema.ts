@@ -422,8 +422,15 @@ export const tickerMetrics = sqliteTable("ticker_metrics", {
   trailingPE: real("trailing_pe"),
   forwardPE: real("forward_pe"),
   debtToEquity: real("debt_to_equity"),
+  // 20-day average dollar volume (avgVol20d * price), in the listing currency.
+  // Used as the liquidity gate by the momentum report.
+  avgDollarVol20d: real("avg_dollar_vol_20d"),
   dataQuality: text("data_quality").$type<TickerMetricsDataQuality>().notNull(),
+  // Bumped on every scan ATTEMPT, including ones that failed and fell back to
+  // preserving the prior row — so this is NOT a freshness signal.
   computedAt: text("computed_at").notNull(),
+  // Set only when a fetch actually succeeded. Use this to detect stale rows.
+  lastGoodScanAt: text("last_good_scan_at"),
 });
 
 export type TickerMetric = typeof tickerMetrics.$inferSelect;
@@ -456,6 +463,124 @@ export const momentumSnapshots = sqliteTable(
 
 export type MomentumSnapshot = typeof momentumSnapshots.$inferSelect;
 export type NewMomentumSnapshot = typeof momentumSnapshots.$inferInsert;
+
+// ============================================================================
+// Screen Pick Logging — what the daily reports actually selected
+// ============================================================================
+//
+// The reports used to send picks to Telegram without recording them, which made
+// them unfalsifiable: forward performance could only be reconstructed from CI
+// logs (90-day retention), and the crypto screen logged nothing at all. These
+// tables make "did the screen work?" a query rather than an archaeology dig.
+
+export const momentumReportPicks = sqliteTable(
+  "momentum_report_picks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    ticker: text("ticker").notNull(),
+    reportDate: text("report_date").notNull(), // YYYY-MM-DD
+    rank: integer("rank"),
+    // 1 = actually sent. Out-of-band candidates are stored with 0 so the
+    // momentum band can be re-derived out-of-sample.
+    reported: integer("reported").default(0),
+    momentumScore: real("momentum_score"),
+    technicalScore: real("technical_score"),
+    momentumDelta: real("momentum_delta"),
+    // Entry-price anchor for forward-return measurement.
+    price: real("price"),
+    currency: text("currency"),
+    priceChange1d: real("price_change_1d"),
+    priceChange1w: real("price_change_1w"),
+    priceChange1m: real("price_change_1m"),
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    uniqTickerDate: uniqueIndex("idx_momentum_report_picks_ticker_date").on(table.ticker, table.reportDate),
+    dateIdx: index("idx_momentum_report_picks_date").on(table.reportDate),
+  }),
+);
+
+export type MomentumReportPick = typeof momentumReportPicks.$inferSelect;
+export type NewMomentumReportPick = typeof momentumReportPicks.$inferInsert;
+
+// One row per crypto CANDIDATE per day — not just the reported top 10 — so the
+// TOP_N cutoff is evaluable too. Keyed on CoinGecko `coin_id` because ticker
+// symbols collide within the top 1000.
+export const cryptoScreenPicks = sqliteTable(
+  "crypto_screen_picks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    coinId: text("coin_id").notNull(),
+    runDate: text("run_date").notNull(), // YYYY-MM-DD
+    sym: text("sym"),
+    name: text("name"),
+    rank: integer("rank"),
+    tag: text("tag"), // both | momentum | breakout
+    reported: integer("reported").default(0), // 1 = made the sent top N
+    score: real("score"),
+    price: real("price"),
+    mcap: real("mcap"),
+    vol: real("vol"),
+    fdv: real("fdv"),
+    p24: real("p24"),
+    p7: real("p7"),
+    p30: real("p30"),
+    athc: real("athc"),
+    last24Share: real("last24_share"),
+    risingFrac: real("rising_frac"),
+    ddFromHigh: real("dd_from_high"),
+    // Regime context — a pick's outcome is not interpretable without it.
+    btcP7: real("btc_p7"),
+    btcP30: real("btc_p30"),
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    uniqCoinDate: uniqueIndex("idx_crypto_screen_picks_coin_date").on(table.coinId, table.runDate),
+    dateIdx: index("idx_crypto_screen_picks_date").on(table.runDate),
+  }),
+);
+
+export type CryptoScreenPick = typeof cryptoScreenPicks.$inferSelect;
+export type NewCryptoScreenPick = typeof cryptoScreenPicks.$inferInsert;
+
+// Daily close for the full top-1000 pull. Same response the screen already
+// fetches, so it costs no extra API calls, and it turns forward-return
+// measurement into a self-join instead of a separate backfill job.
+export const cryptoPricesDaily = sqliteTable(
+  "crypto_prices_daily",
+  {
+    coinId: text("coin_id").notNull(),
+    date: text("date").notNull(), // YYYY-MM-DD
+    price: real("price"),
+    mcap: real("mcap"),
+    vol: real("vol"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.coinId, table.date] }),
+    dateIdx: index("idx_crypto_prices_daily_date").on(table.date),
+  }),
+);
+
+export type CryptoPriceDaily = typeof cryptoPricesDaily.$inferSelect;
+export type NewCryptoPriceDaily = typeof cryptoPricesDaily.$inferInsert;
+
+// Funnel counts per run. Without these an empty report is indistinguishable
+// from a broken fetch, and the screen constants cannot be tuned.
+export const cryptoScreenRuns = sqliteTable("crypto_screen_runs", {
+  runDate: text("run_date").primaryKey(),
+  universeN: integer("universe_n"),
+  passMN: integer("pass_m_n"),
+  passGN: integer("pass_g_n"),
+  unionN: integer("union_n"),
+  reportedN: integer("reported_n"),
+  btcP24: real("btc_p24"),
+  btcP7: real("btc_p7"),
+  btcP30: real("btc_p30"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type CryptoScreenRun = typeof cryptoScreenRuns.$inferSelect;
+export type NewCryptoScreenRun = typeof cryptoScreenRuns.$inferInsert;
 
 // ============================================================================
 // Scanner Universe - Tickers to scan

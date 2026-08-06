@@ -109,11 +109,24 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
     else if (quality === "partial") partialCount++;
     else failedCount++;
 
+    // 20-day average dollar volume, in the listing currency. avgVol20d was
+    // already computed on every scan and then dropped on the floor; persisting
+    // it is what makes a real liquidity gate possible downstream.
+    const avgVol20d = fetched?.inputs?.avgVol20d ?? null;
+    const avgDollarVol20d =
+      avgVol20d !== null && fetched?.price != null ? avgVol20d * fetched.price : null;
+
     newRows.push({
       ticker,
       price: fetched?.price ?? null,
       momentumScore: momentum,
       technicalScore: technical,
+      avgDollarVol20d,
+      // Written ONLY on a genuinely successful fetch. `computedAt` is bumped
+      // even by the preserve-on-failure branch below (to record the attempt),
+      // so it cannot distinguish a fresh row from one frozen by a ticker that
+      // has been failing for weeks. The report gates on this instead.
+      lastGoodScanAt: fetched ? startedAt : null,
       priceChange1d: fetched?.pc1d ?? null,
       priceChange1w: fetched?.pc1w ?? null,
       priceChange1m: fetched?.pc1m ?? null,
@@ -189,6 +202,8 @@ export async function computeWatchlistScores(): Promise<ComputeResult> {
           trailingPE: row.trailingPE,
           forwardPE: row.forwardPE,
           debtToEquity: row.debtToEquity,
+          avgDollarVol20d: row.avgDollarVol20d,
+          lastGoodScanAt: row.lastGoodScanAt,
           dataQuality: row.dataQuality,
           computedAt: row.computedAt,
         },
