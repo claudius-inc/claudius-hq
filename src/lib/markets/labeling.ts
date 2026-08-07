@@ -232,6 +232,127 @@ export function cohortStats(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Crypto
+// ---------------------------------------------------------------------------
+
+export interface CryptoPricePoint {
+  d: string; // YYYY-MM-DD
+  p: number;
+}
+
+export interface CryptoLabelInput {
+  /** Daily closes for one coin, ascending by date. */
+  points: CryptoPricePoint[];
+  runDate: string;
+  /** CALENDAR days — crypto trades 24/7, so there is no trading-day concept. */
+  horizonDays: number;
+  storedPrice: number | null;
+  today: string;
+  /** A daily snapshot can miss a day; accept a nearby bar rather than voiding
+   *  the label. */
+  toleranceDays?: number;
+  graceDays?: number;
+}
+
+/** Nearest point to `target` within `tolerance` days, preferring on/after. */
+function nearestPoint(
+  points: CryptoPricePoint[],
+  target: string,
+  tolerance: number,
+): CryptoPricePoint | null {
+  let best: CryptoPricePoint | null = null;
+  let bestGap = Infinity;
+  for (const pt of points) {
+    const gap = Math.abs(Math.round((Date.parse(pt.d) - Date.parse(target)) / 86_400_000));
+    if (gap <= tolerance && gap < bestGap) {
+      best = pt;
+      bestGap = gap;
+    }
+  }
+  return best;
+}
+
+/**
+ * Label one crypto pick.
+ *
+ * THE BIAS THIS EXISTS TO AVOID: the price spine (crypto_prices_daily) is
+ * written from the same top-1000 pull the screen uses, so a coin that
+ * COLLAPSES falls below the rank cutoff and simply stops having rows. A naive
+ * join would then drop exactly the worst outcomes — amputating the left tail of
+ * a breakout screen, which is where such screens actually die. The caller is
+ * therefore expected to backfill missing points with a direct per-coin fetch;
+ * this function's part of the contract is to label at the last known price
+ * rather than return nothing when the series ends early.
+ *
+ * The anomaly test is the crypto analogue of raw-vs-adjusted disagreement: the
+ * stored pick price and the price spine are written from the SAME API response
+ * in the same run, so they must agree. A material mismatch means one of the two
+ * writes is corrupt.
+ */
+export function labelCryptoPick(input: CryptoLabelInput): LabelResult {
+  const {
+    points, runDate, horizonDays, storedPrice, today,
+    toleranceDays = 2, graceDays = 3,
+  } = input;
+
+  const nil = (status: LabelStatus, note: string | null = null): LabelResult => ({
+    status, entryAdj: null, exitAdj: null, exitDate: null, fwdPct: null, anomalyNote: note,
+  });
+
+  if (!points.length) return nil("no_data", "no price points");
+
+  const sorted = [...points].sort((a, b) => a.d.localeCompare(b.d));
+  const entry = nearestPoint(sorted, runDate, toleranceDays);
+  if (!entry || entry.p <= 0) return nil("no_data", "no usable entry price");
+
+  if (storedPrice !== null && storedPrice > 0) {
+    const divergence = Math.abs(entry.p - storedPrice) / storedPrice;
+    if (divergence > 0.05) {
+      return nil(
+        "anomaly",
+        `stored price ${storedPrice} vs spine ${entry.p} on ${entry.d} — write disagreement`,
+      );
+    }
+  }
+
+  const targetExit = new Date(Date.parse(runDate) + horizonDays * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const elapsed = Math.round((Date.parse(today) - Date.parse(runDate)) / 86_400_000);
+
+  const exit = nearestPoint(sorted, targetExit, toleranceDays);
+  if (exit && exit.p > 0) {
+    return {
+      status: "labeled",
+      entryAdj: entry.p,
+      exitAdj: exit.p,
+      exitDate: exit.d,
+      fwdPct: (100 * (exit.p - entry.p)) / entry.p,
+      anomalyNote: null,
+    };
+  }
+
+  // Window has not elapsed yet — genuinely nothing to say.
+  if (elapsed < horizonDays + graceDays) return nil("pending");
+
+  // Past due with no exit point. The coin left the tracked universe, which for
+  // a top-1000-by-market-cap spine overwhelmingly means it fell out rather than
+  // rose out. Label at the last known price and INCLUDE it; dropping these is
+  // the survivorship bias this whole function exists to prevent.
+  const last = sorted[sorted.length - 1];
+  if (last.d <= entry.d || last.p <= 0) return nil("no_data", "no price after entry");
+
+  return {
+    status: "partial_delist",
+    entryAdj: entry.p,
+    exitAdj: last.p,
+    exitDate: last.d,
+    fwdPct: (100 * (last.p - entry.p)) / entry.p,
+    anomalyNote: `left tracked universe after ${last.d}; labelled at last known price`,
+  };
+}
+
 export type QuarantineReason =
   | "split_artifact"
   | "stale_feed"

@@ -6,6 +6,7 @@ import {
   labelPick,
   cohortStats,
   quarantineReasonFor,
+  labelCryptoPick,
   type LabelBar,
 } from "@/lib/markets/labeling";
 
@@ -202,6 +203,76 @@ describe("cohortStats", () => {
     expect(s.n).toBe(0);
     expect(s.mean).toBeNull();
     expect(s.attrition).toBe(100);
+  });
+});
+
+describe("labelCryptoPick", () => {
+  /** Daily points from `from`, `n` days, compounding at `pctPerDay`. */
+  function pts(n: number, start = 100, pctPerDay = 0, from = "2026-01-01") {
+    const base = Date.parse(from);
+    const out: { d: string; p: number }[] = [];
+    let p = start;
+    for (let i = 0; i < n; i++) {
+      out.push({ d: new Date(base + i * 86_400_000).toISOString().slice(0, 10), p });
+      p *= 1 + pctPerDay / 100;
+    }
+    return out;
+  }
+  const base = { storedPrice: null, today: "2027-01-01" };
+
+  it("labels over CALENDAR days, not trading days", () => {
+    const r = labelCryptoPick({ ...base, points: pts(40, 100, 1), runDate: "2026-01-01", horizonDays: 7 });
+    expect(r.status).toBe("labeled");
+    expect(r.exitDate).toBe("2026-01-08");
+    expect(r.fwdPct).toBeCloseTo((1.01 ** 7 - 1) * 100, 6);
+  });
+
+  it("tolerates a missing snapshot day near the exit", () => {
+    const p = pts(40, 100, 1).filter((x) => x.d !== "2026-01-08");
+    const r = labelCryptoPick({ ...base, points: p, runDate: "2026-01-01", horizonDays: 7 });
+    expect(r.status).toBe("labeled");
+    expect(["2026-01-07", "2026-01-09"]).toContain(r.exitDate);
+  });
+
+  it("LABELS a coin that collapsed out of the tracked universe", () => {
+    // The bias this guards: the price spine only holds the day's top 1000, so a
+    // coin that craters stops having rows. Dropping it would amputate exactly
+    // the worst outcomes of a breakout screen.
+    const p = pts(4, 100, -30); // 4 days then gone
+    const r = labelCryptoPick({ ...base, points: p, runDate: "2026-01-01", horizonDays: 30 });
+    expect(r.status).toBe("partial_delist");
+    expect(r.fwdPct).toBeLessThan(-50);
+    expect(r.anomalyNote).toContain("left tracked universe");
+  });
+
+  it("stays pending before the window elapses", () => {
+    const p = pts(3);
+    const r = labelCryptoPick({ points: p, runDate: "2026-01-01", horizonDays: 30, storedPrice: null, today: "2026-01-03" });
+    expect(r.status).toBe("pending");
+  });
+
+  it("flags a stored-price vs spine disagreement", () => {
+    // Both are written from the SAME API response in the same run, so they must
+    // agree; a mismatch means one write is corrupt.
+    const r = labelCryptoPick({ ...base, points: pts(40), runDate: "2026-01-01", horizonDays: 7, storedPrice: 500 });
+    expect(r.status).toBe("anomaly");
+    expect(r.anomalyNote).toContain("write disagreement");
+  });
+
+  it("accepts a small stored-price difference", () => {
+    const r = labelCryptoPick({ ...base, points: pts(40), runDate: "2026-01-01", horizonDays: 7, storedPrice: 101 });
+    expect(r.status).toBe("labeled");
+  });
+
+  it("does NOT flag a huge genuine gain", () => {
+    const r = labelCryptoPick({ ...base, points: pts(40, 100, 20), runDate: "2026-01-01", horizonDays: 7 });
+    expect(r.status).toBe("labeled");
+    expect(r.fwdPct).toBeGreaterThan(200);
+  });
+
+  it("reports no_data with no points at all", () => {
+    expect(labelCryptoPick({ ...base, points: [], runDate: "2026-01-01", horizonDays: 7 }).status)
+      .toBe("no_data");
   });
 });
 
