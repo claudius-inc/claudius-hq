@@ -583,6 +583,77 @@ export type CryptoScreenRun = typeof cryptoScreenRuns.$inferSelect;
 export type NewCryptoScreenRun = typeof cryptoScreenRuns.$inferInsert;
 
 // ============================================================================
+// Pick Labels — automatic forward-return measurement
+// ============================================================================
+//
+// Picks are persisted with an entry price and date, so "did the screen work?"
+// is answerable without any human input. Two rules govern the columns:
+//
+//  1. Returns are computed entirely inside the ADJUSTED series
+//     (exit_adj / entry_adj), making them split-invariant even though
+//     production stores a raw entry price.
+//  2. Anomalies come from measurement DISAGREEMENT, never magnitude. Flagging
+//     large moves would quarantine the genuine winners and truncate the right
+//     tail of every statistic. See src/lib/markets/labeling.ts.
+
+export const pickLabels = sqliteTable(
+  "pick_labels",
+  {
+    source: text("source").notNull(), // momentum | crypto
+    pickId: integer("pick_id").notNull(),
+    ticker: text("ticker").notNull(),
+    horizon: integer("horizon").notNull(),
+    entryDate: text("entry_date").notNull(),
+    entryRaw: real("entry_raw"),
+    entryAdj: real("entry_adj"),
+    exitAdj: real("exit_adj"),
+    exitDate: text("exit_date"),
+    fwdPct: real("fwd_pct"),
+    // Cohort = the same day's candidates, reported and not. Selection skill.
+    cohortN: integer("cohort_n"),
+    cohortMeanPct: real("cohort_mean_pct"),
+    excessPct: real("excess_pct"),
+    // Stored separately because cohort-relative means "beat the names the
+    // screen liked", which is not "beat the market", and cohort composition
+    // drifts whenever a gate moves.
+    universeMeanPct: real("universe_mean_pct"),
+    universeExcessPct: real("universe_excess_pct"),
+    status: text("status").notNull().default("pending"),
+    anomalyNote: text("anomaly_note"),
+    labeledAt: text("labeled_at"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.source, table.pickId, table.horizon] }),
+    dueIdx: index("idx_pick_labels_due").on(table.status, table.entryDate),
+    sliceIdx: index("idx_pick_labels_slice").on(table.source, table.horizon, table.entryDate),
+    tickerIdx: index("idx_pick_labels_ticker").on(table.ticker),
+  }),
+);
+
+export type PickLabel = typeof pickLabels.$inferSelect;
+export type NewPickLabel = typeof pickLabels.$inferInsert;
+
+/** Confirmed data defects only — never magnitude-triggered, so a genuine +80%
+ *  week can never land a ticker here. */
+export const tickerQuarantine = sqliteTable(
+  "ticker_quarantine",
+  {
+    ticker: text("ticker").primaryKey(),
+    reason: text("reason").notNull(), // split_artifact | stale_feed | delisted | currency_change
+    evidence: text("evidence"),
+    firstSeen: text("first_seen").default(sql`(datetime('now'))`),
+    lastSeen: text("last_seen").default(sql`(datetime('now'))`),
+    expiresAt: text("expires_at"), // NULL = permanent
+  },
+  (table) => ({
+    expiryIdx: index("idx_ticker_quarantine_expiry").on(table.expiresAt),
+  }),
+);
+
+export type TickerQuarantine = typeof tickerQuarantine.$inferSelect;
+export type NewTickerQuarantine = typeof tickerQuarantine.$inferInsert;
+
+// ============================================================================
 // Scanner Universe - Tickers to scan
 // ============================================================================
 

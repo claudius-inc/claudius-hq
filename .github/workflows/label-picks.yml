@@ -1,0 +1,60 @@
+name: Label Picks
+
+on:
+  # Daily at 01:40 UTC — after the momentum report records the day's picks
+  # (00:35) and after the crypto report refreshes prices (01:00). Runs every
+  # day including weekends: labels come due on a calendar schedule, and a
+  # weekend run simply finds nothing newly due.
+  schedule:
+    - cron: '40 1 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Compute labels without writing'
+        type: boolean
+        default: false
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Turns recorded picks into forward-return labels, and quarantines
+      # tickers on CONFIRMED data defects only (raw-vs-adjusted disagreement,
+      # an entry price that never traded, a delisting) — never on the size of
+      # a move. See src/lib/markets/labeling.ts for why magnitude triggers
+      # would truncate the right tail of every statistic.
+      - name: Label recorded picks
+        run: npx tsx scripts/pipelines/run-label-picks.ts ${{ inputs.dry_run && '--dry-run' || '' }}
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Label Picks" >> $GITHUB_STEP_SUMMARY
+          echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+            -d "text=⚠️ Label picks failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
