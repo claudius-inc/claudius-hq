@@ -9,6 +9,10 @@
 # testing
 /coverage
 
+# research: cached price history for the backtest harness (large, regenerable
+# via scripts/research/fetch-price-history.ts)
+/.cache
+
 # next.js
 /.next/
 /out/
