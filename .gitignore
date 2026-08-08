@@ -40,8 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# claude
+# claude — local settings stay local, shared skills are committed
 /.claude/*
+!/.claude/skills/
 .env.vercel
 
 # workflow artifacts (ticker-profile backfill, batch outputs, etc.)
