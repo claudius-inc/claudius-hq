@@ -19,6 +19,8 @@ interface BreadthData {
   };
   level: "bullish" | "neutral" | "bearish";
   interpretation: string;
+  /** Raw WSJ diary timestamp, e.g. "7:05 PM EDT 8/07/26" (WSJ path only). */
+  wsjTimestamp?: string;
 }
 
 /**
@@ -39,6 +41,10 @@ async function fetchBreadthFromWSJ(): Promise<BreadthData> {
   if (!resp.ok) throw new Error(`WSJ breadth fetch failed: ${resp.status}`);
 
   const json = await resp.json();
+  // WSJ stamps the diary with its own date, e.g. "7:05 PM EDT 8/07/26". This is
+  // the authoritative as-of — a cached/lagged 200 response carries a stale date
+  // here even though the HTTP fetch just succeeded (spec §1a staleness check).
+  const wsjTimestamp: string | undefined = json.data?.timestamp;
   const instrumentSets = json.data.instrumentSets;
 
   // instrumentSets[0] = Issues (Advancing, Declining, Unchanged, Total)
@@ -95,6 +101,7 @@ async function fetchBreadthFromWSJ(): Promise<BreadthData> {
     },
     level,
     interpretation,
+    wsjTimestamp,
   };
 }
 
@@ -275,6 +282,18 @@ export async function fetchBreadthData() {
     mcclellan,
     source,
     note,
+    // ET calendar date the WSJ diary is stamped for (null on the ETF fallback).
+    asOfDate: parseWsjEtDate(breadth.wsjTimestamp),
     updatedAt: new Date().toISOString(),
   };
+}
+
+/** "7:05 PM EDT 8/07/26" → "2026-08-07" (ET). Null if unparseable. */
+function parseWsjEtDate(ts?: string): string | null {
+  if (!ts) return null;
+  const m = ts.match(/(\d{1,2})\/(\d{1,2})\/(\d{2})\b/);
+  if (!m) return null;
+  const mo = m[1].padStart(2, "0");
+  const d = m[2].padStart(2, "0");
+  return `20${m[3]}-${mo}-${d}`;
 }

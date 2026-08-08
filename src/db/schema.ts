@@ -1076,3 +1076,37 @@ export const tweetTickers = sqliteTable("tweet_tickers", {
 
 export type TweetTicker = typeof tweetTickers.$inferSelect;
 export type NewTweetTicker = typeof tweetTickers.$inferInsert;
+
+// ============================================================================
+// Daily Market Note ("The Tape") — see docs/daily-note-spec.md §6
+// ============================================================================
+
+// 11 GICS SPDR sectors + a GOLD pseudo-sector for spotlight deep-dives.
+export const NOTE_SPOTLIGHT_SECTORS = [
+  "XLK", "XLF", "XLY", "XLC", "XLV", "XLI", "XLP", "XLE", "XLB", "XLRE", "XLU", "GOLD",
+] as const;
+export type NoteSpotlightSector = (typeof NOTE_SPOTLIGHT_SECTORS)[number];
+
+// Which sectors get the expanded deep-dive block. Defaults XLE + GOLD on.
+export const noteSpotlightConfig = sqliteTable("note_spotlight_config", {
+  sector: text("sector").primaryKey(), // one of NOTE_SPOTLIGHT_SECTORS
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export type NoteSpotlightConfig = typeof noteSpotlightConfig.$inferSelect;
+
+// One generated note per US market date (America/New_York). `facts` is the
+// StructuredFacts JSON (value/source/asOf per field); the web page renders from
+// `webBody`; `telegramMessageId` enables idempotent same-day edits.
+export const dailyNotes = sqliteTable("daily_notes", {
+  date: text("date").primaryKey(), // YYYY-MM-DD, US market date
+  facts: text("facts").notNull(), // JSON: StructuredFacts
+  pushHtml: text("push_html").notNull(),
+  webBody: text("web_body").notNull(),
+  telegramMessageId: integer("telegram_message_id"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type DailyNote = typeof dailyNotes.$inferSelect;
+export type NewDailyNote = typeof dailyNotes.$inferInsert;

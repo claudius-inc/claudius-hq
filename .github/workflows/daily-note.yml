@@ -1,0 +1,67 @@
+name: Daily Market Note
+
+on:
+  # The Treasury par-yield feed publishes ~6pm ET, so the note must run after
+  # that (spec §3/§8). GitHub cron is fixed UTC and ET shifts with DST, so we
+  # fire at BOTH 22:20 UTC (6:20pm EDT, summer) and 23:20 UTC (6:20pm EST,
+  # winter). The off-season run still lands post-close and is harmless: the
+  # §7a gate + idempotent per-date edit mean a second run of the same session
+  # just re-edits the same message ("message is not modified" = success).
+  schedule:
+    - cron: '20 22 * * 1-5'
+    - cron: '20 23 * * 1-5'
+  workflow_dispatch: {}
+
+# Serialize runs (dual-cron + manual dispatch) so two overlapping runs can't
+# both send before message_id is persisted → duplicate channel posts.
+concurrency:
+  group: daily-note
+  cancel-in-progress: false
+
+jobs:
+  note:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Pipeline: scripts/pipelines/run-daily-note.ts
+      # GATE (§7a) -> ASSEMBLE (§8.1) -> RENDER (§2) -> PERSIST -> SEND/EDIT.
+      # A non-session run is a graceful skip (exit 0) that self-alerts the admin.
+      - name: Generate and send daily note
+        run: npx tsx scripts/pipelines/run-daily-note.ts
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_NOTE_CHANNEL_ID: ${{ secrets.TELEGRAM_NOTE_CHANNEL_ID }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          NOTE_WEB_BASE_URL: ${{ secrets.NOTE_WEB_BASE_URL }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Daily Market Note" >> $GITHUB_STEP_SUMMARY
+          echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+            -d "text=❌ Daily market note failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
