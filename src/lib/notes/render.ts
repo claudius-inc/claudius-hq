@@ -8,6 +8,7 @@
  */
 import type {
   StructuredFacts,
+  NoteProse,
   IndexPoint,
   RatesData,
   VixData,
@@ -46,7 +47,8 @@ const intFmt = (n: number) => Math.round(n).toLocaleString("en-US");
 
 // ── Section builders (return "" when the fact is absent) ─────────────────────
 
-function hookLine(f: StructuredFacts): string {
+/** Facts-only fallback hook (plain text, unescaped) — §8.3 hook-never-drop. */
+export function deterministicHook(f: StructuredFacts): string {
   const sp = f.indices?.value.find((i) => i.symbol === "^GSPC");
   const parts: string[] = [];
   if (sp) parts.push(`S&P ${intFmt(sp.close)} ${dpct(sp.changePct)}`);
@@ -54,9 +56,14 @@ function hookLine(f: StructuredFacts): string {
   if (br) parts.push(`breadth ${intFmt(br.advances)}/${intFmt(br.declines)}`);
   const vx = f.vix?.value;
   if (vx) parts.push(`VIX ${vx.level.toFixed(1)}`);
+  return parts.join(" · ") || `Daily tape — ${f.date}`;
+}
+
+/** Escaped, ≤120-char hook line: validated LLM hook if present, else fallback. */
+function hookLine(f: StructuredFacts, prose?: NoteProse): string {
   // Plain-readable, no leading emoji, ≤120 chars (§2). Escape — the hook is
   // plain text (no tags) and contains "&" via "S&P".
-  const raw = parts.join(" · ") || `Daily tape — ${f.date}`;
+  const raw = prose?.hook || deterministicHook(f);
   const line = raw.length <= 120 ? raw : raw.slice(0, 117) + "…";
   return escapeHtml(line);
 }
@@ -91,14 +98,35 @@ function tapeSection(f: StructuredFacts): string {
   return lines.join("\n");
 }
 
-function ratesSection(f: StructuredFacts): string {
+function ratesSection(f: StructuredFacts, prose?: NoteProse): string {
   if (!f.rates) return "";
   const r: RatesData = f.rates.value;
   const bp = (n: number) => `${n >= 0 ? "+" : ""}${n}bp`;
   const emoji = r.chg10Bp >= 0 ? "📈" : "📉";
   const l1 = `${emoji} ${b("RATES")} — 2Y ${code(r.y2.toFixed(2) + "%")} ${bp(r.chg2Bp)} · 10Y ${code(r.y10.toFixed(2) + "%")} ${bp(r.chg10Bp)} · 30Y ${code(r.y30.toFixed(2) + "%")} ${bp(r.chg30Bp)}`;
-  const l2 = `2s10s ${code(bp(r.spread2s10Bp))} (${bp(r.spread2s10ChgBp)} on the day)`;
+  const l2 = prose?.curveRead
+    ? escapeHtml(prose.curveRead)
+    : `2s10s ${code(bp(r.spread2s10Bp))} (${bp(r.spread2s10ChgBp)} on the day)`;
   return `${l1}\n${l2}`;
+}
+
+function whatMattersSection(prose?: NoteProse): string {
+  if (!prose?.whatMatters?.length) return "";
+  const bullets = prose.whatMatters.map((x) => `• ${escapeHtml(x)}`).join("\n");
+  return `🔑 ${b("WHAT MATTERS")}\n${bullets}`;
+}
+
+function bullBearSection(prose?: NoteProse): string {
+  if (!prose?.bull && !prose?.bear) return "";
+  const lines: string[] = [`⚖️ ${b("BULL / BEAR")}`];
+  if (prose.bull) lines.push(`${b("Bull:")} ${escapeHtml(prose.bull)}`);
+  if (prose.bear) lines.push(`${b("Bear:")} ${escapeHtml(prose.bear)}`);
+  return lines.join("\n");
+}
+
+function bookSection(prose?: NoteProse): string {
+  if (!prose?.book) return "";
+  return `📖 ${b("THE BOOK")} — ${escapeHtml(prose.book)}`;
 }
 
 function crossPrice(p: CrossAssetPoint): string {
@@ -144,29 +172,59 @@ function footer(webUrl: string): string {
 export interface RenderInput {
   facts: StructuredFacts;
   webUrl: string;
+  /** LLM prose (slice 2). Absent → deterministic note (slice-1 behavior). */
+  prose?: NoteProse;
 }
 
-/** Telegram HTML push. Asserts ≤4096 UTF-16 units (§2). */
-export function renderPush({ facts, webUrl }: RenderInput): string {
-  const blocks = [
-    hookLine(facts),
+function build(facts: StructuredFacts, webUrl: string, prose?: NoteProse): string {
+  return [
+    hookLine(facts, prose),
     tapeSection(facts),
-    ratesSection(facts),
+    ratesSection(facts, prose),
     crossSection(facts),
+    whatMattersSection(prose),
+    bullBearSection(prose),
+    bookSection(prose),
     footer(webUrl),
-  ].filter((s) => s.length > 0);
+  ]
+    .filter((s) => s.length > 0)
+    .join("\n\n");
+}
 
-  const html = blocks.join("\n\n");
-  if (html.length > 4096) {
-    // Slice-1 content is short; a real overflow means a data anomaly — surface it.
-    throw new Error(`Rendered push exceeds 4096 chars (${html.length})`);
+/**
+ * Telegram HTML push, ≤4096 UTF-16 units (§2). On overflow, degrade the prose
+ * in priority order (drop book → bull/bear → trim What-Matters from the end →
+ * prose-free deterministic note) rather than throwing. Only a prose-free note
+ * that STILL overflows is a true data anomaly worth throwing on.
+ */
+export function renderPush({ facts, webUrl, prose }: RenderInput): string {
+  const CAP = 4096;
+
+  const candidates: (NoteProse | undefined)[] = [];
+  if (prose) {
+    candidates.push(prose);
+    candidates.push({ ...prose, book: undefined });
+    candidates.push({ ...prose, book: undefined, bull: undefined, bear: undefined });
+    // Trim What-Matters bullets from the end.
+    for (let n = prose.whatMatters.length - 1; n >= 0; n--) {
+      candidates.push({ ...prose, book: undefined, bull: undefined, bear: undefined, whatMatters: prose.whatMatters.slice(0, n) });
+    }
   }
-  return html;
+  candidates.push(undefined); // deterministic, prose-free
+
+  let last = "";
+  for (const p of candidates) {
+    last = build(facts, webUrl, p);
+    if (last.length <= CAP) return last;
+  }
+  throw new Error(`Rendered push exceeds ${CAP} chars even prose-free (${last.length}) — data anomaly`);
 }
 
 /** Web body (HTML) mirroring the push; the archive page renders this. */
-export function renderWeb({ facts, webUrl }: RenderInput): string {
-  const push = renderPush({ facts, webUrl });
+export function renderWeb({ facts, webUrl, prose }: RenderInput): string {
+  // The web page has no 4096 cap, so render the FULL prose (build directly)
+  // rather than the possibly-trimmed push.
+  const push = build(facts, webUrl, prose);
   // Slice 1: the web body is the push content as HTML paragraphs. Slices 3–4
   // add the full sector board, divergence, and spotlight deep-dives here.
   return push

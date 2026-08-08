@@ -85,3 +85,18 @@ export interface StructuredFacts {
   sectors: Fact<SectorPoint[]> | null;
   breadth: Fact<BreadthData> | null;
 }
+
+/**
+ * LLM-written prose (slice 2). Every number in these strings must map to a value
+ * in StructuredFacts — enforced by the numeral validator (§8.3), not the prompt.
+ * A field the validator can't clear is dropped; the hook falls back to a
+ * deterministic template (never dropped — it's required, §4.1).
+ */
+export interface NoteProse {
+  hook: string;
+  curveRead?: string;
+  whatMatters: string[];
+  bull?: string;
+  bear?: string;
+  book?: string;
+}

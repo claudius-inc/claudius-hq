@@ -14,6 +14,7 @@ import { db, dailyNotes } from "@/db";
 import { logger } from "@/lib/logger";
 import { checkTradingSession } from "@/lib/notes/session";
 import { assembleFacts } from "@/lib/notes/assemble";
+import { writeProse } from "@/lib/notes/write";
 import { renderPush, renderWeb } from "@/lib/notes/render";
 import { sendNote, editNote, alertAdmin } from "@/lib/notes/telegram";
 
@@ -55,12 +56,15 @@ async function main() {
     return;
   }
 
-  // 2. RENDER (§2)
-  const url = webUrl(date);
-  const pushHtml = renderPush({ facts, webUrl: url });
-  const webBody = renderWeb({ facts, webUrl: url });
+  // 2. WRITE PROSE (§8.2) + VALIDATE (§8.3) — additive; null → deterministic note.
+  const prose = await writeProse(facts);
 
-  // 3. PERSIST (before send, so an outage can't cost the record)
+  // 3. RENDER (§2)
+  const url = webUrl(date);
+  const pushHtml = renderPush({ facts, webUrl: url, prose: prose ?? undefined });
+  const webBody = renderWeb({ facts, webUrl: url, prose: prose ?? undefined });
+
+  // 4. PERSIST (before send, so an outage can't cost the record)
   const existing = await db.select().from(dailyNotes).where(eq(dailyNotes.date, date)).limit(1);
   const priorMessageId = existing[0]?.telegramMessageId ?? null;
 
@@ -72,7 +76,7 @@ async function main() {
       set: { facts: JSON.stringify(facts), pushHtml, webBody },
     });
 
-  // 4. SEND / EDIT
+  // 5. SEND / EDIT
   const channel = Number(process.env.TELEGRAM_NOTE_CHANNEL_ID);
   if (!Number.isFinite(channel) || channel === 0) {
     // A config error must be loud (§2) — the note was persisted but nobody saw it.
