@@ -13,6 +13,7 @@ import YahooFinance from "yahoo-finance2";
 import { logger } from "@/lib/logger";
 import { fetchBreadthData } from "@/lib/markets/breadth";
 import { fetchRatesFact } from "@/lib/notes/sources/treasury";
+import { computeDivergenceFacts } from "@/lib/notes/divergence";
 import { etDate, etStamp } from "@/lib/notes/session";
 import type {
   Fact,
@@ -290,14 +291,25 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     breadthFact(marketDate, now),
   ]);
 
+  const indices = indicesFact(quoteMap, marketDate, now);
+  const sectors = sectorsFact(quoteMap, marketDate, now);
+
+  // Divergence + contribution need the sector benchmarks and the index move,
+  // so they run after the batch quote resolves (§5, §8).
+  const spChange = indices?.value.find((i) => i.symbol === "^GSPC")?.changePct ?? null;
+  const { divergence, contribution } = await computeDivergenceFacts(sectors?.value ?? null, spChange);
+  const asOf = etStamp(marketDate, "16:00:00", now);
+
   return {
     date: marketDate,
     generatedAt: new Date(now).toISOString(),
-    indices: indicesFact(quoteMap, marketDate, now),
+    indices,
     rates,
     vix,
     crossAsset,
-    sectors: sectorsFact(quoteMap, marketDate, now),
+    sectors,
     breadth,
+    divergence: divergence.length > 0 ? { value: divergence, source: "Yahoo + SPDR holdings", asOf } : null,
+    contribution: contribution ? { value: contribution, source: "Yahoo + SPY float weights", asOf } : null,
   };
 }

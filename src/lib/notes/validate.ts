@@ -42,6 +42,15 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
     const bd = f.breadth.value;
     push(bd.advances, bd.declines, bd.ratio, bd.newHighs, bd.newLows);
   }
+  if (f.divergence)
+    for (const d of f.divergence.value) {
+      push(d.sectorChangePct);
+      for (const n of d.names) push(n.changePct, n.gap);
+    }
+  if (f.contribution) {
+    const c = f.contribution.value;
+    push(c.modelledPct, c.actualPct, c.topPoints, c.exTopPct, c.topNames.length);
+  }
   return out;
 }
 

@@ -67,6 +67,35 @@ export interface BreadthData {
   newLows: number;
 }
 
+/** One constituent bucking its sector (§5). */
+export interface DivergenceName {
+  ticker: string;
+  name: string | null;
+  changePct: number;
+  /** Distance from the sector's own move, in percentage points. */
+  gap: number;
+}
+
+/** A sector with a meaningful within-sector divergence (§5). */
+export interface DivergenceSector {
+  etf: string;
+  sectorName: string;
+  sectorChangePct: number;
+  /** Direction of the SECTOR; `names` are the ones moving against it. */
+  direction: "up" | "down";
+  names: DivergenceName[];
+}
+
+/** Cap-weighted index contribution, post reconciliation gate (§8). */
+export interface ContributionData {
+  modelledPct: number;
+  actualPct: number;
+  topNames: string[];
+  topPoints: number;
+  exTopPct: number;
+  flipsWithoutTop: boolean;
+}
+
 /**
  * The full deterministic fact set for one trading day. LLM prose (slice 2) and
  * the divergence/GEX/econ facts (slices 3–4) extend this; slice-1 fields are the
@@ -84,6 +113,8 @@ export interface StructuredFacts {
   crossAsset: Fact<CrossAssetPoint[]> | null;
   sectors: Fact<SectorPoint[]> | null;
   breadth: Fact<BreadthData> | null;
+  divergence: Fact<DivergenceSector[]> | null;
+  contribution: Fact<ContributionData> | null;
 }
 
 /**

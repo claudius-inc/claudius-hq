@@ -1110,3 +1110,28 @@ export const dailyNotes = sqliteTable("daily_notes", {
 
 export type DailyNote = typeof dailyNotes.$inferSelect;
 export type NewDailyNote = typeof dailyNotes.$inferInsert;
+
+// S&P 500 membership + GICS sector + float weight, seeded from the SPDR daily
+// holdings files (sector ETFs supply the GICS grouping; SPY supplies the
+// float-adjusted index weight). Feeds the within-sector divergence (§5) and the
+// index-contribution fact (§8). Refreshed on a schedule — see
+// scripts/seed/sp500-constituents.ts.
+export const sp500Constituents = sqliteTable(
+  "sp500_constituents",
+  {
+    ticker: text("ticker").primaryKey(),
+    name: text("name"),
+    sectorEtf: text("sector_etf").notNull(), // XLK, XLF, … (the GICS sector's SPDR)
+    // Percent of SPY (e.g. 7.99656). Null when the name is in a sector file but
+    // not yet in SPY's file (rebalance lag) — such names are excluded from the
+    // index-contribution math but still usable for divergence.
+    spyWeight: real("spy_weight"),
+    updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    sectorIdx: index("idx_sp500_constituents_sector").on(table.sectorEtf),
+  }),
+);
+
+export type Sp500Constituent = typeof sp500Constituents.$inferSelect;
+export type NewSp500Constituent = typeof sp500Constituents.$inferInsert;

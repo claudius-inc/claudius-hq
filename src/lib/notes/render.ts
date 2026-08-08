@@ -45,6 +45,19 @@ function spct(pct: number, dp = 1): string {
 }
 const intFmt = (n: number) => Math.round(n).toLocaleString("en-US");
 
+/** 1 → "1st", 2 → "2nd", 3 → "3rd", 11 → "11th", 23 → "23rd". */
+function ordinal(n: number): string {
+  const v = Math.round(n);
+  const rem100 = v % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${v}th`;
+  switch (v % 10) {
+    case 1: return `${v}st`;
+    case 2: return `${v}nd`;
+    case 3: return `${v}rd`;
+    default: return `${v}th`;
+  }
+}
+
 // ── Section builders (return "" when the fact is absent) ─────────────────────
 
 /** Facts-only fallback hook (plain text, unescaped) — §8.3 hook-never-drop. */
@@ -92,7 +105,7 @@ function tapeSection(f: StructuredFacts): string {
     const chg = `${vx.change >= 0 ? "+" : ""}${vx.change.toFixed(1)}`;
     const trend = vx.trendDays > 0 && vx.trendDir !== "flat" ? `, ${vx.trendDir} ${vx.trendDays}d` : "";
     lines.push(
-      `VIX ${code(vx.level.toFixed(1))} ${chg} — ~${vx.percentile}th %ile of YTD ${code(`${vx.ytdLow.toFixed(1)}–${vx.ytdHigh.toFixed(1)}`)}${trend}`,
+      `VIX ${code(vx.level.toFixed(1))} ${chg} — ~${ordinal(vx.percentile)} %ile of YTD ${code(`${vx.ytdLow.toFixed(1)}–${vx.ytdHigh.toFixed(1)}`)}${trend}`,
     );
   }
   return lines.join("\n");
@@ -108,6 +121,20 @@ function ratesSection(f: StructuredFacts, prose?: NoteProse): string {
     ? escapeHtml(prose.curveRead)
     : `2s10s ${code(bp(r.spread2s10Bp))} (${bp(r.spread2s10ChgBp)} on the day)`;
   return `${l1}\n${l2}`;
+}
+
+/**
+ * The sharpest within-sector divergence, as a deterministic one-liner (§5).
+ * Ships the tell even when prose is unavailable; the LLM gets the same facts.
+ */
+function divergenceSection(f: StructuredFacts): string {
+  const top = f.divergence?.value[0];
+  if (!top) return "";
+  const names = top.names
+    .map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}`)
+    .join(", ");
+  const verb = top.direction === "down" ? "green in a red" : "red in a green";
+  return `🔀 ${b("DIVERGENCE")} — ${escapeHtml(top.sectorName)} ${spct(top.sectorChangePct)}, but ${names} closed ${verb} sector`;
 }
 
 function whatMattersSection(prose?: NoteProse): string {
@@ -182,6 +209,7 @@ function build(facts: StructuredFacts, webUrl: string, prose?: NoteProse): strin
     tapeSection(facts),
     ratesSection(facts, prose),
     crossSection(facts),
+    divergenceSection(facts),
     whatMattersSection(prose),
     bullBearSection(prose),
     bookSection(prose),
@@ -220,15 +248,56 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
   throw new Error(`Rendered push exceeds ${CAP} chars even prose-free (${last.length}) — data anomaly`);
 }
 
-/** Web body (HTML) mirroring the push; the archive page renders this. */
+/** Full 11-sector board, biggest first (web only — §7.3). */
+function webSectorBoard(f: StructuredFacts): string {
+  if (!f.sectors) return "";
+  const rows = [...f.sectors.value]
+    .sort((a, b) => b.changePct - a.changePct)
+    .map((s) => `<li>${escapeHtml(s.name)} <code>${escapeHtml(s.etf)}</code> — ${spct(s.changePct)}</li>`)
+    .join("\n");
+  return `<h2>Sector board</h2>\n<ul>\n${rows}\n</ul>`;
+}
+
+/** Every qualifying sector's divergence, not just the sharpest (§7.4). */
+function webDivergence(f: StructuredFacts): string {
+  if (!f.divergence) return "";
+  const blocks = f.divergence.value
+    .map((d) => {
+      const names = d.names
+        .map(
+          (n) =>
+            `<li><code>${escapeHtml(n.ticker)}</code>${n.name ? ` ${escapeHtml(n.name)}` : ""} ${spct(n.changePct)} <i>(${spct(n.gap)} vs sector)</i></li>`,
+        )
+        .join("\n");
+      return `<h3>${escapeHtml(d.sectorName)} ${spct(d.sectorChangePct)}</h3>\n<ul>\n${names}\n</ul>`;
+    })
+    .join("\n");
+  return `<h2>Within-sector divergence</h2>\n${blocks}`;
+}
+
+/** Index concentration detail (§7.2 support for the contribution claim). */
+function webContribution(f: StructuredFacts): string {
+  const c = f.contribution?.value;
+  if (!c) return "";
+  return (
+    `<h2>Index concentration</h2>\n<p>Top movers ${c.topNames.map((t) => `<code>${escapeHtml(t)}</code>`).join(", ")} ` +
+    `contributed ${spct(c.topPoints)} of the index's ${spct(c.actualPct)}. Excluding them: ${spct(c.exTopPct)}` +
+    `${c.flipsWithoutTop ? " — <b>the index only held its direction on those names</b>" : ""}.</p>`
+  );
+}
+
+/** Web body (HTML); the archive page renders this. */
 export function renderWeb({ facts, webUrl, prose }: RenderInput): string {
   // The web page has no 4096 cap, so render the FULL prose (build directly)
   // rather than the possibly-trimmed push.
   const push = build(facts, webUrl, prose);
-  // Slice 1: the web body is the push content as HTML paragraphs. Slices 3–4
-  // add the full sector board, divergence, and spotlight deep-dives here.
-  return push
+  const head = push
     .split("\n\n")
     .map((block) => `<p>${block.replace(/\n/g, "<br/>")}</p>`)
+    .join("\n");
+
+  // Depth sections the push has no room for. Spotlight deep-dives land in slice 4.
+  return [head, webSectorBoard(facts), webDivergence(facts), webContribution(facts)]
+    .filter((s) => s.length > 0)
     .join("\n");
 }

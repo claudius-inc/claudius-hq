@@ -85,16 +85,24 @@ export async function fetchHistoricalData(
   }
 }
 
-interface QuoteResult {
+export interface QuoteResult {
   symbol?: string;
   regularMarketPrice?: number;
   regularMarketVolume?: number;
+  // Present on the wire; needed by the daily note's divergence + contribution
+  // math (docs/daily-note-spec.md §5/§8).
+  regularMarketChangePercent?: number;
+  marketCap?: number;
 }
 
 /**
  * Batch fetch quotes for multiple tickers.
+ *
+ * Exported for the daily-note pipeline, which needs 1d% for ~500 S&P names in
+ * one pass. Use THIS rather than batchFetchMetrics — the latter pulls 14 months
+ * of history per ticker (minutes, not seconds).
  */
-async function fetchBatchQuotes(tickers: string[]): Promise<Map<string, QuoteResult>> {
+export async function fetchBatchQuotes(tickers: string[]): Promise<Map<string, QuoteResult>> {
   const result = new Map<string, QuoteResult>();
   if (tickers.length === 0) return result;
 
@@ -131,7 +139,13 @@ async function fetchBatchQuotes(tickers: string[]): Promise<Map<string, QuoteRes
       }
     } catch (e) {
       console.error("[Yahoo] Batch quote failed -", e);
-      // Fall back to individual calls (still rate-limited + retried).
+      // Fall back to individual calls (still rate-limited + retried). Skipped
+      // for full-universe sweeps: 500 slot-gated singles after a sustained 429
+      // would outlast the caller's job timeout without adding real coverage.
+      if (tickers.length > 50) {
+        console.error(`[Yahoo] Skipping per-ticker fallback for large batch (${tickers.length} tickers)`);
+        continue;
+      }
       for (const t of chunk) {
         try {
           await acquireYahooSlot();

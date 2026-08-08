@@ -37,6 +37,33 @@ function factSheet(f: StructuredFacts): string {
     const bd = f.breadth.value;
     lines.push(`Breadth (NYSE): ${bd.advances} advancers / ${bd.declines} decliners, A/D ${bd.ratio}, new highs ${bd.newHighs} / new lows ${bd.newLows}`);
   }
+  if (f.divergence) {
+    lines.push(
+      "Within-sector divergence (names moving AGAINST their sector — the key tell):\n" +
+        f.divergence.value
+          .map(
+            (d) =>
+              `  ${d.sectorName} (${d.etf}) ${d.sectorChangePct >= 0 ? "+" : ""}${d.sectorChangePct}% ${d.direction} — bucking it: ` +
+              d.names.map((n) => `${n.ticker} ${n.changePct >= 0 ? "+" : ""}${n.changePct}%`).join(", "),
+          )
+          .join("\n"),
+    );
+  }
+  if (f.contribution) {
+    const c = f.contribution.value;
+    // The flip means opposite things up vs down: on a green day the index only
+    // held up ON those names; on a red day it was only down BECAUSE of them.
+    // Getting this backwards would be a false causal claim with no numeral for
+    // the validator to catch, so state the direction explicitly.
+    const flip = c.flipsWithoutTop
+      ? c.actualPct >= 0
+        ? " (SIGN FLIPS — the index only held up on those names; without them it is negative)"
+        : " (SIGN FLIPS — the index was only down because of those names; without them it is positive)"
+      : "";
+    lines.push(
+      `Index concentration: top movers ${c.topNames.join(", ")} contributed ${c.topPoints} points of the S&P's ${c.actualPct}%; ex-those names the index is ${c.exTopPct}%${flip}`,
+    );
+  }
   return lines.join("\n");
 }
 
