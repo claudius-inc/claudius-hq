@@ -4,10 +4,8 @@ import { db, researchJobs } from "@/db";
 import { eq } from "drizzle-orm";
 import { isApiAuthenticated } from "@/lib/auth/auth";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { jobId: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ jobId: string }> }) {
+  const params = await props.params;
   const { jobId } = params;
 
   try {
@@ -26,10 +24,8 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { jobId: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ jobId: string }> }) {
+  const params = await props.params;
   const { jobId } = params;
 
   // Require API auth for updates

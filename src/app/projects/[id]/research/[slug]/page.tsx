@@ -8,7 +8,8 @@ import { marked } from "marked";
 // On-demand revalidation via project API
 export const revalidate = false;
 
-export async function generateMetadata({ params }: { params: { id: string; slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ id: string; slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const { id, slug } = params;
   try {
     const result = await db.execute({
@@ -23,7 +24,8 @@ export async function generateMetadata({ params }: { params: { id: string; slug:
   return { title: "Research" };
 }
 
-export default async function ResearchPageDetail({ params }: { params: { id: string; slug: string } }) {
+export default async function ResearchPageDetail(props: { params: Promise<{ id: string; slug: string }> }) {
+  const params = await props.params;
   const { id, slug } = params;
 
   const projectRes = await db.execute({ sql: "SELECT * FROM projects WHERE id = ?", args: [Number(id)] });

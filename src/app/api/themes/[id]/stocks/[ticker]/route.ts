@@ -7,8 +7,9 @@ import { logger } from "@/lib/logger";
 // DELETE /api/themes/[id]/stocks/[ticker] - Remove stock from theme
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; ticker: string } }
+  props: { params: Promise<{ id: string; ticker: string }> }
 ) {
+  const params = await props.params;
   try {
     const { id, ticker } = params;
     const numericId = parseInt(id, 10);

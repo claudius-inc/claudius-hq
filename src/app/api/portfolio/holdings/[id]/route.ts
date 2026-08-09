@@ -16,10 +16,8 @@ function toSnakeCase(r: Record<string, unknown>) {
 }
 
 // PUT /api/portfolio/holdings/[id] — Update holding
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { id } = params;
   const numericId = parseInt(id, 10);
 
@@ -66,10 +64,8 @@ export async function PUT(
 }
 
 // DELETE /api/portfolio/holdings/[id] — Remove holding
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { id } = params;
   const numericId = parseInt(id, 10);
 

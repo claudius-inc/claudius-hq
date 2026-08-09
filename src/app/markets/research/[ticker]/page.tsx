@@ -1,16 +1,15 @@
 import { redirect } from "next/navigation";
 
 interface PageProps {
-  params: { ticker: string };
-  searchParams: { report?: string };
+  params: Promise<{ ticker: string }>;
+  searchParams: Promise<{ report?: string }>;
 }
 
 export const dynamic = "force-dynamic";
 
-export default function ResearchTickerRedirect({
-  params,
-  searchParams,
-}: PageProps) {
+export default async function ResearchTickerRedirect(props: PageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const ticker = encodeURIComponent(params.ticker);
   const qs = searchParams.report
     ? `?report=${encodeURIComponent(searchParams.report)}`

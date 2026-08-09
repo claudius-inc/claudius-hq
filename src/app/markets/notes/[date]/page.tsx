@@ -18,7 +18,8 @@ function prettyDate(iso: string): string {
   });
 }
 
-export default async function DailyNotePage({ params }: { params: { date: string } }) {
+export default async function DailyNotePage(props: { params: Promise<{ date: string }> }) {
+  const params = await props.params;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date)) notFound();
 
   const rows = await db.select().from(dailyNotes).where(eq(dailyNotes.date, params.date)).limit(1);

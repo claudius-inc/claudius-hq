@@ -26,19 +26,17 @@
     "@radix-ui/react-hover-card": "^1.1.15",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/typography": "^0.5.19",
-    "@types/nodemailer": "^7.0.9",
     "@types/turndown": "^5.0.6",
     "clsx": "^2.1.1",
     "d3-force": "^3.0.0",
     "date-fns": "^4.1.0",
     "drizzle-kit": "^0.31.9",
-    "drizzle-orm": "^0.45.1",
+    "drizzle-orm": "^0.45.2",
     "ethers": "^6.16.0",
     "linkedom": "^0.18.12",
     "lucide-react": "^0.563.0",
     "marked": "^17.0.1",
-    "next": "^14.2.35",
-    "nodemailer": "^7.0.13",
+    "next": "^15.5.23",
     "react": "^18",
     "react-dom": "^18",
     "react-force-graph-2d": "^1.29.1",
@@ -49,7 +47,7 @@
     "tailwind-merge": "^3.5.0",
     "tailwindcss-animate": "^1.0.7",
     "turndown": "^7.2.4",
-    "xlsx": "^0.18.5",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "yahoo-finance2": "^3.13.0",
     "zod": "^4.3.6"
   },
@@ -64,9 +62,10 @@
     "@vitejs/plugin-react": "^5.1.4",
     "dotenv": "^17.3.1",
     "eslint": "^8",
-    "eslint-config-next": "14.2.35",
+    "eslint-config-next": "^15.5.23",
     "gray-matter": "^4.0.3",
     "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
     "lint-staged": "^16.2.7",
     "notion-to-md": "^3.1.9",
     "postcss": "^8",
@@ -74,5 +73,10 @@
     "tsc-files": "^1.1.4",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"
+  },
+  "overrides": {
+    "esbuild": "0.28.2",
+    "sharp": "^0.35.3",
+    "postcss": "$postcss"
   }
 }

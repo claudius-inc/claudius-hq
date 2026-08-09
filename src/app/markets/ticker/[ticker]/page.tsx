@@ -28,8 +28,8 @@ export const dynamic = "force-dynamic";
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
 
 interface PageProps {
-  params: { ticker: string };
-  searchParams: { report?: string };
+  params: Promise<{ ticker: string }>;
+  searchParams: Promise<{ report?: string }>;
 }
 
 interface QuoteResult {
@@ -46,9 +46,8 @@ interface QuoteResult {
   currency?: string;
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata(props: PageProps): Promise<Metadata> {
+  const params = await props.params;
   const ticker = decodeURIComponent(params.ticker).toUpperCase();
   try {
     const row = await db
@@ -141,7 +140,9 @@ async function loadReports(
   }
 }
 
-export default async function TickerPage({ params, searchParams }: PageProps) {
+export default async function TickerPage(props: PageProps) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const rawSlug = decodeURIComponent(params.ticker);
   const ticker = rawSlug.toUpperCase();
   const selectedReportId = searchParams.report

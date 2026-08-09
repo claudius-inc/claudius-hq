@@ -28,19 +28,6 @@ interface GoldSnapshot {
   analysis: { ath: number | null; athDate: string | null } | null;
 }
 
-interface SilverSnapshot {
-  latest: {
-    registeredMoz: number;
-    eligibleMoz: number;
-    totalMoz: number;
-    activityDate: string;
-  } | null;
-  change30d: {
-    registeredPercent: number;
-  } | null;
-  stressLevel: "low" | "moderate" | "high" | "critical";
-}
-
 interface SilverPriceSnapshot {
   price: number | null;
   changePercent: number | null;
@@ -105,13 +92,11 @@ export function HardAssets({
   expectedReturns,
   initialBtc,
   initialGold,
-  initialSilver,
   initialSilverPrice,
 }: {
   expectedReturns?: ExpectedReturnsResponse | null;
   initialBtc?: BtcSnapshot | null;
   initialGold?: GoldSnapshot | null;
-  initialSilver?: SilverSnapshot | null;
   initialSilverPrice?: SilverPriceSnapshot | null;
 }) {
   const btcValuation = expectedReturns?.assets.find((a) => a.symbol === "BTC");
@@ -124,13 +109,11 @@ export function HardAssets({
     useSWR<BtcSnapshot>("/api/btc", fetcher, { ...swrConfig, fallbackData: initialBtc ?? undefined });
   const { data: gold, isLoading: loadingGold, isValidating: validatingGold } =
     useSWR<GoldSnapshot>("/api/gold", fetcher, { ...swrConfig, fallbackData: initialGold ?? undefined });
-  const { data: silver, isValidating: validatingSilver } =
-    useSWR<SilverSnapshot>("/api/markets/silver", fetcher, { ...swrConfig, fallbackData: initialSilver ?? undefined });
   const { data: silverPrice, isLoading: loadingSilverPrice, isValidating: validatingSilverPrice } =
     useSWR<SilverPriceSnapshot>("/api/silver-price", fetcher, { ...swrConfig, fallbackData: initialSilverPrice ?? undefined });
 
   const refreshing =
-    validatingBtc || validatingGold || validatingSilver || validatingSilverPrice;
+    validatingBtc || validatingGold || validatingSilverPrice;
 
   const goldPrice = gold?.livePrice;
 
@@ -242,17 +225,6 @@ export function HardAssets({
                 <span className="font-bold text-gray-700 font-mono">{silverPrice.goldSilverRatio.toFixed(1)}</span>
                 <span className="text-gray-400">(oz of gold / oz of silver)</span>
               </div>
-              {silver?.latest && (
-                <div className="flex items-center gap-3 text-[10px] mb-2">
-                  <span className="text-gray-500">COMEX Registered:</span>
-                  <span className="font-bold text-gray-700 font-mono">{silver.latest.registeredMoz}M oz</span>
-                  {silver.change30d && (
-                    <span className={`tabular-nums ${silver.change30d.registeredPercent < 0 ? "text-red-600" : "text-emerald-600"}`}>
-                      {silver.change30d.registeredPercent >= 0 ? "+" : ""}{silver.change30d.registeredPercent.toFixed(1)}% 30d
-                    </span>
-                  )}
-                </div>
-              )}
               <div className="mb-2.5">
                 <h4 className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Interpretation Guide</h4>
                 <div className="space-y-1">
