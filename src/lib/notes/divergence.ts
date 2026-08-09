@@ -15,6 +15,7 @@
 import { db, sp500Constituents } from "@/db";
 import { logger } from "@/lib/logger";
 import { fetchBatchQuotes, type QuoteResult } from "@/lib/scanner/yahoo-fetcher";
+import { etDate } from "@/lib/notes/session";
 import type { DivergenceSector, DivergenceName, ContributionData, SectorPoint } from "@/lib/notes/types";
 
 const SRC = "notes/divergence";
@@ -42,6 +43,13 @@ interface ConstituentQuote {
   changePct: number;
   /** Extended-session move, when the §G gate passes. Rides the same batch call. */
   postMarket: { changePct: number; asOfMs: number } | null;
+  // Relevance inputs (§A). All ride the same batch call — no extra requests.
+  sectorWeight: number | null;
+  price: number | null;
+  volume: number | null;
+  avgVolume10d: number | null;
+  /** Yahoo's session-half placeholder, classified by earnings-window.ts. */
+  earningsStamp: unknown;
 }
 
 /**
@@ -68,13 +76,26 @@ function toMs(t: unknown): number {
  * on a half-day the close is 1pm, and a 16:00 test would reject every legitimate
  * print. Indices report `hasPrePostMarketData: false` and are excluded here.
  */
-function extractPostMarket(q: QuoteResult | undefined): { changePct: number; asOfMs: number } | null {
+function extractPostMarket(
+  q: QuoteResult | undefined,
+  marketDate: string,
+): { changePct: number; asOfMs: number } | null {
   if (!q?.hasPrePostMarketData) return null;
   const pct = q.postMarketChangePercent;
   if (pct == null || !Number.isFinite(pct) || Math.abs(pct) < POST_MARKET_MIN_PCT) return null;
   const postMs = toMs(q.postMarketTime);
   const regMs = toMs(q.regularMarketTime);
+  // Number.isFinite first: Date.parse of a bad string is NaN, and every
+  // comparison against NaN is false, so it would flow through as asOfMs and
+  // make the ET formatter throw — outside this module's try/catch.
+  if (!Number.isFinite(postMs) || !Number.isFinite(regMs)) return null;
   if (postMs <= 0 || regMs <= 0 || postMs <= regMs) return null;
+  // The print must be from TODAY's session. `postMs > regMs` alone also holds
+  // when BOTH are from a prior day — a name halted all session serves stale
+  // quotes, and a halt pending news is exactly when a large stale after-hours
+  // move exists. The session gate only checks the index, so it cannot catch a
+  // per-symbol stale quote.
+  if (etDate(postMs) !== marketDate) return null;
   return { changePct: Math.round(pct * 100) / 100, asOfMs: postMs };
 }
 
@@ -84,7 +105,7 @@ const STALE_WARN_DAYS = 45;
 const STALE_REJECT_DAYS = 120;
 
 /** Fetch 1d% for every stored constituent (one batched pass, ~26 requests). */
-async function loadConstituentQuotes(): Promise<ConstituentQuote[]> {
+async function loadConstituentQuotes(marketDate: string): Promise<ConstituentQuote[]> {
   const rows = await db.select().from(sp500Constituents);
   if (rows.length === 0) {
     logger.warn(SRC, "No constituents stored — run scripts/seed/sp500-constituents.ts");
@@ -124,7 +145,12 @@ async function loadConstituentQuotes(): Promise<ConstituentQuote[]> {
       sectorEtf: r.sectorEtf,
       spyWeight: r.spyWeight,
       changePct: Math.round(pct * 100) / 100,
-      postMarket: extractPostMarket(q),
+      postMarket: extractPostMarket(q, marketDate),
+      sectorWeight: r.sectorWeight ?? null,
+      price: q?.regularMarketPrice ?? null,
+      volume: q?.regularMarketVolume ?? null,
+      avgVolume10d: q?.averageDailyVolume10Day ?? null,
+      earningsStamp: q?.earningsTimestamp,
     });
   }
   logger.info(SRC, "Constituent quotes loaded", { stored: rows.length, quoted: out.length });
@@ -252,7 +278,11 @@ export interface DivergenceResult {
   moversBySector: Map<string, { ticker: string; changePct: number }[]>;
   /** Ticker → extended-session move, for names the note already prints (§G). */
   postMarketByTicker: Map<string, { changePct: number; asOfMs: number }>;
+  /** Raw per-constituent rows, so §A can score without a second fetch. */
+  constituents: ConstituentQuote[];
 }
+
+export type { ConstituentQuote };
 
 const EMPTY: DivergenceResult = {
   divergence: [],
@@ -260,15 +290,17 @@ const EMPTY: DivergenceResult = {
   quotedCount: 0,
   moversBySector: new Map(),
   postMarketByTicker: new Map(),
+  constituents: [],
 };
 
 /** Load quotes once and derive every constituent-derived fact. */
 export async function computeDivergenceFacts(
   sectors: SectorPoint[] | null,
   indexChangePct: number | null,
+  marketDate: string,
 ): Promise<DivergenceResult> {
   try {
-    const quotes = await loadConstituentQuotes();
+    const quotes = await loadConstituentQuotes(marketDate);
     if (quotes.length === 0) return EMPTY;
 
     const moversBySector = new Map<string, { ticker: string; changePct: number }[]>();
@@ -287,6 +319,7 @@ export async function computeDivergenceFacts(
       quotedCount: quotes.length,
       moversBySector,
       postMarketByTicker,
+      constituents: quotes,
     };
   } catch (error) {
     logger.error(SRC, "Divergence computation failed", { error });

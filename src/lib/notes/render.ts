@@ -165,6 +165,33 @@ function tapeSection(f: StructuredFacts): string {
   return lines.join("\n");
 }
 
+/**
+ * Where the day sits in its recent run (§D). Deliberately "5-session" and
+ * "21-session", never "1 week" and "1 month" — a holiday week would make those
+ * labels false. Omitted when the split-defect gate dropped both figures.
+ */
+function trendSection(f: StructuredFacts): string {
+  const tf = f.timeframes?.value;
+  if (!tf) return "";
+  const sp = tf.find((t) => t.symbol === "^GSPC");
+  if (!sp || (sp.chg5s == null && sp.chg21s == null)) return "";
+
+  const parts: string[] = [];
+  if (sp.chg5s != null) parts.push(`5-session ${spct(sp.chg5s)}`);
+  if (sp.chg21s != null) parts.push(`21-session ${spct(sp.chg21s)}`);
+
+  // The strongest and weakest sector over 21 sessions puts the day in context.
+  const sectors = tf.filter((t) => t.symbol.startsWith("XL") && t.chg21s != null);
+  let lead = "";
+  if (sectors.length >= 2) {
+    const sorted = [...sectors].sort((a, b) => (b.chg21s as number) - (a.chg21s as number));
+    const best = sorted[0];
+    const worst = sorted[sorted.length - 1];
+    lead = ` · over 21 sessions ${escapeHtml(best.symbol)} leads ${spct(best.chg21s as number)}, ${escapeHtml(worst.symbol)} lags ${spct(worst.chg21s as number)}`;
+  }
+  return `${b("TREND")} — ${escapeHtml("S&P")} ${parts.join(" · ")}${lead}`;
+}
+
 function ratesSection(f: StructuredFacts, prose?: NoteProse): string {
   if (!f.rates) return "";
   const r: RatesData = f.rates.value;
@@ -243,7 +270,7 @@ function spotlightSection(f: StructuredFacts, max = Infinity): string {
         bits.push(
           `laggard ${s.laggards.map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}${ahSuffix(f, n.ticker)}`).join(", ")}`,
         );
-      if (s.proxy) bits.push(`${escapeHtml(s.proxy.ticker)} ${spct(s.proxy.changePct)}`);
+      if (s.proxy) bits.push(`${escapeHtml(s.proxy.ticker)} ${spct(s.proxy.changePct)}${ahSuffix(f, s.proxy.ticker)}`);
       return bits.length ? `${head} — ${bits.join("; ")}` : head;
     })
     .join("\n");
@@ -359,21 +386,33 @@ export interface RenderInput {
   prose?: NoteProse;
 }
 
-function build(facts: StructuredFacts, webUrl: string, prose?: NoteProse, maxSpotlight = Infinity): string {
+function build(
+  facts: StructuredFacts,
+  webUrl: string,
+  prose?: NoteProse,
+  maxSpotlight = Infinity,
+  showAfterHours = true,
+): string {
+  // After-hours suffixes are ornament, not argument. Stripping them is the
+  // cheapest thing the overflow ladder can do, so it happens before any of the
+  // note's reasoning is touched.
+  if (!showAfterHours) facts = { ...facts, postMarket: null };
   // The ledger is filled by the deterministic sections FIRST, so they own their
   // facts and any prose line that merely restates them is dropped.
   const ledger = makeLedger();
   const hook = hookLine(facts, prose);
   const tape = tapeSection(facts);
+  const trend = trendSection(facts);
   const rates = ratesSection(facts, prose);
   const cross = crossSection(facts);
   const spot = spotlightSection(facts, maxSpotlight);
   const diverge = divergenceSection(facts);
-  for (const s of [hook, tape, rates, cross, spot, diverge]) ledger.claim(s);
+  for (const s of [hook, tape, trend, rates, cross, spot, diverge]) ledger.claim(s);
 
   return [
     hook,
     tape,
+    trend,
     rates,
     cross,
     spot,
@@ -397,11 +436,15 @@ function build(facts: StructuredFacts, webUrl: string, prose?: NoteProse, maxSpo
 export function renderPush({ facts, webUrl, prose }: RenderInput): string {
   const CAP = 4096;
 
-  const candidates: { prose?: NoteProse; maxSpotlight?: number }[] = [];
+  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean }[] = [];
   if (prose) {
     candidates.push({ prose });
-    candidates.push({ prose: { ...prose, book: undefined } });
-    candidates.push({ prose: { ...prose, book: undefined, bull: undefined, bear: undefined } });
+    // Drop the after-hours ornament BEFORE any reasoning. Appending this rung
+    // after the prose ladder would strip the note's whole voice while decorative
+    // "(+2.1% after hours)" suffixes survived.
+    candidates.push({ prose, showAfterHours: false });
+    candidates.push({ prose: { ...prose, book: undefined }, showAfterHours: false });
+    candidates.push({ prose: { ...prose, book: undefined, bull: undefined, bear: undefined }, showAfterHours: false });
     // Trim What-Matters bullets from the end.
     for (let n = prose.whatMatters.length - 1; n >= 0; n--) {
       candidates.push({
@@ -409,15 +452,15 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
       });
     }
   }
-  candidates.push({}); // deterministic, prose-free
+  candidates.push({ showAfterHours: false }); // deterministic, prose-free
   // Last resort before throwing: the user can spotlight all 12 sectors, so trim
   // those callouts too rather than failing the send.
   const spotlightCount = facts.spotlight?.value.length ?? 0;
-  for (let n = spotlightCount - 1; n >= 0; n--) candidates.push({ maxSpotlight: n });
+  for (let n = spotlightCount - 1; n >= 0; n--) candidates.push({ maxSpotlight: n, showAfterHours: false });
 
   let last = "";
   for (const c of candidates) {
-    last = build(facts, webUrl, c.prose, c.maxSpotlight);
+    last = build(facts, webUrl, c.prose, c.maxSpotlight, c.showAfterHours ?? true);
     if (last.length <= CAP) return last;
   }
   throw new Error(`Rendered push exceeds ${CAP} chars even stripped (${last.length}) — data anomaly`);

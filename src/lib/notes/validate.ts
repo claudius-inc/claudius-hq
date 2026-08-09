@@ -59,6 +59,9 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
   // §G: prose may refer to an after-hours move ("the after-hours bid forgives it"),
   // so its numerals must be in the pool or a legitimate bullet gets dropped.
   if (f.postMarket) for (const m of f.postMarket.value) push(m.changePct);
+  // §D: prose may put the day in its 5- or 21-session context, so those figures
+  // must be in the pool or a legitimate bullet gets dropped.
+  if (f.timeframes) for (const t of f.timeframes.value) push(t.chg5s, t.chg21s);
   if (f.spotlight)
     for (const s of f.spotlight.value) {
       push(s.headlinePct, s.price, s.proxy?.changePct);
@@ -72,7 +75,11 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
 // hiding inside a structural pattern (e.g. "$4,300-day", "4300Y", "$2025") —
 // only a genuinely standalone token is stripped.
 const WHITELIST = [
-  /(?<![$\d.,])\b\d{1,2}:\d{2}\b/g, // clock ("8:30") or ratio ("3:2") colon-forms
+  // Clock ("8:30", "6:14pm") or ratio ("3:2") colon-forms. The am/pm suffix is
+  // part of the pattern: "6:14pm" has NO word boundary between "14" and "pm",
+  // so a bare \b form leaves the minutes behind as a stray numeral — which then
+  // fails the fact pool and drops the whole bullet, and pollutes the ledger.
+  /(?<![$\d.,])\b\d{1,2}:\d{2}(?:\s?[ap]m)?\b/gi,
   /(?<![$\d.,])\b\d{1,2}-(?:day|week|month|year|hour|min)s?\b/gi, // MA / period names
   /(?<![$\d.,])\b(?:19|20)\d{2}\b(?![%k\d])/gi, // years (not $-prefixed, not %/k-suffixed)
   /(?<![$\d.,])\b\d{1,2}Y\b/g, // tenor labels (2Y/10Y/30Y)

@@ -97,6 +97,18 @@ export interface ContributionData {
 }
 
 /**
+ * A 5- and 21-session move (v2 §D). Deliberately not called 1W/1M — a holiday
+ * week would make those labels false. Either figure is null when the raw and
+ * adjusted series disagreed, which means a split or a data defect.
+ */
+export interface TimeframeMove {
+  symbol: string;
+  chg5s: number | null;
+  chg21s: number | null;
+  asOfDate: string;
+}
+
+/**
  * An extended-session move for a ticker the note already names (v2 §G).
  * Never introduces a name; annotates one. Indices are excluded — they have no
  * extended session.
@@ -169,6 +181,8 @@ export interface StructuredFacts {
   econEvents: Fact<EconEvent[]> | null;
   spotlight: Fact<SpotlightBlock[]> | null;
   postMarket: Fact<PostMarketMove[]> | null;
+  /** 5- and 21-session moves for the benchmarks (§D). Never labelled 1W/1M. */
+  timeframes: Fact<TimeframeMove[]> | null;
 }
 
 /**

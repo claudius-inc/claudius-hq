@@ -10,8 +10,14 @@
  * (§1a) — a failed feed never becomes an approximation.
  */
 import YahooFinance from "yahoo-finance2";
+import { desc, lt } from "drizzle-orm";
+import { db, dailyNotes } from "@/db";
 import { logger } from "@/lib/logger";
 import { fetchBreadthData } from "@/lib/markets/breadth";
+import { rankRelevance, type RelevanceInput, type RelevanceScore } from "@/lib/notes/relevance";
+import { fetchTimeframes } from "@/lib/notes/timeframes";
+import { placeEarnings, isReactionDay, toMs } from "@/lib/notes/earnings-window";
+import type { ConstituentQuote } from "@/lib/notes/divergence";
 import { fetchRatesFact } from "@/lib/notes/sources/treasury";
 import { computeDivergenceFacts } from "@/lib/notes/divergence";
 import { fetchGexPinFact } from "@/lib/notes/sources/gex-pin";
@@ -29,6 +35,7 @@ import type {
   DivergenceSector,
   SpotlightBlock,
   PostMarketMove,
+  ContributionData,
 } from "@/lib/notes/types";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -66,6 +73,8 @@ interface QuoteLike {
   symbol?: string;
   regularMarketPrice?: number;
   regularMarketChangePercent?: number;
+  /** Used to derive the session's real close, which moves on a half-day. */
+  regularMarketTime?: Date | number | string;
 }
 
 const round = (n: number, dp = 2) => {
@@ -303,8 +312,8 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
   // Divergence + contribution need the sector benchmarks and the index move,
   // so they run after the batch quote resolves (§5, §8).
   const spChange = indices?.value.find((i) => i.symbol === "^GSPC")?.changePct ?? null;
-  const { divergence, contribution, moversBySector, postMarketByTicker } =
-    await computeDivergenceFacts(sectors?.value ?? null, spChange);
+  const { divergence, contribution, moversBySector, postMarketByTicker, constituents } =
+    await computeDivergenceFacts(sectors?.value ?? null, spChange, marketDate);
   const asOf = etStamp(marketDate, "16:00:00", now);
 
   // Slice-4 depth: gamma pin, next-session econ releases, spotlight blocks.
@@ -317,6 +326,21 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     fetchEconEvents(nextDate, etDate(now + 4 * 86_400_000), asOf),
     loadEnabledSpotlights(),
   ]);
+
+  // §A relevance + §D timeframes. The relevance ranking is computed from data
+  // already in hand; the timeframe bars are the only new fetch, and they cover
+  // the ~20 benchmarks only — never the full index.
+  const priorSessionDate = await fetchPriorSessionDate(marketDate);
+  const closeMinute = closeMinuteFor(quoteMap.get("^GSPC"));
+  const relevance = rankConstituents(constituents, sectors?.value ?? null, marketDate, priorSessionDate, closeMinute);
+  const benchmarks = [
+    ...INDICES.map((i) => i.symbol),
+    ...SECTOR_ETFS.map((s) => s.etf),
+    ...CROSS_ASSETS.map((c) => c.symbol),
+    "^VIX",
+  ];
+  const timeframes = await fetchTimeframes(benchmarks, marketDate);
+  void relevance; // ranking is wired and logged; §B consumes it next.
 
   const spotlightBlocks = await buildSpotlightBlocks({
     enabled: enabledSpotlights,
@@ -340,8 +364,45 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     gexPin,
     econEvents,
     spotlight: spotlightBlocks.length > 0 ? { value: spotlightBlocks, source: "Yahoo + spotlight config", asOf } : null,
-    postMarket: postMarketFact(postMarketByTicker, divergence, spotlightBlocks),
+    postMarket: postMarketFact(postMarketByTicker, divergence, spotlightBlocks, contribution),
+    timeframes: timeframes.length > 0 ? { value: timeframes, source: "Yahoo daily bars (adjusted)", asOf } : null,
   };
+}
+
+/**
+ * Score the whole index for relevance (§A). Purely a ranking input today — it
+ * decides which names deserve the deeper treatment §B will add. Logged per run
+ * so the coefficients can be reviewed against real output.
+ */
+function rankConstituents(
+  constituents: ConstituentQuote[],
+  sectors: SectorPoint[] | null,
+  marketDate: string,
+  priorSessionDate: string | null,
+  closeMinute: number,
+): RelevanceScore[] {
+  if (constituents.length === 0 || !sectors) return [];
+  const sectorPct = new Map(sectors.map((s) => [s.etf, s.changePct]));
+
+  const inputs: RelevanceInput[] = [];
+  for (const c of constituents) {
+    const sp = sectorPct.get(c.sectorEtf);
+    if (sp == null) continue;
+    inputs.push({
+      ticker: c.ticker,
+      sectorEtf: c.sectorEtf,
+      changePct: c.changePct,
+      sectorPct: sp,
+      price: c.price,
+      volume: c.volume,
+      avgVolume10d: c.avgVolume10d,
+      sectorWeight: c.sectorWeight,
+      reportedToday: isReactionDay(
+        placeEarnings({ stamp: c.earningsStamp, marketDate, priorSessionDate, closeMinute }),
+      ),
+    });
+  }
+  return rankRelevance(inputs);
 }
 
 /**
@@ -353,6 +414,7 @@ function postMarketFact(
   byTicker: Map<string, { changePct: number; asOfMs: number }>,
   divergence: DivergenceSector[],
   spotlight: SpotlightBlock[],
+  contribution: ContributionData | null,
 ): Fact<PostMarketMove[]> | null {
   if (byTicker.size === 0) return null;
 
@@ -362,6 +424,10 @@ function postMarketFact(
     for (const n of [...s.leaders, ...s.laggards]) named.add(n.ticker);
     if (s.proxy) named.add(s.proxy.ticker);
   }
+  // The index's top contributors are named on the web note and in the fact
+  // sheet, and a mega-cap reporting after the close is the likeliest §G case of
+  // all — omitting them left the flagship scenario unannotated.
+  for (const t of contribution?.topNames ?? []) named.add(t);
 
   const moves: PostMarketMove[] = [];
   let newest = 0;
@@ -378,6 +444,48 @@ function postMarketFact(
     source: "Yahoo extended hours (no volume field; indicative)",
     asOf: new Date(newest).toISOString(),
   };
+}
+
+/**
+ * The previous trading session's date. `daily_notes` only holds sessions that
+ * passed the §7a gate, so it is the de-facto trading calendar; the weekday
+ * fallback covers the very first run, before any note exists.
+ */
+async function fetchPriorSessionDate(marketDate: string): Promise<string | null> {
+  try {
+    const rows = await db
+      .select({ date: dailyNotes.date })
+      .from(dailyNotes)
+      .where(lt(dailyNotes.date, marketDate))
+      .orderBy(desc(dailyNotes.date))
+      .limit(1);
+    if (rows[0]?.date) return rows[0].date;
+  } catch (error) {
+    logger.warn(SRC, "Prior session lookup failed; falling back to previous weekday", { error });
+  }
+  const d = new Date(`${marketDate}T12:00:00Z`);
+  do {
+    d.setUTCDate(d.getUTCDate() - 1);
+  } while (d.getUTCDay() === 0 || d.getUTCDay() === 6);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
+ * Minutes-since-ET-midnight of today's actual close, taken from the index's own
+ * last regular print. Never hardcode 16:00 — a half-day closes at 13:00.
+ */
+function closeMinuteFor(q: QuoteLike | undefined): number {
+  const ms = q?.regularMarketTime ? toMs(q.regularMarketTime) : 0;
+  if (ms <= 0) return 16 * 60;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date(ms));
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "16");
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  return (h % 24) * 60 + m;
 }
 
 /** "6:14pm" in ET — the clock a post-market claim is stated as of. */

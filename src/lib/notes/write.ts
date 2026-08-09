@@ -85,6 +85,20 @@ function factSheet(f: StructuredFacts): string {
       `Positioning: dealers net ${g.netGammaPositive ? "LONG" : "SHORT"} gamma on ${g.symbol}; largest-gamma strike (pin) ${num(g.pinStrike)}, spot ${num(g.spot)} (${pct(g.distancePct)} away). Note OI is start-of-day, so treat as directional.`,
     );
   }
+  if (f.timeframes) {
+    const named = f.timeframes.value.filter((t) => t.chg5s != null || t.chg21s != null);
+    if (named.length > 0) {
+      lines.push(
+        "Recent run (5 and 21 SESSIONS, not calendar weeks/months): " +
+          named
+            .map(
+              (t) =>
+                `${t.symbol} ${t.chg5s != null ? `5s ${pct(t.chg5s)}` : "5s n/a"}, ${t.chg21s != null ? `21s ${pct(t.chg21s)}` : "21s n/a"}`,
+            )
+            .join("; "),
+      );
+    }
+  }
   if (f.postMarket) {
     lines.push(
       "After hours (indicative, no volume data — the close is the fact): " +
