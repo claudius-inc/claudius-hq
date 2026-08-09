@@ -2,22 +2,31 @@
  * WRITE PROSE — see docs/daily-note-spec.md §8.2.
  *
  * Turns StructuredFacts into the note's voice (hook, one-line curve read, 3–4
- * What-Matters bullets, bull, bear, book) using Gemini. Numbers NEVER originate
- * from the model: the prose is validated numeral-by-numeral against the fact
- * pool (§8.3), regenerated once on violations, then any still-failing field is
- * dropped — except the hook, which falls back to a deterministic template.
+ * What-Matters bullets, bull, bear, book) using DeepSeek. Numbers NEVER
+ * originate from the model: the prose is validated numeral-by-numeral against
+ * the fact pool (§8.3), regenerated once on violations, then any still-failing
+ * field is dropped — except the hook, which falls back to a deterministic
+ * template.
  *
- * Prose is additive: if GEMINI_API_KEY is unset or the model fails/returns junk,
- * this returns null and the pipeline ships the deterministic slice-1 note.
+ * DeepSeek exposes an OpenAI-compatible /chat/completions endpoint, so this
+ * calls it with plain fetch — no SDK dependency. `response_format: json_object`
+ * keeps the reply parseable (DeepSeek requires the word "json" in the prompt
+ * for that mode, which RULES supplies).
+ *
+ * Prose is additive: if DEEPSEEK_API_KEY is unset or the model fails/returns
+ * junk, this returns null and the pipeline ships the deterministic note.
  */
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { logger } from "@/lib/logger";
 import type { StructuredFacts, NoteProse } from "@/lib/notes/types";
 import { collectAllowedNumbers, validateProseField } from "@/lib/notes/validate";
 import { deterministicHook } from "@/lib/notes/render";
 
 const SRC = "notes/write";
-const MODEL = "gemini-2.0-flash";
+const API_URL = "https://api.deepseek.com/chat/completions";
+/** Model id is configurable so a rename does not need a code change. */
+const MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
+/** Tries before the note ships without prose. 3 × 60s stays inside the job budget. */
+const MAX_ATTEMPTS = 3;
 
 /** Exact numbers the model may use, as a plain-text sheet. */
 function factSheet(f: StructuredFacts): string {
@@ -98,25 +107,72 @@ Return ONLY a JSON object (no markdown fence) with keys:
   "whatMatters": string[],    // 3-4 bullets
   "bull": string,
   "bear": string,
-  "book": string              // positioning; "" if nothing to say
+  "book": string              // positioning colour ONLY. The dealer gamma stance and the pin strike are already printed for you — do NOT restate them. Return "" unless you can add something they do not say.
 }`;
 
 async function generate(f: StructuredFacts, violations: string[]): Promise<NoteProse | null> {
-  const model = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "").getGenerativeModel({ model: MODEL });
   const retryNote =
     violations.length > 0
       ? `\n\nYOUR PREVIOUS DRAFT CITED NUMBERS NOT IN THE FACT SHEET: ${violations.join(", ")}. Rewrite using only fact-sheet numbers.`
       : "";
-  const prompt = `${RULES}\n\nFACT SHEET:\n${factSheet(f)}${retryNote}`;
+  const userPrompt = `FACT SHEET:\n${factSheet(f)}${retryNote}`;
 
   // Collapse internal whitespace so stray newlines don't split Telegram blocks.
   const norm = (s: string) => s.replace(/\s+/g, " ").trim();
   const str = (v: unknown) => (typeof v === "string" && v.trim() ? norm(v) : undefined);
 
   try {
-    const result = await withTimeout(model.generateContent(prompt), 30_000);
-    if (!result) return null;
-    const text = result.response.text();
+    const res = await withTimeout(
+      fetch(API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          messages: [
+            { role: "system", content: RULES },
+            { role: "user", content: userPrompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.7,
+          // This is a reasoning model: it spends tokens on `reasoning_content`
+          // BEFORE the answer. A tight budget returns empty content with
+          // finish_reason "length". The note itself needs ~500 tokens.
+          max_tokens: 4000,
+        }),
+      }),
+      60_000,
+    );
+    if (!res) return null;
+    if (!res.ok) {
+      logger.warn(SRC, `DeepSeek request failed: ${res.status}`, {
+        body: (await res.text()).slice(0, 200),
+      });
+      return null;
+    }
+    const json = (await res.json()) as {
+      choices?: {
+        message?: { content?: string; reasoning_content?: string };
+        finish_reason?: string;
+      }[];
+      usage?: { completion_tokens?: number };
+    };
+    const msg = json.choices?.[0]?.message;
+    // This reasoning model sometimes stops with an empty `content` after
+    // writing the answer inside `reasoning_content`. Read that as a fallback
+    // instead of losing the whole generation.
+    const text = msg?.content || msg?.reasoning_content;
+    if (!text) {
+      logger.warn(SRC, "Empty DeepSeek response", {
+        finishReason: json.choices?.[0]?.finish_reason,
+        completionTokens: json.usage?.completion_tokens,
+      });
+      return null;
+    }
+    // Take the LAST balanced-looking object: reasoning text often shows a draft
+    // before the final answer.
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) {
       logger.warn(SRC, "No JSON object in model response");
@@ -174,14 +230,27 @@ function applyFallbacks(f: StructuredFacts, p: NoteProse, allowed: number[]): No
 
 /** Generate validated prose, or null to fall back to the deterministic note. */
 export async function writeProse(f: StructuredFacts): Promise<NoteProse | null> {
-  if (!process.env.GEMINI_API_KEY) {
-    logger.warn(SRC, "GEMINI_API_KEY not set; shipping deterministic note");
+  if (!process.env.DEEPSEEK_API_KEY) {
+    logger.warn(SRC, "DEEPSEEK_API_KEY not set; shipping deterministic note");
     return null;
   }
   const allowed = collectAllowedNumbers(f);
 
-  let prose = await generate(f, []);
-  if (!prose) return null;
+  // The model is flaky: measured failure modes are an empty `content`, a
+  // non-JSON reply, and an occasional ECONNRESET. Each is transient, so retry
+  // before giving up the whole prose layer.
+  let prose: NoteProse | null = null;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS && !prose; attempt++) {
+    prose = await generate(f, []);
+    if (!prose && attempt < MAX_ATTEMPTS) {
+      logger.info(SRC, `Prose attempt ${attempt} failed; retrying`);
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+  }
+  if (!prose) {
+    logger.warn(SRC, `No prose after ${MAX_ATTEMPTS} attempts; shipping deterministic note`);
+    return null;
+  }
 
   const violations = allViolations(prose, allowed);
   if (violations.length > 0) {

@@ -190,7 +190,14 @@ function bookSection(f: StructuredFacts, prose?: NoteProse): string {
     pin != null &&
     prose?.book != null &&
     new RegExp(pin.netGammaPositive ? "short gamma" : "long gamma", "i").test(prose.book);
-  if (prose?.book && !contradictsStance) parts.push(escapeHtml(prose.book));
+  // The pin line above already states stance + strike, and the model tends to
+  // restate it verbatim. A book line that repeats the strike or the stance adds
+  // nothing, so keep only genuinely additive colour.
+  const restatesPin =
+    pin != null &&
+    prose?.book != null &&
+    (prose.book.includes(String(pin.pinStrike)) || /\bgamma\b/i.test(prose.book));
+  if (prose?.book && !contradictsStance && !restatesPin) parts.push(escapeHtml(prose.book));
   if (parts.length === 0) return "";
   return `📖 ${b("THE BOOK")} — ${parts.join(" · ")}`;
 }

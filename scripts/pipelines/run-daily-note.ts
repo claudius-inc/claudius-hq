@@ -77,11 +77,13 @@ async function main() {
     });
 
   // 5. SEND / EDIT
-  const channel = Number(process.env.TELEGRAM_NOTE_CHANNEL_ID);
-  if (!Number.isFinite(channel) || channel === 0) {
+  // The note goes to a normal bot chat, not a channel. TELEGRAM_NOTE_CHAT_ID
+  // overrides, otherwise it lands in the same admin chat the other jobs use.
+  const chatId = Number(process.env.TELEGRAM_NOTE_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID);
+  if (!Number.isFinite(chatId) || chatId === 0) {
     // A config error must be loud (§2) — the note was persisted but nobody saw it.
-    logger.error(SRC, "TELEGRAM_NOTE_CHANNEL_ID missing/invalid; persisted but did not send", { date });
-    await alertAdmin(`⚠️ Daily note ${date} persisted but NOT sent: TELEGRAM_NOTE_CHANNEL_ID missing/invalid.`);
+    logger.error(SRC, "TELEGRAM_NOTE_CHAT_ID/TELEGRAM_ADMIN_CHAT_ID missing or invalid; persisted but did not send", { date });
+    await alertAdmin(`⚠️ Daily note ${date} persisted but NOT sent: TELEGRAM_NOTE_CHAT_ID/TELEGRAM_ADMIN_CHAT_ID missing or invalid.`);
     process.exitCode = 1;
     return;
   }
@@ -91,21 +93,21 @@ async function main() {
 
   if (priorMessageId) {
     try {
-      await editNote(channel, priorMessageId, pushHtml);
+      await editNote(chatId, priorMessageId, pushHtml);
       logger.info(SRC, "Edited existing note", { date, messageId: priorMessageId });
     } catch (err) {
       // The old message was deleted → edit fails forever. Resend instead of
       // wedging every future run.
       if (err instanceof Error && /message to edit not found|message can't be edited/i.test(err.message)) {
         logger.warn(SRC, "Prior message gone; resending", { date });
-        const res = await sendNote(channel, pushHtml);
+        const res = await sendNote(chatId, pushHtml);
         if (res.messageId) await persistMessageId(res.messageId);
       } else {
         throw err;
       }
     }
   } else {
-    const res = await sendNote(channel, pushHtml);
+    const res = await sendNote(chatId, pushHtml);
     if (res.messageId) await persistMessageId(res.messageId);
     logger.info(SRC, "Sent new note", { date, messageId: res.messageId });
   }

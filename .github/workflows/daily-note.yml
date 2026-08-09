@@ -21,7 +21,7 @@ concurrency:
 jobs:
   note:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 12
 
     steps:
       - name: Checkout repository
@@ -45,9 +45,10 @@ jobs:
           TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_NOTE_CHANNEL_ID: ${{ secrets.TELEGRAM_NOTE_CHANNEL_ID }}
+          TELEGRAM_NOTE_CHAT_ID: ${{ secrets.TELEGRAM_NOTE_CHAT_ID }}
           TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           NOTE_WEB_BASE_URL: ${{ secrets.NOTE_WEB_BASE_URL }}
 
       - name: Summary
