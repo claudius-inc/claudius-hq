@@ -185,11 +185,21 @@ sectors. The sector holdings files carry their own `Weight`, which the seed curr
 away. Add `sector_weight` and give sector-contribution its own reconciliation gate mirroring
 §8's.
 
-**Earnings discovery.** Three options, in cost order: (1) `earningsTimestamp` from the
-existing batch quote — tells us *who* reported, free, no extra calls; (2) FMP
-`earning_calendar` for *consensus and actual* — same plan risk as the econ calendar, so build
-it on the same omit-on-failure pattern; (3) a weekly `quoteSummary` sweep populating an
-`earnings_date` column, as the free fallback.
+**Earnings discovery and consensus — both free; FMP is not needed here.** A live probe settles
+what an earlier draft treated as paywalled:
+
+- **Who reported:** `earningsTimestamp` on the batch quote we already make. No extra calls.
+- **Actual vs consensus, backward:** `earningsHistory` carries `epsActual`, `epsEstimate` and
+  `surprisePercent` for the completed quarter (AKAM 1.59 vs 1.57684, +0.83%; AAPL 2.02 vs
+  1.89243, +6.7%). That estimate **is** the street consensus.
+- **Consensus, forward:** `earningsTrend` period `0q` gives the current quarter's average EPS
+  estimate, the analyst count, and a revenue estimate.
+
+So beat/miss language is fully supported on the **reaction day**, which is the case that
+matters. The one gap is the **same evening**: a 4:15pm report has an estimate but no actual in
+Yahoo by 6:15pm, so §B row 3 prints the after-hours move with no beat/miss claim — already the
+specified fallback. A weekly `quoteSummary` sweep populating an `earnings_date` column remains
+an optional optimisation, not a dependency.
 
 **§1a gate — the beat/miss trap.** "Reacted to earnings" is not "beat expectations". Emit an
 `earningsReaction` fact carrying `{actual, estimate}` **only when both are present**;
@@ -705,8 +715,10 @@ Each new rung must also specify its residual form — a degraded macro line keep
 
 ## §I — Open questions
 
-- **FMP plan** — still unresolved from v1 §11. It gates consensus for both econ and earnings.
-  Everything above is designed to ship without it.
+- **FMP plan** — narrowed. Earnings consensus turned out to be free from Yahoo (§A), so FMP
+  now gates **economic consensus only**: "payrolls +256k vs +180k expected". Without it the
+  note reports actual **vs prior**, which is free, honest, and already specified. Test a
+  Finnhub free key before paying for anything.
 - **Live-evening probe** — the extended-hours fields and `marketState:"POST"` behaviour at
   6:15pm ET were only observable on a weekend. Probe once on a real trading evening before
   shipping §G.
