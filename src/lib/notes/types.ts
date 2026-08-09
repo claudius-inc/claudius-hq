@@ -97,6 +97,25 @@ export interface ContributionData {
 }
 
 /**
+ * An economic release that printed today (v2 §E). Measured against the PRIOR,
+ * not a consensus — no free feed carries consensus, and calling a prior-gap a
+ * consensus miss would be untrue.
+ */
+export interface MacroRelease {
+  label: string;
+  /** The observation period, e.g. "2026-07-01" for July data. */
+  period: string;
+  timeEt: string;
+  actual: number;
+  /** The prior reading as ORIGINALLY published, not as revised since. */
+  prior: number;
+  /** True when the current vintage of the prior differs from its first print. */
+  priorRevised: boolean;
+  suffix: string;
+  dp: number;
+}
+
+/**
  * A 5- and 21-session move (v2 §D). Deliberately not called 1W/1M — a holiday
  * week would make those labels false. Either figure is null when the raw and
  * adjusted series disagreed, which means a split or a data defect.
@@ -183,6 +202,8 @@ export interface StructuredFacts {
   postMarket: Fact<PostMarketMove[]> | null;
   /** 5- and 21-session moves for the benchmarks (§D). Never labelled 1W/1M. */
   timeframes: Fact<TimeframeMove[]> | null;
+  /** Economic releases that printed today, actual vs prior (§E). */
+  macro: Fact<MacroRelease[]> | null;
 }
 
 /**

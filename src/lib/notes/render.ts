@@ -192,6 +192,30 @@ function trendSection(f: StructuredFacts): string {
   return `${b("TREND")} — ${escapeHtml("S&P")} ${parts.join(" · ")}${lead}`;
 }
 
+/**
+ * Economic releases that printed today (§E), measured against the PRIOR.
+ *
+ * The basis is stated in the label, not buried: no free feed carries consensus,
+ * so calling a gap versus the prior a "consensus miss" would be untrue. When the
+ * prior has since been revised, say so — a revision is often larger than the
+ * surprise being reported.
+ *
+ * `detail = false` is the degraded form for the overflow ladder: the figures
+ * survive, the framing goes.
+ */
+function macroSection(f: StructuredFacts, detail = true): string {
+  const rel = f.macro?.value;
+  if (!rel?.length) return "";
+  const fmt = (v: number, r: { dp: number; suffix: string }) =>
+    `${v >= 0 && r.suffix !== "%" ? "+" : ""}${v.toFixed(r.dp)}${r.suffix}`;
+  const items = rel.map((r) => {
+    const revised = detail && r.priorRevised ? " revised" : "";
+    return `${escapeHtml(r.label)} ${fmt(r.actual, r)} vs ${fmt(r.prior, r)} prior${revised}`;
+  });
+  const basis = detail ? " (vs prior — no consensus feed)" : "";
+  return `${b("DATA")}${escapeHtml(basis)} — ${items.join(" · ")}`;
+}
+
 function ratesSection(f: StructuredFacts, prose?: NoteProse): string {
   if (!f.rates) return "";
   const r: RatesData = f.rates.value;
@@ -392,6 +416,7 @@ function build(
   prose?: NoteProse,
   maxSpotlight = Infinity,
   showAfterHours = true,
+  macroDetail = true,
 ): string {
   // After-hours suffixes are ornament, not argument. Stripping them is the
   // cheapest thing the overflow ladder can do, so it happens before any of the
@@ -403,16 +428,18 @@ function build(
   const hook = hookLine(facts, prose);
   const tape = tapeSection(facts);
   const trend = trendSection(facts);
+  const macro = macroSection(facts, macroDetail);
   const rates = ratesSection(facts, prose);
   const cross = crossSection(facts);
   const spot = spotlightSection(facts, maxSpotlight);
   const diverge = divergenceSection(facts);
-  for (const s of [hook, tape, trend, rates, cross, spot, diverge]) ledger.claim(s);
+  for (const s of [hook, tape, trend, macro, rates, cross, spot, diverge]) ledger.claim(s);
 
   return [
     hook,
     tape,
     trend,
+    macro,
     rates,
     cross,
     spot,
@@ -436,13 +463,15 @@ function build(
 export function renderPush({ facts, webUrl, prose }: RenderInput): string {
   const CAP = 4096;
 
-  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean }[] = [];
+  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean; macroDetail?: boolean }[] = [];
   if (prose) {
     candidates.push({ prose });
     // Drop the after-hours ornament BEFORE any reasoning. Appending this rung
     // after the prose ladder would strip the note's whole voice while decorative
     // "(+2.1% after hours)" suffixes survived.
     candidates.push({ prose, showAfterHours: false });
+    // Macro figures survive; only their framing goes.
+    candidates.push({ prose, showAfterHours: false, macroDetail: false });
     candidates.push({ prose: { ...prose, book: undefined }, showAfterHours: false });
     candidates.push({ prose: { ...prose, book: undefined, bull: undefined, bear: undefined }, showAfterHours: false });
     // Trim What-Matters bullets from the end.
@@ -460,7 +489,7 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
 
   let last = "";
   for (const c of candidates) {
-    last = build(facts, webUrl, c.prose, c.maxSpotlight, c.showAfterHours ?? true);
+    last = build(facts, webUrl, c.prose, c.maxSpotlight, c.showAfterHours ?? true, c.macroDetail ?? true);
     if (last.length <= CAP) return last;
   }
   throw new Error(`Rendered push exceeds ${CAP} chars even stripped (${last.length}) — data anomaly`);

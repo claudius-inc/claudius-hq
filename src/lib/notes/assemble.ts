@@ -22,6 +22,7 @@ import { fetchRatesFact } from "@/lib/notes/sources/treasury";
 import { computeDivergenceFacts } from "@/lib/notes/divergence";
 import { fetchGexPinFact } from "@/lib/notes/sources/gex-pin";
 import { fetchEconEvents } from "@/lib/notes/sources/econ-calendar";
+import { fetchMacroReleases } from "@/lib/notes/sources/fred-releases";
 import { loadEnabledSpotlights, buildSpotlightBlocks } from "@/lib/notes/spotlight";
 import { etDate, etStamp } from "@/lib/notes/session";
 import type {
@@ -320,11 +321,12 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
   // Each degrades to null independently (§1a) — the section is simply omitted.
   const nextDay = new Date(now + 86_400_000);
   const nextDate = etDate(nextDay.getTime());
-  const [gexPin, econEvents, enabledSpotlights] = await Promise.all([
+  const [gexPin, econEvents, enabledSpotlights, macro] = await Promise.all([
     fetchGexPinFact(asOf),
     // Window covers the next few calendar days so a Friday note reaches Monday.
     fetchEconEvents(nextDate, etDate(now + 4 * 86_400_000), asOf),
     loadEnabledSpotlights(),
+    fetchMacroReleases(marketDate, asOf),
   ]);
 
   // §A relevance + §D timeframes. The relevance ranking is computed from data
@@ -366,6 +368,7 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     spotlight: spotlightBlocks.length > 0 ? { value: spotlightBlocks, source: "Yahoo + spotlight config", asOf } : null,
     postMarket: postMarketFact(postMarketByTicker, divergence, spotlightBlocks, contribution),
     timeframes: timeframes.length > 0 ? { value: timeframes, source: "Yahoo daily bars (adjusted)", asOf } : null,
+    macro,
   };
 }
 

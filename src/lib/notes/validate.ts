@@ -62,6 +62,8 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
   // §D: prose may put the day in its 5- or 21-session context, so those figures
   // must be in the pool or a legitimate bullet gets dropped.
   if (f.timeframes) for (const t of f.timeframes.value) push(t.chg5s, t.chg21s);
+  // §E: prose may read the print against its prior.
+  if (f.macro) for (const m of f.macro.value) push(m.actual, m.prior);
   if (f.spotlight)
     for (const s of f.spotlight.value) {
       push(s.headlinePct, s.price, s.proxy?.changePct);
