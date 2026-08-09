@@ -5,10 +5,8 @@ import { eq, and } from "drizzle-orm";
 import { logger } from "@/lib/logger";
 
 // POST /api/themes/[id]/stocks - Add stock to theme
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { id } = params;
     const numericId = parseInt(id, 10);
@@ -63,10 +61,8 @@ export async function POST(
 }
 
 // PATCH /api/themes/[id]/stocks - Update stock in theme
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { id } = params;
     const numericId = parseInt(id, 10);

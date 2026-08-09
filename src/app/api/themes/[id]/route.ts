@@ -234,10 +234,8 @@ function findLeader(stockPerfs: ThemePerformance[], field: "performance_1w" | "p
 }
 
 // GET /api/themes/[id] - Get theme details with all stocks
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { id } = params;
     const numericId = parseInt(id, 10);
@@ -321,10 +319,8 @@ export async function GET(
 }
 
 // PATCH /api/themes/[id] - Update theme name/description
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { id } = params;
     const numericId = parseInt(id, 10);
@@ -377,10 +373,8 @@ export async function PATCH(
 }
 
 // DELETE /api/themes/[id] - Delete a theme
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     const { id } = params;
     const numericId = parseInt(id, 10);

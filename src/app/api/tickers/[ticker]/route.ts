@@ -50,10 +50,8 @@ function normalizeTagList(input: unknown): string[] {
 
 // GET /api/tickers/:ticker — returns the editable fields and current
 // tag/theme membership for the modal pre-fill. Does NOT hit Yahoo.
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: { ticker: string } },
-) {
+export async function GET(_request: NextRequest, props: { params: Promise<{ ticker: string }> }) {
+  const params = await props.params;
   const ticker = decodeURIComponent(params.ticker).trim().toUpperCase();
   if (!ticker) {
     return NextResponse.json({ error: "ticker is required" }, { status: 400 });
@@ -100,10 +98,8 @@ export async function GET(
 // PATCH /api/tickers/:ticker — updates editable fields. The ticker symbol
 // and market are immutable here; if you need to change those, delete and
 // re-add. No Yahoo lookup happens — the universe row already exists.
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { ticker: string } },
-) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ ticker: string }> }) {
+  const params = await props.params;
   const ticker = decodeURIComponent(params.ticker).trim().toUpperCase();
   if (!ticker) {
     return NextResponse.json({ error: "ticker is required" }, { status: 400 });
@@ -285,10 +281,8 @@ export async function PATCH(
 // 409 if there's an active portfolio_holding so we never silently destroy a
 // position the user is tracking. Leaves trade_journal and stock_reports
 // alone; those are historical/research records that stand on their own.
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: { ticker: string } },
-) {
+export async function DELETE(_request: NextRequest, props: { params: Promise<{ ticker: string }> }) {
+  const params = await props.params;
   const ticker = decodeURIComponent(params.ticker).trim().toUpperCase();
   if (!ticker) {
     return NextResponse.json({ error: "ticker is required" }, { status: 400 });

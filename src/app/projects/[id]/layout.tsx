@@ -9,13 +9,18 @@ interface ResearchPage {
   title: string;
 }
 
-export default async function ProjectLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: { id: string };
-}) {
+export default async function ProjectLayout(
+  props: {
+    children: React.ReactNode;
+    params: Promise<{ id: string }>;
+  }
+) {
+  const params = await props.params;
+
+  const {
+    children
+  } = props;
+
   const { id } = params;
 
   // Fetch project

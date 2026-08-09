@@ -12,10 +12,8 @@ import { logger } from "@/lib/logger";
 //   - EditTickerModal       — reads `description` / `tags` / `themes`
 //   - AddTickerModal         — reads everything when re-running on a typed ticker
 // Persistence happens through PATCH /api/tickers/:ticker (or POST for add).
-export async function POST(
-  _request: NextRequest,
-  { params }: { params: { ticker: string } },
-) {
+export async function POST(_request: NextRequest, props: { params: Promise<{ ticker: string }> }) {
+  const params = await props.params;
   const ticker = decodeURIComponent(params.ticker).trim().toUpperCase();
   if (!ticker) {
     return NextResponse.json({ error: "ticker is required" }, { status: 400 });

@@ -17,10 +17,8 @@ interface QuoteResult {
   marketState?: string;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { ticker: string } }
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ ticker: string }> }) {
+  const params = await props.params;
   const { ticker } = params;
   const upperTicker = ticker.toUpperCase();
 

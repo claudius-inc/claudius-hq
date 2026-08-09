@@ -17,7 +17,8 @@ function prettyDate(iso: string): string {
   });
 }
 
-export default async function WeeklyWrapPage({ params }: { params: { weekEnd: string } }) {
+export default async function WeeklyWrapPage(props: { params: Promise<{ weekEnd: string }> }) {
+  const params = await props.params;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(params.weekEnd)) notFound();
 
   const rows = await db.select().from(weeklyNotes).where(eq(weeklyNotes.weekEnd, params.weekEnd)).limit(1);

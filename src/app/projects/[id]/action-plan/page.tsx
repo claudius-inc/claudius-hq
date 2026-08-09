@@ -8,7 +8,8 @@ import { notFound } from "next/navigation";
 // On-demand revalidation via /api/projects
 export const revalidate = false;
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const { id } = params;
   try {
     const result = await db.execute({ sql: "SELECT name FROM projects WHERE id = ?", args: [Number(id)] });
@@ -20,7 +21,8 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   return { title: "Action Plan" };
 }
 
-export default async function ActionPlanPage({ params }: { params: { id: string } }) {
+export default async function ActionPlanPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const { id } = params;
 
   const projectRes = await db.execute({ sql: "SELECT * FROM projects WHERE id = ?", args: [Number(id)] });
