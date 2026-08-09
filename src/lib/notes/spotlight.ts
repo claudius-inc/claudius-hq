@@ -10,7 +10,7 @@
  * gold cross-asset print plus the GDX miners proxy.
  */
 import { eq } from "drizzle-orm";
-import { db, noteSpotlightConfig } from "@/db";
+import { db, noteSpotlightConfig, NOTE_SPOTLIGHT_SECTORS } from "@/db";
 import { logger } from "@/lib/logger";
 import { fetchBatchQuotes } from "@/lib/scanner/yahoo-fetcher";
 import type { SpotlightBlock, SectorPoint, CrossAssetPoint, DivergenceSector } from "@/lib/notes/types";
@@ -39,7 +39,13 @@ export async function loadEnabledSpotlights(): Promise<string[]> {
       .select()
       .from(noteSpotlightConfig)
       .where(eq(noteSpotlightConfig.enabled, true));
-    return rows.map((r) => r.sector);
+    // Order by the canonical sector list, not DB row order, so callouts appear
+    // in the same sequence every day.
+    const order = (s: string) => {
+      const i = (NOTE_SPOTLIGHT_SECTORS as readonly string[]).indexOf(s);
+      return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    return rows.map((r) => r.sector).sort((a, b) => order(a) - order(b));
   } catch (error) {
     logger.warn(SRC, "Spotlight config unavailable; no callouts", { error });
     return [];

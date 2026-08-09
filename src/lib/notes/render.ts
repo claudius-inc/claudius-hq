@@ -205,7 +205,16 @@ function tellsSection(f: StructuredFacts): string {
     .toUpperCase();
   const items = events.map((e) => {
     const consensus = e.consensus != null ? ` (cons. ${e.consensus})` : "";
-    return `${escapeHtml(e.name)} ${code(`${e.timeEt} ET`)}${escapeHtml(consensus)}`;
+    // The window spans several days, so anything not on the header's day must
+    // carry its own weekday — otherwise Wednesday's CPI reads as Monday's.
+    const day =
+      e.date === events[0].date
+        ? ""
+        : new Date(`${e.date}T12:00:00Z`).toLocaleDateString("en-US", {
+            weekday: "short",
+            timeZone: "UTC",
+          }) + " ";
+    return `${escapeHtml(e.name)} ${escapeHtml(day)}${code(`${e.timeEt} ET`)}${escapeHtml(consensus)}`;
   });
   return `👀 ${b(`${label}'S TELLS`)} — ${items.join(" · ")}`;
 }

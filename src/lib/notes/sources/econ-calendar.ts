@@ -39,11 +39,12 @@ function toEt(utc: string): { date: string; time: string } | null {
     month: "2-digit",
     day: "2-digit",
   }).format(new Date(ms));
+  // hourCycle h23 (not hour12:false) so midnight is "00", never "24", on any ICU.
   const t = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
-    hour: "numeric",
+    hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    hourCycle: "h23",
   }).format(new Date(ms));
   return { date: d, time: t };
 }
@@ -79,12 +80,15 @@ export async function fetchEconEvents(from: string, to: string, asOf: string): P
     const events: EconEvent[] = [];
     for (const raw of json as FmpEvent[]) {
       if (!raw?.event || !raw.date) continue;
-      if (raw.country && raw.country !== "US") continue;
+      // Require the country field — a missing one would let a foreign "CPI"
+      // into a US note.
+      if (raw.country !== "US") continue;
       if (!HIGH_IMPACT.test(raw.event)) continue;
       const et = toEt(raw.date);
       if (!et || et.date < from || et.date > to) continue;
       events.push({
-        name: raw.event,
+        // Third-party text: cap it so one pathological name can't inflate TELLS.
+        name: raw.event.slice(0, 80),
         date: et.date,
         timeEt: et.time,
         consensus: typeof raw.estimate === "number" ? raw.estimate : null,

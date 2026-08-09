@@ -32,9 +32,11 @@ export function SpotlightSettings() {
     fetcher,
   );
   const [saving, setSaving] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   async function toggle(sector: string, next: boolean) {
     setSaving(sector);
+    setSaveError(null);
     // Optimistic: the toggle should feel instant, and the PATCH returns truth.
     mutate(
       (cur) =>
@@ -44,11 +46,16 @@ export function SpotlightSettings() {
       false,
     );
     try {
-      await fetch("/api/notes/spotlight", {
+      const res = await fetch("/api/notes/spotlight", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sector, enabled: next }),
       });
+      // Without this the optimistic toggle silently reverts on the revalidate
+      // and the user never learns the write failed.
+      if (!res.ok) setSaveError(`Couldn't save ${sector} (${res.status}).`);
+    } catch {
+      setSaveError(`Couldn't save ${sector}.`);
     } finally {
       setSaving(null);
       mutate();
@@ -63,6 +70,9 @@ export function SpotlightSettings() {
         <p className="px-4 py-3 text-sm text-red-700 bg-red-50 border-b border-red-100">
           Couldn&apos;t load spotlight settings. Toggles below may not reflect the saved state.
         </p>
+      )}
+      {saveError && (
+        <p className="px-4 py-3 text-sm text-red-700 bg-red-50 border-b border-red-100">{saveError}</p>
       )}
       <ul>
         {SPOTLIGHT_SECTOR_META.map((meta) => {
