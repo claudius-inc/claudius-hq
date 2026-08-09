@@ -154,7 +154,6 @@ export function MarketsClient({
                     typeof HardAssets
                   >["initialGold"]
                 }
-                initialSilver={null}
                 initialSilverPrice={null}
               />
             </div>
