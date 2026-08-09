@@ -333,7 +333,7 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
   // already in hand; the timeframe bars are the only new fetch, and they cover
   // the ~20 benchmarks only — never the full index.
   const priorSessionDate = await fetchPriorSessionDate(marketDate);
-  const closeMinute = closeMinuteFor(quoteMap.get("^GSPC"));
+  const closeMinute = closeMinuteFor(quoteMap);
   const relevance = rankConstituents(constituents, sectors?.value ?? null, marketDate, priorSessionDate, closeMinute);
   const benchmarks = [
     ...INDICES.map((i) => i.symbol),
@@ -462,7 +462,18 @@ async function fetchPriorSessionDate(marketDate: string): Promise<string | null>
       .where(lt(dailyNotes.date, marketDate))
       .orderBy(desc(dailyNotes.date))
       .limit(1);
-    if (rows[0]?.date) return rows[0].date;
+    const found = rows[0]?.date;
+    // Reject a row that is too far behind. If a prior note failed to ship, the
+    // latest row can be several sessions old, and a name stamped after THAT
+    // day's close would then classify as "today's reaction" — a false earnings
+    // attribution for a reaction that already happened. Returning null just
+    // stops the after-close row firing: omission, not fabrication (§1a).
+    if (found) {
+      const gapDays = (Date.parse(`${marketDate}T00:00:00Z`) - Date.parse(`${found}T00:00:00Z`)) / 86_400_000;
+      if (Number.isFinite(gapDays) && gapDays <= 4) return found;
+      logger.warn(SRC, "Prior note too old to serve as the prior session", { found, marketDate });
+      return null;
+    }
   } catch (error) {
     logger.warn(SRC, "Prior session lookup failed; falling back to previous weekday", { error });
   }
@@ -474,23 +485,25 @@ async function fetchPriorSessionDate(marketDate: string): Promise<string | null>
 }
 
 /**
- * Minutes-since-ET-midnight of today's actual close, taken from the index's own
- * last regular print. Never hardcode 16:00 — a half-day closes at 13:00.
+ * Minutes-since-ET-midnight of today's actual close.
+ *
+ * Take it from a tradeable ETF, NEVER from `^GSPC`. The index keeps printing
+ * settlement values for roughly fifty minutes after the bell — it stamped
+ * 16:50 ET on a normal session — while SPY and the sector funds stamp the true
+ * 16:00. Using the index pushed the boundary past every after-close earnings
+ * placeholder (stamped exactly 16:00), so those reports classified as
+ * mid-session and got no attribution at all. An ETF also moves correctly to
+ * 13:00 on a half-day, which is why this is derived rather than hardcoded.
  */
-function closeMinuteFor(q: QuoteLike | undefined): number {
-  const ms = q?.regularMarketTime ? toMs(q.regularMarketTime) : 0;
-  if (ms <= 0) return 16 * 60;
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(new Date(ms));
-  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "16");
-  const m = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
-  return (h % 24) * 60 + m;
+function closeMinuteFor(map: Map<string, QuoteLike>): number {
+  for (const { etf } of SECTOR_ETFS) {
+    const ms = toMs(map.get(etf)?.regularMarketTime);
+    if (Number.isFinite(ms) && ms > 0) return etMinutes(ms);
+  }
+  return 16 * 60;
 }
 
+/** Minutes-since-ET-midnight, guarded. */
 /** "6:14pm" in ET — the clock a post-market claim is stated as of. */
 function etClock(ms: number): string {
   return new Intl.DateTimeFormat("en-US", {

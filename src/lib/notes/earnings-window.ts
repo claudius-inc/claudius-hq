@@ -71,7 +71,10 @@ export function placeEarnings({
   closeMinute,
 }: PlacementInput): EarningsPlacement {
   const ms = toMs(stamp);
-  if (ms <= 0) return "none";
+  // Number.isFinite first: Date.parse of a bad string is NaN, every comparison
+  // against NaN is false, and NaN would reach the ET formatter and throw —
+  // killing the whole note over one malformed field among 503 quotes.
+  if (!Number.isFinite(ms) || ms <= 0) return "none";
   const day = etDate(ms);
   const minute = etMinutes(ms);
 

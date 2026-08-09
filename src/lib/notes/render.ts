@@ -476,8 +476,14 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
     candidates.push({ prose: { ...prose, book: undefined, bull: undefined, bear: undefined }, showAfterHours: false });
     // Trim What-Matters bullets from the end.
     for (let n = prose.whatMatters.length - 1; n >= 0; n--) {
+      // Keep the ornament OFF here. Omitting these flags let them default back
+      // to true, so after-hours suffixes and macro framing were re-added exactly
+      // as bullets started being cut — inverting the rule and making the ladder
+      // non-monotonic, so a later rung could be longer than an earlier one.
       candidates.push({
         prose: { ...prose, book: undefined, bull: undefined, bear: undefined, whatMatters: prose.whatMatters.slice(0, n) },
+        showAfterHours: false,
+        macroDetail: false,
       });
     }
   }
