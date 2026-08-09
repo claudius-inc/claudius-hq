@@ -1076,3 +1076,137 @@ export const tweetTickers = sqliteTable("tweet_tickers", {
 
 export type TweetTicker = typeof tweetTickers.$inferSelect;
 export type NewTweetTicker = typeof tweetTickers.$inferInsert;
+
+// ============================================================================
+// Daily Market Note ("The Tape") — see docs/daily-note-spec.md §6
+// ============================================================================
+
+// 11 GICS SPDR sectors + a GOLD pseudo-sector for spotlight deep-dives.
+export const NOTE_SPOTLIGHT_SECTORS = [
+  "XLK", "XLF", "XLY", "XLC", "XLV", "XLI", "XLP", "XLE", "XLB", "XLRE", "XLU", "GOLD",
+] as const;
+export type NoteSpotlightSector = (typeof NOTE_SPOTLIGHT_SECTORS)[number];
+
+// Which sectors get the expanded deep-dive block. Defaults XLE + GOLD on.
+export const noteSpotlightConfig = sqliteTable("note_spotlight_config", {
+  sector: text("sector").primaryKey(), // one of NOTE_SPOTLIGHT_SECTORS
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export type NoteSpotlightConfig = typeof noteSpotlightConfig.$inferSelect;
+
+// One generated note per US market date (America/New_York). `facts` is the
+// StructuredFacts JSON (value/source/asOf per field); the web page renders from
+// `webBody`; `telegramMessageId` enables idempotent same-day edits.
+export const dailyNotes = sqliteTable("daily_notes", {
+  date: text("date").primaryKey(), // YYYY-MM-DD, US market date
+  facts: text("facts").notNull(), // JSON: StructuredFacts
+  // Validated NoteProse JSON. Persisted so a later note or the weekly wrap can
+  // QUOTE what we actually wrote — rendering it into HTML and discarding it left
+  // nothing to look back at. Null when the note shipped without prose.
+  prose: text("prose"),
+  pushHtml: text("push_html").notNull(),
+  webBody: text("web_body").notNull(),
+  telegramMessageId: integer("telegram_message_id"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type DailyNote = typeof dailyNotes.$inferSelect;
+export type NewDailyNote = typeof dailyNotes.$inferInsert;
+
+// S&P 500 membership + GICS sector + float weight, seeded from the SPDR daily
+// holdings files (sector ETFs supply the GICS grouping; SPY supplies the
+// float-adjusted index weight). Feeds the within-sector divergence (§5) and the
+// index-contribution fact (§8). Refreshed on a schedule — see
+// scripts/seed/sp500-constituents.ts.
+export const sp500Constituents = sqliteTable(
+  "sp500_constituents",
+  {
+    ticker: text("ticker").primaryKey(),
+    name: text("name"),
+    sectorEtf: text("sector_etf").notNull(), // XLK, XLF, … (the GICS sector's SPDR)
+    // Percent of SPY (e.g. 7.99656). Null when the name is in a sector file but
+    // not yet in SPY's file (rebalance lag) — such names are excluded from the
+    // index-contribution math but still usable for divergence.
+    spyWeight: real("spy_weight"),
+    // The name's weight inside its own sector SPDR (percent). NOT derivable from
+    // spyWeight: the sector funds cap mega-caps for diversification, so a
+    // SPY-derived within-sector share is wrong for exactly the biggest names.
+    sectorWeight: real("sector_weight"),
+    updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    sectorIdx: index("idx_sp500_constituents_sector").on(table.sectorEtf),
+  }),
+);
+
+export type Sp500Constituent = typeof sp500Constituents.$inferSelect;
+export type NewSp500Constituent = typeof sp500Constituents.$inferInsert;
+
+// One weekly wrap per week, keyed by the LAST session of that week — which is
+// Thursday when Friday was a holiday, so the key is derived from the sessions
+// that actually happened rather than assumed to be a Friday.
+export const weeklyNotes = sqliteTable("weekly_notes", {
+  weekEnd: text("week_end").primaryKey(), // YYYY-MM-DD, last session in the week
+  weekStart: text("week_start").notNull(), // the anchor session it is measured from
+  sessions: integer("sessions").notNull(), // how many daily notes the week produced
+  facts: text("facts").notNull(), // JSON: WeeklyFacts
+  pushHtml: text("push_html").notNull(),
+  webBody: text("web_body").notNull(),
+  telegramMessageId: integer("telegram_message_id"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type WeeklyNote = typeof weeklyNotes.$inferSelect;
+
+// A falsifiable expectation, registered BEFORE its outcome is knowable and
+// resolved by code alone. Rows are immutable after creation except for the
+// resolution fields — rewriting the bet is the first door to flattery, so it is
+// closed structurally rather than by policy. `origin` is never "llm": a model
+// that both writes the prose and mints the predictions will mint easy ones.
+export const EXPECTATION_STATUSES = ["open", "hit", "miss", "unresolvable"] as const;
+export type ExpectationStatus = (typeof EXPECTATION_STATUSES)[number];
+
+export const noteExpectations = sqliteTable(
+  "note_expectations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    noteDate: text("note_date").notNull(), // the session that registered it
+    subject: text("subject").notNull(), // "GC=F" | "^GSPC" | "SPREAD_2S10S" | …
+    metric: text("metric").notNull(), // "close" | "spread_bp"
+    comparator: text("comparator").notNull(), // touch_above | touch_below | at_horizon_above | at_horizon_below
+    threshold: real("threshold").notNull(),
+    baselineValue: real("baseline_value").notNull(),
+    baselineSource: text("baseline_source").notNull(),
+    horizonSessions: integer("horizon_sessions").notNull(),
+    sessionsElapsed: integer("sessions_elapsed").notNull().default(0),
+    status: text("status").notNull().default("open"),
+    resolvedDate: text("resolved_date"),
+    resolvedValue: real("resolved_value"),
+    resolvedSource: text("resolved_source"),
+    // The session that GRADED it, as distinct from the session whose data
+    // decided it. After a backfill those differ, and the LEDGER shows the former.
+    settledAt: text("settled_at"),
+    origin: text("origin").notNull(), // "owner" | "auto_*" — never "llm"
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    // The daily workflow fires twice per evening, so without this the second run
+    // re-registers the same bet an hour later with more information. Metric and
+    // horizon are part of the key: the same level at 5 and 21 sessions are two
+    // different bets, and omitting them would silently lose one.
+    idemIdx: uniqueIndex("idx_note_expectations_idem").on(
+      table.noteDate,
+      table.subject,
+      table.metric,
+      table.comparator,
+      table.threshold,
+      table.horizonSessions,
+    ),
+    openIdx: index("idx_note_expectations_open").on(table.status),
+  }),
+);
+
+export type NoteExpectation = typeof noteExpectations.$inferSelect;
+export type NewNoteExpectation = typeof noteExpectations.$inferInsert;
