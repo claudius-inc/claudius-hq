@@ -349,29 +349,40 @@ float weights, and ships only if the reconciliation gate passes (§8). A Nasdaq 
 
 ---
 
-## 10. Build order (smallest correct slice first)
+## 10. Build order (all slices BUILT)
 
-1. **Shippable skeleton:** `daily_notes` table + migration; session gate (§7a); assemble for
-   indices/VIX/cross-asset/sector-ETF tape + rates (Treasury feed) + breadth (WSJ, fail-omit); render +
-   escape/length asserts; **hardened** sendMessage to channel; web page reading `facts`. → A useful,
-   verdict-less note that never lies.
-2. **Prose:** LLM write + numeral validation (§8.2–8.3).
-3. **The product:** S&P 500 + GICS + cap dataset (+refresh) → within-sector divergence + index-contribution.
-4. **Depth:** GEX pin (refactor), econ calendar (**pending paywall check**), spotlight UI + callouts.
+1. ✅ **Shippable skeleton** (`453c377`): `daily_notes` + migration 0021; session gate (§7a); assemble for
+   indices/VIX/cross-asset/sector tape/rates (Treasury)/breadth (WSJ, fail-omit); render + escape/length
+   asserts; hardened Telegram send; web page. → A useful, verdict-less note that never lies.
+2. ✅ **Prose** (`5250ae7`): `write.ts` (Gemini) + `validate.ts` numeral token grammar (§8.2–8.3).
+3. ✅ **The product** (`478e3a9`): `sp500_constituents` + migration 0022 + `seed/sp500-constituents.ts`;
+   `divergence.ts` → within-sector divergence (§5) + index-contribution with reconciliation gate (§8).
+4. ✅ **Depth**: `sources/gex-pin.ts` (real multi-expiry aggregation, pin = max|GEX| strike),
+   `sources/econ-calendar.ts` (FMP, §1a graceful-omit without a key), `spotlight.ts` + settings UI
+   (`/markets/notes/settings`, `/api/notes/spotlight`).
 
-Steps 1–2 ship independently. Everything the old spec marked ✅-but-wasn't lands in 1, 3, 4.
+### Deployment checklist (operator)
+- Apply `drizzle/0021_add_daily_notes.sql` and `drizzle/0022_add_sp500_constituents.sql` to Turso.
+- Run `npx tsx scripts/seed/sp500-constituents.ts` (and re-run quarterly — the note's staleness gate
+  warns at 45d and omits divergence/contribution past 120d).
+- Secrets: `TELEGRAM_NOTE_CHANNEL_ID` (numeric `-100…`, bot must be channel admin), `NOTE_WEB_BASE_URL`,
+  `GEMINI_API_KEY` (prose; without it the note ships deterministic), `FMP_API_KEY` (optional — TELLS
+  omits econ events without it).
 
 ---
 
 ## 11. Open items / decisions still needed
 
-- **Econ-calendar access** — confirm FMP/Finnhub plan actually returns the economic calendar; else adopt
-  the FRED-release-date fallback (loses consensus values). Blocks TOMORROW'S TELLS + the payrolls-style
-  "actual vs consensus" bullets.
+- **Econ-calendar access** — STILL OPEN. The client is built and wired, but no key was available to
+  verify plan access (the free FMP tier rejects `/economic_calendar`). Without `FMP_API_KEY` the TELLS
+  section omits econ events entirely (§1a-safe). If the plan turns out to be paywalled, adopt the
+  FRED-release-date fallback (loses consensus values).
 - **Post time & cadence** — pinned to ≥6:15pm ET by the Treasury-feed dependency (§3/§8); confirm the exact
   cron + the poll-with-deadline window. Half-day handling specced (§7a).
-- **GEX symbol/scale** — SPX-scale reading requires `^SPX`/`$SPX` options; Yahoo's coverage of index
-  options is unverified. Resolve symbol (SPX vs SPY×10) and define "pin" = max |GEX| strike before building.
+- ~~**GEX symbol/scale**~~ — RESOLVED: reads **SPY** (Yahoo's index-option coverage is unreliable) and
+  prints the symbol explicitly, so ETF-scale levels are never confused with SPX. "Pin" = max |GEX| strike
+  within ±10% of spot. Note `yahooFinance.options()` returns only the FRONT chain — aggregating expiries
+  requires an explicit per-date fetch, and each must be priced at its own dte (gamma scales ~1/√T).
 - **LLM provider** — Gemini (wired) vs Claude for prose; A/B the voice.
 - **Constituent dataset refresh** — cadence + source of truth for S&P 500 membership/GICS/float weight.
   Flag: SSGA holdings-XLSX ToS/licensing for automated daily pulls (low-risk — only aggregates are

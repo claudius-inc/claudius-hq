@@ -14,6 +14,9 @@ import { logger } from "@/lib/logger";
 import { fetchBreadthData } from "@/lib/markets/breadth";
 import { fetchRatesFact } from "@/lib/notes/sources/treasury";
 import { computeDivergenceFacts } from "@/lib/notes/divergence";
+import { fetchGexPinFact } from "@/lib/notes/sources/gex-pin";
+import { fetchEconEvents } from "@/lib/notes/sources/econ-calendar";
+import { loadEnabledSpotlights, buildSpotlightBlocks } from "@/lib/notes/spotlight";
 import { etDate, etStamp } from "@/lib/notes/session";
 import type {
   Fact,
@@ -297,8 +300,30 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
   // Divergence + contribution need the sector benchmarks and the index move,
   // so they run after the batch quote resolves (§5, §8).
   const spChange = indices?.value.find((i) => i.symbol === "^GSPC")?.changePct ?? null;
-  const { divergence, contribution } = await computeDivergenceFacts(sectors?.value ?? null, spChange);
+  const { divergence, contribution, moversBySector } = await computeDivergenceFacts(
+    sectors?.value ?? null,
+    spChange,
+  );
   const asOf = etStamp(marketDate, "16:00:00", now);
+
+  // Slice-4 depth: gamma pin, next-session econ releases, spotlight blocks.
+  // Each degrades to null independently (§1a) — the section is simply omitted.
+  const nextDay = new Date(now + 86_400_000);
+  const nextDate = etDate(nextDay.getTime());
+  const [gexPin, econEvents, enabledSpotlights] = await Promise.all([
+    fetchGexPinFact(asOf),
+    // Window covers the next few calendar days so a Friday note reaches Monday.
+    fetchEconEvents(nextDate, etDate(now + 4 * 86_400_000), asOf),
+    loadEnabledSpotlights(),
+  ]);
+
+  const spotlightBlocks = await buildSpotlightBlocks({
+    enabled: enabledSpotlights,
+    sectors: sectors?.value ?? null,
+    crossAsset: crossAsset?.value ?? null,
+    divergence,
+    movers: moversBySector,
+  });
 
   return {
     date: marketDate,
@@ -311,5 +336,8 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     breadth,
     divergence: divergence.length > 0 ? { value: divergence, source: "Yahoo + SPDR holdings", asOf } : null,
     contribution: contribution ? { value: contribution, source: "Yahoo + SPY float weights", asOf } : null,
+    gexPin,
+    econEvents,
+    spotlight: spotlightBlocks.length > 0 ? { value: spotlightBlocks, source: "Yahoo + spotlight config", asOf } : null,
   };
 }

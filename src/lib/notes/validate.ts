@@ -51,6 +51,16 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
     const c = f.contribution.value;
     push(c.modelledPct, c.actualPct, c.topPoints, c.exTopPct, c.topNames.length);
   }
+  if (f.gexPin) {
+    const g = f.gexPin.value;
+    push(g.spot, g.pinStrike, g.distancePct);
+  }
+  if (f.econEvents) for (const e of f.econEvents.value) push(e.consensus, e.previous);
+  if (f.spotlight)
+    for (const s of f.spotlight.value) {
+      push(s.headlinePct, s.price, s.proxy?.changePct);
+      for (const n of [...s.leaders, ...s.laggards]) push(n.changePct);
+    }
   return out;
 }
 

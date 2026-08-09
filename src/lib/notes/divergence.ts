@@ -211,23 +211,42 @@ export interface DivergenceResult {
   divergence: DivergenceSector[];
   contribution: ContributionData | null;
   quotedCount: number;
+  /** Constituent moves grouped by sector ETF — feeds spotlight leaders/laggards (§6). */
+  moversBySector: Map<string, { ticker: string; changePct: number }[]>;
 }
 
-/** Load quotes once and derive both facts. Returns empty/null on any shortfall. */
+const EMPTY: DivergenceResult = {
+  divergence: [],
+  contribution: null,
+  quotedCount: 0,
+  moversBySector: new Map(),
+};
+
+/** Load quotes once and derive every constituent-derived fact. */
 export async function computeDivergenceFacts(
   sectors: SectorPoint[] | null,
   indexChangePct: number | null,
 ): Promise<DivergenceResult> {
   try {
     const quotes = await loadConstituentQuotes();
-    if (quotes.length === 0) return { divergence: [], contribution: null, quotedCount: 0 };
+    if (quotes.length === 0) return EMPTY;
+
+    const moversBySector = new Map<string, { ticker: string; changePct: number }[]>();
+    for (const q of quotes) {
+      const entry = { ticker: q.ticker, changePct: q.changePct };
+      const list = moversBySector.get(q.sectorEtf);
+      if (list) list.push(entry);
+      else moversBySector.set(q.sectorEtf, [entry]);
+    }
+
     return {
       divergence: sectors ? computeDivergence(quotes, sectors) : [],
       contribution: indexChangePct != null ? computeContribution(quotes, indexChangePct) : null,
       quotedCount: quotes.length,
+      moversBySector,
     };
   } catch (error) {
     logger.error(SRC, "Divergence computation failed", { error });
-    return { divergence: [], contribution: null, quotedCount: 0 };
+    return EMPTY;
   }
 }

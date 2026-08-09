@@ -96,6 +96,43 @@ export interface ContributionData {
   flipsWithoutTop: boolean;
 }
 
+/** Dealer gamma pin for THE BOOK (§4.8). */
+export interface GexPinData {
+  symbol: string;
+  spot: number;
+  pinStrike: number;
+  /** True = dealers net long gamma (vol-dampening). */
+  netGammaPositive: boolean;
+  /** Pin distance from spot, in percent. */
+  distancePct: number;
+  /** How many expirations were aggregated (each priced at its own dte). */
+  expiriesUsed: number;
+}
+
+/** A scheduled economic release for TOMORROW'S TELLS (§4.9). */
+export interface EconEvent {
+  name: string;
+  /** ET calendar date, YYYY-MM-DD. */
+  date: string;
+  /** ET clock time, HH:mm. */
+  timeEt: string;
+  consensus: number | null;
+  previous: number | null;
+}
+
+/** An expanded sector block (§6) — push callout + web deep-dive. */
+export interface SpotlightBlock {
+  key: string;
+  emoji: string;
+  label: string;
+  headlinePct: number | null;
+  price: number | null;
+  leaders: { ticker: string; changePct: number }[];
+  laggards: { ticker: string; changePct: number }[];
+  /** Related instrument (e.g. GDX for gold). */
+  proxy: { ticker: string; changePct: number } | null;
+}
+
 /**
  * The full deterministic fact set for one trading day. LLM prose (slice 2) and
  * the divergence/GEX/econ facts (slices 3–4) extend this; slice-1 fields are the
@@ -115,6 +152,9 @@ export interface StructuredFacts {
   breadth: Fact<BreadthData> | null;
   divergence: Fact<DivergenceSector[]> | null;
   contribution: Fact<ContributionData> | null;
+  gexPin: Fact<GexPinData> | null;
+  econEvents: Fact<EconEvent[]> | null;
+  spotlight: Fact<SpotlightBlock[]> | null;
 }
 
 /**

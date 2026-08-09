@@ -64,6 +64,20 @@ function factSheet(f: StructuredFacts): string {
       `Index concentration: top movers ${c.topNames.join(", ")} contributed ${c.topPoints} points of the S&P's ${c.actualPct}%; ex-those names the index is ${c.exTopPct}%${flip}`,
     );
   }
+  if (f.gexPin) {
+    const g = f.gexPin.value;
+    lines.push(
+      `Positioning: dealers net ${g.netGammaPositive ? "LONG" : "SHORT"} gamma on ${g.symbol}; largest-gamma strike (pin) ${g.pinStrike}, spot ${g.spot} (${g.distancePct}% away). Note OI is start-of-day, so treat as directional.`,
+    );
+  }
+  if (f.econEvents) {
+    lines.push(
+      "Upcoming releases: " +
+        f.econEvents.value
+          .map((e) => `${e.name} ${e.date} ${e.timeEt} ET${e.consensus != null ? ` (consensus ${e.consensus})` : ""}`)
+          .join("; "),
+    );
+  }
   return lines.join("\n");
 }
 

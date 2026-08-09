@@ -151,9 +151,63 @@ function bullBearSection(prose?: NoteProse): string {
   return lines.join("\n");
 }
 
-function bookSection(prose?: NoteProse): string {
-  if (!prose?.book) return "";
-  return `📖 ${b("THE BOOK")} — ${escapeHtml(prose.book)}`;
+/** One line per spotlighted sector, after CROSS-ASSET (§6). */
+function spotlightSection(f: StructuredFacts, max = Infinity): string {
+  if (!f.spotlight || max <= 0) return "";
+  return f.spotlight.value
+    .slice(0, max)
+    .map((s) => {
+      const head = `${s.emoji} ${b(s.label)}${s.headlinePct != null ? ` ${spct(s.headlinePct)}` : ""}`;
+      const bits: string[] = [];
+      if (s.price != null) bits.push(code(`$${intFmt(s.price)}`));
+      if (s.leaders.length)
+        bits.push(`leaders ${s.leaders.map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}`).join(", ")}`);
+      if (s.laggards.length)
+        bits.push(`laggard ${s.laggards.map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}`).join(", ")}`);
+      if (s.proxy) bits.push(`${escapeHtml(s.proxy.ticker)} ${spct(s.proxy.changePct)}`);
+      return bits.length ? `${head} — ${bits.join("; ")}` : head;
+    })
+    .join("\n");
+}
+
+/**
+ * THE BOOK: the gamma pin is a fact, so it renders deterministically; the LLM's
+ * positioning line is appended when it survived validation. Omitted entirely
+ * when there's neither (§1 "cut quiet sections").
+ */
+function bookSection(f: StructuredFacts, prose?: NoteProse): string {
+  const pin = f.gexPin?.value;
+  const parts: string[] = [];
+  if (pin) {
+    const stance = pin.netGammaPositive ? "dealers long gamma" : "dealers short gamma";
+    parts.push(
+      `${stance}, pin near ${code(intFmt(pin.pinStrike))} on ${escapeHtml(pin.symbol)} (${spct(pin.distancePct)} away)`,
+    );
+  }
+  // The gamma stance is numeral-free, so the validator can't catch an LLM line
+  // that states the opposite. Drop a book line that contradicts the fact.
+  const contradictsStance =
+    pin != null &&
+    prose?.book != null &&
+    new RegExp(pin.netGammaPositive ? "short gamma" : "long gamma", "i").test(prose.book);
+  if (prose?.book && !contradictsStance) parts.push(escapeHtml(prose.book));
+  if (parts.length === 0) return "";
+  return `📖 ${b("THE BOOK")} — ${parts.join(" · ")}`;
+}
+
+/** Next-session catalysts: econ releases with ET times (§4.9). */
+function tellsSection(f: StructuredFacts): string {
+  const events = f.econEvents?.value;
+  if (!events?.length) return "";
+  // Label is next-trading-day dynamic; derive it from the first event's date.
+  const label = new Date(`${events[0].date}T12:00:00Z`)
+    .toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })
+    .toUpperCase();
+  const items = events.map((e) => {
+    const consensus = e.consensus != null ? ` (cons. ${e.consensus})` : "";
+    return `${escapeHtml(e.name)} ${code(`${e.timeEt} ET`)}${escapeHtml(consensus)}`;
+  });
+  return `👀 ${b(`${label}'S TELLS`)} — ${items.join(" · ")}`;
 }
 
 function crossPrice(p: CrossAssetPoint): string {
@@ -203,16 +257,18 @@ export interface RenderInput {
   prose?: NoteProse;
 }
 
-function build(facts: StructuredFacts, webUrl: string, prose?: NoteProse): string {
+function build(facts: StructuredFacts, webUrl: string, prose?: NoteProse, maxSpotlight = Infinity): string {
   return [
     hookLine(facts, prose),
     tapeSection(facts),
     ratesSection(facts, prose),
     crossSection(facts),
+    spotlightSection(facts, maxSpotlight),
     divergenceSection(facts),
     whatMattersSection(prose),
     bullBearSection(prose),
-    bookSection(prose),
+    bookSection(facts, prose),
+    tellsSection(facts),
     footer(webUrl),
   ]
     .filter((s) => s.length > 0)
@@ -228,24 +284,30 @@ function build(facts: StructuredFacts, webUrl: string, prose?: NoteProse): strin
 export function renderPush({ facts, webUrl, prose }: RenderInput): string {
   const CAP = 4096;
 
-  const candidates: (NoteProse | undefined)[] = [];
+  const candidates: { prose?: NoteProse; maxSpotlight?: number }[] = [];
   if (prose) {
-    candidates.push(prose);
-    candidates.push({ ...prose, book: undefined });
-    candidates.push({ ...prose, book: undefined, bull: undefined, bear: undefined });
+    candidates.push({ prose });
+    candidates.push({ prose: { ...prose, book: undefined } });
+    candidates.push({ prose: { ...prose, book: undefined, bull: undefined, bear: undefined } });
     // Trim What-Matters bullets from the end.
     for (let n = prose.whatMatters.length - 1; n >= 0; n--) {
-      candidates.push({ ...prose, book: undefined, bull: undefined, bear: undefined, whatMatters: prose.whatMatters.slice(0, n) });
+      candidates.push({
+        prose: { ...prose, book: undefined, bull: undefined, bear: undefined, whatMatters: prose.whatMatters.slice(0, n) },
+      });
     }
   }
-  candidates.push(undefined); // deterministic, prose-free
+  candidates.push({}); // deterministic, prose-free
+  // Last resort before throwing: the user can spotlight all 12 sectors, so trim
+  // those callouts too rather than failing the send.
+  const spotlightCount = facts.spotlight?.value.length ?? 0;
+  for (let n = spotlightCount - 1; n >= 0; n--) candidates.push({ maxSpotlight: n });
 
   let last = "";
-  for (const p of candidates) {
-    last = build(facts, webUrl, p);
+  for (const c of candidates) {
+    last = build(facts, webUrl, c.prose, c.maxSpotlight);
     if (last.length <= CAP) return last;
   }
-  throw new Error(`Rendered push exceeds ${CAP} chars even prose-free (${last.length}) — data anomaly`);
+  throw new Error(`Rendered push exceeds ${CAP} chars even stripped (${last.length}) — data anomaly`);
 }
 
 /** Full 11-sector board, biggest first (web only — §7.3). */
@@ -286,6 +348,26 @@ function webContribution(f: StructuredFacts): string {
   );
 }
 
+/** Spotlight deep-dive blocks (§6, web only). */
+function webSpotlight(f: StructuredFacts): string {
+  if (!f.spotlight) return "";
+  const blocks = f.spotlight.value
+    .map((s) => {
+      const rows: string[] = [];
+      if (s.price != null) rows.push(`<li>Price <code>$${escapeHtml(intFmt(s.price))}</code></li>`);
+      for (const n of s.leaders)
+        rows.push(`<li>Leader <code>${escapeHtml(n.ticker)}</code> ${spct(n.changePct)}</li>`);
+      for (const n of s.laggards)
+        rows.push(`<li>Laggard <code>${escapeHtml(n.ticker)}</code> ${spct(n.changePct)}</li>`);
+      if (s.proxy)
+        rows.push(`<li>Proxy <code>${escapeHtml(s.proxy.ticker)}</code> ${spct(s.proxy.changePct)}</li>`);
+      const head = `${s.emoji} ${escapeHtml(s.label)}${s.headlinePct != null ? ` ${spct(s.headlinePct)}` : ""}`;
+      return `<h3>${head}</h3>\n<ul>\n${rows.join("\n")}\n</ul>`;
+    })
+    .join("\n");
+  return `<h2>Spotlight</h2>\n${blocks}`;
+}
+
 /** Web body (HTML); the archive page renders this. */
 export function renderWeb({ facts, webUrl, prose }: RenderInput): string {
   // The web page has no 4096 cap, so render the FULL prose (build directly)
@@ -296,8 +378,8 @@ export function renderWeb({ facts, webUrl, prose }: RenderInput): string {
     .map((block) => `<p>${block.replace(/\n/g, "<br/>")}</p>`)
     .join("\n");
 
-  // Depth sections the push has no room for. Spotlight deep-dives land in slice 4.
-  return [head, webSectorBoard(facts), webDivergence(facts), webContribution(facts)]
+  // Depth sections the push has no room for.
+  return [head, webSectorBoard(facts), webDivergence(facts), webContribution(facts), webSpotlight(facts)]
     .filter((s) => s.length > 0)
     .join("\n");
 }
