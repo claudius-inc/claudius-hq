@@ -20,8 +20,12 @@ import { sendNote, editNote, alertAdmin } from "@/lib/notes/telegram";
 
 const SRC = "notes/pipeline";
 
+/** Public site the "Full note →" link points at. */
+const WEB_BASE_URL = "https://claudiusinc.com";
+
 function webUrl(date: string): string {
-  const base = (process.env.NOTE_WEB_BASE_URL ?? "").replace(/\/$/, "");
+  // Env override exists only for local runs and preview deploys.
+  const base = (process.env.NOTE_WEB_BASE_URL || WEB_BASE_URL).replace(/\/$/, "");
   return `${base}/markets/notes/${date}`;
 }
 

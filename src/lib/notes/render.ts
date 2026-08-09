@@ -6,6 +6,7 @@
  * RATES + CROSS-ASSET + sector tape. WHAT MATTERS / BULL-BEAR / BOOK / TELLS
  * arrive with slices 2 and 4. Sections whose fact is null are omitted (§1a).
  */
+import { extractNumerals } from "@/lib/notes/validate";
 import type {
   StructuredFacts,
   NoteProse,
@@ -29,21 +30,24 @@ function escapeAttr(s: string): string {
   return escapeHtml(s).replace(/"/g, "&quot;");
 }
 
+/** Monospace. Web-only: in the push it buys no column alignment and widens lines. */
 const code = (s: string | number) => `<code>${escapeHtml(String(s))}</code>`;
 const b = (s: string) => `<b>${escapeHtml(s)}</b>`;
 
-function arrow(pct: number): string {
-  return pct > 0 ? "▲" : pct < 0 ? "▼" : "·";
-}
-/** Directional "▲0.2%" / "▼1.8%". */
-function dpct(pct: number): string {
-  return `${arrow(pct)}${Math.abs(pct).toFixed(1)}%`;
-}
-/** Signed "+0.2%" / "-1.8%" for contexts without an arrow. */
+/**
+ * Direction is signed text, never ▲/▼. Those glyphs are missing from the mobile
+ * UI font and get substituted per platform — the same defect as emoji — and the
+ * LLM writes "+1.5%" regardless, so signs keep prose and template consistent.
+ */
 function spct(pct: number, dp = 1): string {
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(dp)}%`;
 }
 const intFmt = (n: number) => Math.round(n).toLocaleString("en-US");
+
+/** Non-breaking space, so a wrap never splits a label from its number. */
+const NB = " ";
+/** Bind a label to its value: "Gold␣$4,403". */
+const bind = (label: string, value: string) => `${escapeHtml(label)}${NB}${value}`;
 
 /** 1 → "1st", 2 → "2nd", 3 → "3rd", 11 → "11th", 23 → "23rd". */
 function ordinal(n: number): string {
@@ -58,13 +62,52 @@ function ordinal(n: number): string {
   }
 }
 
+/**
+ * Claim ledger — the fix for the note's worst readability defect.
+ *
+ * Sections are generated independently, so the same fact was printing up to
+ * three times (VIX in THE TAPE, BULL and THE BOOK; the concentration numbers in
+ * both WHAT MATTERS and BEAR). A quarter of the message was content the reader
+ * had already read, which teaches them to skip the half where the thinking is.
+ *
+ * Rule: a prose line survives only if it introduces at least one number not yet
+ * printed. Deterministic sections render first and therefore own their facts.
+ * Restating a number IN WORDS stays legal — "nearly two to one" is
+ * interpretation, "1,808 vs 951" is a rerun — and a digit-based check allows
+ * that for free.
+ */
+function makeLedger() {
+  // Exact match on a 2dp key, NOT a tolerance. A tolerance collides among the
+  // many small percentages in a market note — "+0.26%" reads as already-seen
+  // against a "+0.3%" printed elsewhere, and the ledger then eats the whole
+  // WHAT MATTERS section. The fact sheet hands the model canonically formatted
+  // numbers, so a genuine restatement is character-identical anyway.
+  const emitted = new Set<number>();
+  const key = (v: number) => Math.round(v * 100) / 100;
+  const seen = (v: number) => emitted.has(key(v));
+  return {
+    /** Record every numeral in a line that is being printed. */
+    claim(text: string) {
+      for (const n of extractNumerals(text)) emitted.add(key(n.value));
+    },
+    /** True when the line adds nothing numerically new (so it should be cut). */
+    isRedundant(text: string): boolean {
+      const ns = extractNumerals(text);
+      // A line with no numbers is pure interpretation — always keep it.
+      if (ns.length === 0) return false;
+      return ns.every((n) => seen(n.value));
+    },
+  };
+}
+type Ledger = ReturnType<typeof makeLedger>;
+
 // ── Section builders (return "" when the fact is absent) ─────────────────────
 
 /** Facts-only fallback hook (plain text, unescaped) — §8.3 hook-never-drop. */
 export function deterministicHook(f: StructuredFacts): string {
   const sp = f.indices?.value.find((i) => i.symbol === "^GSPC");
   const parts: string[] = [];
-  if (sp) parts.push(`S&P ${intFmt(sp.close)} ${dpct(sp.changePct)}`);
+  if (sp) parts.push(`S&P ${intFmt(sp.close)} ${spct(sp.changePct)}`);
   const br = f.breadth?.value;
   if (br) parts.push(`breadth ${intFmt(br.advances)}/${intFmt(br.declines)}`);
   const vx = f.vix?.value;
@@ -84,28 +127,28 @@ function hookLine(f: StructuredFacts, prose?: NoteProse): string {
 function tapeSection(f: StructuredFacts): string {
   if (!f.indices) return "";
   const sp = f.indices.value.find((i) => i.symbol === "^GSPC");
-  const dot = sp ? (sp.changePct >= 0 ? "🟢" : "🔴") : "🔵";
-  const lines: string[] = [`${dot} ${b("THE TAPE")}`];
-
+  
+  // Run-in label: one header idiom across the note gives the left margin a
+  // rhythm, which is the whole scanning mechanism without colour or size.
   const idx = (p: IndexPoint) =>
     p.symbol === "^GSPC"
-      ? `${escapeHtml("S&P")} ${code(intFmt(p.close))} ${dpct(p.changePct)}`
-      : `${escapeHtml(p.name)} ${dpct(p.changePct)}`;
-  lines.push(f.indices.value.map(idx).join(" · "));
+      ? bind("S&P", `${intFmt(p.close)} ${spct(p.changePct)}`)
+      : bind(p.name, spct(p.changePct));
+  const lines: string[] = [`${b("THE TAPE")} — ${f.indices.value.map(idx).join(" · ")}`];
 
   const br: BreadthData | undefined = f.breadth?.value;
   if (br) {
     lines.push(
-      `Breadth (NYSE): ${code(intFmt(br.advances))} up / ${code(intFmt(br.declines))} down · A/D ${code(br.ratio.toFixed(2))} · new H/L ${code(`${br.newHighs} / ${br.newLows}`)}`,
+      `Breadth ${intFmt(br.advances)} up / ${intFmt(br.declines)} down · A/D ${br.ratio.toFixed(2)} · new highs ${br.newHighs}, lows ${br.newLows}`,
     );
   }
 
   const vx: VixData | undefined = f.vix?.value;
   if (vx) {
     const chg = `${vx.change >= 0 ? "+" : ""}${vx.change.toFixed(1)}`;
-    const trend = vx.trendDays > 0 && vx.trendDir !== "flat" ? `, ${vx.trendDir} ${vx.trendDays}d` : "";
+    const trend = vx.trendDays > 0 && vx.trendDir !== "flat" ? `, ${vx.trendDir} ${vx.trendDays} days` : "";
     lines.push(
-      `VIX ${code(vx.level.toFixed(1))} ${chg} — ~${ordinal(vx.percentile)} %ile of YTD ${code(`${vx.ytdLow.toFixed(1)}–${vx.ytdHigh.toFixed(1)}`)}${trend}`,
+      `VIX ${vx.level.toFixed(1)}, ${chg} — ${ordinal(vx.percentile)} percentile of this year's ${vx.ytdLow.toFixed(1)}–${vx.ytdHigh.toFixed(1)} range${trend}`,
     );
   }
   return lines.join("\n");
@@ -115,8 +158,8 @@ function ratesSection(f: StructuredFacts, prose?: NoteProse): string {
   if (!f.rates) return "";
   const r: RatesData = f.rates.value;
   const bp = (n: number) => `${n >= 0 ? "+" : ""}${n}bp`;
-  const emoji = r.chg10Bp >= 0 ? "📈" : "📉";
-  const l1 = `${emoji} ${b("RATES")} — 2Y ${code(r.y2.toFixed(2) + "%")} ${bp(r.chg2Bp)} · 10Y ${code(r.y10.toFixed(2) + "%")} ${bp(r.chg10Bp)} · 30Y ${code(r.y30.toFixed(2) + "%")} ${bp(r.chg30Bp)}`;
+  
+  const l1 = `${b("RATES")} — ${bind("2Y", `${r.y2.toFixed(2)}% ${bp(r.chg2Bp)}`)} · ${bind("10Y", `${r.y10.toFixed(2)}% ${bp(r.chg10Bp)}`)} · ${bind("30Y", `${r.y30.toFixed(2)}% ${bp(r.chg30Bp)}`)}`;
   const l2 = prose?.curveRead
     ? escapeHtml(prose.curveRead)
     : `2s10s ${code(bp(r.spread2s10Bp))} (${bp(r.spread2s10ChgBp)} on the day)`;
@@ -134,21 +177,40 @@ function divergenceSection(f: StructuredFacts): string {
     .map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}`)
     .join(", ");
   const verb = top.direction === "down" ? "green in a red" : "red in a green";
-  return `🔀 ${b("DIVERGENCE")} — ${escapeHtml(top.sectorName)} ${spct(top.sectorChangePct)}, but ${names} closed ${verb} sector`;
+  return `${b("DIVERGENCE")} — ${escapeHtml(top.sectorName)} ${spct(top.sectorChangePct)}, but ${names} closed ${verb} sector`;
 }
 
-function whatMattersSection(prose?: NoteProse): string {
-  if (!prose?.whatMatters?.length) return "";
-  const bullets = prose.whatMatters.map((x) => `• ${escapeHtml(x)}`).join("\n");
-  return `🔑 ${b("WHAT MATTERS")}\n${bullets}`;
+/**
+ * Claim-first bullets. The model writes "Short claim. Evidence.", so bolding
+ * the first sentence gives every item a lead the eye can catch — a 4-row
+ * unbroken bullet is a grey wall exactly where the reasoning lives. The bold
+ * lead also replaces the "•" marker, which at reading size was hard to tell
+ * apart from the "·" used as an inline separator.
+ */
+function whatMattersSection(prose: NoteProse | undefined, ledger: Ledger): string {
+  const items = (prose?.whatMatters ?? []).filter((x) => !ledger.isRedundant(x)).slice(0, 3);
+  if (items.length === 0) return "";
+  const lines = items.map((x) => {
+    ledger.claim(x);
+    // [\s\S] instead of the `s` flag — the build targets pre-ES2018.
+    const m = x.match(/^([\s\S]{0,60}?[.!?])\s+([\s\S]+)$/);
+    return m ? `${b(m[1])} ${escapeHtml(m[2])}` : escapeHtml(x);
+  });
+  return `${b("WHAT MATTERS")}\n${lines.join("\n")}`;
 }
 
-function bullBearSection(prose?: NoteProse): string {
-  if (!prose?.bull && !prose?.bear) return "";
-  const lines: string[] = [`⚖️ ${b("BULL / BEAR")}`];
-  if (prose.bull) lines.push(`${b("Bull:")} ${escapeHtml(prose.bull)}`);
-  if (prose.bear) lines.push(`${b("Bear:")} ${escapeHtml(prose.bear)}`);
-  return lines.join("\n");
+/** Bull and bear each get their own run-in label, on the same rail as the rest. */
+function bullBearSection(prose: NoteProse | undefined, ledger: Ledger): string {
+  const lines: string[] = [];
+  for (const [label, text] of [
+    ["BULL", prose?.bull],
+    ["BEAR", prose?.bear],
+  ] as const) {
+    if (!text || ledger.isRedundant(text)) continue;
+    ledger.claim(text);
+    lines.push(`${b(label)} — ${escapeHtml(text)}`);
+  }
+  return lines.join("\n\n");
 }
 
 /** One line per spotlighted sector, after CROSS-ASSET (§6). */
@@ -157,9 +219,11 @@ function spotlightSection(f: StructuredFacts, max = Infinity): string {
   return f.spotlight.value
     .slice(0, max)
     .map((s) => {
-      const head = `${s.emoji} ${b(s.label)}${s.headlinePct != null ? ` ${spct(s.headlinePct)}` : ""}`;
+      // The sector's own % already printed in the sector tape, so the callout
+      // stays purely additive — constituents only, which is its actual job.
+      const head = b(s.label);
       const bits: string[] = [];
-      if (s.price != null) bits.push(code(`$${intFmt(s.price)}`));
+      if (s.price != null) bits.push(`$${intFmt(s.price)}`);
       if (s.leaders.length)
         bits.push(`leaders ${s.leaders.map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}`).join(", ")}`);
       if (s.laggards.length)
@@ -175,13 +239,13 @@ function spotlightSection(f: StructuredFacts, max = Infinity): string {
  * positioning line is appended when it survived validation. Omitted entirely
  * when there's neither (§1 "cut quiet sections").
  */
-function bookSection(f: StructuredFacts, prose?: NoteProse): string {
+function bookSection(f: StructuredFacts, prose: NoteProse | undefined, ledger: Ledger): string {
   const pin = f.gexPin?.value;
   const parts: string[] = [];
   if (pin) {
     const stance = pin.netGammaPositive ? "dealers long gamma" : "dealers short gamma";
     parts.push(
-      `${stance}, pin near ${code(intFmt(pin.pinStrike))} on ${escapeHtml(pin.symbol)} (${spct(pin.distancePct)} away)`,
+      `${stance}, pin near ${intFmt(pin.pinStrike)} on ${escapeHtml(pin.symbol)}, ${spct(pin.distancePct)} away`,
     );
   }
   // The gamma stance is numeral-free, so the validator can't catch an LLM line
@@ -197,9 +261,15 @@ function bookSection(f: StructuredFacts, prose?: NoteProse): string {
     pin != null &&
     prose?.book != null &&
     (prose.book.includes(String(pin.pinStrike)) || /\bgamma\b/i.test(prose.book));
-  if (prose?.book && !contradictsStance && !restatesPin) parts.push(escapeHtml(prose.book));
+  const bookOk =
+    prose?.book && !contradictsStance && !restatesPin && !ledger.isRedundant(prose.book);
+  if (bookOk && prose?.book) {
+    ledger.claim(prose.book);
+    parts.push(escapeHtml(prose.book));
+  }
   if (parts.length === 0) return "";
-  return `📖 ${b("THE BOOK")} — ${parts.join(" · ")}`;
+  // "·" separates peers of the same type only; two clauses get a line break.
+  return `${b("THE BOOK")} — ${parts.join("\n")}`;
 }
 
 /** Next-session catalysts: econ releases with ET times (§4.9). */
@@ -221,9 +291,9 @@ function tellsSection(f: StructuredFacts): string {
             weekday: "short",
             timeZone: "UTC",
           }) + " ";
-    return `${escapeHtml(e.name)} ${escapeHtml(day)}${code(`${e.timeEt} ET`)}${escapeHtml(consensus)}`;
+    return `${escapeHtml(e.name)} ${escapeHtml(day)}${e.timeEt}${NB}ET${escapeHtml(consensus)}`;
   });
-  return `👀 ${b(`${label}'S TELLS`)} — ${items.join(" · ")}`;
+  return `${b(`${label}'S TELLS`)} — ${items.join(" · ")}`;
 }
 
 function crossPrice(p: CrossAssetPoint): string {
@@ -232,25 +302,27 @@ function crossPrice(p: CrossAssetPoint): string {
   if (p.label === "BTC") num = `$${Math.round(v / 1000)}k`;
   else if (p.label === "Gold" || p.label === "Crude") num = `$${intFmt(v)}`;
   else num = v.toFixed(1); // DXY
-  const chg = p.changePct != null ? ` ${dpct(p.changePct)}` : "";
-  return `${escapeHtml(p.label)} ${code(num)}${chg}`;
+  const chg = p.changePct != null ? ` ${spct(p.changePct)}` : "";
+  return `${bind(p.label, num)}${chg}`;
 }
 
 function sectorTape(s: SectorPoint[]): string {
   const sorted = [...s].sort((a, b) => b.changePct - a.changePct);
   const up = sorted.slice(0, 2).filter((x) => x.changePct > 0);
   const down = sorted.slice(-2).reverse().filter((x) => x.changePct < 0);
-  const fmt = (x: SectorPoint) => `${escapeHtml(x.name)} ${spct(x.changePct)}`;
-  const parts: string[] = [];
-  if (up.length) parts.push(`▲ ${up.map(fmt).join(", ")}`);
-  if (down.length) parts.push(`▼ ${down.map(fmt).join(", ")}`);
-  return parts.length ? `Sectors ${parts.join(" · ")}` : "";
+  const fmt = (x: SectorPoint) => bind(x.name, spct(x.changePct));
+  // Words, not ▲/▼ markers: the arrows substitute across platforms and this
+  // splits one long line into two short ones.
+  const lines: string[] = [];
+  if (up.length) lines.push(`Sector leaders ${up.map(fmt).join(", ")}`);
+  if (down.length) lines.push(`Sector laggards ${down.map(fmt).join(", ")}`);
+  return lines.join("\n");
 }
 
 function crossSection(f: StructuredFacts): string {
   const lines: string[] = [];
   if (f.crossAsset) {
-    lines.push(`🧭 ${b("CROSS-ASSET")} — ${f.crossAsset.value.map(crossPrice).join(" · ")}`);
+    lines.push(`${b("CROSS-ASSET")} — ${f.crossAsset.value.map(crossPrice).join(" · ")}`);
   }
   if (f.sectors) {
     const tape = sectorTape(f.sectors.value);
@@ -260,10 +332,9 @@ function crossSection(f: StructuredFacts): string {
 }
 
 function footer(webUrl: string): string {
-  const notAdvice = escapeHtml("Not advice.");
   // Telegram rejects a relative href with a 400; only link when absolute.
-  if (!/^https?:\/\//i.test(webUrl)) return notAdvice;
-  return `${notAdvice}${NBSP} <a href="${escapeAttr(webUrl)}">Full note →</a>`;
+  if (!/^https?:\/\//i.test(webUrl)) return "";
+  return `<a href="${escapeAttr(webUrl)}">Full note</a>`;
 }
 
 export interface RenderInput {
@@ -274,16 +345,27 @@ export interface RenderInput {
 }
 
 function build(facts: StructuredFacts, webUrl: string, prose?: NoteProse, maxSpotlight = Infinity): string {
+  // The ledger is filled by the deterministic sections FIRST, so they own their
+  // facts and any prose line that merely restates them is dropped.
+  const ledger = makeLedger();
+  const hook = hookLine(facts, prose);
+  const tape = tapeSection(facts);
+  const rates = ratesSection(facts, prose);
+  const cross = crossSection(facts);
+  const spot = spotlightSection(facts, maxSpotlight);
+  const diverge = divergenceSection(facts);
+  for (const s of [hook, tape, rates, cross, spot, diverge]) ledger.claim(s);
+
   return [
-    hookLine(facts, prose),
-    tapeSection(facts),
-    ratesSection(facts, prose),
-    crossSection(facts),
-    spotlightSection(facts, maxSpotlight),
-    divergenceSection(facts),
-    whatMattersSection(prose),
-    bullBearSection(prose),
-    bookSection(facts, prose),
+    hook,
+    tape,
+    rates,
+    cross,
+    spot,
+    diverge,
+    whatMattersSection(prose, ledger),
+    bullBearSection(prose, ledger),
+    bookSection(facts, prose, ledger),
     tellsSection(facts),
     footer(webUrl),
   ]
@@ -377,7 +459,7 @@ function webSpotlight(f: StructuredFacts): string {
         rows.push(`<li>Laggard <code>${escapeHtml(n.ticker)}</code> ${spct(n.changePct)}</li>`);
       if (s.proxy)
         rows.push(`<li>Proxy <code>${escapeHtml(s.proxy.ticker)}</code> ${spct(s.proxy.changePct)}</li>`);
-      const head = `${s.emoji} ${escapeHtml(s.label)}${s.headlinePct != null ? ` ${spct(s.headlinePct)}` : ""}`;
+      const head = `${escapeHtml(s.label)}${s.headlinePct != null ? ` ${spct(s.headlinePct)}` : ""}`;
       return `<h3>${head}</h3>\n<ul>\n${rows.join("\n")}\n</ul>`;
     })
     .join("\n");

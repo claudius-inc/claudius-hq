@@ -28,23 +28,29 @@ const MODEL = process.env.DEEPSEEK_MODEL || "deepseek-v4-flash";
 /** Tries before the note ships without prose. 3 × 60s stays inside the job budget. */
 const MAX_ATTEMPTS = 3;
 
+// Display formatters, identical to the renderer's. The model quotes whatever
+// string it is shown, so handing it raw values was the sole cause of the note
+// mixing "+1.3%" with "+1.49%" and "1.90" with "1.9" for the same quantities.
+const pct = (n: number, dp = 1) => `${n >= 0 ? "+" : ""}${n.toFixed(dp)}%`;
+const num = (n: number) => Math.round(n).toLocaleString("en-US");
+
 /** Exact numbers the model may use, as a plain-text sheet. */
 function factSheet(f: StructuredFacts): string {
   const lines: string[] = [`Date: ${f.date}`];
-  if (f.indices) lines.push("Indices: " + f.indices.value.map((i) => `${i.name} ${i.close} (${i.changePct >= 0 ? "+" : ""}${i.changePct}%)`).join(", "));
+  if (f.indices) lines.push("Indices: " + f.indices.value.map((i) => `${i.name} ${num(i.close)} (${pct(i.changePct)})`).join(", "));
   if (f.rates) {
     const r = f.rates.value;
-    lines.push(`Rates: 2Y ${r.y2}% (${r.chg2Bp}bp), 10Y ${r.y10}% (${r.chg10Bp}bp), 30Y ${r.y30}% (${r.chg30Bp}bp); 2s10s ${r.spread2s10Bp}bp (${r.spread2s10ChgBp}bp on day)`);
+    lines.push(`Rates: 2Y ${r.y2.toFixed(2)}% (${r.chg2Bp}bp), 10Y ${r.y10.toFixed(2)}% (${r.chg10Bp}bp), 30Y ${r.y30.toFixed(2)}% (${r.chg30Bp}bp); 2s10s ${r.spread2s10Bp}bp (${r.spread2s10ChgBp}bp on day)`);
   }
   if (f.vix) {
     const v = f.vix.value;
-    lines.push(`VIX: ${v.level} (${v.change >= 0 ? "+" : ""}${v.change}), ${v.percentile}th %ile of YTD ${v.ytdLow}-${v.ytdHigh}, ${v.trendDir} ${v.trendDays}d`);
+    lines.push(`VIX: ${v.level.toFixed(1)} (${v.change >= 0 ? "+" : ""}${v.change.toFixed(1)}), ${v.percentile}th percentile of this year's ${v.ytdLow.toFixed(1)}-${v.ytdHigh.toFixed(1)} range, ${v.trendDir} ${v.trendDays} days`);
   }
-  if (f.crossAsset) lines.push("Cross-asset: " + f.crossAsset.value.map((c) => `${c.label} ${c.price}${c.changePct != null ? ` (${c.changePct >= 0 ? "+" : ""}${c.changePct}%)` : ""}`).join(", "));
-  if (f.sectors) lines.push("Sectors (1d%): " + f.sectors.value.map((s) => `${s.name} ${s.changePct >= 0 ? "+" : ""}${s.changePct}%`).join(", "));
+  if (f.crossAsset) lines.push("Cross-asset: " + f.crossAsset.value.map((c) => `${c.label} ${num(c.price)}${c.changePct != null ? ` (${pct(c.changePct)})` : ""}`).join(", "));
+  if (f.sectors) lines.push("Sectors (1d%): " + f.sectors.value.map((s) => `${s.name} ${pct(s.changePct)}`).join(", "));
   if (f.breadth) {
     const bd = f.breadth.value;
-    lines.push(`Breadth (NYSE): ${bd.advances} advancers / ${bd.declines} decliners, A/D ${bd.ratio}, new highs ${bd.newHighs} / new lows ${bd.newLows}`);
+    lines.push(`Breadth (NYSE): ${num(bd.advances)} advancers / ${num(bd.declines)} decliners, A/D ${bd.ratio.toFixed(2)}, new highs ${bd.newHighs} / new lows ${bd.newLows}`);
   }
   if (f.divergence) {
     lines.push(
@@ -52,8 +58,8 @@ function factSheet(f: StructuredFacts): string {
         f.divergence.value
           .map(
             (d) =>
-              `  ${d.sectorName} (${d.etf}) ${d.sectorChangePct >= 0 ? "+" : ""}${d.sectorChangePct}% ${d.direction} — bucking it: ` +
-              d.names.map((n) => `${n.ticker} ${n.changePct >= 0 ? "+" : ""}${n.changePct}%`).join(", "),
+              `  ${d.sectorName} (${d.etf}) ${pct(d.sectorChangePct)} ${d.direction} — bucking it: ` +
+              d.names.map((n) => `${n.ticker} ${pct(n.changePct)}`).join(", "),
           )
           .join("\n"),
     );
@@ -70,13 +76,13 @@ function factSheet(f: StructuredFacts): string {
         : " (SIGN FLIPS — the index was only down because of those names; without them it is positive)"
       : "";
     lines.push(
-      `Index concentration: top movers ${c.topNames.join(", ")} contributed ${c.topPoints} points of the S&P's ${c.actualPct}%; ex-those names the index is ${c.exTopPct}%${flip}`,
+      `Index concentration: top movers ${c.topNames.join(", ")} contributed ${c.topPoints.toFixed(2)}pp of the S&P's ${pct(c.actualPct)}; ex-those names the index is ${pct(c.exTopPct)}${flip}`,
     );
   }
   if (f.gexPin) {
     const g = f.gexPin.value;
     lines.push(
-      `Positioning: dealers net ${g.netGammaPositive ? "LONG" : "SHORT"} gamma on ${g.symbol}; largest-gamma strike (pin) ${g.pinStrike}, spot ${g.spot} (${g.distancePct}% away). Note OI is start-of-day, so treat as directional.`,
+      `Positioning: dealers net ${g.netGammaPositive ? "LONG" : "SHORT"} gamma on ${g.symbol}; largest-gamma strike (pin) ${num(g.pinStrike)}, spot ${num(g.spot)} (${pct(g.distancePct)} away). Note OI is start-of-day, so treat as directional.`,
     );
   }
   if (f.econEvents) {
@@ -99,12 +105,14 @@ HARD RULES:
 - Lead the hook with the day's divergence + the single most important number. Hook ≤ 120 characters, plain text, no emoji.
 - Balance bull vs bear (one line each, each a specific argument). Keep it tight.
 - If a section has nothing real to say, omit it (empty string / omit the key).
+- The tape, rates, cross-asset, sector and divergence lines are ALREADY PRINTED above your text. Do not repeat their digits. Refer to those facts in words instead ("advancers beat decliners nearly two to one", not "1,808 vs 951"). A line that only restates printed numbers is deleted before sending.
+- Write percent changes to one decimal, yields to two, and index levels with a thousands separator, exactly as the fact sheet shows them.
 
 Return ONLY a JSON object (no markdown fence) with keys:
 {
   "hook": string,
   "curveRead": string,        // one line on the rates curve + why
-  "whatMatters": string[],    // 3-4 bullets
+  "whatMatters": string[],    // exactly 3. Each is "Short claim. Evidence." — a verdict of 5 words or fewer ending in a period, then the evidence in under 90 characters. The claim is rendered in bold, so it must stand alone.
   "bull": string,
   "bear": string,
   "book": string              // positioning colour ONLY. The dealer gamma stance and the pin strike are already printed for you — do NOT restate them. Return "" unless you can add something they do not say.
