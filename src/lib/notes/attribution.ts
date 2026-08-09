@@ -75,20 +75,29 @@ interface RatingAction {
   currentPriceTarget?: number;
 }
 
-/** Same-session analyst actions for a ticker. */
-async function fetchRatingActions(ticker: string, marketDate: string): Promise<RatingAction[]> {
+/**
+ * Analyst actions that could have moved TODAY's regular session.
+ *
+ * The window closes at the bell, not at midnight. The note runs at 6:15pm, so a
+ * calendar-day filter sweeps in actions issued after the close — and printing
+ * "fell on a downgrade" for a downgrade published hours AFTER the fall is a
+ * cause that post-dates its effect. Those belong to tomorrow's reaction day.
+ */
+async function fetchRatingActions(
+  ticker: string,
+  marketDate: string,
+  closeMinute: number,
+): Promise<RatingAction[]> {
   try {
     await acquireYahooSlot();
     const s = (await yahooFinance.quoteSummary(ticker, {
-      modules: ["upgradeDowngradeHistory", "earningsHistory"],
-    })) as {
-      upgradeDowngradeHistory?: { history?: RatingAction[] };
-      earningsHistory?: { history?: { epsActual?: number; epsEstimate?: number; quarter?: Date }[] };
-    };
+      modules: ["upgradeDowngradeHistory"],
+    })) as { upgradeDowngradeHistory?: { history?: RatingAction[] } };
     const hist = s.upgradeDowngradeHistory?.history ?? [];
     return hist.filter((h) => {
       const ms = toMs(h.epochGradeDate);
-      return Number.isFinite(ms) && ms > 0 && etDate(ms) === marketDate;
+      if (!Number.isFinite(ms) || ms <= 0 || etDate(ms) !== marketDate) return false;
+      return etMinutesOf(ms) <= closeMinute;
     });
   } catch (error) {
     logger.warn(SRC, "Rating fetch failed", { ticker, error });
@@ -110,6 +119,19 @@ async function fetchYahooEps(ticker: string): Promise<{ actual: number; estimate
   } catch {
     return null;
   }
+}
+
+/** Minutes-since-ET-midnight for an instant. */
+function etMinutesOf(ms: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date(ms));
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  return (h % 24) * 60 + m;
 }
 
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -163,13 +185,12 @@ export async function buildAttributions(
       const finnhubActual = report?.epsActual ?? null;
       const actual = yahoo?.actual ?? finnhubActual;
       if (actual == null) {
-        // Reported, but no actual we can stand behind yet (a 4:15pm print is
-        // often not in either feed by 6:15pm). State the fact, not a verdict.
-        out.push({
+        // A schedule is not a confirmation. Both paths here are calendars, and
+        // a before-open report would be in the feeds by evening — a null actual
+        // most likely means the report was postponed. §1a: print the move with
+        // NO clause rather than assert a report we cannot confirm.
+        logger.info(SRC, "Reported-today flagged but no actual to corroborate — no attribution", {
           ticker: c.ticker,
-          rung: "earnings",
-          verb: "after",
-          phrase: `${c.ticker} ${dir} ${fmtPct(c.changePct)} after reporting`,
         });
         continue;
       }
@@ -196,7 +217,7 @@ export async function buildAttributions(
     }
 
     // ── Rungs 2 and 3: analyst actions dated today ──────────────────────────
-    const actions = await fetchRatingActions(c.ticker, marketDate);
+    const actions = await fetchRatingActions(c.ticker, marketDate, closeMinute);
     const graded = actions.filter((a) => a.action === "up" || a.action === "down" || a.action === "init");
     const signed = graded.find(
       (a) => (a.action === "down" && c.changePct < 0) || (a.action === "up" && c.changePct > 0),

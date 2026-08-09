@@ -63,7 +63,15 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
   // must be in the pool or a legitimate bullet gets dropped.
   if (f.timeframes) for (const t of f.timeframes.value) push(t.chg5s, t.chg21s);
   // §E: prose may read the print against its prior.
-  if (f.macro) for (const m of f.macro.value) push(m.actual, m.prior);
+  if (f.macro)
+    for (const m of f.macro.value) {
+      push(m.actual, m.prior);
+      // A "k"-suffixed figure is shown to the model as "199k", and the numeral
+      // extractor multiplies a k-suffix by 1000 — so the pooled 199 could never
+      // match and the bullet leading with the day's payrolls or claims print was
+      // always dropped. Pool the scaled form too (mirrors the BTC handling).
+      if (m.suffix === "k") push(m.actual * 1000, m.prior * 1000);
+    }
   // §B: EPS figures and price targets are deliberately NOT pooled. They live
   // only on the deterministic MOVERS line, so a bullet that tries to cite them
   // fails validation and is dropped — which enforces §1b as a side effect
@@ -140,6 +148,65 @@ export interface ValidationResult {
   ok: boolean;
   /** Raw numeral strings in the prose with no supporting fact. */
   unsupported: string[];
+}
+
+/**
+ * §1b, enforced by DEFAULT-DENY: a prose field naming any ticker may not carry
+ * a causal connective anywhere in that field.
+ *
+ * Attribution is the renderer's job — MOVERS carries the retrieved, dated,
+ * direction-checked reason. The model's bullets reason about macro, breadth,
+ * the index and sectors, none of which name a ticker, so v1's because/despite
+ * mandate still has plenty to work with.
+ *
+ * The ban is scoped to the FIELD, not the sentence. Sentence scope re-opens the
+ * leak it was meant to close: "AKAM closed -6.8%. It fell after a downgrade."
+ * puts the ticker in one sentence and the invented cause in the next, and since
+ * bullets are a two-sentence "Claim. Evidence." form, that split would be the
+ * natural way to satisfy the mandate.
+ *
+ * `despite` is excluded: it is contrastive, asserts no mechanism, and the bullet
+ * mandate leans on it. The inferential group IS included — "AKAM plunged, so its
+ * peers sold off" invents a sympathy mechanism for the peers.
+ */
+const CAUSAL_CONNECTIVES =
+  /\b(on|after|as|amid|following|because|due to|owing to|thanks to|driven by|led by|fuelled by|fueled by|sparked by|triggered by|prompted by|boosted by|pressured by|weighed by|helped by|hurt by|tracking|in sympathy with|in response to|on the back of|so|thus|hence|therefore)\b/i;
+
+/** Word-boundary, case-sensitive ticker match — "Gap" the company, not "gap". */
+function namesTicker(text: string, tickers: string[]): string | null {
+  for (const t of tickers) {
+    if (new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(text)) return t;
+  }
+  return null;
+}
+
+/** Every ticker the note knows about, for the §1b containment test. */
+export function collectTickers(f: StructuredFacts): string[] {
+  const out = new Set<string>();
+  if (f.divergence) for (const d of f.divergence.value) for (const n of d.names) out.add(n.ticker);
+  if (f.contribution) for (const t of f.contribution.value.topNames) out.add(t);
+  if (f.attributions) for (const a of f.attributions.value) out.add(a.ticker);
+  if (f.spotlight)
+    for (const s of f.spotlight.value) {
+      for (const n of [...s.leaders, ...s.laggards]) out.add(n.ticker);
+      if (s.proxy) out.add(s.proxy.ticker);
+    }
+  return Array.from(out);
+}
+
+export interface CausalCheck {
+  ok: boolean;
+  ticker?: string;
+  connective?: string;
+}
+
+/** True when the field is clean under §1b. */
+export function checkCausalRule(text: string, tickers: string[]): CausalCheck {
+  const ticker = namesTicker(text, tickers);
+  if (!ticker) return { ok: true };
+  const m = text.match(CAUSAL_CONNECTIVES);
+  if (!m) return { ok: true };
+  return { ok: false, ticker, connective: m[0] };
 }
 
 /** Validate one prose string against the fact pool. */

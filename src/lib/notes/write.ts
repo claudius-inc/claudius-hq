@@ -18,7 +18,7 @@
  */
 import { logger } from "@/lib/logger";
 import type { StructuredFacts, NoteProse } from "@/lib/notes/types";
-import { collectAllowedNumbers, validateProseField } from "@/lib/notes/validate";
+import { collectAllowedNumbers, validateProseField, checkCausalRule, collectTickers } from "@/lib/notes/validate";
 import { deterministicHook } from "@/lib/notes/render";
 
 const SRC = "notes/write";
@@ -136,7 +136,8 @@ const RULES = `You are an ex-Goldman Sachs desk head writing "The Tape", a conci
 
 HARD RULES:
 - Use ONLY numbers that appear verbatim in the FACT SHEET. Never invent a price, percentage, level, or count. Do NOT introduce forward "watch levels" (e.g. "reclaim $4,300") — those are added elsewhere.
-- Every "whatMatters" bullet must carry a because / despite / on-[good/bad]-numbers. No naked price recaps.
+- Every "whatMatters" bullet must carry a because / despite. No naked price recaps.
+- DO NOT NAME INDIVIDUAL TICKERS in any field. The note already prints the movers and their reasons on its own lines, immediately above yours. Refer to them collectively ("three of the four biggest reporters fell") or by sector. A field that names a ticker alongside a causal word is deleted before sending.
 - Do not use magnitude adjectives the number doesn't support (a 2bp move is not "a huge flattening").
 - Lead the hook with the day's divergence + the single most important number. Hook ≤ 120 characters, plain text, no emoji.
 - Balance bull vs bear (one line each, each a specific argument). Keep it tight.
@@ -261,11 +262,28 @@ function allViolations(p: NoteProse, allowed: number[]): string[] {
 
 /** Drop fields that still cite unsupported numbers; template-fallback the hook. */
 function applyFallbacks(f: StructuredFacts, p: NoteProse, allowed: number[]): NoteProse {
-  const okField = (t?: string) => (t ? validateProseField(t, allowed).ok : false);
+  const tickers = collectTickers(f);
+  // A field must clear BOTH gates: its numerals must be supported (§8.3), and
+  // it must not name a ticker alongside a causal connective (§1b). The second
+  // is what stops an invented mechanism riding on a legitimately-pooled number.
+  const okField = (t?: string) =>
+    !!t && validateProseField(t, allowed).ok && checkCausalRule(t, tickers).ok;
+
+  for (const t of [p.hook, p.curveRead, ...p.whatMatters, p.bull, p.bear, p.book]) {
+    if (!t) continue;
+    const causal = checkCausalRule(t, tickers);
+    if (!causal.ok) {
+      logger.info(SRC, "Dropping field: names a ticker with a causal connective (§1b)", {
+        ticker: causal.ticker,
+        connective: causal.connective,
+      });
+    }
+  }
+
   return {
     hook: okField(p.hook) ? p.hook : deterministicHook(f), // NEVER dropped (§4.1)
     curveRead: okField(p.curveRead) ? p.curveRead : undefined,
-    whatMatters: p.whatMatters.filter((x) => validateProseField(x, allowed).ok),
+    whatMatters: p.whatMatters.filter((x) => okField(x)),
     bull: okField(p.bull) ? p.bull : undefined,
     bear: okField(p.bear) ? p.bear : undefined,
     book: okField(p.book) ? p.book : undefined,

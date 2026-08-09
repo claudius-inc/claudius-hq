@@ -96,6 +96,17 @@ export interface ContributionData {
   flipsWithoutTop: boolean;
 }
 
+/** An expectation that settled today (v2 §F). Hit and miss share one shape. */
+export interface LedgerEntry {
+  subject: string;
+  comparator: string;
+  threshold: number;
+  /** The session that registered it, so the reader sees how old the call was. */
+  noteDate: string;
+  status: "hit" | "miss";
+  resolvedValue: number;
+}
+
 /**
  * A retrieved, dated, direction-checked reason for a single name's move (v2 §B).
  * The phrase CONTAINS its own ticker, which is what lets the prose rule be a
@@ -230,6 +241,11 @@ export interface StructuredFacts {
   macro: Fact<MacroRelease[]> | null;
   /** Why the day's notable names moved (§B). Renderer-owned; never LLM prose. */
   attributions: Fact<Attribution[]> | null;
+  /**
+   * Expectations that settled today (§F), plus how many remain live. Template-
+   * rendered so the model can neither spin a miss nor omit one.
+   */
+  ledger: (Fact<LedgerEntry[]> & { openCount: number }) | null;
 }
 
 /**

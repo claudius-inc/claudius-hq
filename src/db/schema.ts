@@ -1159,3 +1159,51 @@ export const weeklyNotes = sqliteTable("weekly_notes", {
 });
 
 export type WeeklyNote = typeof weeklyNotes.$inferSelect;
+
+// A falsifiable expectation, registered BEFORE its outcome is knowable and
+// resolved by code alone. Rows are immutable after creation except for the
+// resolution fields — rewriting the bet is the first door to flattery, so it is
+// closed structurally rather than by policy. `origin` is never "llm": a model
+// that both writes the prose and mints the predictions will mint easy ones.
+export const EXPECTATION_STATUSES = ["open", "hit", "miss", "unresolvable"] as const;
+export type ExpectationStatus = (typeof EXPECTATION_STATUSES)[number];
+
+export const noteExpectations = sqliteTable(
+  "note_expectations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    noteDate: text("note_date").notNull(), // the session that registered it
+    subject: text("subject").notNull(), // "GC=F" | "^GSPC" | "SPREAD_2S10S" | …
+    metric: text("metric").notNull(), // "close" | "spread_bp"
+    comparator: text("comparator").notNull(), // touch_above | touch_below | at_horizon_above | at_horizon_below
+    threshold: real("threshold").notNull(),
+    baselineValue: real("baseline_value").notNull(),
+    baselineSource: text("baseline_source").notNull(),
+    horizonSessions: integer("horizon_sessions").notNull(),
+    sessionsElapsed: integer("sessions_elapsed").notNull().default(0),
+    status: text("status").notNull().default("open"),
+    resolvedDate: text("resolved_date"),
+    resolvedValue: real("resolved_value"),
+    resolvedSource: text("resolved_source"),
+    origin: text("origin").notNull(), // "owner" | "auto_*" — never "llm"
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    // The daily workflow fires twice per evening, so without this the second run
+    // re-registers the same bet an hour later with more information. Metric and
+    // horizon are part of the key: the same level at 5 and 21 sessions are two
+    // different bets, and omitting them would silently lose one.
+    idemIdx: uniqueIndex("idx_note_expectations_idem").on(
+      table.noteDate,
+      table.subject,
+      table.metric,
+      table.comparator,
+      table.threshold,
+      table.horizonSessions,
+    ),
+    openIdx: index("idx_note_expectations_open").on(table.status),
+  }),
+);
+
+export type NoteExpectation = typeof noteExpectations.$inferSelect;
+export type NewNoteExpectation = typeof noteExpectations.$inferInsert;

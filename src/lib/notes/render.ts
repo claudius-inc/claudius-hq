@@ -276,6 +276,30 @@ function moversSection(f: StructuredFacts, withReasons = true, max = 3): string 
   return `${b("MOVERS")}\n${lines.join("\n")}`;
 }
 
+/**
+ * LEDGER — expectations that settled today (§F).
+ *
+ * Rendered from a template, never by the model, and hit and miss share one
+ * format. The cap selects MISSES FIRST, then oldest: an unordered cap would be
+ * selective narration wearing a rule. Aggregate records, streaks, and any hit
+ * rate without its denominator are deliberately absent — the web ledger carries
+ * the full table including the unresolvable rows.
+ */
+function ledgerSection(f: StructuredFacts): string {
+  const settled = f.ledger?.value;
+  if (!settled?.length) return "";
+  const ordered = [...settled].sort((a, b) => {
+    if (a.status !== b.status) return a.status === "miss" ? -1 : 1;
+    return a.noteDate.localeCompare(b.noteDate);
+  });
+  const items = ordered.slice(0, 2).map((r) => {
+    const dir = r.comparator.includes("above") ? "above" : "below";
+    return `called ${escapeHtml(r.noteDate)}: ${escapeHtml(r.subject)} ${dir} ${r.threshold} → ${r.status} (${r.resolvedValue})`;
+  });
+  const open = f.ledger?.openCount ?? 0;
+  return `${b("LEDGER")} — ${items.join(" · ")}${open > 0 ? ` · ${open} still open` : ""}`;
+}
+
 function whatMattersSection(prose: NoteProse | undefined, ledger: Ledger): string {
   const items = (prose?.whatMatters ?? []).filter((x) => !ledger.isRedundant(x)).slice(0, 3);
   if (items.length === 0) return "";
@@ -462,6 +486,7 @@ function build(
   const spot = spotlightSection(facts, maxSpotlight);
   const diverge = divergenceSection(facts);
   const movers = moversSection(facts, moverReasons);
+  const ledgerLine = ledgerSection(facts);
   for (const s of [hook, tape, trend, macro, rates, cross, spot, diverge, movers]) ledger.claim(s);
 
   return [
@@ -473,6 +498,10 @@ function build(
     cross,
     spot,
     diverge,
+    // MOVERS sits after DIVERGENCE and before the prose (§B): it is the only
+    // place a cause for an individual name may appear, and it must render
+    // BEFORE the bullets so the claim ledger's ordering guarantee holds.
+    movers,
     whatMattersSection(prose, ledger),
     bullBearSection(prose, ledger),
     bookSection(facts, prose, ledger),
@@ -501,7 +530,16 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
     candidates.push({ prose, showAfterHours: false });
     // Macro figures survive; only their framing goes.
     candidates.push({ prose, showAfterHours: false, macroDetail: false });
-    candidates.push({ prose: { ...prose, book: undefined }, showAfterHours: false });
+    // Then the mover reason clauses. The names and their moves survive; only
+    // the retrieved explanation goes. Still ahead of any prose, because a
+    // reason clause is worth less than the note's reasoning.
+    candidates.push({ prose, showAfterHours: false, macroDetail: false, moverReasons: false });
+    candidates.push({
+      prose: { ...prose, book: undefined },
+      showAfterHours: false,
+      macroDetail: false,
+      moverReasons: false,
+    });
     candidates.push({ prose: { ...prose, book: undefined, bull: undefined, bear: undefined }, showAfterHours: false });
     // Trim What-Matters bullets from the end.
     for (let n = prose.whatMatters.length - 1; n >= 0; n--) {
@@ -516,11 +554,19 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
       });
     }
   }
-  candidates.push({ showAfterHours: false }); // deterministic, prose-free
+  // Prose-free, but still the FULL deterministic note. The degraded variants
+  // must come after: on a day with no prose at all (no key, model down) there is
+  // usually plenty of room, and stripping the reason clauses then would discard
+  // content for nothing.
+  candidates.push({});
+  candidates.push({ showAfterHours: false });
+  candidates.push({ showAfterHours: false, macroDetail: false });
+  candidates.push({ showAfterHours: false, macroDetail: false, moverReasons: false });
   // Last resort before throwing: the user can spotlight all 12 sectors, so trim
   // those callouts too rather than failing the send.
   const spotlightCount = facts.spotlight?.value.length ?? 0;
-  for (let n = spotlightCount - 1; n >= 0; n--) candidates.push({ maxSpotlight: n, showAfterHours: false });
+  for (let n = spotlightCount - 1; n >= 0; n--)
+    candidates.push({ maxSpotlight: n, showAfterHours: false, macroDetail: false, moverReasons: false });
 
   let last = "";
   for (const c of candidates) {
