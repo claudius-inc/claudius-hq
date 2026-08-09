@@ -64,6 +64,10 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
   if (f.timeframes) for (const t of f.timeframes.value) push(t.chg5s, t.chg21s);
   // §E: prose may read the print against its prior.
   if (f.macro) for (const m of f.macro.value) push(m.actual, m.prior);
+  // §B: EPS figures and price targets are deliberately NOT pooled. They live
+  // only on the deterministic MOVERS line, so a bullet that tries to cite them
+  // fails validation and is dropped — which enforces §1b as a side effect
+  // rather than needing a second mechanism. Do not "fix" this by adding them.
   if (f.spotlight)
     for (const s of f.spotlight.value) {
       push(s.headlinePct, s.price, s.proxy?.changePct);

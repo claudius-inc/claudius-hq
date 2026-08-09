@@ -23,6 +23,8 @@ import { computeDivergenceFacts } from "@/lib/notes/divergence";
 import { fetchGexPinFact } from "@/lib/notes/sources/gex-pin";
 import { fetchEconEvents } from "@/lib/notes/sources/econ-calendar";
 import { fetchMacroReleases } from "@/lib/notes/sources/fred-releases";
+import { fetchEarningsCalendar } from "@/lib/notes/sources/earnings-calendar";
+import { buildAttributions } from "@/lib/notes/attribution";
 import { loadEnabledSpotlights, buildSpotlightBlocks } from "@/lib/notes/spotlight";
 import { etDate, etStamp } from "@/lib/notes/session";
 import type {
@@ -342,7 +344,34 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     "^VIX",
   ];
   const timeframes = await fetchTimeframes(benchmarks, marketDate);
-  void relevance; // ranking is wired and logged; §B consumes it next.
+
+  // §B attribution. The relevance ranking decides WHICH names deserve a reason;
+  // the calendar window reaches back a session so an after-close report from
+  // yesterday is found as today's reaction.
+  const sectorPct = new Map((sectors?.value ?? []).map((s) => [s.etf, s.changePct]));
+  const earningsCal = await fetchEarningsCalendar(priorSessionDate ?? marketDate, marketDate);
+  const attributions = await buildAttributions(
+    relevance
+      .map((r) => {
+        const c = constituents.find((x) => x.ticker === r.ticker);
+        const sp = sectorPct.get(r.sectorEtf);
+        return c && sp != null
+          ? {
+              ticker: r.ticker,
+              changePct: r.changePct,
+              sectorEtf: r.sectorEtf,
+              sectorPct: sp,
+              sectorWeight: c.sectorWeight,
+              earningsStamp: c.earningsStamp,
+            }
+          : null;
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null),
+    earningsCal,
+    marketDate,
+    priorSessionDate,
+    closeMinute,
+  );
 
   const spotlightBlocks = await buildSpotlightBlocks({
     enabled: enabledSpotlights,
@@ -369,6 +398,8 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     postMarket: postMarketFact(postMarketByTicker, divergence, spotlightBlocks, contribution),
     timeframes: timeframes.length > 0 ? { value: timeframes, source: "Yahoo daily bars (adjusted)", asOf } : null,
     macro,
+    attributions:
+      attributions.length > 0 ? { value: attributions, source: "Finnhub + Yahoo (dated, direction-checked)", asOf } : null,
   };
 }
 

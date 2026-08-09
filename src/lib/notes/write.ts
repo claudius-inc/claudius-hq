@@ -85,6 +85,22 @@ function factSheet(f: StructuredFacts): string {
       `Positioning: dealers net ${g.netGammaPositive ? "LONG" : "SHORT"} gamma on ${g.symbol}; largest-gamma strike (pin) ${num(g.pinStrike)}, spot ${num(g.spot)} (${pct(g.distancePct)} away). Note OI is start-of-day, so treat as directional.`,
     );
   }
+  if (f.macro) {
+    // Without this the model never learns that CPI printed today, so on the
+    // day's most important number it structurally cannot lead with it — while
+    // the validator pooled those numerals as though prose could use them.
+    lines.push(
+      "Economic data released TODAY (measured against the PRIOR reading, not a consensus — no consensus feed is available): " +
+        f.macro.value
+          .map(
+            (m) =>
+              `${m.label} ${m.signed && m.actual >= 0 ? "+" : ""}${m.actual.toFixed(m.dp)}${m.suffix} vs ` +
+              `${m.signed && m.prior >= 0 ? "+" : ""}${m.prior.toFixed(m.dp)}${m.suffix} prior` +
+              `${m.priorRevised ? " (that prior has since been revised)" : ""}`,
+          )
+          .join("; "),
+    );
+  }
   if (f.timeframes) {
     const named = f.timeframes.value.filter((t) => t.chg5s != null || t.chg21s != null);
     if (named.length > 0) {

@@ -97,6 +97,24 @@ export interface ContributionData {
 }
 
 /**
+ * A retrieved, dated, direction-checked reason for a single name's move (v2 §B).
+ * The phrase CONTAINS its own ticker, which is what lets the prose rule be a
+ * plain containment check. Composed by the assembler, rendered deterministically,
+ * never authored or paraphrased by the model (§1b).
+ */
+export interface Attribution {
+  ticker: string;
+  rung: "earnings" | "rating" | "target";
+  /** "on" is causal and needs a signed, direction-matching event; "after" is temporal. */
+  verb: "on" | "after";
+  phrase: string;
+  epsActual?: number;
+  /** Present only when two sources agreed on the sign of the surprise. */
+  epsEstimate?: number;
+  firm?: string;
+}
+
+/**
  * An economic release that printed today (v2 §E). Measured against the PRIOR,
  * not a consensus — no free feed carries consensus, and calling a prior-gap a
  * consensus miss would be untrue.
@@ -107,12 +125,18 @@ export interface MacroRelease {
   period: string;
   timeEt: string;
   actual: number;
-  /** The prior reading as ORIGINALLY published, not as revised since. */
+  /**
+   * The prior reading from the CURRENT vintage. FRED cannot transform across
+   * vintages, so this is not the as-first-published figure — `priorRevised`
+   * carries that caveat and must not be dropped.
+   */
   prior: number;
   /** True when the current vintage of the prior differs from its first print. */
   priorRevised: boolean;
   suffix: string;
   dp: number;
+  /** Whether a leading "+" belongs — true for changes, false for levels. */
+  signed: boolean;
 }
 
 /**
@@ -204,6 +228,8 @@ export interface StructuredFacts {
   timeframes: Fact<TimeframeMove[]> | null;
   /** Economic releases that printed today, actual vs prior (§E). */
   macro: Fact<MacroRelease[]> | null;
+  /** Why the day's notable names moved (§B). Renderer-owned; never LLM prose. */
+  attributions: Fact<Attribution[]> | null;
 }
 
 /**

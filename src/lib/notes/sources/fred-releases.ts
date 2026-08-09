@@ -42,6 +42,10 @@ interface ReleaseSpec {
   timeEt: string;
   suffix: string;
   dp: number;
+  /** Multiply the raw value before display. ICSA is a raw count, not thousands. */
+  scale?: number;
+  /** Whether a leading "+" belongs. True for changes, false for levels. */
+  signed: boolean;
   /**
    * How stale the observation may be relative to the release date before we
    * refuse to print it. This is the guard against the failure the whole section
@@ -54,14 +58,14 @@ interface ReleaseSpec {
 
 /** The releases a market reader actually positions around. */
 const RELEASES: ReleaseSpec[] = [
-  { releaseId: 10, seriesId: "CPIAUCNS", label: "CPI y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, maxAgeDays: 60 },
-  { releaseId: 46, seriesId: "PPIFIS", label: "PPI y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, maxAgeDays: 60 },
-  { releaseId: 50, seriesId: "PAYEMS", label: "Payrolls", units: "chg", timeEt: "8:30", suffix: "k", dp: 0, maxAgeDays: 60 },
-  { releaseId: 50, seriesId: "UNRATE", label: "Unemployment", units: "lin", timeEt: "8:30", suffix: "%", dp: 1, maxAgeDays: 60 },
-  { releaseId: 54, seriesId: "PCEPILFE", label: "Core PCE y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, maxAgeDays: 70 },
-  { releaseId: 9, seriesId: "RSAFS", label: "Retail sales m/m", units: "pch", timeEt: "8:30", suffix: "%", dp: 1, maxAgeDays: 60 },
-  { releaseId: 180, seriesId: "ICSA", label: "Jobless claims", units: "lin", timeEt: "8:30", suffix: "k", dp: 0, maxAgeDays: 14 },
-  { releaseId: 53, seriesId: "A191RL1Q225SBEA", label: "GDP q/q ann.", units: "lin", timeEt: "8:30", suffix: "%", dp: 1, maxAgeDays: 130 },
+  { releaseId: 10, seriesId: "CPIAUCNS", label: "CPI y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 60 },
+  { releaseId: 46, seriesId: "PPIFID", label: "PPI y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 60 },
+  { releaseId: 50, seriesId: "PAYEMS", label: "Payrolls", units: "chg", timeEt: "8:30", suffix: "k", dp: 0, signed: true, maxAgeDays: 60 },
+  { releaseId: 50, seriesId: "UNRATE", label: "Unemployment", units: "lin", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 60 },
+  { releaseId: 54, seriesId: "PCEPILFE", label: "Core PCE y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 70 },
+  { releaseId: 9, seriesId: "RSAFS", label: "Retail sales m/m", units: "pch", timeEt: "8:30", suffix: "%", dp: 1, signed: true, maxAgeDays: 60 },
+  { releaseId: 180, seriesId: "ICSA", label: "Jobless claims", units: "lin", timeEt: "8:30", suffix: "k", dp: 0, scale: 1e-3, signed: false, maxAgeDays: 8 },
+  { releaseId: 53, seriesId: "A191RL1Q225SBEA", label: "GDP q/q ann. (advance)", units: "lin", timeEt: "8:30", suffix: "%", dp: 1, signed: true, maxAgeDays: 130 },
 ];
 
 function key(): string | null {
@@ -170,8 +174,9 @@ export async function fetchMacroReleases(marketDate: string, asOf: string): Prom
     const obs = await latestTwo(spec);
     if (obs.length < 2) continue;
 
-    const actual = Number(obs[0].value);
-    const prior = Number(obs[1].value);
+    const sc = spec.scale ?? 1;
+    const actual = Number(obs[0].value) * sc;
+    const prior = Number(obs[1].value) * sc;
     if (!Number.isFinite(actual) || !Number.isFinite(prior)) continue;
 
     // Staleness gate. FRED's calendar says the release happened today, but if
@@ -199,6 +204,7 @@ export async function fetchMacroReleases(marketDate: string, asOf: string): Prom
       priorRevised,
       suffix: spec.suffix,
       dp: spec.dp,
+      signed: spec.signed,
     });
   }
 
@@ -207,20 +213,3 @@ export async function fetchMacroReleases(marketDate: string, asOf: string): Prom
   return { value: out, source: "FRED (actual vs prior — no consensus available)", asOf };
 }
 
-/** Whitelisted releases scheduled in (from, to] — feeds TOMORROW'S TELLS. */
-export async function fetchUpcomingReleases(from: string, to: string): Promise<{ label: string; date: string; timeEt: string }[]> {
-  const dates = await releaseDatesIn(from, to);
-  const out: { label: string; date: string; timeEt: string }[] = [];
-  const seen = new Set<string>();
-  for (const spec of RELEASES) {
-    for (const d of dates.get(spec.releaseId) ?? []) {
-      // One line per release, not per series — Payrolls and Unemployment share a
-      // release and would otherwise both announce themselves.
-      const k = `${spec.releaseId}:${d}`;
-      if (seen.has(k)) continue;
-      seen.add(k);
-      out.push({ label: spec.label.replace(/ (y\/y|m\/m|q\/q ann\.)$/, ""), date: d, timeEt: spec.timeEt });
-    }
-  }
-  return out.sort((a, b) => (a.date + a.timeEt).localeCompare(b.date + b.timeEt)).slice(0, 4);
-}

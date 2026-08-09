@@ -206,10 +206,16 @@ function trendSection(f: StructuredFacts): string {
 function macroSection(f: StructuredFacts, detail = true): string {
   const rel = f.macro?.value;
   if (!rel?.length) return "";
-  const fmt = (v: number, r: { dp: number; suffix: string }) =>
-    `${v >= 0 && r.suffix !== "%" ? "+" : ""}${v.toFixed(r.dp)}${r.suffix}`;
+  // Sign by the QUANTITY's nature, not by its suffix. Keying off "%" signed
+  // every non-percentage level (claims, which are a count) and left percentage
+  // *changes* unsigned, contradicting the note's own convention everywhere else.
+  const fmt = (v: number, r: { dp: number; suffix: string; signed: boolean }) =>
+    `${r.signed && v >= 0 ? "+" : ""}${v.toFixed(r.dp)}${r.suffix}`;
   const items = rel.map((r) => {
-    const revised = detail && r.priorRevised ? " revised" : "";
+    // The revision marker survives the degraded form. It is not framing: quoting
+    // a since-revised figure as "prior" without saying so misstates the
+    // comparison, and the label is the whole reason we may quote it at all.
+    const revised = r.priorRevised ? " revised" : "";
     return `${escapeHtml(r.label)} ${fmt(r.actual, r)} vs ${fmt(r.prior, r)} prior${revised}`;
   });
   const basis = detail ? " (vs prior — no consensus feed)" : "";
@@ -249,6 +255,27 @@ function divergenceSection(f: StructuredFacts): string {
  * lead also replaces the "•" marker, which at reading size was hard to tell
  * apart from the "·" used as an inline separator.
  */
+/**
+ * MOVERS — the day's notable names with their retrieved reason (§B).
+ *
+ * This is the only place a cause for an individual instrument may appear. The
+ * phrase is composed by the assembler and already contains its ticker, so it is
+ * emitted verbatim; the model never writes one (§1b). `withReasons = false` is
+ * the ladder's degraded form: the names and their moves survive, the clauses go.
+ */
+function moversSection(f: StructuredFacts, withReasons = true, max = 3): string {
+  const at = f.attributions?.value;
+  if (!at?.length || max <= 0) return "";
+  const lines = at.slice(0, max).map((a) => {
+    if (withReasons) return escapeHtml(a.phrase);
+    // Strip back to the bare fact. The phrase always opens
+    // "TICKER rose/fell ±x.x%", so the reason is everything after it.
+    const m = a.phrase.match(/^(\S+ (?:rose|fell) [+-][\d.]+%)/);
+    return escapeHtml(m ? m[1] : a.phrase);
+  });
+  return `${b("MOVERS")}\n${lines.join("\n")}`;
+}
+
 function whatMattersSection(prose: NoteProse | undefined, ledger: Ledger): string {
   const items = (prose?.whatMatters ?? []).filter((x) => !ledger.isRedundant(x)).slice(0, 3);
   if (items.length === 0) return "";
@@ -417,6 +444,7 @@ function build(
   maxSpotlight = Infinity,
   showAfterHours = true,
   macroDetail = true,
+  moverReasons = true,
 ): string {
   // After-hours suffixes are ornament, not argument. Stripping them is the
   // cheapest thing the overflow ladder can do, so it happens before any of the
@@ -433,7 +461,8 @@ function build(
   const cross = crossSection(facts);
   const spot = spotlightSection(facts, maxSpotlight);
   const diverge = divergenceSection(facts);
-  for (const s of [hook, tape, trend, macro, rates, cross, spot, diverge]) ledger.claim(s);
+  const movers = moversSection(facts, moverReasons);
+  for (const s of [hook, tape, trend, macro, rates, cross, spot, diverge, movers]) ledger.claim(s);
 
   return [
     hook,
@@ -463,7 +492,7 @@ function build(
 export function renderPush({ facts, webUrl, prose }: RenderInput): string {
   const CAP = 4096;
 
-  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean; macroDetail?: boolean }[] = [];
+  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean; macroDetail?: boolean; moverReasons?: boolean }[] = [];
   if (prose) {
     candidates.push({ prose });
     // Drop the after-hours ornament BEFORE any reasoning. Appending this rung
@@ -495,7 +524,7 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
 
   let last = "";
   for (const c of candidates) {
-    last = build(facts, webUrl, c.prose, c.maxSpotlight, c.showAfterHours ?? true, c.macroDetail ?? true);
+    last = build(facts, webUrl, c.prose, c.maxSpotlight, c.showAfterHours ?? true, c.macroDetail ?? true, c.moverReasons ?? true);
     if (last.length <= CAP) return last;
   }
   throw new Error(`Rendered push exceeds ${CAP} chars even stripped (${last.length}) — data anomaly`);
