@@ -26,6 +26,9 @@ import type {
   VixData,
   BreadthData,
   StructuredFacts,
+  DivergenceSector,
+  SpotlightBlock,
+  PostMarketMove,
 } from "@/lib/notes/types";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -300,10 +303,8 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
   // Divergence + contribution need the sector benchmarks and the index move,
   // so they run after the batch quote resolves (§5, §8).
   const spChange = indices?.value.find((i) => i.symbol === "^GSPC")?.changePct ?? null;
-  const { divergence, contribution, moversBySector } = await computeDivergenceFacts(
-    sectors?.value ?? null,
-    spChange,
-  );
+  const { divergence, contribution, moversBySector, postMarketByTicker } =
+    await computeDivergenceFacts(sectors?.value ?? null, spChange);
   const asOf = etStamp(marketDate, "16:00:00", now);
 
   // Slice-4 depth: gamma pin, next-session econ releases, spotlight blocks.
@@ -339,5 +340,55 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     gexPin,
     econEvents,
     spotlight: spotlightBlocks.length > 0 ? { value: spotlightBlocks, source: "Yahoo + spotlight config", asOf } : null,
+    postMarket: postMarketFact(postMarketByTicker, divergence, spotlightBlocks),
   };
+}
+
+/**
+ * After-hours moves for tickers the note ALREADY names (§G) — an annotation,
+ * never a reason to introduce a name. The `asOf` is the last extended print's
+ * own clock, not send time, so the rendered claim stays true at edit time.
+ */
+function postMarketFact(
+  byTicker: Map<string, { changePct: number; asOfMs: number }>,
+  divergence: DivergenceSector[],
+  spotlight: SpotlightBlock[],
+): Fact<PostMarketMove[]> | null {
+  if (byTicker.size === 0) return null;
+
+  const named = new Set<string>();
+  for (const d of divergence) for (const n of d.names) named.add(n.ticker);
+  for (const s of spotlight) {
+    for (const n of [...s.leaders, ...s.laggards]) named.add(n.ticker);
+    if (s.proxy) named.add(s.proxy.ticker);
+  }
+
+  const moves: PostMarketMove[] = [];
+  let newest = 0;
+  for (const ticker of Array.from(named)) {
+    const pm = byTicker.get(ticker);
+    if (!pm) continue;
+    moves.push({ ticker, changePct: pm.changePct, asOfEt: etClock(pm.asOfMs) });
+    newest = Math.max(newest, pm.asOfMs);
+  }
+  if (moves.length === 0) return null;
+
+  return {
+    value: moves,
+    source: "Yahoo extended hours (no volume field; indicative)",
+    asOf: new Date(newest).toISOString(),
+  };
+}
+
+/** "6:14pm" in ET — the clock a post-market claim is stated as of. */
+function etClock(ms: number): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  })
+    .format(new Date(ms))
+    .replace(/\s/g, "")
+    .toLowerCase();
 }

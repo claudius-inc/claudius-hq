@@ -93,6 +93,19 @@ export interface QuoteResult {
   // math (docs/daily-note-spec.md §5/§8).
   regularMarketChangePercent?: number;
   marketCap?: number;
+  // Extended-hours fields (v2 §G). These ride the same batch call, so the
+  // after-hours annotation costs no extra requests. `postMarketChangePercent`
+  // is in PERCENT, not a fraction — reading it as a fraction would make the 2%
+  // gate pass everything. False for indices, which have no extended session.
+  hasPrePostMarketData?: boolean;
+  postMarketPrice?: number;
+  postMarketChangePercent?: number;
+  postMarketTime?: Date | number | string;
+  regularMarketTime?: Date | number | string;
+  // Relevance inputs (v2 §A) — also already on the wire. (regularMarketVolume
+  // is declared above.)
+  averageDailyVolume10Day?: number;
+  earningsTimestamp?: Date | number | string;
 }
 
 /**

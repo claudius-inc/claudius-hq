@@ -96,6 +96,19 @@ export interface ContributionData {
   flipsWithoutTop: boolean;
 }
 
+/**
+ * An extended-session move for a ticker the note already names (v2 §G).
+ * Never introduces a name; annotates one. Indices are excluded — they have no
+ * extended session.
+ */
+export interface PostMarketMove {
+  ticker: string;
+  /** Percent change vs the regular close. */
+  changePct: number;
+  /** ET clock of the last extended print, e.g. "6:14pm" — the claim is "as of" this. */
+  asOfEt: string;
+}
+
 /** Dealer gamma pin for THE BOOK (§4.8). */
 export interface GexPinData {
   symbol: string;
@@ -155,6 +168,7 @@ export interface StructuredFacts {
   gexPin: Fact<GexPinData> | null;
   econEvents: Fact<EconEvent[]> | null;
   spotlight: Fact<SpotlightBlock[]> | null;
+  postMarket: Fact<PostMarketMove[]> | null;
 }
 
 /**

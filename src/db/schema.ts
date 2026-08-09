@@ -1102,6 +1102,10 @@ export type NoteSpotlightConfig = typeof noteSpotlightConfig.$inferSelect;
 export const dailyNotes = sqliteTable("daily_notes", {
   date: text("date").primaryKey(), // YYYY-MM-DD, US market date
   facts: text("facts").notNull(), // JSON: StructuredFacts
+  // Validated NoteProse JSON. Persisted so a later note or the weekly wrap can
+  // QUOTE what we actually wrote — rendering it into HTML and discarding it left
+  // nothing to look back at. Null when the note shipped without prose.
+  prose: text("prose"),
   pushHtml: text("push_html").notNull(),
   webBody: text("web_body").notNull(),
   telegramMessageId: integer("telegram_message_id"),
@@ -1126,6 +1130,10 @@ export const sp500Constituents = sqliteTable(
     // not yet in SPY's file (rebalance lag) — such names are excluded from the
     // index-contribution math but still usable for divergence.
     spyWeight: real("spy_weight"),
+    // The name's weight inside its own sector SPDR (percent). NOT derivable from
+    // spyWeight: the sector funds cap mega-caps for diversification, so a
+    // SPY-derived within-sector share is wrong for exactly the biggest names.
+    sectorWeight: real("sector_weight"),
     updatedAt: text("updated_at").default(sql`(datetime('now'))`),
   },
   (table) => ({

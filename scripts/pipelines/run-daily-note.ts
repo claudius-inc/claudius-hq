@@ -72,12 +72,23 @@ async function main() {
   const existing = await db.select().from(dailyNotes).where(eq(dailyNotes.date, date)).limit(1);
   const priorMessageId = existing[0]?.telegramMessageId ?? null;
 
+  // Persist the prose too, not just its rendering — a later note or the weekly
+  // wrap can then quote what we actually wrote.
+  const proseJson = prose ? JSON.stringify(prose) : null;
+
   await db
     .insert(dailyNotes)
-    .values({ date, facts: JSON.stringify(facts), pushHtml, webBody, telegramMessageId: priorMessageId })
+    .values({
+      date,
+      facts: JSON.stringify(facts),
+      prose: proseJson,
+      pushHtml,
+      webBody,
+      telegramMessageId: priorMessageId,
+    })
     .onConflictDoUpdate({
       target: dailyNotes.date,
-      set: { facts: JSON.stringify(facts), pushHtml, webBody },
+      set: { facts: JSON.stringify(facts), prose: proseJson, pushHtml, webBody },
     });
 
   // 5. SEND / EDIT

@@ -95,7 +95,10 @@ export interface ConstituentRow {
   ticker: string;
   name: string | null;
   sectorEtf: string;
+  /** Percent of SPY. */
   spyWeight: number | null;
+  /** Percent of its own sector SPDR — a different number, not derivable from spyWeight. */
+  sectorWeight: number | null;
 }
 
 /**
@@ -123,6 +126,8 @@ export async function fetchSp500Constituents(): Promise<ConstituentRow[]> {
         name: h.name,
         sectorEtf: etf,
         spyWeight: weightByTicker.get(h.ticker) ?? null,
+        // The sector file's own Weight column — previously parsed and thrown away.
+        sectorWeight: h.weight,
       });
     }
   }

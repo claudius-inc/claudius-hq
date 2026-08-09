@@ -56,6 +56,9 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
     push(g.spot, g.pinStrike, g.distancePct);
   }
   if (f.econEvents) for (const e of f.econEvents.value) push(e.consensus, e.previous);
+  // §G: prose may refer to an after-hours move ("the after-hours bid forgives it"),
+  // so its numerals must be in the pool or a legitimate bullet gets dropped.
+  if (f.postMarket) for (const m of f.postMarket.value) push(m.changePct);
   if (f.spotlight)
     for (const s of f.spotlight.value) {
       push(s.headlinePct, s.price, s.proxy?.changePct);

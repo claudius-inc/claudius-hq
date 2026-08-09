@@ -14,7 +14,7 @@
  */
 import { db, sp500Constituents } from "@/db";
 import { logger } from "@/lib/logger";
-import { fetchBatchQuotes } from "@/lib/scanner/yahoo-fetcher";
+import { fetchBatchQuotes, type QuoteResult } from "@/lib/scanner/yahoo-fetcher";
 import type { DivergenceSector, DivergenceName, ContributionData, SectorPoint } from "@/lib/notes/types";
 
 const SRC = "notes/divergence";
@@ -40,6 +40,42 @@ interface ConstituentQuote {
   sectorEtf: string;
   spyWeight: number | null;
   changePct: number;
+  /** Extended-session move, when the §G gate passes. Rides the same batch call. */
+  postMarket: { changePct: number; asOfMs: number } | null;
+}
+
+/**
+ * An extended-session move must clear this to be worth printing (§G). There is
+ * no post-market volume field, so a thin name's print can be a single odd lot;
+ * this threshold and the always-stated "as of" clock are the only mitigation.
+ */
+const POST_MARKET_MIN_PCT = 2.0;
+
+/** Defensive timestamp coercion — mirrors gold.ts's parseTime. */
+function toMs(t: unknown): number {
+  if (!t) return 0;
+  if (t instanceof Date) return t.getTime();
+  if (typeof t === "string") return Date.parse(t);
+  if (typeof t === "number") return t > 1e12 ? t : t * 1000;
+  return 0;
+}
+
+/**
+ * The §G gate. Returns null unless the quote carries a real extended-session
+ * print, later than that symbol's own regular close, that clears the threshold.
+ *
+ * The boundary is the symbol's OWN `regularMarketTime`, never a hardcoded 16:00:
+ * on a half-day the close is 1pm, and a 16:00 test would reject every legitimate
+ * print. Indices report `hasPrePostMarketData: false` and are excluded here.
+ */
+function extractPostMarket(q: QuoteResult | undefined): { changePct: number; asOfMs: number } | null {
+  if (!q?.hasPrePostMarketData) return null;
+  const pct = q.postMarketChangePercent;
+  if (pct == null || !Number.isFinite(pct) || Math.abs(pct) < POST_MARKET_MIN_PCT) return null;
+  const postMs = toMs(q.postMarketTime);
+  const regMs = toMs(q.regularMarketTime);
+  if (postMs <= 0 || regMs <= 0 || postMs <= regMs) return null;
+  return { changePct: Math.round(pct * 100) / 100, asOfMs: postMs };
 }
 
 /** Warn past this age; the dataset drifts at each quarterly rebalance. */
@@ -88,6 +124,7 @@ async function loadConstituentQuotes(): Promise<ConstituentQuote[]> {
       sectorEtf: r.sectorEtf,
       spyWeight: r.spyWeight,
       changePct: Math.round(pct * 100) / 100,
+      postMarket: extractPostMarket(q),
     });
   }
   logger.info(SRC, "Constituent quotes loaded", { stored: rows.length, quoted: out.length });
@@ -213,6 +250,8 @@ export interface DivergenceResult {
   quotedCount: number;
   /** Constituent moves grouped by sector ETF — feeds spotlight leaders/laggards (§6). */
   moversBySector: Map<string, { ticker: string; changePct: number }[]>;
+  /** Ticker → extended-session move, for names the note already prints (§G). */
+  postMarketByTicker: Map<string, { changePct: number; asOfMs: number }>;
 }
 
 const EMPTY: DivergenceResult = {
@@ -220,6 +259,7 @@ const EMPTY: DivergenceResult = {
   contribution: null,
   quotedCount: 0,
   moversBySector: new Map(),
+  postMarketByTicker: new Map(),
 };
 
 /** Load quotes once and derive every constituent-derived fact. */
@@ -232,11 +272,13 @@ export async function computeDivergenceFacts(
     if (quotes.length === 0) return EMPTY;
 
     const moversBySector = new Map<string, { ticker: string; changePct: number }[]>();
+    const postMarketByTicker = new Map<string, { changePct: number; asOfMs: number }>();
     for (const q of quotes) {
       const entry = { ticker: q.ticker, changePct: q.changePct };
       const list = moversBySector.get(q.sectorEtf);
       if (list) list.push(entry);
       else moversBySector.set(q.sectorEtf, [entry]);
+      if (q.postMarket) postMarketByTicker.set(q.ticker, q.postMarket);
     }
 
     return {
@@ -244,6 +286,7 @@ export async function computeDivergenceFacts(
       contribution: indexChangePct != null ? computeContribution(quotes, indexChangePct) : null,
       quotedCount: quotes.length,
       moversBySector,
+      postMarketByTicker,
     };
   } catch (error) {
     logger.error(SRC, "Divergence computation failed", { error });

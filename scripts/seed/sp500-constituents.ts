@@ -30,11 +30,18 @@ async function main() {
         name: c.name,
         sectorEtf: c.sectorEtf,
         spyWeight: c.spyWeight,
+        sectorWeight: c.sectorWeight,
         updatedAt: now,
       })
       .onConflictDoUpdate({
         target: sp500Constituents.ticker,
-        set: { name: c.name, sectorEtf: c.sectorEtf, spyWeight: c.spyWeight, updatedAt: now },
+        set: {
+          name: c.name,
+          sectorEtf: c.sectorEtf,
+          spyWeight: c.spyWeight,
+          sectorWeight: c.sectorWeight,
+          updatedAt: now,
+        },
       }),
   );
 

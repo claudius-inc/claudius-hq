@@ -195,11 +195,32 @@ what an earlier draft treated as paywalled:
 - **Consensus, forward:** `earningsTrend` period `0q` gives the current quarter's average EPS
   estimate, the analyst count, and a revenue estimate.
 
-So beat/miss language is fully supported on the **reaction day**, which is the case that
-matters. The one gap is the **same evening**: a 4:15pm report has an estimate but no actual in
-Yahoo by 6:15pm, so §B row 3 prints the after-hours move with no beat/miss claim — already the
-specified fallback. A weekly `quoteSummary` sweep populating an `earnings_date` column remains
-an optional optimisation, not a dependency.
+**Finnhub's earnings calendar is free and settles discovery and timing** (its *economic*
+calendar is not — see §E). One call returns the whole day: `symbol`, `date`, an explicit
+`hour` of `bmo` / `amc` / `""`, `epsEstimate`, `epsActual`, and revenue on both sides (601 rows
+across two days, 459 with actuals filled). The explicit `hour` is **authoritative timing** and
+is strictly better than Yahoo's placeholder stamp — use it as the primary signal for §B's
+session-half table, with the Yahoo stamp as a fallback when `hour` is `""`.
+
+> **The two consensus sources disagree, and the disagreement flips the verdict.** For AKAM's
+> Q2, Yahoo's estimate is **1.57684** and Finnhub's is **1.6052**, against the same actual of
+> **1.59**. By Yahoo it is a beat of 0.83%; by Finnhub it is a miss of 0.95%. Both are
+> reputable. Neither is wrong — they poll different analyst sets and cut off at different
+> times.
+>
+> **Therefore: never print "beat" or "miss" unless both sources agree on the sign of the
+> surprise.** When they disagree, the clause states the actual and stops — "after reporting Q2
+> EPS $1.59" — which is exactly what the direction-neutral "after" verb was already designed
+> to carry. When only one source is available, report the actual without a verdict.
+
+This is the §1a rule applied to a soft number: a consensus figure is an estimate of an
+estimate, and where two feeds contradict each other we do not get to pick the flattering one.
+It also strengthens the case for "after" over "on" — the earlier draft claimed AKAM was a beat
+that sold off, and that claim was itself source-dependent.
+
+The one remaining gap is the **same evening**: a 4:15pm report has an estimate but no actual
+by 6:15pm, so §B row 3 prints the after-hours move with no verdict — already the specified
+fallback.
 
 **§1a gate — the beat/miss trap.** "Reacted to earnings" is not "beat expectations". Emit an
 `earningsReaction` fact carrying `{actual, estimate}` **only when both are present**;
@@ -715,10 +736,11 @@ Each new rung must also specify its residual form — a degraded macro line keep
 
 ## §I — Open questions
 
-- **FMP plan** — narrowed. Earnings consensus turned out to be free from Yahoo (§A), so FMP
-  now gates **economic consensus only**: "payrolls +256k vs +180k expected". Without it the
-  note reports actual **vs prior**, which is free, honest, and already specified. Test a
-  Finnhub free key before paying for anything.
+- **Economic consensus — resolved as "not available, and that is fine".** Finnhub's free tier
+  returns `You don't have access to this resource` for the economic calendar, and FMP's free
+  tier rejects it too. So the note reports macro **actual vs prior**, free and honest, and
+  states that basis. Revisit only if someone wants to pay; nothing else is blocked by it.
+  (Finnhub's *earnings* calendar **is** free and is now a primary source — see §A.)
 - **Live-evening probe** — the extended-hours fields and `marketState:"POST"` behaviour at
   6:15pm ET were only observable on a weekend. Probe once on a real trading evening before
   shipping §G.

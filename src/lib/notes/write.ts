@@ -85,6 +85,12 @@ function factSheet(f: StructuredFacts): string {
       `Positioning: dealers net ${g.netGammaPositive ? "LONG" : "SHORT"} gamma on ${g.symbol}; largest-gamma strike (pin) ${num(g.pinStrike)}, spot ${num(g.spot)} (${pct(g.distancePct)} away). Note OI is start-of-day, so treat as directional.`,
     );
   }
+  if (f.postMarket) {
+    lines.push(
+      "After hours (indicative, no volume data — the close is the fact): " +
+        f.postMarket.value.map((m) => `${m.ticker} ${pct(m.changePct)} as of ${m.asOfEt} ET`).join(", "),
+    );
+  }
   if (f.econEvents) {
     lines.push(
       "Upcoming releases: " +

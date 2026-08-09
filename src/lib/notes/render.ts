@@ -44,6 +44,17 @@ function spct(pct: number, dp = 1): string {
 }
 const intFmt = (n: number) => Math.round(n).toLocaleString("en-US");
 
+/**
+ * After-hours annotation for a named ticker (§G). Always clocked from the print
+ * itself, never from send time, so the claim stays true when a re-run edits the
+ * message. Returns "" when the ticker has no qualifying extended move.
+ */
+function ahSuffix(f: StructuredFacts, ticker: string): string {
+  const pm = f.postMarket?.value.find((m) => m.ticker === ticker);
+  if (!pm) return "";
+  return escapeHtml(` (${spct(pm.changePct)} after hours as of ${pm.asOfEt} ET)`);
+}
+
 /** Non-breaking space, so a wrap never splits a label from its number. */
 const NB = " ";
 /** Bind a label to its value: "Gold␣$4,403". */
@@ -162,7 +173,7 @@ function ratesSection(f: StructuredFacts, prose?: NoteProse): string {
   const l1 = `${b("RATES")} — ${bind("2Y", `${r.y2.toFixed(2)}% ${bp(r.chg2Bp)}`)} · ${bind("10Y", `${r.y10.toFixed(2)}% ${bp(r.chg10Bp)}`)} · ${bind("30Y", `${r.y30.toFixed(2)}% ${bp(r.chg30Bp)}`)}`;
   const l2 = prose?.curveRead
     ? escapeHtml(prose.curveRead)
-    : `2s10s ${code(bp(r.spread2s10Bp))} (${bp(r.spread2s10ChgBp)} on the day)`;
+    : `2s10s ${bp(r.spread2s10Bp)} (${bp(r.spread2s10ChgBp)} on the day)`;
   return `${l1}\n${l2}`;
 }
 
@@ -174,7 +185,7 @@ function divergenceSection(f: StructuredFacts): string {
   const top = f.divergence?.value[0];
   if (!top) return "";
   const names = top.names
-    .map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}`)
+    .map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}${ahSuffix(f, n.ticker)}`)
     .join(", ");
   const verb = top.direction === "down" ? "green in a red" : "red in a green";
   return `${b("DIVERGENCE")} — ${escapeHtml(top.sectorName)} ${spct(top.sectorChangePct)}, but ${names} closed ${verb} sector`;
@@ -225,9 +236,13 @@ function spotlightSection(f: StructuredFacts, max = Infinity): string {
       const bits: string[] = [];
       if (s.price != null) bits.push(`$${intFmt(s.price)}`);
       if (s.leaders.length)
-        bits.push(`leaders ${s.leaders.map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}`).join(", ")}`);
+        bits.push(
+          `leaders ${s.leaders.map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}${ahSuffix(f, n.ticker)}`).join(", ")}`,
+        );
       if (s.laggards.length)
-        bits.push(`laggard ${s.laggards.map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}`).join(", ")}`);
+        bits.push(
+          `laggard ${s.laggards.map((n) => `${escapeHtml(n.ticker)} ${spct(n.changePct)}${ahSuffix(f, n.ticker)}`).join(", ")}`,
+        );
       if (s.proxy) bits.push(`${escapeHtml(s.proxy.ticker)} ${spct(s.proxy.changePct)}`);
       return bits.length ? `${head} — ${bits.join("; ")}` : head;
     })
