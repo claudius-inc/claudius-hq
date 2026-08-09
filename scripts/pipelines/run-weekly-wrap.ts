@@ -15,7 +15,7 @@
 import { eq } from "drizzle-orm";
 import { db, weeklyNotes } from "@/db";
 import { logger } from "@/lib/logger";
-import { etToday } from "@/lib/notes/session";
+import { etToday, checkTradingSession } from "@/lib/notes/session";
 import { resolveWeek, aggregateWeek } from "@/lib/notes/weekly";
 import { renderWeeklyPush, renderWeeklyWeb } from "@/lib/notes/render-weekly";
 import { sendNote, editNote, alertAdmin } from "@/lib/notes/telegram";
@@ -31,11 +31,38 @@ function webUrl(weekEnd: string): string {
 async function main() {
   const today = etToday();
 
+  // Only wrap on a Friday. A manual dispatch mid-week would otherwise publish
+  // Mon–Wed as a three-session "week", and Friday's real run would then create a
+  // second row and a second message for the same week.
+  const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
+  if (dow !== 5) {
+    logger.info(SRC, "Not a Friday — no wrap", { today, dow });
+    await alertAdmin(`📭 Weekly wrap skipped: ${today} is not a Friday.`);
+    return;
+  }
+
   const anchors = await resolveWeek(today);
   if (!anchors) {
     // resolveWeek logs which of the three refusals applied.
     await alertAdmin(`📭 Weekly wrap skipped for the week ending ${today}: the week could not be resolved.`);
     return; // exit 0 — a skip is a valid outcome
+  }
+
+  // If today TRADED but produced no note, the week is truncated and wrapping it
+  // would imply Friday was a holiday — a false claim by implication, and the
+  // window is real: only ~30 minutes separate the daily's retry slot from this
+  // job. Worse, once Friday's note lands the week resolves to a DIFFERENT key,
+  // so a second row and a second message would follow. Skip instead.
+  const session = await checkTradingSession();
+  if (session.isSession && anchors.weekEnd !== session.marketDate) {
+    logger.warn(SRC, "Today traded but has no note — refusing to wrap a truncated week", {
+      traded: session.marketDate,
+      resolvedEnd: anchors.weekEnd,
+    });
+    await alertAdmin(
+      `⚠️ Weekly wrap skipped: ${session.marketDate} traded but has no daily note, so the week would be wrapped as if it ended ${anchors.weekEnd}. Fix the daily note, then re-run.`,
+    );
+    return;
   }
 
   const facts = aggregateWeek(anchors);

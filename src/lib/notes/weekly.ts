@@ -155,17 +155,24 @@ export function aggregateWeek(a: WeeklyAnchors): WeeklyFacts {
   // true weekly change is compounded across the sessions we have. Stated as
   // such rather than implied to be a close-to-close figure.
   const compound = (pick: (f: StructuredFacts) => { key: string; label: string; pct: number }[]) => {
-    const acc = new Map<string, { label: string; factor: number }>();
+    const acc = new Map<string, { label: string; factor: number; days: number }>();
     for (const d of a.days) {
       for (const item of pick(d.facts)) {
-        const cur = acc.get(item.key) ?? { label: item.label, factor: 1 };
+        const cur = acc.get(item.key) ?? { label: item.label, factor: 1, days: 0 };
         cur.factor *= 1 + item.pct / 100;
+        cur.days += 1;
         acc.set(item.key, cur);
       }
     }
-    return Array.from(acc.values())
-      .map((v) => ({ label: v.label, changePct: Math.round((v.factor - 1) * 100 * 100) / 100 }))
-      .sort((x, y) => y.changePct - x.changePct);
+    return (
+      Array.from(acc.values())
+        // A series whose fact was degraded out on some day would otherwise show
+        // a 4-session figure beside a 5-session index line, under one implied
+        // label. Omit rather than mislabel (§1a).
+        .filter((v) => v.days === a.days.length)
+        .map((v) => ({ label: v.label, changePct: Math.round((v.factor - 1) * 100 * 100) / 100 }))
+        .sort((x, y) => y.changePct - x.changePct)
+    );
   };
 
   const sectors = compound((f) =>
@@ -209,19 +216,30 @@ export function aggregateWeek(a: WeeklyAnchors): WeeklyFacts {
 
   // Did leadership change hands mid-week?
   const half = Math.ceil(a.days.length / 2);
-  const leaderOf = (slice: typeof a.days) => {
+  /** The half's best sector, plus its margin over the runner-up. */
+  const leaderOf = (slice: typeof a.days): { name: string; margin: number } | null => {
     const acc = new Map<string, number>();
     for (const d of slice) for (const s of d.facts.sectors?.value ?? []) acc.set(s.name, (acc.get(s.name) ?? 0) + s.changePct);
-    let best: string | null = null;
-    let bestVal = -Infinity;
-    for (const [k, v] of Array.from(acc.entries())) if (v > bestVal) [best, bestVal] = [k, v];
-    return best;
+    const ranked = Array.from(acc.entries()).sort((x, y) => y[1] - x[1]);
+    if (ranked.length === 0) return null;
+    return { name: ranked[0][0], margin: ranked.length > 1 ? ranked[0][1] - ranked[1][1] : Infinity };
   };
-  const firstHalfLeader = leaderOf(a.days.slice(0, half));
-  const secondHalfLeader = leaderOf(a.days.slice(half));
+  const first = leaderOf(a.days.slice(0, half));
+  const second = leaderOf(a.days.slice(half));
+  // A hand-off is only claimed when each half's leader actually led. Without a
+  // margin, two sectors separated by 0.01pp print as "leadership rotated" —
+  // noise dressed as a finding.
+  const ROTATION_MARGIN_PP = 0.5;
   const rotation =
-    firstHalfLeader && secondHalfLeader
-      ? { firstHalfLeader, secondHalfLeader, rotated: firstHalfLeader !== secondHalfLeader }
+    first && second
+      ? {
+          firstHalfLeader: first.name,
+          secondHalfLeader: second.name,
+          rotated:
+            first.name !== second.name &&
+            first.margin >= ROTATION_MARGIN_PP &&
+            second.margin >= ROTATION_MARGIN_PP,
+        }
       : null;
 
   return {
