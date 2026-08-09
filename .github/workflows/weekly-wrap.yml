@@ -1,0 +1,65 @@
+name: Weekly Market Wrap
+
+on:
+  # Fires ~90 minutes after the daily note's latest slot, so Friday's note has
+  # already persisted — the wrap reads those rows rather than re-deriving.
+  # Dual cron for DST: 19:50 EDT (summer) and 19:50 EST (winter). The winter
+  # entry lands on Saturday UTC, which is still Friday in ET; the job's own gate
+  # resolves the week from the stored sessions, so an extra firing is harmless —
+  # it edits the same message rather than sending a second one.
+  schedule:
+    - cron: '50 23 * * 5'
+    - cron: '50 0 * * 6'
+  workflow_dispatch: {}
+
+# Serialize: the dual cron plus a manual dispatch could otherwise both send
+# before message_id is persisted.
+concurrency:
+  group: weekly-wrap
+  cancel-in-progress: false
+
+jobs:
+  wrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # A week that cannot be described honestly is skipped (exit 0) and the
+      # script alerts the admin itself — the failure step below will not fire on
+      # a clean exit.
+      - name: Generate and send weekly wrap
+        run: npx tsx scripts/pipelines/run-weekly-wrap.ts
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_NOTE_CHAT_ID: ${{ secrets.TELEGRAM_NOTE_CHAT_ID }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Weekly Market Wrap" >> $GITHUB_STEP_SUMMARY
+          echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+            -d "text=❌ Weekly wrap failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

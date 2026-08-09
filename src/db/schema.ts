@@ -1143,3 +1143,19 @@ export const sp500Constituents = sqliteTable(
 
 export type Sp500Constituent = typeof sp500Constituents.$inferSelect;
 export type NewSp500Constituent = typeof sp500Constituents.$inferInsert;
+
+// One weekly wrap per week, keyed by the LAST session of that week — which is
+// Thursday when Friday was a holiday, so the key is derived from the sessions
+// that actually happened rather than assumed to be a Friday.
+export const weeklyNotes = sqliteTable("weekly_notes", {
+  weekEnd: text("week_end").primaryKey(), // YYYY-MM-DD, last session in the week
+  weekStart: text("week_start").notNull(), // the anchor session it is measured from
+  sessions: integer("sessions").notNull(), // how many daily notes the week produced
+  facts: text("facts").notNull(), // JSON: WeeklyFacts
+  pushHtml: text("push_html").notNull(),
+  webBody: text("web_body").notNull(),
+  telegramMessageId: integer("telegram_message_id"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type WeeklyNote = typeof weeklyNotes.$inferSelect;
