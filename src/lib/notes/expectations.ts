@@ -88,7 +88,10 @@ function satisfied(comparator: string, value: number, threshold: number): boolea
  */
 export async function resolveExpectations(marketDate: string, facts: StructuredFacts): Promise<ResolvedExpectation[]> {
   const open = await db.select().from(noteExpectations).where(eq(noteExpectations.status, "open"));
-  if (open.length === 0) return [];
+  // Nothing left open still needs the settled-today query: the evening's second
+  // run finds every row already closed, and returning [] here would strip the
+  // ledger line out of the edited message.
+  if (open.length === 0) return settledOn(marketDate);
 
   // Sessions are counted from the index's own bars, so an outage cannot silently
   // extend a horizon and a delisted or halted subject still expires normally.
@@ -106,58 +109,85 @@ export async function resolveExpectations(marketDate: string, facts: StructuredF
   }
 
   for (const row of open) {
-    const elapsed = sessionDates.filter((d) => d > row.noteDate && d <= marketDate).length;
+    // Sessions strictly after the registering day, capped at the horizon. The
+    // cap is load-bearing: without it a touch during the grace window — or after
+    // an outage — still settles as a hit, so hits would get unlimited extra time
+    // while misses were graded exactly on schedule. That asymmetry is
+    // self-flattery, and it lives in the grader's clock rather than in who may
+    // write, which is why the immutability rules alone do not catch it.
+    const after = sessionDates.filter((d) => d > row.noteDate && d <= marketDate);
+    const elapsed = after.length;
+    const withinHorizon = after.slice(0, row.horizonSessions);
+    const touch = row.comparator.startsWith("touch_");
+    const isSpread = row.subject.startsWith("SPREAD_");
 
-    let decided: { value: number; date: string } | null = null;
+    let decided: { value: number; date: string; status: "hit" | "miss" } | null = null;
 
-    if (row.subject === "SPREAD_2S10S") {
+    if (isSpread) {
+      // A derived metric has no history to backfill, so it can only ever be read
+      // on a session we actually observed. `elapsed > 0` keeps a bet registered
+      // earlier this evening from resolving against its own baseline when the
+      // workflow fires its second run.
       const v = facts.rates?.value.spread2s10Bp;
-      if (v != null && satisfied(row.comparator, v, row.threshold)) decided = { value: v, date: marketDate };
+      if (v != null && elapsed > 0) {
+        if (touch && satisfied(row.comparator, v, row.threshold)) {
+          decided = { value: v, date: marketDate, status: "hit" };
+        } else if (!touch && elapsed >= row.horizonSessions) {
+          // At-horizon settles either way — a failed state IS a decision.
+          decided = {
+            value: v,
+            date: marketDate,
+            status: satisfied(row.comparator, v, row.threshold) ? "hit" : "miss",
+          };
+        }
+      }
     } else {
       const closes = closesBySubject.get(row.subject);
       if (closes) {
-        const touch = row.comparator.startsWith("touch_");
-        const relevant = sessionDates.filter((d) => d > row.noteDate && d <= marketDate);
         if (touch) {
-          for (const d of relevant) {
+          for (const d of withinHorizon) {
             const v = closes.get(d);
             if (v != null && satisfied(row.comparator, v, row.threshold)) {
-              decided = { value: v, date: d };
+              decided = { value: v, date: d, status: "hit" };
               break;
             }
           }
+          // Never touched, and the horizon is spent. Every close is backfilled,
+          // so this is genuinely decidable — settling it as unresolvable would
+          // launder a loser into attrition.
+          if (!decided && elapsed >= row.horizonSessions && withinHorizon.length > 0) {
+            const last = withinHorizon[withinHorizon.length - 1];
+            decided = { value: closes.get(last) ?? row.baselineValue, date: last, status: "miss" };
+          }
         } else if (elapsed >= row.horizonSessions) {
-          const last = relevant[relevant.length - 1];
-          const v = last ? closes.get(last) : undefined;
+          // Grade the HORIZON session, not the latest one — after an outage
+          // those differ, and the horizon close is already backfilled.
+          const at = withinHorizon[row.horizonSessions - 1];
+          const v = at ? closes.get(at) : undefined;
           if (v != null) {
-            decided = satisfied(row.comparator, v, row.threshold) ? { value: v, date: last } : null;
-            // A state-at-horizon bet that fails IS decided — it is a miss.
-            if (!decided) {
-              await settle(row.id, "miss", v, last);
-              continue;
-            }
+            decided = { value: v, date: at, status: satisfied(row.comparator, v, row.threshold) ? "hit" : "miss" };
           }
         }
       }
     }
 
     if (decided) {
-      await settle(row.id, "hit", decided.value, decided.date);
+      await settle(row.id, decided.status, decided.value, decided.date, elapsed, isSpread, marketDate);
       resolvedToday.push({
         id: row.id,
         subject: row.subject,
         threshold: row.threshold,
         comparator: row.comparator,
         noteDate: row.noteDate,
-        status: "hit",
+        status: decided.status,
         resolvedValue: decided.value,
       });
       continue;
     }
 
     if (elapsed >= row.horizonSessions + GRACE_SESSIONS) {
-      // Out of time with no decision. It stays in every denominator as
-      // attrition rather than quietly disappearing.
+      // Out of time with no decision — the deciding data never arrived. It
+      // stays in every denominator as attrition rather than disappearing.
       await db
         .update(noteExpectations)
         .set({ status: "unresolvable", sessionsElapsed: elapsed, resolvedDate: marketDate })
@@ -165,36 +195,59 @@ export async function resolveExpectations(marketDate: string, facts: StructuredF
       continue;
     }
 
-    if (elapsed >= row.horizonSessions && row.comparator.startsWith("touch_")) {
-      // A touch bet that never touched within its horizon is a miss.
-      await settle(row.id, "miss", row.baselineValue, marketDate);
-      resolvedToday.push({
-        id: row.id,
-        subject: row.subject,
-        threshold: row.threshold,
-        comparator: row.comparator,
-        noteDate: row.noteDate,
-        status: "miss",
-        resolvedValue: row.baselineValue,
-      });
-      continue;
-    }
-
     await db.update(noteExpectations).set({ sessionsElapsed: elapsed }).where(eq(noteExpectations.id, row.id));
   }
 
-  logger.info(SRC, "Expectations resolved", { open: open.length, settledToday: resolvedToday.length });
-  return resolvedToday;
+  logger.info(SRC, "Expectations resolved", { open: open.length, settledThisRun: resolvedToday.length });
+  // Return everything that settled TODAY, not just what this process settled.
+  // The workflow fires twice an evening; the second run finds those rows already
+  // closed, and returning only its own work would silently strip the ledger line
+  // out of the edited message.
+  return settledOn(marketDate);
+}
+
+/** Every expectation that reached a terminal state on `marketDate`. */
+export async function settledOn(marketDate: string): Promise<ResolvedExpectation[]> {
+  const rows = await db
+    .select()
+    .from(noteExpectations)
+    .where(and(eq(noteExpectations.settledAt, marketDate), inArray(noteExpectations.status, ["hit", "miss"])));
+  return rows.map((r) => ({
+    id: r.id,
+    subject: r.subject,
+    threshold: r.threshold,
+    comparator: r.comparator,
+    noteDate: r.noteDate,
+    status: r.status as "hit" | "miss",
+    resolvedValue: r.resolvedValue ?? r.baselineValue,
+  }));
 }
 
 /**
  * Write the terminal state. Guarded on `status = "open"` so a row can only ever
  * settle once — a bet that has already resolved must never be re-graded.
  */
-async function settle(id: number, status: "hit" | "miss", value: number, date: string) {
+async function settle(
+  id: number,
+  status: "hit" | "miss",
+  value: number,
+  date: string,
+  sessionsElapsed: number,
+  isSpread: boolean,
+  gradedOn: string,
+) {
   await db
     .update(noteExpectations)
-    .set({ status, resolvedValue: value, resolvedDate: date, resolvedSource: "Yahoo daily close" })
+    .set({
+      status,
+      resolvedValue: value,
+      resolvedDate: date,
+      // Provenance must match what was actually read: a derived spread is not a
+      // Yahoo close, and mislabelling it would misstate how the bet was graded.
+      resolvedSource: isSpread ? "US Treasury curve (assembled facts)" : "Yahoo daily close",
+      settledAt: gradedOn,
+      sessionsElapsed,
+    })
     .where(and(eq(noteExpectations.id, id), eq(noteExpectations.status, "open")));
 }
 

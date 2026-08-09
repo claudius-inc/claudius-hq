@@ -294,7 +294,7 @@ function ledgerSection(f: StructuredFacts): string {
   });
   const items = ordered.slice(0, 2).map((r) => {
     const dir = r.comparator.includes("above") ? "above" : "below";
-    return `called ${escapeHtml(r.noteDate)}: ${escapeHtml(r.subject)} ${dir} ${r.threshold} → ${r.status} (${r.resolvedValue})`;
+    return `called ${escapeHtml(r.noteDate)}: ${escapeHtml(r.subject)} ${dir} ${r.threshold} → ${r.status} (${r.resolvedValue.toFixed(2)})`;
   });
   const open = f.ledger?.openCount ?? 0;
   return `${b("LEDGER")} — ${items.join(" · ")}${open > 0 ? ` · ${open} still open` : ""}`;
@@ -469,6 +469,7 @@ function build(
   showAfterHours = true,
   macroDetail = true,
   moverReasons = true,
+  showLedger = true,
 ): string {
   // After-hours suffixes are ornament, not argument. Stripping them is the
   // cheapest thing the overflow ladder can do, so it happens before any of the
@@ -486,8 +487,8 @@ function build(
   const spot = spotlightSection(facts, maxSpotlight);
   const diverge = divergenceSection(facts);
   const movers = moversSection(facts, moverReasons);
-  const ledgerLine = ledgerSection(facts);
-  for (const s of [hook, tape, trend, macro, rates, cross, spot, diverge, movers]) ledger.claim(s);
+  const ledgerLine = showLedger ? ledgerSection(facts) : "";
+  for (const s of [hook, tape, trend, macro, rates, cross, spot, diverge, movers, ledgerLine]) ledger.claim(s);
 
   return [
     hook,
@@ -506,6 +507,10 @@ function build(
     bullBearSection(prose, ledger),
     bookSection(facts, prose, ledger),
     tellsSection(facts),
+    // The ledger renders LAST before the footer: it is a review of past calls,
+    // not part of today's picture, and it is the first thing the overflow
+    // ladder drops.
+    ledgerLine,
     footer(webUrl),
   ]
     .filter((s) => s.length > 0)
@@ -521,26 +526,35 @@ function build(
 export function renderPush({ facts, webUrl, prose }: RenderInput): string {
   const CAP = 4096;
 
-  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean; macroDetail?: boolean; moverReasons?: boolean }[] = [];
+  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean; macroDetail?: boolean; moverReasons?: boolean; showLedger?: boolean }[] = [];
   if (prose) {
     candidates.push({ prose });
     // Drop the after-hours ornament BEFORE any reasoning. Appending this rung
     // after the prose ladder would strip the note's whole voice while decorative
     // "(+2.1% after hours)" suffixes survived.
-    candidates.push({ prose, showAfterHours: false });
+    // The ledger is a review of PAST calls, not part of today, so it is the
+    // very first thing dropped.
+    candidates.push({ prose, showLedger: false });
+    candidates.push({ prose, showLedger: false, showAfterHours: false });
     // Macro figures survive; only their framing goes.
-    candidates.push({ prose, showAfterHours: false, macroDetail: false });
+    candidates.push({ prose, showLedger: false, showAfterHours: false, macroDetail: false });
     // Then the mover reason clauses. The names and their moves survive; only
     // the retrieved explanation goes. Still ahead of any prose, because a
     // reason clause is worth less than the note's reasoning.
-    candidates.push({ prose, showAfterHours: false, macroDetail: false, moverReasons: false });
+    candidates.push({ prose, showLedger: false, showAfterHours: false, macroDetail: false, moverReasons: false });
     candidates.push({
       prose: { ...prose, book: undefined },
       showAfterHours: false,
       macroDetail: false,
       moverReasons: false,
     });
-    candidates.push({ prose: { ...prose, book: undefined, bull: undefined, bear: undefined }, showAfterHours: false });
+    candidates.push({
+      prose: { ...prose, book: undefined, bull: undefined, bear: undefined },
+      showLedger: false,
+      showAfterHours: false,
+      macroDetail: false,
+      moverReasons: false,
+    });
     // Trim What-Matters bullets from the end.
     for (let n = prose.whatMatters.length - 1; n >= 0; n--) {
       // Keep the ornament OFF here. Omitting these flags let them default back
@@ -570,7 +584,7 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
 
   let last = "";
   for (const c of candidates) {
-    last = build(facts, webUrl, c.prose, c.maxSpotlight, c.showAfterHours ?? true, c.macroDetail ?? true, c.moverReasons ?? true);
+    last = build(facts, webUrl, c.prose, c.maxSpotlight, c.showAfterHours ?? true, c.macroDetail ?? true, c.moverReasons ?? true, c.showLedger ?? true);
     if (last.length <= CAP) return last;
   }
   throw new Error(`Rendered push exceeds ${CAP} chars even stripped (${last.length}) — data anomaly`);

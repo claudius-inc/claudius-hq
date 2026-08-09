@@ -66,6 +66,8 @@ async function main() {
   // touches create or resolve, which is what keeps the ledger from flattering
   // itself.
   try {
+    // Returns everything that settled TODAY, not just this run's work, so the
+    // evening's second run does not strip the line out of the edited message.
     const settled = await resolveExpectations(date, facts);
     facts.ledger =
       settled.length > 0

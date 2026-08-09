@@ -1185,6 +1185,9 @@ export const noteExpectations = sqliteTable(
     resolvedDate: text("resolved_date"),
     resolvedValue: real("resolved_value"),
     resolvedSource: text("resolved_source"),
+    // The session that GRADED it, as distinct from the session whose data
+    // decided it. After a backfill those differ, and the LEDGER shows the former.
+    settledAt: text("settled_at"),
     origin: text("origin").notNull(), // "owner" | "auto_*" — never "llm"
     createdAt: text("created_at").default(sql`(datetime('now'))`),
   },
