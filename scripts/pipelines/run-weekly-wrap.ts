@@ -98,7 +98,7 @@ async function main() {
       set: { weekStart: facts.weekStart, sessions: facts.sessions, facts: JSON.stringify(facts), pushHtml, webBody },
     });
 
-  const chatId = Number(process.env.TELEGRAM_NOTE_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID);
+  const chatId = Number(process.env.TELEGRAM_ADMIN_CHAT_ID);
   if (!Number.isFinite(chatId) || chatId === 0) {
     logger.error(SRC, "No chat id configured; wrap persisted but not sent", { weekEnd: facts.weekEnd });
     await alertAdmin(`⚠️ Weekly wrap ${facts.weekEnd} persisted but NOT sent: no chat id configured.`);

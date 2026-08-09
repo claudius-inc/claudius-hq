@@ -110,13 +110,13 @@ async function main() {
     });
 
   // 5. SEND / EDIT
-  // The note goes to a normal bot chat, not a channel. TELEGRAM_NOTE_CHAT_ID
-  // overrides, otherwise it lands in the same admin chat the other jobs use.
-  const chatId = Number(process.env.TELEGRAM_NOTE_CHAT_ID || process.env.TELEGRAM_ADMIN_CHAT_ID);
+  // The note goes to a normal bot chat, not a channel — the same admin chat the
+  // repo's other jobs already use.
+  const chatId = Number(process.env.TELEGRAM_ADMIN_CHAT_ID);
   if (!Number.isFinite(chatId) || chatId === 0) {
     // A config error must be loud (§2) — the note was persisted but nobody saw it.
-    logger.error(SRC, "TELEGRAM_NOTE_CHAT_ID/TELEGRAM_ADMIN_CHAT_ID missing or invalid; persisted but did not send", { date });
-    await alertAdmin(`⚠️ Daily note ${date} persisted but NOT sent: TELEGRAM_NOTE_CHAT_ID/TELEGRAM_ADMIN_CHAT_ID missing or invalid.`);
+    logger.error(SRC, "TELEGRAM_ADMIN_CHAT_ID missing or invalid; persisted but did not send", { date });
+    await alertAdmin(`⚠️ Daily note ${date} persisted but NOT sent: TELEGRAM_ADMIN_CHAT_ID missing or invalid.`);
     process.exitCode = 1;
     return;
   }
