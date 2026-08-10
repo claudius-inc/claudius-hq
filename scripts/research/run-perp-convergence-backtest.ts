@@ -50,7 +50,7 @@ import { writeFileSync, readFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
 import {
   binanceVenue,
-  fetchBarsForAll,
+  fetchBarsDeep,
   sleep,
   type PerpBar,
   type PerpSymbol,
@@ -69,8 +69,23 @@ const INTERVAL = "4h" as const;
  */
 const BAR_LIMIT = 500;
 
-/** Forward windows in 4h bars: 1 day, 3 days, 7 days. */
-const HORIZONS = [6, 18, 42];
+/**
+ * Target bars per symbol, paged.
+ *
+ * 3,000 4h bars is ~500 days. The previous single-request fetch capped history
+ * at 500 bars (~83 days), which is why the walk-forward blocks all fell inside
+ * one month and the 7-day horizon had four timestamps.
+ */
+const TARGET_BARS = 3000;
+
+/** Forward windows in 4h bars: 1, 3, 7 and 15 days. */
+const HORIZONS = [6, 18, 42, 90];
+
+/**
+ * A "big move" for the capture metric: the top decile of absolute forward
+ * return within a category at that timestamp.
+ */
+const BIG_MOVE_PCTL = 0.9;
 
 /** Binance USDⓈ-M taker fee, per side, VIP 0. */
 const TAKER_FEE_PCT = 0.05;
@@ -120,8 +135,23 @@ async function loadBars(refresh: boolean): Promise<CachedPayload> {
   const symbols = await binanceVenue.listSymbols();
   console.log(`  ${symbols.length} live perps`);
 
-  console.log(`Fetching ${BAR_LIMIT} ${INTERVAL} bars each...`);
-  const barMap = await fetchBarsForAll(binanceVenue, symbols, INTERVAL, BAR_LIMIT, 6);
+  console.log(`Fetching ~${TARGET_BARS} ${INTERVAL} bars each (paged; several minutes)...`);
+  const barMap = new Map<string, PerpBar[]>();
+  let cursor = 0;
+  let done = 0;
+  const worker = async () => {
+    while (cursor < symbols.length) {
+      const s = symbols[cursor++];
+      try {
+        const bars = await fetchBarsDeep(binanceVenue, s.symbol, INTERVAL, TARGET_BARS);
+        if (bars.length) barMap.set(s.symbol, bars);
+      } catch {
+        // A single delisted or misbehaving contract must not cost the study.
+      }
+      if (++done % 100 === 0) console.log(`  ...${done}/${symbols.length}`);
+    }
+  };
+  await Promise.all(Array.from({ length: 5 }, worker));
 
   const payload: CachedPayload = {
     fetchedAt: new Date().toISOString(),
@@ -247,6 +277,56 @@ function factorTable(obs: Obs[]): void {
   }
 }
 
+/**
+ * CAPTURE — the metric that actually fits a review shortlist.
+ *
+ * An information coefficient asks "is the ordering right", which is the wrong
+ * question for a list a human then judges. The right question is recall: of the
+ * names that went on to move materially, what share did the screen put in front
+ * of you, and how does that compare to picking at random?
+ *
+ * A lift of 1.0 means the screen is no better than chance at finding the names
+ * that moved. Below 1.0 means it is actively steering away from them — which,
+ * given that convergence was measured to select quiet names, is the outcome to
+ * expect here. Direction is ignored throughout: a big move you were shown but
+ * read the wrong way is still a name worth having seen.
+ */
+function captureTable(
+  perTimestamp: { flagged: Set<string>; movers: Set<string>; universe: number }[],
+  label: string,
+): void {
+  let flaggedMovers = 0;
+  let totalMovers = 0;
+  let totalFlagged = 0;
+  let totalUniverse = 0;
+
+  for (const t of perTimestamp) {
+    for (const m of Array.from(t.movers)) if (t.flagged.has(m)) flaggedMovers++;
+    totalMovers += t.movers.size;
+    totalFlagged += t.flagged.size;
+    totalUniverse += t.universe;
+  }
+
+  if (!totalMovers || !totalUniverse) {
+    console.log(`\n  ${label}: insufficient data`);
+    return;
+  }
+
+  const recall = (100 * flaggedMovers) / totalMovers;
+  const flaggedShare = (100 * totalFlagged) / totalUniverse;
+  const lift = flaggedShare ? recall / flaggedShare : NaN;
+
+  console.log(`\n  ${label}`);
+  console.log(
+    `    screen showed ${fmt(flaggedShare, 1)}% of the universe and caught ` +
+      `${fmt(recall, 1)}% of the big movers  ->  lift ${fmt(lift, 2)}x`,
+  );
+  console.log(
+    `    (${flaggedMovers} of ${totalMovers} movers flagged; ` +
+      `1.00x = no better than random)`,
+  );
+}
+
 function run(
   payload: CachedPayload,
   funding: Record<string, number>,
@@ -287,6 +367,7 @@ function run(
 
   const obs: Obs[] = [];
   const icByTime: { t: number; ic: number }[] = [];
+  const capture: { flagged: Set<string>; movers: Set<string>; universe: number }[] = [];
   let thinDrops = 0;
 
   for (const t of sampled) {
@@ -350,6 +431,32 @@ function run(
     }
     obs.push(...withExcess);
 
+    // Capture: which names did the screen flag, and which actually moved?
+    // "Moved" is the top decile of |return| within the same cross-section, so
+    // the bar adapts to the day's volatility instead of a fixed threshold that
+    // would catch everything in a wild week and nothing in a quiet one.
+    const absSorted = [...withExcess].sort(
+      (a, b) => Math.abs(a.fwdGross) - Math.abs(b.fwdGross),
+    );
+    const cut = absSorted[Math.floor(BIG_MOVE_PCTL * (absSorted.length - 1))];
+    const threshold = Math.abs(cut.fwdGross);
+
+    capture.push({
+      flagged: new Set(
+        withExcess
+          .filter(
+            (r) =>
+              (r.longScore >= 3 && r.longScore > r.shortScore) ||
+              (r.shortScore >= 3 && r.shortScore > r.longScore),
+          )
+          .map((r) => r.symbol),
+      ),
+      movers: new Set(
+        withExcess.filter((r) => Math.abs(r.fwdGross) >= threshold).map((r) => r.symbol),
+      ),
+      universe: withExcess.length,
+    });
+
     icByTime.push({
       t,
       ic: spearman(
@@ -370,6 +477,8 @@ function run(
     `Costs applied: ${ROUND_TRIP_FEE_PCT.toFixed(2)}% round trip + per-name funding`,
   );
   console.log("=".repeat(76));
+
+  captureTable(capture, `CAPTURE — did the shortlist contain the big movers? (top ${Math.round((1 - BIG_MOVE_PCTL) * 100)}% by |move|)`);
 
   bucketTable(obs, "longScore", "LONG convergence score vs forward excess return (net)");
   bucketTable(obs, "shortScore", "SHORT convergence score vs forward excess return (net)");

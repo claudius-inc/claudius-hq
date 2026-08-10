@@ -225,6 +225,69 @@ export const binanceVenue: PerpVenue = {
 
 export const VENUES: Record<string, PerpVenue> = { binance: binanceVenue };
 
+const INTERVAL_MS_MAP: Record<PerpInterval, number> = {
+  "1h": 3_600_000,
+  "4h": 14_400_000,
+  "1d": 86_400_000,
+};
+
+/**
+ * Fetches deep history by paging `startTime` forward.
+ *
+ * 1500 is Binance's PER-REQUEST cap, not a limit on available history — the
+ * backtest was silently capped at ~83 days of 4h bars because it issued one
+ * request per symbol, which is why its walk-forward blocks all landed inside a
+ * single month. Paging lifts that.
+ *
+ * `limit` is 1000 rather than 1500 deliberately: Binance weights klines at 5
+ * for limit<=1000 and 10 above it, so three 1000-bar pages cost 15 against a
+ * 2400/min budget where two 1500-bar pages cost 20 for fewer bars.
+ */
+export async function fetchBarsDeep(
+  venue: PerpVenue,
+  symbol: string,
+  interval: PerpInterval,
+  targetBars: number,
+): Promise<PerpBar[]> {
+  const step = INTERVAL_MS_MAP[interval];
+  const pageSize = 1000;
+  let startTime = Date.now() - targetBars * step;
+
+  const seen = new Map<number, PerpBar>();
+  for (let page = 0; page < Math.ceil(targetBars / pageSize) + 1; page++) {
+    const raw = await getJson<unknown[][]>(
+      `${BINANCE_FAPI}/fapi/v1/klines?symbol=${symbol}&interval=${interval}` +
+        `&startTime=${startTime}&limit=${pageSize}`,
+      `binance klines ${symbol} page ${page}`,
+    );
+    if (!raw.length) break;
+
+    for (const k of raw) {
+      const t = Number(k[0]);
+      seen.set(t, {
+        t,
+        tClose: Number(k[6]),
+        o: Number(k[1]),
+        h: Number(k[2]),
+        l: Number(k[3]),
+        c: Number(k[4]),
+        v: Number(k[5]),
+        q: Number(k[7]),
+      });
+    }
+
+    const lastOpen = Number(raw[raw.length - 1][0]);
+    // A short page means the series is exhausted; equal startTime means no
+    // progress, which would otherwise loop forever.
+    if (raw.length < pageSize || lastOpen + step <= startTime) break;
+    startTime = lastOpen + step;
+  }
+
+  const bars = Array.from(seen.values()).sort((a, b) => a.t - b.t);
+  // Same rule as fetchBars: the final kline is still forming.
+  return bars.slice(0, -1).filter((b) => Number.isFinite(b.c) && b.c > 0);
+}
+
 /**
  * Fetches bars for many symbols with bounded concurrency.
  *
