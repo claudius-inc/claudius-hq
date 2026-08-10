@@ -115,7 +115,7 @@ export interface MoverName {
  */
 export interface Attribution {
   ticker: string;
-  rung: "earnings" | "rating" | "target";
+  rung: "earnings" | "rating" | "target" | "8k";
   /** "on" is causal and needs a signed, direction-matching event; "after" is temporal. */
   verb: "on" | "after";
   phrase: string;

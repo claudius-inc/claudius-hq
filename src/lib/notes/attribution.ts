@@ -20,6 +20,11 @@
  *     a beat by one, a miss by the other. Where reputable feeds contradict each
  *     other we do not get to pick the flattering one, so the clause states the
  *     actual and stops.
+ *
+ * The ladder runs top-down and the first pass wins: earnings on the reaction
+ * day, a direction-matching rating action, a unanimous set of target revisions,
+ * then a causal 8-K. Nothing passing is a valid outcome — the bare mover line is
+ * the correct output, and MOVERS renders it.
  */
 import YahooFinance from "yahoo-finance2";
 import { logger } from "@/lib/logger";
@@ -27,6 +32,7 @@ import { acquireYahooSlot } from "@/lib/scanner/yahoo-rate-limiter";
 import { etDate, etMinutes, toMs } from "@/lib/notes/session";
 import { placeEarnings, isReactionDay } from "@/lib/notes/earnings-window";
 import type { EarningsReport } from "@/lib/notes/sources/earnings-calendar";
+import { fetchCikMap, fetchCausalEightK, inReactionWindow } from "@/lib/notes/sources/edgar";
 import type { Attribution } from "@/lib/notes/types";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -78,14 +84,18 @@ interface RatingAction {
 /**
  * Analyst actions that could have moved TODAY's regular session.
  *
- * The window closes at the bell, not at midnight. The note runs at 6:15pm, so a
- * calendar-day filter sweeps in actions issued after the close — and printing
- * "fell on a downgrade" for a downgrade published hours AFTER the fall is a
- * cause that post-dates its effect. Those belong to tomorrow's reaction day.
+ * Same window as the 8-K rung, and for the same reasons: it closes at the bell
+ * rather than at midnight, because printing "fell on a downgrade" for a
+ * downgrade published hours AFTER the fall is a cause that post-dates its
+ * effect; and it reaches back through the previous night, because an action
+ * issued after yesterday's close is exactly what today's open reacts to. A
+ * same-day-only window claimed neither — it left the overnight band unowned by
+ * any note.
  */
 async function fetchRatingActions(
   ticker: string,
   marketDate: string,
+  priorSessionDate: string | null,
   closeMinute: number,
 ): Promise<RatingAction[]> {
   try {
@@ -96,8 +106,8 @@ async function fetchRatingActions(
     const hist = s.upgradeDowngradeHistory?.history ?? [];
     return hist.filter((h) => {
       const ms = toMs(h.epochGradeDate);
-      if (!Number.isFinite(ms) || ms <= 0 || etDate(ms) !== marketDate) return false;
-      return etMinutes(ms) <= closeMinute;
+      if (!Number.isFinite(ms) || ms <= 0) return false;
+      return inReactionWindow(ms, marketDate, priorSessionDate, closeMinute);
     });
   } catch (error) {
     logger.warn(SRC, "Rating fetch failed", { ticker, error });
@@ -105,16 +115,54 @@ async function fetchRatingActions(
   }
 }
 
-/** Yahoo's own consensus for the most recent completed quarter. */
-async function fetchYahooEps(ticker: string): Promise<{ actual: number; estimate: number } | null> {
+/**
+ * Yahoo's actual and consensus for the most recent completed quarter — but only
+ * if that quarter is plausibly the one just reported.
+ *
+ * The staleness check is load-bearing, not defensive. §B itself notes that a
+ * 4:15pm report often will not be in `earningsHistory` by 6:15pm, and the
+ * endpoint always returns the last COMPLETED quarter regardless. Without the
+ * check, the common evening case is that `actual` is last quarter's EPS from
+ * three months ago — non-null, so the caller's corroboration guard never fires,
+ * and the note prints "after reporting EPS $X" with a figure from the previous
+ * report. That is precisely the §1a failure the guard exists to prevent, and it
+ * would be invisible: the number is real, just for the wrong quarter.
+ *
+ * A quarter that ended more than this long ago cannot be tonight's report. The
+ * bound is generous — a fiscal quarter ends up to ~13 weeks before its release,
+ * and some filers report late — so it rejects the three-months-stale case
+ * without rejecting a legitimately slow reporter.
+ */
+const MAX_QUARTER_AGE_DAYS = 120;
+
+async function fetchYahooEps(
+  ticker: string,
+  marketDate: string,
+): Promise<{ actual: number; estimate: number } | null> {
   try {
     await acquireYahooSlot();
     const s = (await yahooFinance.quoteSummary(ticker, { modules: ["earningsHistory"] })) as {
-      earningsHistory?: { history?: { epsActual?: number; epsEstimate?: number }[] };
+      earningsHistory?: { history?: { epsActual?: number; epsEstimate?: number; quarter?: unknown }[] };
     };
     const h = s.earningsHistory?.history ?? [];
     const last = h[h.length - 1];
     if (last?.epsActual == null || last?.epsEstimate == null) return null;
+
+    // The quarter-end date is absent on some responses. Absent is not proof of
+    // freshness, but rejecting on it would drop every legitimate reporter whose
+    // payload omits the field, so it is checked only when present.
+    const qMs = toMs(last.quarter);
+    if (Number.isFinite(qMs) && qMs > 0) {
+      const ageDays = (Date.parse(`${marketDate}T00:00:00Z`) - qMs) / 86_400_000;
+      if (ageDays > MAX_QUARTER_AGE_DAYS) {
+        logger.info(SRC, "earningsHistory still holds the PRIOR quarter — no EPS numerals", {
+          ticker,
+          quarterEnd: new Date(qMs).toISOString().slice(0, 10),
+          ageDays: Math.round(ageDays),
+        });
+        return null;
+      }
+    }
     return { actual: last.epsActual, estimate: last.epsEstimate };
   } catch {
     return null;
@@ -140,6 +188,11 @@ export async function buildAttributions(
     .filter((c) => Math.abs(c.changePct) >= MIN_ABS_MOVE)
     .sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct))
     .slice(0, MAX_CANDIDATES);
+
+  // One EDGAR call for the whole ticker→CIK index, reused across the shortlist,
+  // so rung 4 costs ≤11 requests however many names reach it. Fetched up front
+  // rather than lazily because an empty map must not look like "no filings".
+  const cikByTicker = shortlist.length > 0 ? await fetchCikMap() : new Map<string, string>();
 
   for (const c of shortlist) {
     // Finnhub's explicit bmo/amc is authoritative; the Yahoo stamp is the
@@ -168,7 +221,7 @@ export async function buildAttributions(
 
     // ── Rung 1: earnings on the reaction day ────────────────────────────────
     if (reactionDay) {
-      const yahoo = await fetchYahooEps(c.ticker);
+      const yahoo = await fetchYahooEps(c.ticker, marketDate);
       const finnhubActual = report?.epsActual ?? null;
       const actual = yahoo?.actual ?? finnhubActual;
       if (actual == null) {
@@ -203,9 +256,14 @@ export async function buildAttributions(
       continue;
     }
 
-    // ── Rungs 2 and 3: analyst actions dated today ──────────────────────────
-    const actions = await fetchRatingActions(c.ticker, marketDate, closeMinute);
-    const graded = actions.filter((a) => a.action === "up" || a.action === "down" || a.action === "init");
+    // ── Rungs 2 and 3: analyst actions in the window ────────────────────────
+    const actions = await fetchRatingActions(c.ticker, marketDate, priorSessionDate, closeMinute);
+    // Only up/down are SIGNED, so only they can contradict the move. An "init"
+    // carries no direction to disagree with, and treating it as a mismatch used
+    // to block every lower rung: a name that got coverage initiated today could
+    // never reach the target rung, and now could never reach the 8-K rung
+    // either, however loud its filing.
+    const graded = actions.filter((a) => a.action === "up" || a.action === "down");
     const signed = graded.find(
       (a) => (a.action === "down" && c.changePct < 0) || (a.action === "up" && c.changePct > 0),
     );
@@ -238,6 +296,27 @@ export async function buildAttributions(
         rung: "target",
         verb: "after",
         phrase: `${c.ticker} ${dir} ${fmtPct(c.changePct)} after ${targets.length} ${word}`,
+      });
+      continue;
+    }
+
+    // ── Rung 4: a causal 8-K filed during today's session ───────────────────
+    // Last because it is the least specific: the item code names a category of
+    // event, not the event. It earns its place on the days nothing else fires —
+    // an acquisition closing or a CEO leaving moves a stock hard and appears in
+    // neither earnings history nor the analyst tape.
+    const cik = cikByTicker.get(c.ticker);
+    if (!cik) continue;
+    const filing = await fetchCausalEightK(c.ticker, cik, marketDate, priorSessionDate, closeMinute);
+    if (filing) {
+      // "after", never "on": an item code is unsigned. 5.02 covers both a
+      // resignation and an appointment, and 2.01 an acquisition or a disposal,
+      // so the direction of the move can never be checked against it.
+      out.push({
+        ticker: c.ticker,
+        rung: "8k",
+        verb: "after",
+        phrase: `${c.ticker} ${dir} ${fmtPct(c.changePct)} after an 8-K on ${filing.what}`,
       });
     }
   }

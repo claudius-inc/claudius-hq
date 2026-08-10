@@ -415,7 +415,16 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     timeframes: timeframes.length > 0 ? { value: timeframes, source: "Yahoo daily bars (adjusted)", asOf } : null,
     macro,
     attributions:
-      attributions.length > 0 ? { value: attributions, source: "Finnhub + Yahoo (dated, direction-checked)", asOf } : null,
+      attributions.length > 0
+        ? {
+            value: attributions,
+            // "where signed" matters: the 8-K rung's item codes carry no
+            // direction, which is why those clauses always read "after". A flat
+            // "direction-checked" would overstate what the archived note did.
+            source: "Finnhub + Yahoo + SEC EDGAR (dated; direction-checked where signed)",
+            asOf,
+          }
+        : null,
   };
 }
 

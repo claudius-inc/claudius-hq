@@ -54,6 +54,11 @@ jobs:
           # agreement rule can never be satisfied — so no earnings clause can
           # ever say "a beat" or "a miss" (docs/daily-note-v2-spec.md §A).
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          # SEC requires a User-Agent that identifies the requester and offers a
+          # contact address; anonymous or spoofed agents get blocked. The code
+          # carries a compliant default, so this only needs setting to change the
+          # address — leave the repo variable unset and the default applies.
+          SEC_EDGAR_USER_AGENT: ${{ vars.SEC_EDGAR_USER_AGENT }}
 
       - name: Summary
         if: always()

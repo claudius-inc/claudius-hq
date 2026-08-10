@@ -16,7 +16,7 @@
 | **A** relevance, stage B (ATR re-rank) | ❌ not built | Deliberately sequenced behind a few weeks of stage-A logs |
 | **A** `sector_weight` | ✅ shipped | Plus `first_seen` (migration 0027) as a membership ratchet |
 | **B** attribution rungs 1–3 | ✅ shipped | Earnings, rating, target-only. Two-verb rule, two-source beat/miss |
-| **B** rung 4 (8-K / EDGAR) | ❌ not built | Free and worth building; catches the M&A and CEO-exit days |
+| **B** rung 4 (8-K / EDGAR) | ✅ shipped | Items 1.01/1.02/2.01/2.02/3.01/5.02, most significant wins; 7.01/8.01/9.01 excluded as contentless. Always "after" — an item code is unsigned. Declared UA + 10 req/s, ≤11 requests a run |
 | **B** rungs 5–6 (halts, headlines) | 🚫 cut | Halts are rare enough to be maintenance without payoff; "a headline existed" is correlation dressed as cause, and the bare mover line is more honest and free |
 | **B** MOVERS section | ✅ shipped | Including rung 7: a ranked name with no reason prints bare |
 | **1b** prose ban | ✅ shipped | Default-deny, field-scoped, **and alias-aware** — company names are policed like tickers |
