@@ -24,6 +24,9 @@ interface PickRow {
   factors: string | null;
   rsi: number | null;
   change_pct: number | null;
+  vol_pctl: number | null;
+  vwap_dist_pct: number | null;
+  oi_change_pct: number | null;
   as_of: string | null;
   run_date: string;
 }
@@ -39,7 +42,7 @@ interface PickRow {
 async function loadLatestPicks(): Promise<PickRow[]> {
   const res = await rawClient.execute(`
     SELECT symbol, base, side, category, score, max_score, factors, rsi,
-           change_pct, as_of, run_date
+           change_pct, vol_pctl, vwap_dist_pct, oi_change_pct, as_of, run_date
     FROM perp_convergence_picks
     WHERE reported = 1
       AND run_date = (SELECT MAX(run_date) FROM perp_convergence_picks WHERE reported = 1)
@@ -128,10 +131,10 @@ export default async function ShortlistPage() {
         maxScore: r.max_score,
         factors: factorInitials(r.factors, r.score, r.max_score),
         rsi: r.rsi,
-        volPctl: null,
+        volPctl: r.vol_pctl,
         changePct: r.change_pct,
-        vwapDistPct: null,
-        oiChangePct: null,
+        vwapDistPct: r.vwap_dist_pct,
+        oiChangePct: r.oi_change_pct,
         qvwap: stored.qvwap,
         bars: stored.bars,
       });

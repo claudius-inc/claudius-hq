@@ -307,8 +307,9 @@ async function recordPicks(result: ConvergenceResult, runDate: string): Promise<
                 (run_date, venue, symbol, base, category, side, rank, reported,
                  score, max_score, opposing_score, factors, fresh_flag,
                  contested, liquidity_pctl,
-                 price, rsi, change_pct, avg_quote_vol, as_of)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                 price, rsi, change_pct, avg_quote_vol, as_of,
+                 vol_pctl, vwap_dist_pct, qvwap, oi_change_pct, oi_pctl)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         args: [
           runDate, p.venue, p.symbol, p.base, p.category, p.side,
           rankOf.get(p) ?? i + 1,
@@ -317,6 +318,9 @@ async function recordPicks(result: ConvergenceResult, runDate: string): Promise<
           p.freshFlag ? 1 : 0,
           p.contested ? 1 : 0, p.liquidityPctl,
           p.price, p.rsi, p.changePct, p.avgQuoteVol, result.asOf,
+          // Everything below is computed during the screen and would otherwise
+          // be lost — the page cannot recompute it without calling the venue.
+          p.volPctl, p.vwapDistPct, p.qvwap, p.oiChangePct, p.oiPctl,
         ] as never[],
       })),
     ],

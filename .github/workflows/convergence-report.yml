@@ -1,18 +1,22 @@
 name: Convergence Report
 
+# THE SCHEDULE IS REMOVED ON PURPOSE — DO NOT RESTORE IT.
+#
+# Binance answers HTTP 451 to GitHub-hosted runners: "Service unavailable from a
+# restricted location according to 'b. Eligibility'". The block is enforced on
+# datacenter IP RANGES, not merely on US geography, so no runner image, region
+# or retry setting fixes it. The one scheduled run this workflow ever attempted
+# failed at its first call, before fetching a single bar.
+#
+# The daily fetch now runs from a VPS in a permitted region — see
+# scripts/ops/daily-fetch.sh. That box writes everything to Turso, and both the
+# Telegram push and /markets/shortlist read from there, so nothing downstream
+# depends on where anything is hosted.
+#
+# workflow_dispatch is kept only so the pipeline can still be triggered by hand
+# from a runner that IS permitted (a self-hosted one). Expect 451 on a
+# GitHub-hosted runner.
 on:
-  # Daily at 00:10 UTC = 08:10 SGT, every day.
-  #
-  # The screen reads 4h bars, which close at 00:00/04:00/08:00... UTC. Running
-  # at :10 means the most recent CLOSED bar is the 20:00-00:00 one, so the
-  # report reflects a complete bar rather than a partial one — the pipeline
-  # discards the forming bar, so an earlier run would silently score 4h-old data.
-  #
-  # Seven days a week, not weekdays: crypto perps trade continuously, and the
-  # tradfi perps on Binance keep trading through the weekend even while their
-  # underlying cash markets are shut.
-  schedule:
-    - cron: '10 0 * * *'
   workflow_dispatch: {}
 
 jobs:
