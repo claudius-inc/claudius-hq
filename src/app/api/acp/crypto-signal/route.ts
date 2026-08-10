@@ -118,10 +118,25 @@ interface FundingRateData {
   interpretation: string;
 }
 
+/**
+ * Binance base URLs, overridable so this route can work from hosted infra.
+ *
+ * Binance answers HTTP 451 to datacenter IP ranges — not merely to US
+ * geography — so these calls fail wherever this route is deployed, silently:
+ * the funding fetch returns null and the price fallback moves on, so the
+ * endpoint degrades rather than errors and the cause is invisible. Pointing
+ * these at a relay on a served range restores them. Unset means talk to
+ * Binance directly, which is correct when running somewhere permitted.
+ *
+ * Futures and spot are separate hosts and need separate overrides.
+ */
+const BINANCE_FUTURES_BASE = process.env.BINANCE_API_BASE ?? "https://fapi.binance.com";
+const BINANCE_SPOT_BASE = process.env.BINANCE_SPOT_API_BASE ?? "https://api.binance.com";
+
 async function fetchBinanceFundingRate(symbol: string = "BTCUSDT"): Promise<FundingRateData | null> {
   try {
     const res = await fetch(
-      `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${symbol}&limit=1`,
+      `${BINANCE_FUTURES_BASE}/fapi/v1/fundingRate?symbol=${symbol}&limit=1`,
       { cache: "no-store" }
     );
     if (!res.ok) return null;
@@ -672,8 +687,8 @@ export async function POST(req: NextRequest) {
         if (config.binanceSymbol) {
           try {
             const [klineRes, tickerRes] = await Promise.all([
-              fetch(`https://api.binance.com/api/v3/klines?symbol=${config.binanceSymbol}&interval=1d&limit=${days}`),
-              fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${config.binanceSymbol}`),
+              fetch(`${BINANCE_SPOT_BASE}/api/v3/klines?symbol=${config.binanceSymbol}&interval=1d&limit=${days}`),
+              fetch(`${BINANCE_SPOT_BASE}/api/v3/ticker/24hr?symbol=${config.binanceSymbol}`),
             ]);
 
             if (klineRes.ok) {
