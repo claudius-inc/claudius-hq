@@ -16,7 +16,7 @@ import { eq } from "drizzle-orm";
 import { db, weeklyNotes } from "@/db";
 import { logger } from "@/lib/logger";
 import { etToday, checkTradingSession } from "@/lib/notes/session";
-import { resolveWeek, aggregateWeek } from "@/lib/notes/weekly";
+import { resolveWeek, aggregateWeek, attachReview } from "@/lib/notes/weekly";
 import { renderWeeklyPush, renderWeeklyWeb } from "@/lib/notes/render-weekly";
 import { sendNote, editNote, alertAdmin } from "@/lib/notes/telegram";
 
@@ -65,13 +65,19 @@ async function main() {
     return;
   }
 
-  const facts = aggregateWeek(anchors);
+  // THE WEEK REVIEWED is attached separately because it fetches: resolving a
+  // flagged name against its sector needs closes that were never stored. A
+  // failure there costs the review section, never the wrap.
+  const facts = await attachReview(aggregateWeek(anchors), anchors);
   logger.info(SRC, "Week aggregated", {
     weekStart: facts.weekStart,
     weekEnd: facts.weekEnd,
     sessions: facts.sessions,
     indices: facts.indices.length,
     breadthDays: facts.breadth?.sessionsCovered ?? 0,
+    followThrough: facts.review?.followThrough
+      ? `${facts.review.followThrough.kept}/${facts.review.followThrough.checkable}`
+      : "none",
   });
 
   const url = webUrl(facts.weekEnd);

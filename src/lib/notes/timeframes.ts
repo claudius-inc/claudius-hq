@@ -31,7 +31,7 @@ export const WINDOW_21 = 21;
  * sessions dividends explain at most ~1-2%, so importing 6% would let a 4-5%
  * defect through — enough to flip the sign of the figure. Scale with the window.
  */
-function toleranceFor(window: number): number {
+export function toleranceFor(window: number): number {
   return window <= WINDOW_5 ? 2 : 4;
 }
 

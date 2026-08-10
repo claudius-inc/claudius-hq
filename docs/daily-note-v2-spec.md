@@ -21,7 +21,8 @@
 | **B** MOVERS section | ✅ shipped | Including rung 7: a ranked name with no reason prints bare |
 | **1b** prose ban | ✅ shipped | Default-deny, field-scoped, **and alias-aware** — company names are policed like tickers |
 | **1b** sector↔partner phrase table | ⏸ deferred | Copper (`HG=F`) is now a registered cross-asset, so the numerals exist. The table itself waits on sector nouns joining the alias list — without that the validator cannot require it, and an unenforced table is a suggestion |
-| **C** weekly wrap | ◐ partial | Index / sector / rotation / breadth / rates / VIX / cross-asset ship. The accountability tier — divergence follow-through, pin adherence, quoting the stored prose — does not |
+| **C** weekly wrap | ✅ shipped | Including THE WEEK REVIEWED: divergence follow-through (measured against the sector, both legs or neither), pin distance, the week's biggest surfaced moves, concentration over reconciled sessions, VIX band crossing, and the earliest hook quoted without a verdict. Unvalidated against real data until ~2 weeks of notes exist |
+| **C** single-name weeklies | ❌ not built | Needs stage B's bars — one PR with the ATR re-rank |
 | **D** timeframes, benchmarks | ✅ shipped | Scaled split-defect tolerance; labelled in sessions |
 | **D** timeframes, single names | ❌ not built | Needs stage B's bars; one PR with the ATR re-rank |
 | **E** macro releases | ✅ shipped | Actual vs prior, basis stated, staleness-gated, revision-flagged |

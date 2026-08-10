@@ -16,6 +16,7 @@ import { db, sp500Constituents } from "@/db";
 import { logger } from "@/lib/logger";
 import { fetchBatchQuotes, type QuoteResult } from "@/lib/scanner/yahoo-fetcher";
 import { etDate, toMs } from "@/lib/notes/session";
+import { toYahooSymbol } from "@/lib/notes/sources/daily-bars";
 import type { DivergenceSector, DivergenceName, ContributionData, SectorPoint } from "@/lib/notes/types";
 
 const SRC = "notes/divergence";
@@ -122,12 +123,11 @@ async function loadConstituentQuotes(marketDate: string): Promise<ConstituentQuo
   }
 
   // Yahoo uses '-' where SPDR uses '.' for share classes (BRK.B → BRK-B).
-  const toYahoo = (t: string) => t.replace(/\./g, "-");
-  const quotes = await fetchBatchQuotes(rows.map((r) => toYahoo(r.ticker)));
+  const quotes = await fetchBatchQuotes(rows.map((r) => toYahooSymbol(r.ticker)));
 
   const out: ConstituentQuote[] = [];
   for (const r of rows) {
-    const q = quotes.get(toYahoo(r.ticker));
+    const q = quotes.get(toYahooSymbol(r.ticker));
     const pct = q?.regularMarketChangePercent;
     if (pct == null || !Number.isFinite(pct)) continue;
     out.push({

@@ -13,7 +13,8 @@
 import { and, desc, gte, lt, lte } from "drizzle-orm";
 import { db, dailyNotes } from "@/db";
 import { logger } from "@/lib/logger";
-import type { StructuredFacts } from "@/lib/notes/types";
+import { buildWeeklyReview, type WeeklyReview } from "@/lib/notes/weekly-review";
+import type { StructuredFacts, NoteProse } from "@/lib/notes/types";
 
 const SRC = "notes/weekly";
 
@@ -26,7 +27,7 @@ export interface WeeklyAnchors {
   /** The session the week is measured FROM (the last one before it). */
   weekStart: string;
   /** Every daily note inside the week, oldest first. */
-  days: { date: string; facts: StructuredFacts }[];
+  days: { date: string; facts: StructuredFacts; prose: NoteProse | null }[];
   /** The anchor row's facts, used as the "from" side of every weekly change. */
   startFacts: StructuredFacts;
 }
@@ -36,6 +37,22 @@ function parseFacts(raw: string, date: string): StructuredFacts | null {
     return JSON.parse(raw) as StructuredFacts;
   } catch (error) {
     logger.warn(SRC, "Unparseable stored facts", { date, error });
+    return null;
+  }
+}
+
+/**
+ * Prose is optional in a way facts are not: a note ships without it whenever the
+ * model is down or every field failed validation, and rows written before the
+ * column existed have none. A day with no prose simply has nothing to quote —
+ * never fall back to `push_html`, which is the rendering, not what we wrote.
+ */
+function parseProse(raw: string | null, date: string): NoteProse | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as NoteProse;
+  } catch (error) {
+    logger.warn(SRC, "Unparseable stored prose — nothing quotable for this day", { date, error });
     return null;
   }
 }
@@ -64,14 +81,14 @@ export async function resolveWeek(today: string): Promise<WeeklyAnchors | null> 
   const monday = mondayOf(today);
 
   const rows = await db
-    .select({ date: dailyNotes.date, facts: dailyNotes.facts })
+    .select({ date: dailyNotes.date, facts: dailyNotes.facts, prose: dailyNotes.prose })
     .from(dailyNotes)
     .where(and(gte(dailyNotes.date, monday), lte(dailyNotes.date, today)))
     .orderBy(dailyNotes.date);
 
   const days = rows
-    .map((r) => ({ date: r.date, facts: parseFacts(r.facts, r.date) }))
-    .filter((d): d is { date: string; facts: StructuredFacts } => d.facts != null);
+    .map((r) => ({ date: r.date, facts: parseFacts(r.facts, r.date), prose: parseProse(r.prose, r.date) }))
+    .filter((d): d is { date: string; facts: StructuredFacts; prose: NoteProse | null } => d.facts != null);
 
   if (days.length === 0) {
     logger.warn(SRC, "No daily notes in this week — nothing to wrap", { monday, today });
@@ -127,6 +144,12 @@ export interface WeeklyFacts {
   breadth: { sessionsCovered: number; negativeSessions: number; cumulativeNet: number } | null;
   /** Sector ranking flip between the first and second half of the week. */
   rotation: { firstHalfLeader: string; secondHalfLeader: string; rotated: boolean } | null;
+  /**
+   * THE WEEK REVIEWED (§C) — what the week's notes flagged, and what became of
+   * it. Null when nothing was checkable; individual sections null out
+   * independently. This is the only backward-looking part of the wrap.
+   */
+  review: WeeklyReview | null;
 }
 
 /** Percent change between two closes, or null when either side is missing. */
@@ -253,5 +276,28 @@ export function aggregateWeek(a: WeeklyAnchors): WeeklyFacts {
     vix,
     breadth,
     rotation,
+    // Filled by the runner: the review is the one part that fetches, and keeping
+    // this function pure is what lets the whole aggregation be tested offline.
+    review: null,
   };
+}
+
+/**
+ * Attach THE WEEK REVIEWED. Separated from `aggregateWeek` because it performs
+ * network I/O, and folded in by the runner rather than by the renderer so a
+ * fetch failure costs the review section only — never the wrap.
+ */
+export async function attachReview(facts: WeeklyFacts, anchors: WeeklyAnchors): Promise<WeeklyFacts> {
+  try {
+    facts.review = await buildWeeklyReview(
+      anchors.days,
+      anchors.startFacts,
+      anchors.weekEnd,
+      anchors.weekStart,
+    );
+  } catch (error) {
+    logger.warn(SRC, "Weekly review failed; wrapping without it", { error });
+    facts.review = null;
+  }
+  return facts;
 }
