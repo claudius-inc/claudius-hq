@@ -1,0 +1,68 @@
+name: Shortlist Telegram
+
+# 00:25 UTC = 08:25 SGT, every day.
+#
+# The screen itself CANNOT run here — Binance answers HTTP 451 to GitHub-hosted
+# runners, and to datacenter IP ranges generally. It runs on a VPS in a
+# permitted region at 00:10 UTC and writes to Turso (scripts/ops/daily-fetch.sh,
+# docs/vps-daily-fetch-setup.md).
+#
+# This job only READS that database and sends the message, which needs no
+# special network position. Splitting it this way is what keeps the Telegram bot
+# token off the fetch VPS: neither machine holds the other's secrets.
+#
+# :25 rather than :10 leaves the fetch a ~15 minute margin — it takes 2-4
+# minutes normally. If the fetch has not landed, the send does NOT publish the
+# previous day's list; it reports the staleness and fails, so a silent VPS
+# outage surfaces here instead of looking like a normal morning.
+on:
+  schedule:
+    - cron: '25 0 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Reads perp_convergence_picks only. No Binance call anywhere in this path
+      # — if one is ever added, this workflow starts failing with HTTP 451.
+      - name: Send shortlist to Telegram
+        run: npx tsx scripts/pipelines/send-shortlist-telegram.ts
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Shortlist Telegram" >> $GITHUB_STEP_SUMMARY
+          echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      # The send script already reports staleness to Telegram before exiting
+      # non-zero, so this only fires for genuine faults — a bad token, an
+      # unreachable database, a crash.
+      - name: Notify on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+            -d "text=⚠️ Shortlist send failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
