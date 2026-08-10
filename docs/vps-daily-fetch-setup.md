@@ -15,9 +15,12 @@ geography. GitHub-hosted runners are refused outright, and the block has been
 reported on Google Cloud from Asian regions too. This VPS is in Germany, which
 is served — that is the entire reason it exists.
 
-**Therefore: never move a Binance call into the web app, and never re-add the
-schedule to `.github/workflows/convergence-report.yml`.** The reason is recorded
-in that file.
+**Therefore: never move a Binance call into the web app, and never add a
+scheduled GitHub Actions workflow that calls the venue.** One existed and was
+deleted — it could not work, and a workflow guaranteed to fail is worse than no
+workflow, because someone eventually triggers it and spends an hour on the
+error. The only GitHub Actions job in this system is `shortlist-telegram.yml`,
+which reads the database and sends a message; it never touches Binance.
 
 ## Prerequisites
 
