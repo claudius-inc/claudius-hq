@@ -238,6 +238,27 @@ export interface ConvergenceResult {
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
 /**
+ * Bases that cannot produce a trade, however good the score looks.
+ *
+ * The retired crypto screen filtered these and the consolidation dropped the
+ * filter, which let USDC reach a reported LONG slot: a dollar stablecoin sits
+ * pinned near its peg, so it is permanently "coiled" and permanently near any
+ * VWAP — exactly the profile the score rewards. The screen was working as
+ * written and the output was still nonsense.
+ *
+ * Non-USD pegs are included for the same reason: on a dollar slide EURC prints
+ * a clean trend that is a currency move, not an opportunity in the asset.
+ */
+const NON_TRADABLE_BASES = new Set([
+  "USDC", "USDT", "DAI", "USDE", "USDS", "FDUSD", "TUSD", "USD1", "PYUSD",
+  "BUSD", "USDD", "GUSD", "FRAX", "LUSD", "USDP", "CRVUSD", "RLUSD", "USDG",
+  "USDX", "EURC", "EURS", "EURT", "EURI",
+]);
+
+/** True when the base is a peg rather than a position. */
+export const isNonTradable = (base: string): boolean => NON_TRADABLE_BASES.has(base);
+
+/**
  * Volume-weighted average price anchored to the start of the current calendar
  * quarter.
  *
@@ -574,6 +595,10 @@ export async function selectConvergencePicks(
   const now = Date.now();
 
   for (const sym of symbols) {
+    // Pegs are excluded before anything else — they cannot be an opportunity
+    // regardless of how the indicators read.
+    if (isNonTradable(sym.base)) continue;
+
     const bars = barMap.get(sym.symbol);
     if (!bars || bars.length === 0) {
       noBars++;

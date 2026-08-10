@@ -1,6 +1,6 @@
+// Deliberately no venue or screen imports: this page reads the database only,
+// so it must not pull in the Binance client or the screen's dependency tree.
 import { rawClient } from "@/db";
-import { binanceVenue } from "@/lib/markets/perp-venues";
-import { quarterlyVwap } from "@/lib/markets/convergence-screen";
 import { logger } from "@/lib/logger";
 import { PageHero } from "@/components/PageHero";
 import ChartGrid from "./_components/ChartGrid";
@@ -13,8 +13,6 @@ import type { CompactBar, ShortlistChart } from "./_lib/types";
  */
 export const revalidate = 300;
 
-/** 4h bars per chart — ~30 days, enough to read structure without noise. */
-const CHART_BARS = 180;
 
 interface PickRow {
   symbol: string;
@@ -50,6 +48,31 @@ async function loadLatestPicks(): Promise<PickRow[]> {
   return res.rows as unknown as PickRow[];
 }
 
+/** Stored candles for one run, keyed by symbol. */
+async function loadChartBars(
+  runDate: string,
+): Promise<Map<string, { bars: CompactBar[]; qvwap: number | null }>> {
+  const out = new Map<string, { bars: CompactBar[]; qvwap: number | null }>();
+  if (!runDate) return out;
+
+  const res = await rawClient.execute({
+    sql: "SELECT symbol, bars, qvwap FROM perp_chart_bars WHERE run_date = ?",
+    args: [runDate] as never[],
+  });
+
+  for (const row of res.rows) {
+    try {
+      out.set(String(row.symbol), {
+        bars: JSON.parse(String(row.bars)) as CompactBar[],
+        qvwap: row.qvwap === null ? null : Number(row.qvwap),
+      });
+    } catch {
+      // A malformed blob costs one chart, not the page.
+    }
+  }
+  return out;
+}
+
 /** Renders the stored factor JSON as initials, `Q` first (it is worth 2). */
 function factorInitials(json: string | null, score: number, maxScore: number): string {
   if (!json) return "";
@@ -78,13 +101,24 @@ export default async function ShortlistPage() {
     logger.error("markets/shortlist", "Failed to load shortlist picks", { error: err });
   }
 
+  // Candles come from the database, never from the venue.
+  //
+  // Binance answers HTTP 451 to restricted regions, which includes US-hosted
+  // serverless runtimes — a render-time fetch here works locally and fails in
+  // production for reasons no code path can fix. The pipeline runs from a
+  // permitted region and writes the bars it used, so this page has no
+  // geographic dependency at all.
+  let barsBySymbol = new Map<string, { bars: CompactBar[]; qvwap: number | null }>();
+  try {
+    barsBySymbol = await loadChartBars(rows[0]?.run_date ?? "");
+  } catch (err) {
+    logger.error("markets/shortlist", "Failed to load chart bars", { error: err });
+  }
+
   const charts: ShortlistChart[] = [];
-  // Sequential rather than Promise.all: 16 symbols against a venue with an IP
-  // weight budget, on a page that revalidates every five minutes.
   for (const r of rows) {
-    try {
-      const bars = await binanceVenue.fetchBars(r.symbol, "4h", CHART_BARS + 1);
-      if (!bars.length) continue;
+    const stored = barsBySymbol.get(r.symbol);
+    if (stored && stored.bars.length) {
       charts.push({
         base: r.base,
         symbol: r.symbol,
@@ -98,13 +132,8 @@ export default async function ShortlistPage() {
         changePct: r.change_pct,
         vwapDistPct: null,
         oiChangePct: null,
-        qvwap: quarterlyVwap(bars),
-        bars: bars.map((b) => [b.t, b.o, b.h, b.l, b.c, b.v] as CompactBar),
-      });
-    } catch (err) {
-      logger.warn("markets/shortlist", "Bar fetch failed; chart omitted", {
-        symbol: r.symbol,
-        error: err,
+        qvwap: stored.qvwap,
+        bars: stored.bars,
       });
     }
   }
@@ -124,17 +153,15 @@ export default async function ShortlistPage() {
       </p>
 
       {charts.length === 0 ? (
-        // Three distinct failures, three distinct messages. Collapsing them into
-        // "nothing recorded yet" was actively misleading: when picks exist but
-        // the venue refuses the request, the shortlist is fine and only the
-        // candles are missing — a very different thing to go and fix.
+        // Two distinct failures, two distinct messages. Collapsing them into
+        // "nothing recorded yet" was misleading: picks present with no candles
+        // means the screen ran but did not write its bars, which is a different
+        // thing to go and fix than the screen never having run.
         <p className="text-sm text-neutral-500">
           {rows.length === 0
-            ? "No shortlist recorded yet. The screen runs daily at 00:10 UTC."
-            : `${rows.length} names were shortlisted for ${rows[0].run_date}, but their price ` +
-              "history could not be loaded. Binance returns HTTP 451 to requests from " +
-              "restricted regions, which includes US-hosted serverless runtimes — this page " +
-              "needs to render from a permitted region."}
+            ? "No shortlist recorded yet. The screen runs once a day."
+            : `${rows.length} names were shortlisted for ${rows[0].run_date}, but no candles ` +
+              "were stored for that run. Re-run the screen to record them."}
         </p>
       ) : (
         <ChartGrid charts={charts} />

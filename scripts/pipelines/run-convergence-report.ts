@@ -366,6 +366,56 @@ async function recentlyReportedSymbols(cooldownDays: number): Promise<Set<string
   return new Set(rows.rows.map((r) => String(r.symbol)));
 }
 
+/** 4h bars stored per shortlisted name — ~30 days, enough to read structure. */
+const CHART_BARS = 180;
+
+/**
+ * Writes the candles behind each reported pick.
+ *
+ * Delete-then-insert per run so a same-day re-run replaces rather than merges:
+ * bars and picks must describe the same moment, or the chart shows one run's
+ * price action under another run's score.
+ */
+async function recordChartBars(picks: ConvergencePick[], runDate: string): Promise<void> {
+  const { rawClient } = await import("@/db");
+  const { binanceVenue } = await import("@/lib/markets/perp-venues");
+  const { quarterlyVwap } = await import("@/lib/markets/convergence-screen");
+
+  const stmts: { sql: string; args: never[] }[] = [
+    { sql: "DELETE FROM perp_chart_bars WHERE run_date = ?", args: [runDate] as never[] },
+  ];
+
+  for (const p of picks) {
+    try {
+      const bars = await binanceVenue.fetchBars(p.symbol, "4h", CHART_BARS + 1);
+      if (!bars.length) continue;
+      stmts.push({
+        sql: `INSERT INTO perp_chart_bars (run_date, symbol, interval, bars, qvwap)
+              VALUES (?,?,?,?,?)`,
+        args: [
+          runDate,
+          p.symbol,
+          "4h",
+          JSON.stringify(bars.map((b) => [b.t, b.o, b.h, b.l, b.c, b.v])),
+          quarterlyVwap(bars),
+        ] as never[],
+      });
+    } catch (err) {
+      // One unavailable symbol costs its chart, not the whole write.
+      logger.warn("convergence-report", "Chart bars unavailable", {
+        symbol: p.symbol,
+        error: err,
+      });
+    }
+  }
+
+  await rawClient.batch(stmts, "write");
+  logger.info("convergence-report", "Chart bars recorded", {
+    runDate,
+    symbols: stmts.length - 1,
+  });
+}
+
 async function main() {
   const runDate = new Date().toISOString().split("T")[0];
 
@@ -410,6 +460,14 @@ async function main() {
   }
 
   const reported = [...result.longs, ...result.shorts];
+
+  // Persist the candles for the reported names. The web app cannot fetch them
+  // itself: Binance returns 451 to US-hosted serverless runtimes, so a page
+  // that called the venue at render time would work locally and fail in
+  // production. This job already runs from a permitted region, so it writes
+  // what the page needs and the page reads only the database.
+  if (!DRY_RUN) await recordChartBars(reported, runDate);
+
   const trends = await loadTrends(reported);
   // Positioning is fetched for the REPORTED names only — three requests each,
   // so running it over all 136 qualifiers would be 400+ calls for data that
