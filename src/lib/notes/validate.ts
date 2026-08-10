@@ -228,6 +228,15 @@ export function collectProseSubjects(f: StructuredFacts): string[] {
     }
 
   const out = new Set(tickers);
+
+  // Both spellings of a share class. Stored tickers use the SPDR form (BRK.B),
+  // but the fact sheet shows the model Yahoo's (BRK-B) wherever a figure came
+  // from a price series — and a subject list holding only one of the two is a
+  // spelling preference, not a rule. `\bBRK\.B\b` does not match `BRK-B`.
+  for (const t of Array.from(tickers)) {
+    if (t.includes(".")) out.add(t.replace(/\./g, "-"));
+  }
+
   for (const [ticker, name] of Object.entries(f.companyNames ?? {})) {
     if (!tickers.has(ticker)) continue;
     const alias = normalizeCompanyName(name);

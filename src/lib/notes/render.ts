@@ -7,6 +7,8 @@
  * arrive with slices 2 and 4. Sections whose fact is null are omitted (§1a).
  */
 import { extractNumerals } from "@/lib/notes/validate";
+import { SECTOR_SPDRS } from "@/lib/notes/sources/spdr-holdings";
+import { toYahooSymbol } from "@/lib/notes/sources/daily-bars";
 import type {
   StructuredFacts,
   NoteProse,
@@ -48,6 +50,9 @@ const intFmt = (n: number) => Math.round(n).toLocaleString("en-US");
  * so the two halves of MOVERS agree on what counts as a move.
  */
 const BARE_MOVER_FLOOR_PCT = 1.5;
+
+/** The 11 sector SPDRs, for telling a sector apart from a constituent. */
+const SECTOR_SPDR_SET = new Set<string>(SECTOR_SPDRS);
 
 /**
  * After-hours annotation for a named ticker (§G). Always clocked from the print
@@ -186,7 +191,10 @@ function trendSection(f: StructuredFacts): string {
   if (sp.chg21s != null) parts.push(`21-session ${spct(sp.chg21s)}`);
 
   // The strongest and weakest sector over 21 sessions puts the day in context.
-  const sectors = tf.filter((t) => t.symbol.startsWith("XL") && t.chg21s != null);
+  // Exact membership, not a "XL" prefix: the timeframes fact now also carries
+  // the relevance union's single names, and a constituent whose ticker happens
+  // to start with XL would otherwise be ranked as a sector.
+  const sectors = tf.filter((t) => SECTOR_SPDR_SET.has(t.symbol) && t.chg21s != null);
   let lead = "";
   if (sectors.length >= 2) {
     const sorted = [...sectors].sort((a, b) => (b.chg21s as number) - (a.chg21s as number));
@@ -691,7 +699,46 @@ export function renderWeb({ facts, webUrl, prose }: RenderInput): string {
     .join("\n");
 
   // Depth sections the push has no room for.
-  return [head, webSectorBoard(facts), webDivergence(facts), webContribution(facts), webSpotlight(facts)]
+  return [
+    head,
+    webSectorBoard(facts),
+    webMoverTrend(facts),
+    webDivergence(facts),
+    webContribution(facts),
+    webSpotlight(facts),
+  ]
     .filter((s) => s.length > 0)
     .join("\n");
+}
+
+/**
+ * Where today's movers sit in their own recent run (§D, single names).
+ *
+ * Web only. The push's TREND line is about benchmarks, and a reader scanning a
+ * notification does not need fifteen names in session context — but on the
+ * archive page it answers the question the mover lines raise: is this a break
+ * from the name's recent direction, or more of the same?
+ *
+ * One figure dropped by the split-defect gate shows as "n/a" rather than being
+ * quietly left out, so a blank is never mistaken for a flat month. A name that
+ * lost BOTH figures has nothing to say and is omitted entirely.
+ */
+function webMoverTrend(f: StructuredFacts): string {
+  const movers = f.movers?.value;
+  const tf = f.timeframes?.value;
+  if (!movers?.length || !tf?.length) return "";
+
+  const bySymbol = new Map(tf.map((t) => [t.symbol, t]));
+  const rows = movers
+    .map((m) => {
+      // Timeframes are keyed by the Yahoo spelling; movers carry the SPDR one.
+      const t = bySymbol.get(toYahooSymbol(m.ticker));
+      if (!t || (t.chg5s == null && t.chg21s == null)) return "";
+      const fmt = (v: number | null) => (v == null ? "n/a" : spct(v));
+      return `<li><code>${escapeHtml(m.ticker)}</code> ${spct(m.changePct)} today · 5-session ${fmt(t.chg5s)} · 21-session ${fmt(t.chg21s)}</li>`;
+    })
+    .filter((s) => s.length > 0);
+
+  if (rows.length === 0) return "";
+  return `<h2>Movers in session context</h2>\n<ul>\n${rows.join("\n")}\n</ul>`;
 }

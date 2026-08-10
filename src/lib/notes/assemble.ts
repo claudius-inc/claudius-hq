@@ -16,6 +16,7 @@ import { logger } from "@/lib/logger";
 import { fetchBreadthData } from "@/lib/markets/breadth";
 import { rankRelevance, type RelevanceInput, type RelevanceScore } from "@/lib/notes/relevance";
 import { fetchTimeframes } from "@/lib/notes/timeframes";
+import { toYahooSymbol } from "@/lib/notes/sources/daily-bars";
 import { placeEarnings, isReactionDay } from "@/lib/notes/earnings-window";
 import type { ConstituentQuote } from "@/lib/notes/divergence";
 import { fetchRatesFact } from "@/lib/notes/sources/treasury";
@@ -327,7 +328,8 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
 
   // §A relevance + §D timeframes. The relevance ranking is computed from data
   // already in hand; the timeframe bars are the only new fetch, and they cover
-  // the ~20 benchmarks only — never the full index.
+  // the ~20 benchmarks plus the capped relevance union — never the full index,
+  // which would be hundreds of history calls.
   const priorSessionDate = await fetchPriorSessionDate(marketDate);
   const closeMinute = closeMinuteFor(quoteMap);
   const relevance = rankConstituents(constituents, sectors?.value ?? null, marketDate, priorSessionDate, closeMinute);
@@ -337,7 +339,11 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     ...CROSS_ASSETS.map((c) => c.symbol),
     "^VIX",
   ];
-  const timeframes = await fetchTimeframes(benchmarks, marketDate);
+  // Benchmarks AND the relevance union, in one pass (§D). The union is capped
+  // at 15, so this is ~36 sequential chart calls rather than ~21 — about three
+  // extra seconds against a twelve-minute budget.
+  const unionSymbols = relevance.map((r) => toYahooSymbol(r.ticker));
+  const timeframes = await fetchTimeframes([...benchmarks, ...unionSymbols], marketDate);
 
   // §B attribution. The relevance ranking decides WHICH names deserve a reason;
   // the calendar window reaches back a session so an after-close report from

@@ -13,7 +13,7 @@
 | **H0.2** degradation ladder | ✅ shipped | `render.ts`. Interleaved, and now **monotonic** — asserted by test, having been broken twice |
 | **G** after-hours | ✅ shipped | Gate + "as of" clock; refreshes on re-run |
 | **A** relevance, stage A | ✅ shipped | Both entry routes, capped union. Coefficients still a hypothesis — logged per run, unreviewed |
-| **A** relevance, stage B (ATR re-rank) | ❌ not built | Deliberately sequenced behind a few weeks of stage-A logs |
+| **A** relevance, stage B (ATR re-rank) | ❌ not built, deliberately | Built once as a shadow ranking, then deleted rather than left unapplied: a logged-but-unused ordering is the least reviewable state a feature can be in, and the GitHub Actions log is not a queryable sink. The evidence needed to adopt it is already free — `daily_notes.facts` stores the stage-A order with each mover's move, and raw OHLC is retroactively fetchable (unlike `adjclose`), so the comparison is a one-off script over stored notes whenever someone wants it |
 | **A** `sector_weight` | ✅ shipped | Plus `first_seen` (migration 0027) as a membership ratchet |
 | **B** attribution rungs 1–3 | ✅ shipped | Earnings, rating, target-only. Two-verb rule, two-source beat/miss |
 | **B** rung 4 (8-K / EDGAR) | ✅ shipped | Items 1.01/1.02/2.01/2.02/3.01/5.02, most significant wins; 7.01/8.01/9.01 excluded as contentless. Always "after" — an item code is unsigned. Declared UA + 10 req/s, ≤11 requests a run |
@@ -22,9 +22,9 @@
 | **1b** prose ban | ✅ shipped | Default-deny, field-scoped, **and alias-aware** — company names are policed like tickers |
 | **1b** sector↔partner phrase table | ⏸ deferred | Copper (`HG=F`) is now a registered cross-asset, so the numerals exist. The table itself waits on sector nouns joining the alias list — without that the validator cannot require it, and an unenforced table is a suggestion |
 | **C** weekly wrap | ✅ shipped | Including THE WEEK REVIEWED: divergence follow-through (measured against the sector, both legs or neither), pin distance, the week's biggest surfaced moves, concentration over reconciled sessions, VIX band crossing, and the earliest hook quoted without a verdict. Unvalidated against real data until ~2 weeks of notes exist |
-| **C** single-name weeklies | ❌ not built | Needs stage B's bars — one PR with the ATR re-rank |
+| **C** single-name weeklies | ❌ not built | Each stored note now carries 5s/21s figures for its union names, so the wrap has something to read |
 | **D** timeframes, benchmarks | ✅ shipped | Scaled split-defect tolerance; labelled in sessions |
-| **D** timeframes, single names | ❌ not built | Needs stage B's bars; one PR with the ATR re-rank |
+| **D** timeframes, single names | ✅ shipped | Same single pass as the benchmarks — ~36 chart calls instead of ~21, about three seconds. Web-only: the push TREND line is about benchmarks and now filters sectors by exact membership, since the fact also carries constituents |
 | **E** macro releases | ✅ shipped | Actual vs prior, basis stated, staleness-gated, revision-flagged |
 | **E** FOMC static list | ⏸ empty on purpose | The mechanism ships; the dates must be pasted from federalreserve.gov. Guessing them is the fabrication §1a exists to prevent |
 | **F** expectation memory | 🚫 **removed** | Built and correct, and it graded **zero** bets: nothing ever inserted a row, and structurally nothing could. See §F below |

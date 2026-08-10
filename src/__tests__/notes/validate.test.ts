@@ -68,6 +68,16 @@ describe("collectProseSubjects", () => {
     expect(subjects).not.toContain("Gap");
   });
 
+  it("carries BOTH spellings of a share class", () => {
+    // The fact sheet shows the model Yahoo's spelling wherever a figure came
+    // from a price series, while stored tickers use the SPDR form. A subject
+    // list holding only one of the two is a spelling preference, not a rule:
+    // \bBRK\.B\b does not match BRK-B.
+    const subjects = collectProseSubjects(facts({ movers: fact([{ ticker: "BRK.B", changePct: 2.1 }]) }));
+    expect(subjects).toContain("BRK.B");
+    expect(subjects).toContain("BRK-B");
+  });
+
   it("ignores a name for a ticker the note never mentions", () => {
     const subjects = collectProseSubjects(facts({ companyNames: { AKAM: "Akamai Technologies Inc" } }));
     expect(subjects).toEqual([]);
