@@ -1,0 +1,65 @@
+name: Convergence Report
+
+on:
+  # Daily at 00:10 UTC = 08:10 SGT, every day.
+  #
+  # The screen reads 4h bars, which close at 00:00/04:00/08:00... UTC. Running
+  # at :10 means the most recent CLOSED bar is the 20:00-00:00 one, so the
+  # report reflects a complete bar rather than a partial one — the pipeline
+  # discards the forming bar, so an earlier run would silently score 4h-old data.
+  #
+  # Seven days a week, not weekdays: crypto perps trade continuously, and the
+  # tradfi perps on Binance keep trading through the weekend even while their
+  # underlying cash markets are shut.
+  schedule:
+    - cron: '10 0 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Selection logic: src/lib/markets/convergence-screen.ts
+      # Indicator port:  src/lib/markets/mcd.ts
+      # Venue adapter:   src/lib/markets/perp-venues.ts
+      # Orchestration:   scripts/pipelines/run-convergence-report.ts
+      #
+      # Replaces the separate Crypto Report and Momentum Gainers Report, which
+      # pushed twice a day over two different universes.
+      - name: Generate and send convergence report
+        run: npx tsx scripts/pipelines/run-convergence-report.ts
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Convergence Report" >> $GITHUB_STEP_SUMMARY
+          echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Notify on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+            -d "text=⚠️ Convergence report failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

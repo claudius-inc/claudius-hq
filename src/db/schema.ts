@@ -582,6 +582,70 @@ export const cryptoScreenRuns = sqliteTable("crypto_screen_runs", {
 export type CryptoScreenRun = typeof cryptoScreenRuns.$inferSelect;
 export type NewCryptoScreenRun = typeof cryptoScreenRuns.$inferInsert;
 
+// One row per perp CANDIDATE per side per day — not just the sent top N. The
+// convergence ranking is an unvalidated hypothesis (its backtested IC is
+// negative at short horizons), so the un-sent rows are the control group that
+// makes a later out-of-sample study possible. See drizzle/0028.
+export const perpConvergencePicks = sqliteTable(
+  "perp_convergence_picks",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    runDate: text("run_date").notNull(), // YYYY-MM-DD
+    venue: text("venue").notNull(),
+    symbol: text("symbol").notNull(),
+    base: text("base").notNull(),
+    category: text("category").notNull(),
+    side: text("side").notNull(), // long | short
+    rank: integer("rank"),
+    reported: integer("reported").notNull().default(0),
+    score: integer("score").notNull(),
+    maxScore: integer("max_score").notNull(),
+    opposingScore: integer("opposing_score"),
+    factors: text("factors"), // JSON
+    freshFlag: integer("fresh_flag").default(0),
+    // Close of the scored bar, so a pick's forward return is measured from the
+    // price the decision was actually made on.
+    price: real("price"),
+    rsi: real("rsi"),
+    changePct: real("change_pct"),
+    avgQuoteVol: real("avg_quote_vol"),
+    asOf: text("as_of"),
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    uniqSymbolSideDate: uniqueIndex("idx_perp_conv_picks_symbol_side_date").on(
+      table.symbol,
+      table.side,
+      table.runDate,
+    ),
+    dateIdx: index("idx_perp_conv_picks_date").on(table.runDate),
+    reportedIdx: index("idx_perp_conv_picks_reported").on(table.reported, table.runDate),
+  }),
+);
+
+export type PerpConvergencePick = typeof perpConvergencePicks.$inferSelect;
+export type NewPerpConvergencePick = typeof perpConvergencePicks.$inferInsert;
+
+// Funnel counts per run, so an empty report is distinguishable from a broken
+// fetch and the liquidity/score gates can be tuned against real attrition.
+export const perpConvergenceRuns = sqliteTable("perp_convergence_runs", {
+  runDate: text("run_date").primaryKey(),
+  venue: text("venue").notNull(),
+  interval: text("interval").notNull(),
+  universeN: integer("universe_n"),
+  withBarsN: integer("with_bars_n"),
+  scorableN: integer("scorable_n"),
+  liquidN: integer("liquid_n"),
+  qualifiedN: integer("qualified_n"),
+  longN: integer("long_n"),
+  shortN: integer("short_n"),
+  asOf: text("as_of"),
+  createdAt: text("created_at").default(sql`(datetime('now'))`),
+});
+
+export type PerpConvergenceRun = typeof perpConvergenceRuns.$inferSelect;
+export type NewPerpConvergenceRun = typeof perpConvergenceRuns.$inferInsert;
+
 // ============================================================================
 // Pick Labels — automatic forward-return measurement
 // ============================================================================
