@@ -108,6 +108,17 @@ export interface LedgerEntry {
 }
 
 /**
+ * A name the day's ranking says matters (v2 §A), whether or not a reason was
+ * retrieved for it. MOVERS renders these in rank order: a name with an
+ * attribution carries its retrieved phrase, and the rest print the bare move —
+ * which is §B rung 7, the correct output when nothing passed the ladder.
+ */
+export interface MoverName {
+  ticker: string;
+  changePct: number;
+}
+
+/**
  * A retrieved, dated, direction-checked reason for a single name's move (v2 §B).
  * The phrase CONTAINS its own ticker, which is what lets the prose rule be a
  * plain containment check. Composed by the assembler, rendered deterministically,
@@ -188,21 +199,23 @@ export interface GexPinData {
   expiriesUsed: number;
 }
 
-/** A scheduled economic release for TOMORROW'S TELLS (§4.9). */
+/**
+ * A scheduled economic release for TOMORROW'S TELLS (§4.9), from FRED's release
+ * calendar. Carries no consensus and no prior: consensus has no free source
+ * (v2 §I, settled), and a prior belongs with the print, not the announcement.
+ * The event and its ET time are the whole claim.
+ */
 export interface EconEvent {
   name: string;
   /** ET calendar date, YYYY-MM-DD. */
   date: string;
   /** ET clock time, HH:mm. */
   timeEt: string;
-  consensus: number | null;
-  previous: number | null;
 }
 
 /** An expanded sector block (§6) — push callout + web deep-dive. */
 export interface SpotlightBlock {
   key: string;
-  emoji: string;
   label: string;
   headlinePct: number | null;
   price: number | null;
@@ -239,8 +252,17 @@ export interface StructuredFacts {
   timeframes: Fact<TimeframeMove[]> | null;
   /** Economic releases that printed today, actual vs prior (§E). */
   macro: Fact<MacroRelease[]> | null;
+  /** The day's most relevant names, in rank order (§A). Renders as MOVERS. */
+  movers: Fact<MoverName[]> | null;
   /** Why the day's notable names moved (§B). Renderer-owned; never LLM prose. */
   attributions: Fact<Attribution[]> | null;
+  /**
+   * Company name for every ticker the note may mention — the §1b alias list.
+   * Without it the containment test is trivially escaped: "AKAM fell after the
+   * print" is caught and "Akamai fell after the print" is not, and the model has
+   * no reason to prefer one form over the other.
+   */
+  companyNames: Record<string, string> | null;
   /**
    * Expectations that settled today (§F), plus how many remain live. Template-
    * rendered so the model can neither spin a miss nor omit one.

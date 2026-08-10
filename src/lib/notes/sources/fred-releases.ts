@@ -27,7 +27,7 @@
  *     event elsewhere, never as actual-vs-prior.
  */
 import { logger } from "@/lib/logger";
-import type { Fact, MacroRelease } from "@/lib/notes/types";
+import type { Fact, MacroRelease, EconEvent } from "@/lib/notes/types";
 
 const SRC = "notes/fred-releases";
 const BASE = "https://api.stlouisfed.org/fred";
@@ -68,6 +68,44 @@ const RELEASES: ReleaseSpec[] = [
   { releaseId: 53, seriesId: "A191RL1Q225SBEA", label: "GDP q/q ann. (advance)", units: "lin", timeEt: "8:30", suffix: "%", dp: 1, signed: true, maxAgeDays: 130 },
 ];
 
+/**
+ * What a release is CALLED when we announce it ahead of time.
+ *
+ * A release maps to several whitelisted series (release 50 carries both
+ * payrolls and the unemployment rate), so the forward-looking section names the
+ * release, not the series — "Employment Situation lands 8:30 ET", never two
+ * lines for one event.
+ */
+const RELEASE_NAMES: Record<number, string> = {
+  10: "CPI",
+  46: "PPI",
+  50: "Employment Situation",
+  54: "PCE",
+  9: "Retail sales",
+  180: "Jobless claims",
+  53: "GDP",
+};
+
+/**
+ * FOMC decision dates, as an explicit static list — see v2 spec §E.2.
+ *
+ * FRED cannot supply these. Release 101 carries daily series, so FRED dates it
+ * every single calendar day including weekends; a whitelist entry would
+ * announce "FOMC lands today" forever. The Fed publishes its own calendar years
+ * ahead, so the honest source is a hand-maintained list.
+ *
+ * It is EMPTY on purpose. Guessing meeting dates would be exactly the
+ * fabrication §1a forbids, and a wrong FOMC date is the most damaging single
+ * error this note could make. Paste the real dates from
+ * https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm to switch the
+ * section on; the rendering path below already handles them.
+ *
+ * Framed as an EVENT, never as actual-vs-prior: the target rate is unchanged at
+ * all but a handful of observations a year, and the content that matters —
+ * statement, projections — is not a FRED series at all.
+ */
+const FOMC_DECISIONS: { date: string; timeEt: string }[] = [];
+
 function key(): string | null {
   return process.env.FRED_API_KEY || null;
 }
@@ -92,21 +130,71 @@ async function getJson<T>(path: string): Promise<T | null> {
  * endpoint returns no FUTURE dates, which is exactly what a "this week" query
  * needs.
  */
-async function releaseDatesIn(from: string, to: string): Promise<Map<number, string[]>> {
+async function releaseDatesIn(from: string, to: string, realtimeStart: string): Promise<Map<number, string[]>> {
   const k = key();
   const out = new Map<number, string[]>();
   if (!k) return out;
 
   const ids = Array.from(new Set(RELEASES.map((r) => r.releaseId)));
   for (const id of ids) {
+    // `realtime_start` must never be in the future — FRED rejects the request,
+    // and the forward-looking window asks for exactly that. It is therefore a
+    // separate argument (today), not the window start, and the returned dates
+    // are filtered to [from, to] below.
     const json = await getJson<{ release_dates?: { date: string }[] }>(
-      `/release/dates?release_id=${id}&realtime_start=${from}&realtime_end=${to}` +
+      `/release/dates?release_id=${id}&realtime_start=${realtimeStart}&realtime_end=${to}` +
         `&include_release_dates_with_no_data=true&api_key=${k}&file_type=json`,
     );
     const dates = (json?.release_dates ?? []).map((d) => d.date).filter((d) => d >= from && d <= to);
     if (dates.length > 0) out.set(id, Array.from(new Set(dates)).sort());
   }
   return out;
+}
+
+/**
+ * Releases SCHEDULED in [from, to] — the note's forward-looking TELLS.
+ *
+ * This replaces a paid-calendar dependency that never once fired in production:
+ * FMP's economic calendar is plan-restricted, no key was ever configured, and
+ * the section it fed silently rendered as nothing every night. FRED answers the
+ * same question — what lands, and when — for free, on the key already in use.
+ *
+ * The one thing it cannot answer is CONSENSUS, and per §I that is settled
+ * rather than pending: the note announces the event and its time, and says
+ * nothing about what the street expects. An announcement with no number is
+ * honest and useful; a consensus we cannot source would be neither.
+ */
+export async function fetchUpcomingReleases(
+  from: string,
+  to: string,
+  today: string,
+  asOf: string,
+): Promise<Fact<EconEvent[]> | null> {
+  if (!key()) {
+    logger.info(SRC, "FRED_API_KEY not set — upcoming releases omitted");
+    return null;
+  }
+
+  const events: EconEvent[] = [];
+
+  const byRelease = await releaseDatesIn(from, to, today);
+  for (const [releaseId, dates] of Array.from(byRelease.entries())) {
+    const name = RELEASE_NAMES[releaseId];
+    // Every whitelisted series for a release shares one publication time, so
+    // the first spec's clock is the release's clock.
+    const timeEt = RELEASES.find((r) => r.releaseId === releaseId)?.timeEt;
+    if (!name || !timeEt) continue;
+    for (const date of dates) events.push({ name, date, timeEt });
+  }
+
+  for (const m of FOMC_DECISIONS) {
+    if (m.date >= from && m.date <= to) events.push({ name: "FOMC decision", date: m.date, timeEt: m.timeEt });
+  }
+
+  if (events.length === 0) return null;
+  events.sort((a, b) => (a.date + a.timeEt).localeCompare(b.date + b.timeEt));
+  logger.info(SRC, "Upcoming releases loaded", { count: events.length, from, to });
+  return { value: events.slice(0, 4), source: "FRED release calendar (no consensus available)", asOf };
 }
 
 interface Observation {
@@ -165,7 +253,7 @@ export async function fetchMacroReleases(marketDate: string, asOf: string): Prom
     return null;
   }
 
-  const dates = await releaseDatesIn(marketDate, marketDate);
+  const dates = await releaseDatesIn(marketDate, marketDate, marketDate);
   if (dates.size === 0) return null;
 
   const out: MacroRelease[] = [];

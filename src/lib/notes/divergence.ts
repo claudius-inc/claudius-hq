@@ -15,7 +15,7 @@
 import { db, sp500Constituents } from "@/db";
 import { logger } from "@/lib/logger";
 import { fetchBatchQuotes, type QuoteResult } from "@/lib/scanner/yahoo-fetcher";
-import { etDate } from "@/lib/notes/session";
+import { etDate, toMs } from "@/lib/notes/session";
 import type { DivergenceSector, DivergenceName, ContributionData, SectorPoint } from "@/lib/notes/types";
 
 const SRC = "notes/divergence";
@@ -58,15 +58,6 @@ interface ConstituentQuote {
  * this threshold and the always-stated "as of" clock are the only mitigation.
  */
 const POST_MARKET_MIN_PCT = 2.0;
-
-/** Defensive timestamp coercion — mirrors gold.ts's parseTime. */
-function toMs(t: unknown): number {
-  if (!t) return 0;
-  if (t instanceof Date) return t.getTime();
-  if (typeof t === "string") return Date.parse(t);
-  if (typeof t === "number") return t > 1e12 ? t : t * 1000;
-  return 0;
-}
 
 /**
  * The §G gate. Returns null unless the quote carries a real extended-session

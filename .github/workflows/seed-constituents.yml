@@ -1,0 +1,63 @@
+name: Refresh S&P 500 Constituents
+
+on:
+  # The SPDR holdings dataset backs EVERY single-name claim in the daily note:
+  # within-sector divergence, index contribution, the relevance ranking, the
+  # ex-subject sector move behind attribution, after-hours annotations and the
+  # spotlight leader/laggard lines all read it. The note's staleness gate warns
+  # at 45 days and REFUSES the dataset at 120 (src/lib/notes/divergence.ts), at
+  # which point all of that silently disappears from the note at once.
+  #
+  # The index rebalances quarterly, so monthly is comfortably inside the warn
+  # threshold and leaves three spare runs before anything degrades.
+  schedule:
+    - cron: '30 9 1 * *'
+  workflow_dispatch: {}
+
+concurrency:
+  group: seed-constituents
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The seed throws on any empty sector file or a <400 total, so a partial
+      # SSGA response fails the job rather than gutting the table.
+      - name: Refresh constituents
+        run: npx tsx scripts/seed/sp500-constituents.ts
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## S&P 500 constituent refresh" >> $GITHUB_STEP_SUMMARY
+          echo "- Run time: $(date -u)" >> $GITHUB_STEP_SUMMARY
+
+      # A silent failure here is the worst case: the note keeps shipping and
+      # just gets quieter every week until the 120-day gate cuts it off.
+      - name: Notify on failure
+        if: failure()
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+            -d "text=❌ S&P 500 constituent refresh failed — the daily note's single-name layer will age out: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

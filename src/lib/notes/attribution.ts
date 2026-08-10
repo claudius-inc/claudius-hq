@@ -24,8 +24,8 @@
 import YahooFinance from "yahoo-finance2";
 import { logger } from "@/lib/logger";
 import { acquireYahooSlot } from "@/lib/scanner/yahoo-rate-limiter";
-import { etDate } from "@/lib/notes/session";
-import { placeEarnings, isReactionDay, toMs } from "@/lib/notes/earnings-window";
+import { etDate, etMinutes, toMs } from "@/lib/notes/session";
+import { placeEarnings, isReactionDay } from "@/lib/notes/earnings-window";
 import type { EarningsReport } from "@/lib/notes/sources/earnings-calendar";
 import type { Attribution } from "@/lib/notes/types";
 
@@ -97,7 +97,7 @@ async function fetchRatingActions(
     return hist.filter((h) => {
       const ms = toMs(h.epochGradeDate);
       if (!Number.isFinite(ms) || ms <= 0 || etDate(ms) !== marketDate) return false;
-      return etMinutesOf(ms) <= closeMinute;
+      return etMinutes(ms) <= closeMinute;
     });
   } catch (error) {
     logger.warn(SRC, "Rating fetch failed", { ticker, error });
@@ -119,19 +119,6 @@ async function fetchYahooEps(ticker: string): Promise<{ actual: number; estimate
   } catch {
     return null;
   }
-}
-
-/** Minutes-since-ET-midnight for an instant. */
-function etMinutesOf(ms: number): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(new Date(ms));
-  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
-  const m = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
-  return (h % 24) * 60 + m;
 }
 
 const money = (n: number) => `$${n.toFixed(2)}`;

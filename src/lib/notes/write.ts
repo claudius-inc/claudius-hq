@@ -18,7 +18,12 @@
  */
 import { logger } from "@/lib/logger";
 import type { StructuredFacts, NoteProse } from "@/lib/notes/types";
-import { collectAllowedNumbers, validateProseField, checkCausalRule, collectTickers } from "@/lib/notes/validate";
+import {
+  collectAllowedNumbers,
+  validateProseField,
+  checkCausalRule,
+  collectProseSubjects,
+} from "@/lib/notes/validate";
 import { deterministicHook } from "@/lib/notes/render";
 
 const SRC = "notes/write";
@@ -123,10 +128,8 @@ function factSheet(f: StructuredFacts): string {
   }
   if (f.econEvents) {
     lines.push(
-      "Upcoming releases: " +
-        f.econEvents.value
-          .map((e) => `${e.name} ${e.date} ${e.timeEt} ET${e.consensus != null ? ` (consensus ${e.consensus})` : ""}`)
-          .join("; "),
+      "Upcoming releases (scheduled events — no consensus is available, so do not imply one): " +
+        f.econEvents.value.map((e) => `${e.name} ${e.date} ${e.timeEt} ET`).join("; "),
     );
   }
   return lines.join("\n");
@@ -137,7 +140,7 @@ const RULES = `You are an ex-Goldman Sachs desk head writing "The Tape", a conci
 HARD RULES:
 - Use ONLY numbers that appear verbatim in the FACT SHEET. Never invent a price, percentage, level, or count. Do NOT introduce forward "watch levels" (e.g. "reclaim $4,300") — those are added elsewhere.
 - Every "whatMatters" bullet must carry a because / despite. No naked price recaps.
-- DO NOT NAME INDIVIDUAL TICKERS in any field. The note already prints the movers and their reasons on its own lines, immediately above yours. Refer to them collectively ("three of the four biggest reporters fell") or by sector. A field that names a ticker alongside a causal word is deleted before sending.
+- DO NOT NAME INDIVIDUAL COMPANIES in any field — not by ticker ("AKAM") and not by name ("Akamai"). The note already prints the movers and their reasons on its own lines, immediately above yours. Refer to them collectively ("three of the four biggest reporters fell") or by sector. A field that names a company either way alongside a causal word is deleted before sending.
 - Do not use magnitude adjectives the number doesn't support (a 2bp move is not "a huge flattening").
 - Lead the hook with the day's divergence + the single most important number. Hook ≤ 120 characters, plain text, no emoji.
 - Balance bull vs bear (one line each, each a specific argument). Keep it tight.
@@ -262,19 +265,21 @@ function allViolations(p: NoteProse, allowed: number[]): string[] {
 
 /** Drop fields that still cite unsupported numbers; template-fallback the hook. */
 function applyFallbacks(f: StructuredFacts, p: NoteProse, allowed: number[]): NoteProse {
-  const tickers = collectTickers(f);
+  // Tickers AND company names: "Akamai fell after the print" must fail exactly
+  // as "AKAM fell after the print" does, or the rule is a spelling preference.
+  const subjects = collectProseSubjects(f);
   // A field must clear BOTH gates: its numerals must be supported (§8.3), and
-  // it must not name a ticker alongside a causal connective (§1b). The second
-  // is what stops an invented mechanism riding on a legitimately-pooled number.
+  // it must not name an instrument alongside a causal connective (§1b). The
+  // second stops an invented mechanism riding on a legitimately-pooled number.
   const okField = (t?: string) =>
-    !!t && validateProseField(t, allowed).ok && checkCausalRule(t, tickers).ok;
+    !!t && validateProseField(t, allowed).ok && checkCausalRule(t, subjects).ok;
 
   for (const t of [p.hook, p.curveRead, ...p.whatMatters, p.bull, p.bear, p.book]) {
     if (!t) continue;
-    const causal = checkCausalRule(t, tickers);
+    const causal = checkCausalRule(t, subjects);
     if (!causal.ok) {
-      logger.info(SRC, "Dropping field: names a ticker with a causal connective (§1b)", {
-        ticker: causal.ticker,
+      logger.info(SRC, "Dropping field: names an instrument with a causal connective (§1b)", {
+        subject: causal.subject,
         connective: causal.connective,
       });
     }

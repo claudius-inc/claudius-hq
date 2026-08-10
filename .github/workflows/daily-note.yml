@@ -48,6 +48,12 @@ jobs:
           TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          # Finnhub's earnings calendar (free tier) is the AUTHORITATIVE bmo/amc
+          # timing signal and the second consensus source. Without it the note
+          # falls back to Yahoo's 16:00 placeholder stamp, and the two-source
+          # agreement rule can never be satisfied — so no earnings clause can
+          # ever say "a beat" or "a miss" (docs/daily-note-v2-spec.md §A).
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
 
       - name: Summary
         if: always()

@@ -18,13 +18,36 @@ const SRC = "notes/session";
 
 const CLOSED_STATES = new Set(["POST", "POSTPOST", "CLOSED"]);
 
-/** Defensive timestamp coercion — mirrors src/lib/markets/gold.ts:208. */
-function parseTime(t: unknown): number {
+/**
+ * Defensive timestamp coercion — Yahoo returns a Date, epoch seconds, epoch
+ * milliseconds, or a string, depending on the field and the endpoint.
+ *
+ * This is the single copy for the whole note pipeline. Three modules had grown
+ * their own, which is how the same field ends up classified two ways in one run.
+ */
+export function toMs(t: unknown): number {
   if (!t) return 0;
   if (t instanceof Date) return t.getTime();
-  if (typeof t === "string") return new Date(t).getTime();
+  if (typeof t === "string") return Date.parse(t);
   if (typeof t === "number") return t > 1e12 ? t : t * 1000;
   return 0;
+}
+
+/**
+ * Minutes since ET midnight for an instant. The note's session arithmetic —
+ * which half of the session a report landed in, whether an extended print is
+ * after the close — is all expressed in these.
+ */
+export function etMinutes(ms: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(new Date(ms));
+  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const m = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  return (h % 24) * 60 + m;
 }
 
 /** Calendar date (YYYY-MM-DD) of an epoch-ms instant, in America/New_York. */
@@ -77,7 +100,7 @@ export async function checkTradingSession(now = Date.now()): Promise<SessionChec
       regularMarketTime?: unknown;
       marketState?: string;
     };
-    const ms = parseTime(q?.regularMarketTime);
+    const ms = toMs(q?.regularMarketTime);
     const quoteDate = ms > 0 ? etDate(ms) : null;
     const marketState = q?.marketState ?? null;
 

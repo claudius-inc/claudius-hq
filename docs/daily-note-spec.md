@@ -21,17 +21,31 @@ generation pipeline. Code conforms to it; update this doc when requirements chan
 Tao of Trading's edge is **causal, not descriptive** — what *actually* moved the tape vs noise, with a
 directional read and a skeptical desk voice. A 50% cut must protect that edge, not just the structure.
 
+> **Amended by v2 §B.** Bullets no longer name individual companies. The rules below are stated in their
+> amended form; `docs/daily-note-v2-spec.md` §1b carries the reasoning. In short: a cause for a single
+> instrument is retrieved, dated and direction-checked by the renderer and printed on the DIVERGENCE and
+> MOVERS lines, so a bullet that repeats a name is the redundancy the claim ledger exists to cut — and
+> letting the model write one at all is how invented mechanisms get in.
+
 **Irreducible core (must survive every cut):**
 1. **The divergence verdict** — the one breadth / cross-asset / within-sector stat that *contradicts* the
-   headline index move. This is the product. *(Depends on datasets that must be built — see §3, §5.)*
+   headline index move. This is the product. It renders as the deterministic **DIVERGENCE** line, which
+   owns the names; a bullet may refer to that divergence collectively or by sector, never by ticker.
+   *(Depends on datasets that must be built — see §3, §5.)*
 2. **A directional read with a *because*** — "software sold off *on good numbers*" beats "software fell."
 3. **2–3 levels that act as if/then triggers** — "gold above $4,300," "10Y at 4.50%."
 4. **One desk voice-beat per issue** — exactly one bit of vernacular. One, not five.
 
 **Style rules (enforced at generation time):**
 - Every `WHAT MATTERS` bullet carries a **because / despite / on-[good/bad]-numbers**. No naked recaps.
+- **Bullets do not name individual companies** — not by ticker ("AKAM") and not by name ("Akamai").
+  DIVERGENCE and MOVERS own the names and render immediately above. A bullet refers to them collectively
+  ("three of the four biggest reporters fell on beats") or by sector, and keeps its because/despite: macro,
+  breadth, the index and sector relationships are all sayable without naming an instrument. Enforced by
+  default-deny in `validate.ts`, not by the prompt (v2 §1b).
 - **Exact prices only for actionable levels; round everything contextual.**
-- Budget: **3–4 What-Matters bullets, ~6 named tickers, ~3 watch-levels, 1 line each** for bull/bear/book.
+- Budget: **3–4 What-Matters bullets, ~6 named tickers across the deterministic lines, ~3 watch-levels,
+  1 line each** for bull/bear/book.
 - **Cut quiet sections — do not pad them.** No positioning tell today → omit The Book.
 - Bull/bear box is balanced; the **read leans** via the hook + tells. Never end symmetric.
 - **The divergence number goes in the hook** — it survives the notification preview.
@@ -118,7 +132,7 @@ Base helpers exist in `src/lib/telegram/api.ts` (`parse_mode:"HTML"`, `disable_w
 | Index-contribution ("green only on N names") | **SPY daily holdings XLSX** (`holdings-daily-us-en-spy.xlsx`) for **float-adjusted weights** × constituent 1d%; **reconciliation gate** (§8) — omit the claim if `\|Σ wᵢ·rᵢ − index %chg\|` exceeds tolerance. Full `marketCap` alone is float-unadjusted and can flip the sign on a ~0% day. | *(compute in assemble)* | ⚙ depends on dataset |
 | Dealer gamma / **pin** | needs library extraction from `api/markets/gex/route.ts`; define pin = max\|GEX\| strike; aggregate 2–3 expirations; SPX-scale symbol | `markets/gex.ts` (calc only) | ⚙ refactor |
 | Single-stock earnings actual vs est | Yahoo per-ticker `earningsHistory`; **"who reported today" needs a calendar** (see below) | `scanner/events/earnings.ts` | ⚠ discovery gap |
-| **Econ calendar: consensus + actual + release time (ET)** | FMP primary / Finnhub fallback **— verify plan access (both likely premium)**; free fallback = scheduled FRED release dates | *(new client)* | ⚙ add + risk |
+| **Econ calendar: actual + prior + release time (ET)** | **FRED** release calendar + series observations, free on the existing key. Consensus is unavailable on any free feed and is settled as out of scope (v2 §I), so the note reports actual **vs prior** and states that basis. Release times are a hardcoded per-release map; FRED publishes dates only | `notes/sources/fred-releases.ts` | ✅ built |
 | Guidance nuance + prose synthesis | LLM (Gemini) — **numeral-validated (§8)** | `lib/ai/gemini.ts` | ⚙ LLM step |
 | Delivery | Telegram Bot API (hardened, §2) | `lib/telegram/api.ts` | ⚠ harden |
 
@@ -131,12 +145,31 @@ Base helpers exist in `src/lib/telegram/api.ts` (`parse_mode:"HTML"`, `disable_w
 ### Earnings discovery
 There is no repo-wide "who reported today" feed. Do **not** sweep 500 `quoteSummary` calls (earnings.ts's
 private 350ms limiter is uncoordinated with `acquireYahooSlot`, risking a burst). Options: (a) add an
-`earnings_date` column to the constituent dataset and query only the handful reporting today, or (b) FMP
-earnings calendar (same paywall caveat).
+`earnings_date` column to the constituent dataset and query only the handful reporting today, or (b) a
+day-level earnings calendar.
+
+**Resolved:** (b), via **Finnhub**, whose *earnings* calendar is free (its economic one is not). One call
+returns the whole day with an explicit `bmo`/`amc` `hour`, which is authoritative timing and strictly
+better than Yahoo's placeholder stamp. `FINNHUB_API_KEY` must be set or this degrades to the stamp — see
+Environment variables above.
 
 ### Environment variables
-- Existing: `FRED_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TURSO_DATABASE_URL`.
-- New: `TELEGRAM_NOTE_CHANNEL_ID` (numeric), `FMP_API_KEY` (pending paywall check), `FINNHUB_API_KEY` (optional fallback).
+
+All of these must be present in `.github/workflows/daily-note.yml`. A key the code reads but the workflow
+does not pass degrades silently by design (§1a), so the section it feeds simply stops appearing — the
+failure mode is a quieter note, not an error.
+
+| Var | Required | Feeds |
+|---|---|---|
+| `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` | yes | persistence |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ADMIN_CHAT_ID` | yes | send / edit / admin alerts |
+| `FRED_API_KEY` | yes | DATA (§E printed releases) **and** TOMORROW'S TELLS (the release calendar) |
+| `DEEPSEEK_API_KEY` | no | prose. Absent → the full deterministic note ships |
+| `FINNHUB_API_KEY` | no, but load-bearing | authoritative `bmo`/`amc` earnings timing and the **second** consensus source. Absent → Yahoo's 16:00 placeholder stamp is the only timing signal, and the two-source agreement rule can never be met, so no earnings clause can ever say "a beat" or "a miss" (v2 §A) |
+
+**`FMP_API_KEY` is retired.** FMP's economic calendar is plan-restricted, no key was ever configured, and
+the TELLS section it fed therefore rendered as nothing every night. FRED answers the same question for
+free on the key already in use; consensus is settled as unavailable rather than pending (v2 §I).
 
 ---
 
@@ -144,20 +177,30 @@ earnings calendar (same paywall caveat).
 
 Order is fixed. Sections with no authoritative signal are omitted (§1a), never padded.
 
-1. **Hook** — one line, ≤120 chars, plain-readable, leads with the divergence + one number. *LLM, numeral-validated.*
-2. **THE TAPE** 🔴/🟢 — indices (close + %); breadth (NYSE counts + A/D ratio + new H/L) **only if WSJ-sourced**;
-   VIX (level, day chg, YTD-range + percentile, multi-day trend).
-3. **RATES** 📉/📈 — 2Y/10Y/30Y level + bp change (**Treasury same-day feed**); one-line curve read + why *(LLM, numeral-validated — its numerals, e.g. −2bp/+24bp, are derived facts)*.
-4. **CROSS-ASSET** 🧭 — DXY, Gold, Crude, BTC (**16:00 ET bar via intraday `chart()`, not a send-time quote**); sector tape one-liner (top-2 up / bottom-2 down).
-5. **SPOTLIGHT callouts** — one line per enabled sector (§6). Omitted if none enabled/qualifying.
-6. **WHAT MATTERS** 🔑 — 3–4 bullets, each with a because/despite; ≥1 divergence tell. Numeral-validated.
-7. **BULL / BEAR** ⚖️ — one line each, a specific argument each.
-8. **THE BOOK** 📖 — dealer gamma / pin (omit if GEX unreliable/absent).
-9. **TOMORROW'S TELLS** 👀 — econ releases with ET time + watch-levels. Header label is next-trading-day-dynamic ("MONDAY'S TELLS" on a Friday).
-10. **Footer** — `Not advice.` + `<a href>` link to `…/markets/notes/YYYY-MM-DD`.
+Everything above WHAT MATTERS is deterministic and renders **before** any prose, which is what makes the
+claim ledger's guarantee hold: a bullet can never repeat a numeral the renderer already owns.
 
-Rendering: HTML (escaped per §2), one emoji per header (stable), ▲/▼ on closes, numbers in `<code>`,
-blank line between sections, bold the *label* not the line.
+1. **Hook** — one line, ≤120 chars, plain-readable, leads with the divergence + one number. *LLM, numeral-validated; falls back to a deterministic template, never dropped.*
+2. **THE TAPE** — indices (close + %); breadth (NYSE counts + A/D ratio + new H/L) **only if WSJ-sourced**;
+   VIX (level, day chg, YTD-range + percentile, multi-day trend).
+3. **TREND** — the index's 5- and 21-session moves, plus the leading and lagging benchmark over 21 (v2 §D). Labelled in sessions, never as "1 week" / "1 month".
+4. **DATA** — economic releases that printed today, actual vs **prior** (v2 §E). No consensus exists on a free feed, and the basis is stated rather than implied.
+5. **RATES** — 2Y/10Y/30Y level + bp change (**Treasury same-day feed**); one-line curve read + why *(LLM, numeral-validated — its numerals, e.g. −2bp/+24bp, are derived facts)*.
+6. **CROSS-ASSET** — DXY, Gold, Crude, Copper, BTC (**16:00 ET bar via intraday `chart()`, not a send-time quote**); sector tape one-liner (top-2 up / bottom-2 down).
+7. **SPOTLIGHT callouts** — one line per enabled sector (§6). Omitted if none enabled/qualifying.
+8. **DIVERGENCE** — the sharpest within-sector divergence, with its names (§5).
+9. **MOVERS** — up to 3 lines, `TICKER ±x.x% — <retrieved reason>`, or a bare `TICKER ±x.x%` when no rung passed (v2 §A, §B). **The only place a cause for an individual instrument may appear**, and it is composed by the renderer, never by the model.
+10. **WHAT MATTERS** — 3–4 bullets, each with a because/despite, none naming a company. Numeral-validated.
+11. **BULL / BEAR** — one line each, a specific argument each.
+12. **THE BOOK** — dealer gamma / pin (omit if GEX unreliable/absent).
+13. **TOMORROW'S TELLS** — scheduled econ releases with ET times, from FRED's release calendar. Header label is next-trading-day-dynamic ("MONDAY'S TELLS" on a Friday).
+14. **LEDGER** — expectations that settled today (v2 §F), template-rendered, misses first. Renders last because it reviews past calls rather than describing today, and it is the first thing the overflow ladder drops.
+15. **Footer** — `<a href>` link to `…/markets/notes/YYYY-MM-DD`.
+
+Rendering: HTML (escaped per §2), blank line between sections, bold the *label* not the line. **No emoji and
+no ▲/▼ glyphs** — both substitute per platform in the mobile UI font, so direction is signed text ("+1.5%")
+throughout, which also keeps template and prose consistent. `<code>` is web-only: in the push it buys no
+column alignment and widens lines.
 
 ---
 
@@ -171,7 +214,10 @@ blank line between sections, bold the *label* not the line.
 6. Show only where divergence is meaningful (e.g. green name in a sector down > 1%; threshold configurable).
    Quiet sectors dropped.
 
-Used in the Core push (single sharpest divergence → a What-Matters bullet) and the web note (all qualifying).
+Used in the Core push (single sharpest divergence → the deterministic **DIVERGENCE** line, §4.8) and the web
+note (all qualifying). **Amended by v2 §B:** the sharpest divergence is no longer routed into a What-Matters
+bullet. It renders as its own line, which owns the names; a bullet may still read the divergence, but
+collectively or by sector.
 
 ---
 
@@ -268,7 +314,7 @@ computed in-job (§7a). `workflow_dispatch` allowed but still subject to the §7
    - index-contribution: Σ(float-weightᵢ × rᵢ) from SPY holdings; reconcile vs index %chg —
      emit "green only on N names" fact ONLY if |Σwr − index%| ≤ 0.10pp, else omit the claim
      (SPY tracking drag is typically single-digit bp, so the gate rarely false-fires)
-   - GEX pin (refactored lib, aggregated 2–3 expirations, SPX-scale symbol); econ calendar (FMP/fallback, ET)
+   - GEX pin (refactored lib, aggregated 2–3 expirations, SPX-scale symbol); FRED release calendar (ET)
    - earnings actual-vs-est only for names reporting today (from dataset/calendar)
    → StructuredFacts (JSON), incl. DERIVED facts (bp changes, A/D ratio, 2s10s spread, percentiles),
      each field = {value, source, asOf}
@@ -284,7 +330,8 @@ computed in-job (§7a). `workflow_dispatch` allowed but still subject to the §7
    - Typed classes matched against DERIVED facts with per-class tolerance: prices/levels (tight — but
      accepts §1's rounding convention, e.g. "VIX 14"≈14.2, "$79"≈79.xx), percent-changes ("Russell ‑1.8%"),
      ratios ("3:2"≈A/D), spreads/bp ("+24bp"=2s10s), percentiles ("~28th"), counts ("N names"),
-     econ actual/consensus ("+256k vs +180k", "4.0%" — matched against the econ-calendar fact).
+     econ actual/prior ("+256k vs +142k", "4.0%" — matched against the FRED macro fact; EPS figures and
+     price targets are deliberately NOT pooled, so a bullet citing one fails automatically — v2 §H0.1).
    - On mismatch: regenerate that field once with the mismatch cited. If it still fails:
      • hook → fall back to a deterministic facts-only template hook (NEVER drop — it's required, §4.1);
      • a What-Matters bullet → drop it, and drop any bull/bear line that references it.
@@ -311,40 +358,61 @@ Fri Aug 7, 2026 close — hot payrolls, narrow tape, gold loses $4,300. *(Rates 
 cross-asset @ 4pm ET; breadth shown only because WSJ-sourced.)*
 
 ```
-S&P ~7,704 ▼0.1% at highs — but decliners beat gainers 3:2, front end led rates higher. Narrow tape.
+S&P ~7,704 -0.1% at highs — but decliners beat gainers 3:2, front end led rates higher. Narrow tape.
 
-🔴 THE TAPE
-S&P 7,704 ▼0.1% · Nasdaq +0.2% · Dow ▼0.6% · Russell ▼1.8%
+THE TAPE
+S&P 7,704 -0.1% · Nasdaq +0.2% · Dow -0.6% · Russell -1.8%
 Breadth (NYSE): 1,150 up / 1,690 down · A/D 0.68 · new H/L 61 / 44
 VIX 14.2 +0.6 — still ~28th %ile of its YTD 11.8–29.4, but up 3 days running
 
-📉 RATES — 2Y 4.18% +11bp · 10Y 4.42% +9bp · 30Y 4.71% +6bp
+TREND — S&P 5s +0.8% · 21s +3.1% · over 21 sessions XLE leads +7.4%, XLRE lags -4.2%
+
+DATA (vs prior — no consensus feed) — Payrolls +256k vs +142k prior revised · Unemployment 4.0% vs 4.1% prior
+
+RATES — 2Y 4.18% +11bp · 10Y 4.42% +9bp · 30Y 4.71% +6bp
 Front end led the selloff → 2s10s flattened 2bp to +24bp. The cut just got repriced out.
 
-🧭 CROSS-ASSET — DXY 99.8 +0.4% · Gold $4,288 ▼1.1% · Crude $79 · BTC $118k
-Sectors ▲ Energy +0.9%, Comm Svcs +0.3% · ▼ Real Estate ‑2.1%, Utilities ‑1.6%, Financials ‑1.1%
-🛢 XLE +0.9% — crude $79; leaders XOM +1.8%, EOG +1.4%; laggard SLB ‑0.6%
-🥇 Gold ▼1.1% $4,288 — lost $4,300; GDX ‑2.3%, miners leading down
+CROSS-ASSET — DXY 99.8 +0.4% · Gold $4,288 -1.1% · Crude $79 +0.6% · Copper $4.52 -0.8% · BTC $118k +1.2%
+Sector leaders Energy +0.9%, Comm Svcs +0.3%
+Sector laggards Real Estate -2.1%, Utilities -1.6%
 
-🔑 WHAT MATTERS
-• Payrolls ran hot — +256k vs +180k — so September's cut is off the table. Rate-sensitive got dumped: REITs, utilities, Russell ‑1.8%. That was the session.
-• Divergence tell: Financials closed red, but the exchanges (ICE, CME) rose — higher-for-longer is a tailwind for them. Energy was the only clean green as crude firmed.
-• The S&P's flat ▼0.1% flatters the day — a handful of mega-caps masked it; strip the top names and the index is clearly red. Narrow leadership dressed as strength.
-• Gold lost $4,300 on the stronger dollar — a strong-data selloff, not fear unwinding.
+XLE — leaders XOM +1.8%, EOG +1.4%; laggard SLB -0.6%
+Gold — $4,288; GDX -2.3%
 
-⚖️ Bull: +256k jobs, 4.0% unemployment, AI leaders still printing — dips get bought.
-Bear: highs on 3 stocks while breadth runs 3:2 negative and cuts fade — VIX 14 isn't pricing it.
+DIVERGENCE — Financials -1.1%, but ICE +0.9%, CME +0.7% closed green in a red sector
 
-📖 THE BOOK — dealers long gamma into 7,700; pin holds unless the yield move extends.
+MOVERS
+AKAM fell -6.8% after reporting EPS $1.59
+MRNA rose +4.1% on a Goldman Sachs upgrade
+SLB fell -2.4%
 
-👀 MONDAY'S TELLS — CPI Wed 8:30 ET · gold reclaim $4,300 · 10Y 4.50% line · IWM 50-day
+WHAT MATTERS
+Payrolls ran hot. +256k against a +142k prior takes September's cut off the table, and rate-sensitives wore it — REITs, utilities and the Russell all bottom of the board.
+The exchanges bucked their sector. Financials closed red while the two clearing names rose, which is what higher-for-longer does to that business model.
+The flat index flatters the day. Strip the top contributors and it is clearly negative — narrow leadership dressed as strength.
 
-Not advice.  <a href="…/markets/notes/2026-08-07">Full note — sectors + XLE + gold →</a>
+BULL — +256k jobs, 4.0% unemployment, AI leaders still printing; dips get bought.
+BEAR — highs on three stocks while breadth runs 3:2 negative and cuts fade. VIX 14 isn't pricing it.
+
+THE BOOK — dealers long gamma, pin near 7,700 on SPY, +0.1% away
+
+MONDAY'S TELLS — CPI Wed 8:30 ET · Jobless claims Thu 8:30 ET
+
+LEDGER — called 2026-07-24: GC=F above 4300 → miss (4288.10) · 3 still open
+
+<a href="…/markets/notes/2026-08-07">Full note</a>
 ```
 *Notes:* (1) Escaping — rendered `&amp;` for every `&` (incl. "S&P") and all prose; `<`/`>` never emitted raw.
-(2) The payrolls consensus ("+256k vs +180k") depends on the econ-calendar feed flagged pending/paywalled
-(§3, §11) — that centerpiece bullet is not buildable until that source is confirmed.
-(3) The index-contribution claim ("strip the top names and it's red") is **S&P-only** (the LOCKED universe) via SPY
+(2) **No bullet names a company.** The two clearing names are printed on the DIVERGENCE line directly above and
+referred to collectively in the bullet; the earnings and upgrade causes are on MOVERS, composed by the renderer
+from dated, direction-checked events. A bullet that named either alongside a causal connective would be dropped
+before sending (v2 §1b).
+(3) DATA is measured against the **prior**, and says so. No free feed carries consensus (v2 §I, settled), so the
+note never words a prior-gap as a consensus miss. "prior revised" is not decoration — the revision is often
+larger than the surprise being reported.
+(4) MOVERS line 3 is rung 7: the ranking says the name mattered, no reason passed the ladder, so the bare move
+is the correct output. Inventing one would be the failure the whole section exists to prevent.
+(5) The index-contribution claim ("strip the top contributors") is **S&P-only** (the LOCKED universe) via SPY
 float weights, and ships only if the reconciliation gate passes (§8). A Nasdaq version would need NDX weights — out of scope.
 
 ---
@@ -358,25 +426,28 @@ float weights, and ships only if the reconciliation gate passes (§8). A Nasdaq 
 3. ✅ **The product** (`478e3a9`): `sp500_constituents` + migration 0022 + `seed/sp500-constituents.ts`;
    `divergence.ts` → within-sector divergence (§5) + index-contribution with reconciliation gate (§8).
 4. ✅ **Depth**: `sources/gex-pin.ts` (real multi-expiry aggregation, pin = max|GEX| strike),
-   `sources/econ-calendar.ts` (FMP, §1a graceful-omit without a key), `spotlight.ts` + settings UI
+   `sources/fred-releases.ts` (printed releases + the forward calendar), `spotlight.ts` + settings UI
    (`/markets/notes/settings`, `/api/notes/spotlight`).
 
 ### Deployment checklist (operator)
-- Apply `drizzle/0021_add_daily_notes.sql` and `drizzle/0022_add_sp500_constituents.sql` to Turso.
-- Run `npx tsx scripts/seed/sp500-constituents.ts` (and re-run quarterly — the note's staleness gate
-  warns at 45d and omits divergence/contribution past 120d).
-- Secrets: `TELEGRAM_NOTE_CHANNEL_ID` (numeric `-100…`, bot must be channel admin), `NOTE_WEB_BASE_URL`,
-  `GEMINI_API_KEY` (prose; without it the note ships deterministic), `FMP_API_KEY` (optional — TELLS
-  omits econ events without it).
+- Apply every `drizzle/00{21,22,23,24,25,26,27}_*.sql` migration to Turso.
+- Run `npx tsx scripts/seed/sp500-constituents.ts` once. **Refresh is automated** by
+  `.github/workflows/seed-constituents.yml` (monthly), which alerts on failure — the staleness gate warns
+  at 45d and drops every single-name section past 120d, so an unnoticed failure makes the note quietly
+  smaller rather than loud.
+- Secrets: see Environment variables (§3). `FINNHUB_API_KEY` is the one that is easy to forget and
+  degrades silently.
 
 ---
 
 ## 11. Open items / decisions still needed
 
-- **Econ-calendar access** — STILL OPEN. The client is built and wired, but no key was available to
-  verify plan access (the free FMP tier rejects `/economic_calendar`). Without `FMP_API_KEY` the TELLS
-  section omits econ events entirely (§1a-safe). If the plan turns out to be paywalled, adopt the
-  FRED-release-date fallback (loses consensus values).
+- **Econ-calendar access** — CLOSED. The free tiers of both FMP and Finnhub reject the economic calendar,
+  so the FMP client was deleted and TELLS is now built from FRED's release calendar on the existing key.
+  Consensus is unavailable and the note says so rather than implying one (v2 §I). The one piece FRED
+  cannot supply is the FOMC meeting schedule — it dates release 101 every calendar day — so that is a
+  static list in `fred-releases.ts`, deliberately shipped **empty** until the real dates are pasted from
+  federalreserve.gov. Guessing them would be the exact fabrication §1a forbids.
 - **Post time & cadence** — pinned to ≥6:15pm ET by the Treasury-feed dependency (§3/§8); confirm the exact
   cron + the poll-with-deadline window. Half-day handling specced (§7a).
 - ~~**GEX symbol/scale**~~ — RESOLVED: reads **SPY** (Yahoo's index-option coverage is unreliable) and

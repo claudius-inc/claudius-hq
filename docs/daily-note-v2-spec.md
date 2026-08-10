@@ -1,7 +1,37 @@
 # Daily Note v2 — Depth Roadmap (slices 5–9)
 
-**Status:** Draft for review · **Companion to:** `docs/daily-note-spec.md` (v1, slices 1–4, shipped)
-**Last updated:** 2026-08-09
+**Status:** Largely shipped — see the ledger below · **Companion to:** `docs/daily-note-spec.md` (v1, slices 1–4, shipped)
+**Last updated:** 2026-08-10
+
+---
+
+## Implementation ledger
+
+| § | State | Notes |
+|---|---|---|
+| **H0.1** validator registration | ✅ shipped | `validate.ts`. EPS and price targets deliberately withheld from the pool |
+| **H0.2** degradation ladder | ✅ shipped | `render.ts`. Interleaved, and now **monotonic** — asserted by test, having been broken twice |
+| **G** after-hours | ✅ shipped | Gate + "as of" clock; refreshes on re-run |
+| **A** relevance, stage A | ✅ shipped | Both entry routes, capped union. Coefficients still a hypothesis — logged per run, unreviewed |
+| **A** relevance, stage B (ATR re-rank) | ❌ not built | Deliberately sequenced behind a few weeks of stage-A logs |
+| **A** `sector_weight` | ✅ shipped | Plus `first_seen` (migration 0027) as a membership ratchet |
+| **B** attribution rungs 1–3 | ✅ shipped | Earnings, rating, target-only. Two-verb rule, two-source beat/miss |
+| **B** rung 4 (8-K / EDGAR) | ❌ not built | Free and worth building; catches the M&A and CEO-exit days |
+| **B** rungs 5–6 (halts, headlines) | 🚫 cut | Halts are rare enough to be maintenance without payoff; "a headline existed" is correlation dressed as cause, and the bare mover line is more honest and free |
+| **B** MOVERS section | ✅ shipped | Including rung 7: a ranked name with no reason prints bare |
+| **1b** prose ban | ✅ shipped | Default-deny, field-scoped, **and alias-aware** — company names are policed like tickers |
+| **1b** sector↔partner phrase table | ⏸ deferred | Copper (`HG=F`) is now a registered cross-asset, so the numerals exist. The table itself waits on sector nouns joining the alias list — without that the validator cannot require it, and an unenforced table is a suggestion |
+| **C** weekly wrap | ◐ partial | Index / sector / rotation / breadth / rates / VIX / cross-asset ship. The accountability tier — divergence follow-through, pin adherence, quoting the stored prose — does not |
+| **D** timeframes, benchmarks | ✅ shipped | Scaled split-defect tolerance; labelled in sessions |
+| **D** timeframes, single names | ❌ not built | Needs stage B's bars; one PR with the ATR re-rank |
+| **E** macro releases | ✅ shipped | Actual vs prior, basis stated, staleness-gated, revision-flagged |
+| **E** FOMC static list | ⏸ empty on purpose | The mechanism ships; the dates must be pasted from federalreserve.gov. Guessing them is the fabrication §1a exists to prevent |
+| **F** schema + resolution + LEDGER render | ✅ shipped | Best-engineered code in the feature |
+| **F** expectation **creation** | ❌ not built | **Nothing inserts a row.** The ledger has graded zero bets and structurally cannot |
+| **I** economic consensus | 🚫 closed | No free source. Reported vs prior, and said so. FMP client deleted |
+
+**Retired:** `FMP_API_KEY` and `sources/econ-calendar.ts`. The paid calendar was never configured, so the
+TELLS section it fed rendered as nothing every night; FRED's release calendar replaces it on the existing key.
 
 v1 ships a factual note that never lies. Its weakness, measured against the reference
 publication, is **depth**: we name ~10 stocks with a percentage and no reason; we carry no

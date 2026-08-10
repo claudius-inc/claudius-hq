@@ -7,6 +7,10 @@
  * Idempotent: upserts every row and prunes names that have left the index, so
  * it doubles as the quarterly-rebalance refresh. Feeds the daily note's
  * within-sector divergence (§5) and index-contribution (§8).
+ *
+ * Run monthly by .github/workflows/seed-constituents.yml. Left unrun, the
+ * note's staleness gate warns at 45 days and refuses the dataset at 120 —
+ * taking every single-name section of the note with it.
  */
 import { notInArray } from "drizzle-orm";
 import { db, sp500Constituents } from "@/db";
@@ -33,6 +37,10 @@ async function main() {
         sectorWeight: c.sectorWeight,
         updatedAt: now,
       })
+      // `first_seen` is deliberately absent from BOTH clauses: the column
+      // default stamps it on insert, and leaving it out of `set` is what makes
+      // it a ratchet. Adding it here would reset the membership record this
+      // refresh exists to preserve.
       .onConflictDoUpdate({
         target: sp500Constituents.ticker,
         set: {

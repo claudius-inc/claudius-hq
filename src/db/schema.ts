@@ -1117,6 +1117,13 @@ export const sp500Constituents = sqliteTable(
     // spyWeight: the sector funds cap mega-caps for diversification, so a
     // SPY-derived within-sector share is wrong for exactly the biggest names.
     sectorWeight: real("sector_weight"),
+    // First time the refresh saw this ticker in the index. The refresh is an
+    // upsert + prune, so membership history is destroyed on every run and can
+    // never be reconstructed afterwards. This is a one-way ratchet — it is
+    // deliberately NOT written on conflict — so the record starts accruing now.
+    // It does not license aggregate claims over past membership: those remain
+    // survivorship-shaped and stay banned (v2 §D trap 4).
+    firstSeen: text("first_seen").default(sql`(datetime('now'))`),
     updatedAt: text("updated_at").default(sql`(datetime('now'))`),
   },
   (table) => ({

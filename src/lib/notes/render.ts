@@ -18,8 +18,6 @@ import type {
   BreadthData,
 } from "@/lib/notes/types";
 
-const NBSP = " ";
-
 /** Escape every text node before wrapping in tags (§2). */
 export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -43,6 +41,13 @@ function spct(pct: number, dp = 1): string {
   return `${pct >= 0 ? "+" : ""}${pct.toFixed(dp)}%`;
 }
 const intFmt = (n: number) => Math.round(n).toLocaleString("en-US");
+
+/**
+ * A mover with no retrieved reason needs its own floor before it earns a line.
+ * Same threshold the attribution gate uses (notes/attribution.ts MIN_ABS_MOVE),
+ * so the two halves of MOVERS agree on what counts as a move.
+ */
+const BARE_MOVER_FLOOR_PCT = 1.5;
 
 /**
  * After-hours annotation for a named ticker (§G). Always clocked from the print
@@ -264,15 +269,37 @@ function divergenceSection(f: StructuredFacts): string {
  * the ladder's degraded form: the names and their moves survive, the clauses go.
  */
 function moversSection(f: StructuredFacts, withReasons = true, max = 3): string {
-  const at = f.attributions?.value;
-  if (!at?.length || max <= 0) return "";
-  const lines = at.slice(0, max).map((a) => {
-    if (withReasons) return escapeHtml(a.phrase);
-    // Strip back to the bare fact. The phrase always opens
-    // "TICKER rose/fell ±x.x%", so the reason is everything after it.
-    const m = a.phrase.match(/^(\S+ (?:rose|fell) [+-][\d.]+%)/);
-    return escapeHtml(m ? m[1] : a.phrase);
-  });
+  if (max <= 0) return "";
+  const attributed = new Map((f.attributions?.value ?? []).map((a) => [a.ticker, a.phrase]));
+  // Strip a phrase back to the bare fact. It always opens "TICKER rose/fell
+  // ±x.x%", so the reason is everything after that.
+  const bare = (phrase: string) => phrase.match(/^(\S+ (?:rose|fell) [+-][\d.]+%)/)?.[1] ?? phrase;
+
+  const lines: string[] = [];
+  // Notes persisted before the ranking was stored have no `movers` fact, so an
+  // archived note still re-renders from its attributions alone.
+  const ranked = f.movers?.value ?? [];
+  if (ranked.length > 0) {
+    for (const m of ranked) {
+      if (lines.length >= max) break;
+      const phrase = attributed.get(m.ticker);
+      if (phrase) {
+        lines.push(escapeHtml(withReasons ? phrase : bare(phrase)) + ahSuffix(f, m.ticker));
+        continue;
+      }
+      // Rung 7: nothing passed the ladder, so the name and its move stand
+      // alone. Floored at the same move the attribution gate uses — below it a
+      // bare line is not a mover, it is noise with a ticker attached.
+      if (Math.abs(m.changePct) < BARE_MOVER_FLOOR_PCT) continue;
+      lines.push(`${escapeHtml(m.ticker)} ${spct(m.changePct)}${ahSuffix(f, m.ticker)}`);
+    }
+  } else {
+    for (const a of (f.attributions?.value ?? []).slice(0, max)) {
+      lines.push(escapeHtml(withReasons ? a.phrase : bare(a.phrase)) + ahSuffix(f, a.ticker));
+    }
+  }
+
+  if (lines.length === 0) return "";
   return `${b("MOVERS")}\n${lines.join("\n")}`;
 }
 
@@ -398,7 +425,6 @@ function tellsSection(f: StructuredFacts): string {
     .toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })
     .toUpperCase();
   const items = events.map((e) => {
-    const consensus = e.consensus != null ? ` (cons. ${e.consensus})` : "";
     // The window spans several days, so anything not on the header's day must
     // carry its own weekday — otherwise Wednesday's CPI reads as Monday's.
     const day =
@@ -408,7 +434,7 @@ function tellsSection(f: StructuredFacts): string {
             weekday: "short",
             timeZone: "UTC",
           }) + " ";
-    return `${escapeHtml(e.name)} ${escapeHtml(day)}${e.timeEt}${NB}ET${escapeHtml(consensus)}`;
+    return `${escapeHtml(e.name)} ${escapeHtml(day)}${e.timeEt}${NB}ET`;
   });
   return `${b(`${label}'S TELLS`)} — ${items.join(" · ")}`;
 }
@@ -418,6 +444,9 @@ function crossPrice(p: CrossAssetPoint): string {
   let num: string;
   if (p.label === "BTC") num = `$${Math.round(v / 1000)}k`;
   else if (p.label === "Gold" || p.label === "Crude") num = `$${intFmt(v)}`;
+  // Copper trades near $4-5 a pound, so the whole quote lives in the cents.
+  // Rounding it like crude would print "$5" every day of the year.
+  else if (p.label === "Copper") num = `$${v.toFixed(2)}`;
   else num = v.toFixed(1); // DXY
   const chg = p.changePct != null ? ` ${spct(p.changePct)}` : "";
   return `${bind(p.label, num)}${chg}`;
@@ -518,14 +547,16 @@ function build(
 }
 
 /**
- * Telegram HTML push, ≤4096 UTF-16 units (§2). On overflow, degrade the prose
- * in priority order (drop book → bull/bear → trim What-Matters from the end →
- * prose-free deterministic note) rather than throwing. Only a prose-free note
- * that STILL overflows is a true data anomaly worth throwing on.
+ * Every rung of the overflow ladder, longest first — the note at full strength,
+ * then each successive degradation.
+ *
+ * Exported so the ladder's defining property can actually be tested: each rung
+ * must render no longer than the one before it. That is easy to break by
+ * omitting a flag (an omitted flag defaults back to ON, re-adding content the
+ * previous rung had dropped) and impossible to notice by reading, because the
+ * bug only shows on a day heavy enough to reach the affected rung.
  */
-export function renderPush({ facts, webUrl, prose }: RenderInput): string {
-  const CAP = 4096;
-
+export function pushLadder({ facts, webUrl, prose }: RenderInput): string[] {
   const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean; macroDetail?: boolean; moverReasons?: boolean; showLedger?: boolean }[] = [];
   if (prose) {
     candidates.push({ prose });
@@ -544,6 +575,7 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
     candidates.push({ prose, showLedger: false, showAfterHours: false, macroDetail: false, moverReasons: false });
     candidates.push({
       prose: { ...prose, book: undefined },
+      showLedger: false,
       showAfterHours: false,
       macroDetail: false,
       moverReasons: false,
@@ -557,36 +589,77 @@ export function renderPush({ facts, webUrl, prose }: RenderInput): string {
     });
     // Trim What-Matters bullets from the end.
     for (let n = prose.whatMatters.length - 1; n >= 0; n--) {
-      // Keep the ornament OFF here. Omitting these flags let them default back
-      // to true, so after-hours suffixes and macro framing were re-added exactly
-      // as bullets started being cut — inverting the rule and making the ladder
-      // non-monotonic, so a later rung could be longer than an earlier one.
+      // Keep EVERY ornament flag OFF here. Omitting a flag lets it default back
+      // to true, so the dropped content was re-added exactly as bullets started
+      // being cut — inverting the rule and making the ladder non-monotonic, so a
+      // later rung could render longer than an earlier one. All four must be
+      // repeated: an earlier fix set only two of them, which left the ledger
+      // line and the mover reason clauses coming back at the worst moment.
       candidates.push({
         prose: { ...prose, book: undefined, bull: undefined, bear: undefined, whatMatters: prose.whatMatters.slice(0, n) },
+        showLedger: false,
         showAfterHours: false,
         macroDetail: false,
+        moverReasons: false,
       });
     }
   }
-  // Prose-free, but still the FULL deterministic note. The degraded variants
-  // must come after: on a day with no prose at all (no key, model down) there is
-  // usually plenty of room, and stripping the reason clauses then would discard
-  // content for nothing.
-  candidates.push({});
-  candidates.push({ showAfterHours: false });
-  candidates.push({ showAfterHours: false, macroDetail: false });
-  candidates.push({ showAfterHours: false, macroDetail: false, moverReasons: false });
+  // Prose-free, but still the FULL deterministic note — and ONLY when there was
+  // no prose to begin with. On a day the model is down there is usually plenty
+  // of room, so stripping the reason clauses immediately would discard content
+  // for nothing.
+  //
+  // When prose DOES exist, this branch must not re-add anything: by the time the
+  // ladder reaches here it has already walked past every stripped form and found
+  // none of them small enough, so restoring the ledger line, the after-hours
+  // suffixes, the macro framing and the reason clauses would make the note grow
+  // at the exact moment it has to shrink.
+  if (!prose) {
+    candidates.push({});
+    // Same drop order as the prose ladder, so the two branches degrade alike.
+    candidates.push({ showLedger: false });
+    candidates.push({ showLedger: false, showAfterHours: false });
+    candidates.push({ showLedger: false, showAfterHours: false, macroDetail: false });
+  }
+  candidates.push({ showLedger: false, showAfterHours: false, macroDetail: false, moverReasons: false });
   // Last resort before throwing: the user can spotlight all 12 sectors, so trim
   // those callouts too rather than failing the send.
   const spotlightCount = facts.spotlight?.value.length ?? 0;
   for (let n = spotlightCount - 1; n >= 0; n--)
-    candidates.push({ maxSpotlight: n, showAfterHours: false, macroDetail: false, moverReasons: false });
+    candidates.push({
+      maxSpotlight: n,
+      showLedger: false,
+      showAfterHours: false,
+      macroDetail: false,
+      moverReasons: false,
+    });
 
-  let last = "";
-  for (const c of candidates) {
-    last = build(facts, webUrl, c.prose, c.maxSpotlight, c.showAfterHours ?? true, c.macroDetail ?? true, c.moverReasons ?? true, c.showLedger ?? true);
-    if (last.length <= CAP) return last;
+  return candidates.map((c) =>
+    build(
+      facts,
+      webUrl,
+      c.prose,
+      c.maxSpotlight,
+      c.showAfterHours ?? true,
+      c.macroDetail ?? true,
+      c.moverReasons ?? true,
+      c.showLedger ?? true,
+    ),
+  );
+}
+
+/**
+ * Telegram HTML push, ≤4096 UTF-16 units (§2). On overflow, degrade in priority
+ * order (see `pushLadder`) rather than throwing. Only a fully stripped note that
+ * STILL overflows is a true data anomaly worth throwing on.
+ */
+export function renderPush(input: RenderInput): string {
+  const CAP = 4096;
+  const rungs = pushLadder(input);
+  for (const rendered of rungs) {
+    if (rendered.length <= CAP) return rendered;
   }
+  const last = rungs[rungs.length - 1] ?? "";
   throw new Error(`Rendered push exceeds ${CAP} chars even stripped (${last.length}) — data anomaly`);
 }
 

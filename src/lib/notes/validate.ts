@@ -47,6 +47,8 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
       push(d.sectorChangePct);
       for (const n of d.names) push(n.changePct, n.gap);
     }
+  // MOVERS prints these deterministically, so prose may refer to them.
+  if (f.movers) for (const m of f.movers.value) push(m.changePct);
   if (f.contribution) {
     const c = f.contribution.value;
     push(c.modelledPct, c.actualPct, c.topPoints, c.exTopPct, c.topNames.length);
@@ -55,7 +57,8 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
     const g = f.gexPin.value;
     push(g.spot, g.pinStrike, g.distancePct);
   }
-  if (f.econEvents) for (const e of f.econEvents.value) push(e.consensus, e.previous);
+  // econEvents contribute no numerals: a scheduled release carries only a name
+  // and an ET clock, and clock forms are whitelisted structure, not facts.
   // §G: prose may refer to an after-hours move ("the after-hours bid forgives it"),
   // so its numerals must be in the pool or a legitimate bullet gets dropped.
   if (f.postMarket) for (const m of f.postMarket.value) push(m.changePct);
@@ -172,41 +175,81 @@ export interface ValidationResult {
 const CAUSAL_CONNECTIVES =
   /\b(on|after|as|amid|following|because|due to|owing to|thanks to|driven by|led by|fuelled by|fueled by|sparked by|triggered by|prompted by|boosted by|pressured by|weighed by|helped by|hurt by|tracking|in sympathy with|in response to|on the back of|so|thus|hence|therefore)\b/i;
 
-/** Word-boundary, case-sensitive ticker match — "Gap" the company, not "gap". */
-function namesTicker(text: string, tickers: string[]): string | null {
-  for (const t of tickers) {
+/** Word-boundary, case-sensitive match — "Gap" the company, not "gap". */
+function namesSubject(text: string, subjects: string[]): string | null {
+  for (const t of subjects) {
     if (new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(text)) return t;
   }
   return null;
 }
 
-/** Every ticker the note knows about, for the §1b containment test. */
-export function collectTickers(f: StructuredFacts): string[] {
-  const out = new Set<string>();
-  if (f.divergence) for (const d of f.divergence.value) for (const n of d.names) out.add(n.ticker);
-  if (f.contribution) for (const t of f.contribution.value.topNames) out.add(t);
-  if (f.attributions) for (const a of f.attributions.value) out.add(a.ticker);
+/**
+ * Legal name → the form a writer would actually use. "Akamai Technologies Inc"
+ * is never how a note refers to Akamai, so matching the stored string verbatim
+ * would catch nothing.
+ *
+ * Returns null for anything under four characters. That drops "Gap" and "3M",
+ * and the loss is deliberate: those are ordinary tokens in market prose, and a
+ * false positive here silently deletes a legitimate bullet, which is a worse
+ * outcome than the leak it would close.
+ */
+function normalizeCompanyName(raw: string): string | null {
+  const cleaned = raw
+    .replace(/\b(?:Class|Cl)\s+[A-Z]\b/g, " ")
+    .replace(/[,.]/g, " ")
+    .replace(
+      /\b(?:Inc|Incorporated|Corp|Corporation|Co|Company|Companies|Ltd|Limited|PLC|LP|LLC|Holdings?|Group|The|SA|NV|AG)\b/g,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.length >= 4 ? cleaned : null;
+}
+
+/**
+ * Every name the note knows about — tickers AND company names — for the §1b
+ * containment test.
+ *
+ * The alias half is load-bearing, not a refinement. §1b bans a causal
+ * connective in any field naming an instrument, and a ticker-only test made
+ * that ban trivially escapable: the model had no reason to prefer "AKAM" over
+ * "Akamai", and only one of the two was policed.
+ */
+export function collectProseSubjects(f: StructuredFacts): string[] {
+  const tickers = new Set<string>();
+  if (f.movers) for (const m of f.movers.value) tickers.add(m.ticker);
+  if (f.divergence) for (const d of f.divergence.value) for (const n of d.names) tickers.add(n.ticker);
+  if (f.contribution) for (const t of f.contribution.value.topNames) tickers.add(t);
+  if (f.attributions) for (const a of f.attributions.value) tickers.add(a.ticker);
   if (f.spotlight)
     for (const s of f.spotlight.value) {
-      for (const n of [...s.leaders, ...s.laggards]) out.add(n.ticker);
-      if (s.proxy) out.add(s.proxy.ticker);
+      for (const n of [...s.leaders, ...s.laggards]) tickers.add(n.ticker);
+      if (s.proxy) tickers.add(s.proxy.ticker);
     }
+
+  const out = new Set(tickers);
+  for (const [ticker, name] of Object.entries(f.companyNames ?? {})) {
+    if (!tickers.has(ticker)) continue;
+    const alias = normalizeCompanyName(name);
+    if (alias) out.add(alias);
+  }
   return Array.from(out);
 }
 
 export interface CausalCheck {
   ok: boolean;
-  ticker?: string;
+  /** The ticker or company name that triggered the containment test. */
+  subject?: string;
   connective?: string;
 }
 
 /** True when the field is clean under §1b. */
-export function checkCausalRule(text: string, tickers: string[]): CausalCheck {
-  const ticker = namesTicker(text, tickers);
-  if (!ticker) return { ok: true };
+export function checkCausalRule(text: string, subjects: string[]): CausalCheck {
+  const subject = namesSubject(text, subjects);
+  if (!subject) return { ok: true };
   const m = text.match(CAUSAL_CONNECTIVES);
   if (!m) return { ok: true };
-  return { ok: false, ticker, connective: m[0] };
+  return { ok: false, subject, connective: m[0] };
 }
 
 /** Validate one prose string against the fact pool. */

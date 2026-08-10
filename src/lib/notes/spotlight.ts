@@ -17,12 +17,6 @@ import type { SpotlightBlock, SectorPoint, CrossAssetPoint, DivergenceSector } f
 
 const SRC = "notes/spotlight";
 
-/** Per-sector emoji, stable across days so readers pattern-match them. */
-const EMOJI: Record<string, string> = {
-  XLE: "🛢", GOLD: "🥇", XLK: "💻", XLF: "🏦", XLY: "🛍", XLC: "📡",
-  XLV: "💊", XLI: "🏭", XLP: "🧺", XLB: "⛏", XLRE: "🏢", XLU: "💡",
-};
-
 /** Extra context tickers for the richer blocks (§6). */
 const GOLD_PROXY = "GDX";
 
@@ -90,7 +84,6 @@ export async function buildSpotlightBlocks(input: BuildInput): Promise<Spotlight
       if (!gold) continue;
       out.push({
         key,
-        emoji: EMOJI.GOLD,
         label: "Gold",
         headlinePct: gold.changePct,
         price: gold.price,
@@ -120,7 +113,6 @@ export async function buildSpotlightBlocks(input: BuildInput): Promise<Spotlight
 
     out.push({
       key,
-      emoji: EMOJI[key] ?? "📌",
       label: sector.name,
       headlinePct: sector.changePct,
       price: null,

@@ -12,7 +12,7 @@
  * better signal where available (§A); this module is the Yahoo-only fallback and
  * the shared vocabulary both paths resolve to.
  */
-import { etDate } from "@/lib/notes/session";
+import { etDate, etMinutes, toMs } from "@/lib/notes/session";
 
 /** Where a report sits relative to the session we are writing about. */
 export type EarningsPlacement =
@@ -24,28 +24,6 @@ export type EarningsPlacement =
   | "after-todays-close"
   /** Weekend stamp, future date, missing — not classifiable, so no attribution. */
   | "none";
-
-/** Minutes since ET midnight for an instant. */
-function etMinutes(ms: number): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(new Date(ms));
-  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
-  const m = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
-  return (h % 24) * 60 + m;
-}
-
-/** Defensive timestamp coercion — Yahoo returns Date, epoch-s, or a string. */
-export function toMs(t: unknown): number {
-  if (!t) return 0;
-  if (t instanceof Date) return t.getTime();
-  if (typeof t === "string") return Date.parse(t);
-  if (typeof t === "number") return t > 1e12 ? t : t * 1000;
-  return 0;
-}
 
 const OPEN_MIN = 9 * 60 + 30; // 09:30 ET
 

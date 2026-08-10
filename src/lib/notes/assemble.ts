@@ -16,17 +16,16 @@ import { logger } from "@/lib/logger";
 import { fetchBreadthData } from "@/lib/markets/breadth";
 import { rankRelevance, type RelevanceInput, type RelevanceScore } from "@/lib/notes/relevance";
 import { fetchTimeframes } from "@/lib/notes/timeframes";
-import { placeEarnings, isReactionDay, toMs } from "@/lib/notes/earnings-window";
+import { placeEarnings, isReactionDay } from "@/lib/notes/earnings-window";
 import type { ConstituentQuote } from "@/lib/notes/divergence";
 import { fetchRatesFact } from "@/lib/notes/sources/treasury";
 import { computeDivergenceFacts } from "@/lib/notes/divergence";
 import { fetchGexPinFact } from "@/lib/notes/sources/gex-pin";
-import { fetchEconEvents } from "@/lib/notes/sources/econ-calendar";
-import { fetchMacroReleases } from "@/lib/notes/sources/fred-releases";
+import { fetchMacroReleases, fetchUpcomingReleases } from "@/lib/notes/sources/fred-releases";
 import { fetchEarningsCalendar } from "@/lib/notes/sources/earnings-calendar";
 import { buildAttributions } from "@/lib/notes/attribution";
 import { loadEnabledSpotlights, buildSpotlightBlocks } from "@/lib/notes/spotlight";
-import { etDate, etStamp } from "@/lib/notes/session";
+import { etDate, etStamp, etMinutes, toMs } from "@/lib/notes/session";
 import type {
   Fact,
   IndexPoint,
@@ -39,6 +38,7 @@ import type {
   SpotlightBlock,
   PostMarketMove,
   ContributionData,
+  MoverName,
 } from "@/lib/notes/types";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -69,6 +69,11 @@ const CROSS_ASSETS: { symbol: string; label: string }[] = [
   { symbol: "DX-Y.NYB", label: "DXY" },
   { symbol: "GC=F", label: "Gold" },
   { symbol: "CL=F", label: "Crude" },
+  // Copper is here as a cross-asset print in its own right, and because the
+  // Materials sector has no other defensible partner: any future statement
+  // relating XLB to a commodity has to be checkable against a registered
+  // numeral, and an unregistered one would be dropped at validation (§H0.1).
+  { symbol: "HG=F", label: "Copper" },
   { symbol: "BTC-USD", label: "BTC" },
 ];
 
@@ -84,19 +89,6 @@ const round = (n: number, dp = 2) => {
   const f = 10 ** dp;
   return Math.round(n * f) / f;
 };
-
-/** Minutes since ET midnight for an instant. */
-function etMinutes(ms: number): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).formatToParts(new Date(ms));
-  const h = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
-  const m = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
-  return (h % 24) * 60 + m;
-}
 
 // ── Indices + sector ETFs: one batch quote ──────────────────────────────────
 async function fetchBatchQuoteMap(symbols: string[]): Promise<Map<string, QuoteLike>> {
@@ -326,7 +318,9 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
   const [gexPin, econEvents, enabledSpotlights, macro] = await Promise.all([
     fetchGexPinFact(asOf),
     // Window covers the next few calendar days so a Friday note reaches Monday.
-    fetchEconEvents(nextDate, etDate(now + 4 * 86_400_000), asOf),
+    // `marketDate` is passed separately as the realtime anchor: FRED rejects a
+    // realtime period that starts in the future, which this window always does.
+    fetchUpcomingReleases(nextDate, etDate(now + 4 * 86_400_000), marketDate, asOf),
     loadEnabledSpotlights(),
     fetchMacroReleases(marketDate, asOf),
   ]);
@@ -373,6 +367,16 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     closeMinute,
   );
 
+  // §A's ranking is what decides which names deserve a line at all. Persisting
+  // it — not just the subset that earned an attribution — is what lets MOVERS
+  // honour §B rung 7: a name that cleared the ranking but whose reason failed
+  // every rung still prints, bare. Suppressing it instead would quietly make
+  // "we found a reason" the condition for being mentioned.
+  const movers: MoverName[] = relevance.map((r) => ({
+    ticker: r.ticker,
+    changePct: r.changePct,
+  }));
+
   const spotlightBlocks = await buildSpotlightBlocks({
     enabled: enabledSpotlights,
     sectors: sectors?.value ?? null,
@@ -396,6 +400,18 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     econEvents,
     spotlight: spotlightBlocks.length > 0 ? { value: spotlightBlocks, source: "Yahoo + spotlight config", asOf } : null,
     postMarket: postMarketFact(postMarketByTicker, divergence, spotlightBlocks, contribution),
+    movers: movers.length > 0 ? { value: movers, source: "Yahoo + SPDR holdings (relevance rank)", asOf } : null,
+    companyNames: buildCompanyNames(constituents, [
+      ...movers.map((m) => m.ticker),
+      ...attributions.map((a) => a.ticker),
+      ...divergence.flatMap((d) => d.names.map((n) => n.ticker)),
+      ...(contribution?.topNames ?? []),
+      ...spotlightBlocks.flatMap((s) => [
+        ...s.leaders.map((n) => n.ticker),
+        ...s.laggards.map((n) => n.ticker),
+        ...(s.proxy ? [s.proxy.ticker] : []),
+      ]),
+    ]),
     timeframes: timeframes.length > 0 ? { value: timeframes, source: "Yahoo daily bars (adjusted)", asOf } : null,
     macro,
     attributions:
@@ -404,6 +420,24 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     // (the rates spread) to decide derived-metric bets.
     ledger: null,
   };
+}
+
+/**
+ * Company names for the tickers the note may mention — the §1b alias list.
+ *
+ * Only the names actually in play are carried: the map is persisted with the
+ * facts, and shipping all 503 would bloat every stored note to police prose
+ * that can never mention them. `name` is nullable in the constituent table, and
+ * a missing one simply means that ticker is policed by symbol alone.
+ */
+function buildCompanyNames(constituents: ConstituentQuote[], tickers: string[]): Record<string, string> | null {
+  const wanted = new Set(tickers);
+  const out: Record<string, string> = {};
+  for (const c of constituents) {
+    if (!wanted.has(c.ticker) || !c.name) continue;
+    out[c.ticker] = c.name;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 /**
