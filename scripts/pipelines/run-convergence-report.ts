@@ -26,6 +26,12 @@ import {
 } from "@/lib/markets/convergence-screen";
 import { MAPPING_BY_SYMBOL } from "@/lib/markets/perp-underlying";
 import {
+  fetchPositioningForAll,
+  classifyRegime,
+  REGIME_LABEL,
+  type Positioning,
+} from "@/lib/markets/perp-positioning";
+import {
   loadAdjustedSeries,
   computeDailyTrend,
   type TrendDirection,
@@ -113,10 +119,47 @@ function trendBadge(p: ConvergencePick, trends: Map<string, TrendDirection>): st
   return agrees ? " ✅" : " ⛔";
 }
 
+/**
+ * Compression reading, stated plainly.
+ *
+ * The convergence count was measured to select quiet names — score 5 averages
+ * 0.68x its category's typical 1-day move, score 1 averages 1.35x, monotonically.
+ * Rather than let a high score imply "conviction", the volatility percentile is
+ * printed next to it so a coiled name reads as coiled.
+ */
+function compressionTag(p: ConvergencePick): string {
+  if (p.volPctl === null) return "";
+  if (p.volPctl <= 25) return ` 🪤coiled ${Math.round(p.volPctl)}`;
+  if (p.volPctl >= 75) return ` 🌊moving ${Math.round(p.volPctl)}`;
+  return ` vol ${Math.round(p.volPctl)}`;
+}
+
+/** Open-interest regime plus funding crowding — the perp-native context. */
+function positioningLine(p: ConvergencePick, pos: Map<string, Positioning>): string | null {
+  const q = pos.get(p.symbol);
+  if (!q) return null;
+
+  const bits: string[] = [];
+  const regime = classifyRegime(q.oiChangePct, p.changePct);
+  if (regime !== "flat") {
+    bits.push(`${REGIME_LABEL[regime]} (OI ${pct(q.oiChangePct)})`);
+  } else if (q.oiChangePct !== null) {
+    bits.push(`OI ${pct(q.oiChangePct)}`);
+  }
+  if (q.fundingBps !== null) {
+    const crowd = q.fundingPctl !== null && (q.fundingPctl >= 90 || q.fundingPctl <= 10) ? "!" : "";
+    bits.push(`fund ${q.fundingBps >= 0 ? "+" : ""}${q.fundingBps.toFixed(1)}bp${crowd}`);
+  }
+  if (q.takerRatio !== null) bits.push(`taker ${q.takerRatio.toFixed(2)}`);
+
+  return bits.length ? `   ${bits.join(" · ")}` : null;
+}
+
 function renderSide(
   picks: ConvergencePick[],
   heading: string,
   trends: Map<string, TrendDirection>,
+  pos: Map<string, Positioning>,
 ): string[] {
   if (picks.length === 0) return [heading, "_none cleared the threshold_", ""];
 
@@ -131,8 +174,10 @@ function renderSide(
     );
     lines.push(
       `   \`${factorInitials(p).padEnd(5)}\` · RSI ${p.rsi === null ? "—" : Math.round(p.rsi)}` +
-        ` · 5d ${pct(p.changePct)}`,
+        ` · 5d ${pct(p.changePct)}${compressionTag(p)}`,
     );
+    const posLine = positioningLine(p, pos);
+    if (posLine) lines.push(posLine);
   });
   lines.push("");
   return lines;
@@ -169,6 +214,7 @@ export async function loadTrends(
 export function formatMessage(
   result: ConvergenceResult,
   trends: Map<string, TrendDirection> = new Map(),
+  pos: Map<string, Positioning> = new Map(),
 ): string {
   const { longs, shorts, funnel } = result;
   const asOf = result.asOf.replace("T", " ").slice(0, 16) + "Z";
@@ -179,11 +225,11 @@ export function formatMessage(
     "",
   ];
 
-  lines.push(...renderSide(longs, `📈 *LONG* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends));
-  lines.push(...renderSide(shorts, `📉 *SHORT* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends));
+  lines.push(...renderSide(longs, `📈 *LONG* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends, pos));
+  lines.push(...renderSide(shorts, `📉 *SHORT* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends, pos));
 
   lines.push("_T=trend P=pullback S=support X=extreme V=volume · 🆕 new · ⚠️ contested_");
-  lines.push("_Daily trend: ✅ agrees · ⛔ opposes · 〰️ unclear_");
+  lines.push("_Daily trend: ✅ agrees · ⛔ opposes · 〰️ unclear · 🪤 coiled · 🌊 moving_");
   const cats = Object.entries(funnel.byCategory)
     .map(([k, v]) => `${k} ${v}`)
     .join(" · ");
@@ -192,8 +238,15 @@ export function formatMessage(
       (cats ? ` · ${cats}` : "") +
       `_`,
   );
-  // The ranking is unvalidated and the message should not imply otherwise.
-  lines.push("_⚠️ Ranking unvalidated — backtested IC is negative at 1-3d._");
+  lines.push(
+    `_Held back: ${funnel.cooldownSkipped} on cooldown · ` +
+      `${funnel.correlationSkipped} too correlated · ${funnel.contested} contested_`,
+  );
+  // This is a shortlist to look at, not a set of calls. Say so.
+  lines.push(
+    "_⚠️ A shortlist to review, not signals. High scores select COILED names " +
+      "(score 5 ≈ 0.68× normal daily range); direction is unvalidated._",
+  );
 
   return lines.join("\n");
 }
@@ -283,9 +336,39 @@ async function recordPicks(result: ConvergenceResult, runDate: string): Promise<
   });
 }
 
+/**
+ * Symbols reported within the cooldown window.
+ *
+ * Read from the picks table rather than tracked in memory so the suppression
+ * survives restarts and applies across runs. Only `reported = 1` rows count:
+ * a name that merely qualified yesterday was never shown to anyone, so it is
+ * still new information today.
+ */
+async function recentlyReportedSymbols(cooldownDays: number): Promise<Set<string>> {
+  const { rawClient } = await import("@/db");
+  const rows = await rawClient.execute({
+    sql: `SELECT DISTINCT symbol FROM perp_convergence_picks
+          WHERE reported = 1 AND run_date >= date('now', ?)`,
+    args: [`-${cooldownDays} day`] as never[],
+  });
+  return new Set(rows.rows.map((r) => String(r.symbol)));
+}
+
 async function main() {
   const runDate = new Date().toISOString().split("T")[0];
-  const result = await selectConvergencePicks();
+
+  // In dry-run the DB may be unreachable; an empty cooldown set is the right
+  // fallback, since suppressing nothing is safer than failing the preview.
+  let recent = new Set<string>();
+  try {
+    recent = await recentlyReportedSymbols(CONVERGENCE_CONFIG.cooldownDays);
+  } catch (err) {
+    logger.warn("convergence-report", "Cooldown lookup failed; no suppression applied", {
+      error: err,
+    });
+  }
+
+  const result = await selectConvergencePicks("binance", CONVERGENCE_CONFIG, recent);
 
   // A universe collapse would otherwise read as "nothing converged today" — a
   // market observation, when it is really a data outage. Fail loudly.
@@ -314,8 +397,14 @@ async function main() {
     return;
   }
 
-  const trends = await loadTrends([...result.longs, ...result.shorts]);
-  const ok = await send(formatMessage(result, trends));
+  const reported = [...result.longs, ...result.shorts];
+  const trends = await loadTrends(reported);
+  // Positioning is fetched for the REPORTED names only — three requests each,
+  // so running it over all 136 qualifiers would be 400+ calls for data that
+  // only annotates the 16 that get sent.
+  const positioning = await fetchPositioningForAll(reported.map((p) => p.symbol));
+
+  const ok = await send(formatMessage(result, trends, positioning));
   if (!ok) process.exitCode = 1;
 }
 

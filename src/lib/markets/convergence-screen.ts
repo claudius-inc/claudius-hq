@@ -73,6 +73,29 @@ export const CONVERGENCE_CONFIG = {
    * healthy symbol masked every stale one.
    */
   maxStaleIntervals: 2,
+  /**
+   * Correlation ceiling for the reported set.
+   *
+   * The report's 16 slots were worth about 1-2 independent looks. Equity perps
+   * are roughly one factor plus noise, so when the US cohort turns they reach a
+   * score of 3 together and enter the list as a bloc; the same happens to
+   * majors and to whatever sector is moving in crypto. Category-proportional
+   * allocation bounds the mix but not the redundancy WITHIN a category — two
+   * L1s at 0.95 correlation are still one bet. A name is skipped when its
+   * trailing return correlation with an already-selected name exceeds this.
+   */
+  maxCorrelation: 0.8,
+  /** Bars of returns used for the correlation estimate. */
+  correlationBars: 60,
+  /**
+   * Days a reported name is suppressed before it can be reported again.
+   *
+   * The retired momentum screen had this and the consolidation dropped it. For
+   * a list meant to surface things worth LOOKING at, a name you saw yesterday
+   * and passed on is a wasted slot — it is not new information. Candidates are
+   * still recorded every day; only the reporting is suppressed.
+   */
+  cooldownDays: 3,
 } as const;
 
 /** Interval length in ms, for the staleness gate. */
@@ -99,6 +122,15 @@ export interface ConvergencePick {
   opposingScore: number;
   price: number;
   rsi: number | null;
+  /**
+   * Self-volatility percentile, 0-100. Low = coiled, high = already moving.
+   *
+   * Reported because the convergence count was measured to be, in practice, a
+   * compression reading: a score of 5 averages 0.68x its category's typical
+   * 1-day move while a score of 1 averages 1.35x, monotonically. Showing the
+   * percentile lets that be judged rather than hidden inside the score.
+   */
+  volPctl: number | null;
   /** Percent change over `liquidityBars` bars — context, never a ranking key. */
   changePct: number | null;
   avgQuoteVol: number;
@@ -149,6 +181,10 @@ export interface ConvergenceResult {
     qualified: number;
     /** Cleared the threshold on both sides at equal score; recorded, not sent. */
     contested: number;
+    /** Qualified but reported too recently to be new information. */
+    cooldownSkipped: number;
+    /** Qualified but too correlated with a name already on the list. */
+    correlationSkipped: number;
     byCategory: Record<string, number>;
   };
   /** Bar close time the scores were computed from, ISO. */
@@ -190,6 +226,7 @@ export function scoreSymbol(
     maxScore: r.maxScore,
     price: r.close,
     rsi: r.rsi,
+    volPctl: r.volPctl,
     changePct,
     avgQuoteVol,
   };
@@ -273,6 +310,73 @@ export function rankPicks(picks: ConvergencePick[]): ConvergencePick[] {
   );
 }
 
+/** Pearson correlation of two equal-length return series. */
+export function correlation(a: number[], b: number[]): number {
+  const n = Math.min(a.length, b.length);
+  if (n < 10) return 0;
+  const xs = a.slice(-n);
+  const ys = b.slice(-n);
+  const mx = xs.reduce((s, v) => s + v, 0) / n;
+  const my = ys.reduce((s, v) => s + v, 0) / n;
+  let num = 0;
+  let dx = 0;
+  let dy = 0;
+  for (let i = 0; i < n; i++) {
+    const p = xs[i] - mx;
+    const q = ys[i] - my;
+    num += p * q;
+    dx += p * p;
+    dy += q * q;
+  }
+  const den = Math.sqrt(dx * dy);
+  return den === 0 ? 0 : num / den;
+}
+
+/** Bar-to-bar log returns, for the correlation estimate. */
+export function returnsOf(bars: PerpBar[], count: number): number[] {
+  const tail = bars.slice(-(count + 1));
+  const out: number[] = [];
+  for (let i = 1; i < tail.length; i++) {
+    const a = tail[i - 1].c;
+    const b = tail[i].c;
+    if (a > 0 && b > 0) out.push(Math.log(b / a));
+  }
+  return out;
+}
+
+/**
+ * Greedily drops names too correlated with one already chosen.
+ *
+ * Order is preserved, so the higher-ranked name of a correlated pair survives.
+ * This runs BEFORE the category allocation: allocation decides the mix across
+ * categories, de-duplication decides that the names inside each category are
+ * actually different bets.
+ */
+export function decorrelate(
+  ranked: ConvergencePick[],
+  returns: Map<string, number[]>,
+  maxCorr: number,
+): { kept: ConvergencePick[]; dropped: number } {
+  const kept: ConvergencePick[] = [];
+  let dropped = 0;
+
+  for (const p of ranked) {
+    const rp = returns.get(p.symbol);
+    if (!rp) {
+      kept.push(p);
+      continue;
+    }
+    const tooClose = kept.some((q) => {
+      const rq = returns.get(q.symbol);
+      if (!rq) return false;
+      return Math.abs(correlation(rp, rq)) > maxCorr;
+    });
+    if (tooClose) dropped++;
+    else kept.push(p);
+  }
+  return { kept, dropped };
+}
+
 /**
  * Chooses one side's top N with category-proportional allocation.
  *
@@ -327,6 +431,9 @@ export function allocateByCategory(
 export async function selectConvergencePicks(
   venueName = "binance",
   cfg: ConvergenceConfig = CONVERGENCE_CONFIG,
+  /** Symbols reported within the cooldown window; suppressed from the message,
+   *  still recorded as candidates. The caller owns the DB lookup. */
+  recentlyReported: Set<string> = new Set(),
 ): Promise<ConvergenceResult> {
   const venue: PerpVenue | undefined = VENUES[venueName];
   if (!venue) throw new Error(`Unknown venue "${venueName}"`);
@@ -343,6 +450,8 @@ export async function selectConvergencePicks(
   let latestBarClose = 0;
   const candidates: ConvergencePick[] = [];
   const byCategory: Record<string, number> = {};
+  /** Trailing returns per symbol, kept for the correlation de-duplication. */
+  const returnsBySymbol = new Map<string, number[]>();
 
   const intervalMs = INTERVAL_MS[cfg.interval] ?? 14_400_000;
   const now = Date.now();
@@ -395,16 +504,38 @@ export async function selectConvergencePicks(
     if (chosen) {
       candidates.push(chosen);
       byCategory[chosen.category] = (byCategory[chosen.category] ?? 0) + 1;
+      returnsBySymbol.set(chosen.symbol, returnsOf(bars, cfg.correlationBars));
     }
   }
 
   assignLiquidityPercentiles(candidates);
   const ranked = rankPicks(candidates);
 
-  // Contested names are recorded but never sent.
-  const reportable = ranked.filter((p) => !p.contested);
-  const longs = allocateByCategory(reportable.filter((p) => p.side === "long"), cfg.topN);
-  const shorts = allocateByCategory(reportable.filter((p) => p.side === "short"), cfg.topN);
+  // Reporting filters, in order. Each one removes names from the MESSAGE only —
+  // `candidates` keeps every qualifier, so the record stays complete.
+  //   1. contested — both sides tied, so the signal contradicts itself
+  //   2. cooldown  — reported within the last few days, so it is not new to you
+  //   3. decorrelate — too similar to a name already on the list
+  //   4. allocate  — proportional across categories
+  const eligible = ranked.filter((p) => !p.contested && !recentlyReported.has(p.symbol));
+  const cooldownSkipped = ranked.filter(
+    (p) => !p.contested && recentlyReported.has(p.symbol),
+  ).length;
+
+  const longPool = decorrelate(
+    eligible.filter((p) => p.side === "long"),
+    returnsBySymbol,
+    cfg.maxCorrelation,
+  );
+  const shortPool = decorrelate(
+    eligible.filter((p) => p.side === "short"),
+    returnsBySymbol,
+    cfg.maxCorrelation,
+  );
+
+  const longs = allocateByCategory(longPool.kept, cfg.topN);
+  const shorts = allocateByCategory(shortPool.kept, cfg.topN);
+  const correlationSkipped = longPool.dropped + shortPool.dropped;
 
   const result: ConvergenceResult = {
     longs,
@@ -420,6 +551,8 @@ export async function selectConvergencePicks(
       liquid,
       qualified: candidates.length,
       contested: contestedN,
+      cooldownSkipped,
+      correlationSkipped,
       byCategory,
     },
     // The bar CLOSE, not its open — the moment the scored data was complete.

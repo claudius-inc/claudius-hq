@@ -51,6 +51,8 @@ export const MCD_CONFIG = {
   vsaLookback: 20,
   vsaSpringBars: 3,
   minScore: 3, // sig_min
+  volSmaLen: 20, // vix_sma_len
+  volPctlLen: 252, // vix_pctl_len
 } as const;
 
 export type McdConfig = typeof MCD_CONFIG;
@@ -190,6 +192,28 @@ export function barsSinceSeries(cond: boolean[]): (number | null)[] {
   return out;
 }
 
+/**
+ * Pine `ta.percentrank` — share of the trailing `len` values at or below the
+ * current one, 0-100.
+ */
+export function percentRankSeries(src: (number | null)[], len: number): (number | null)[] {
+  const out = new Array<number | null>(src.length).fill(null);
+  for (let i = len; i < src.length; i++) {
+    const cur = src[i];
+    if (cur === null) continue;
+    let below = 0;
+    let total = 0;
+    for (let j = i - len; j < i; j++) {
+      const v = src[j];
+      if (v === null) continue;
+      total++;
+      if (v <= cur) below++;
+    }
+    if (total > 0) out[i] = (100 * below) / total;
+  }
+  return out;
+}
+
 /** Shift a series forward by `n` bars: result[i] = src[i-n] (Pine `x[n]`). */
 function shift<T>(src: T[], n: number, fill: T): T[] {
   const out = new Array<T>(src.length).fill(fill);
@@ -219,6 +243,22 @@ export interface McdReading {
   rsi: number | null;
   atr: number | null;
   close: number;
+  /**
+   * Self-volatility percentile, 0-100 — the Pine's "Volatility Index" in
+   * Self-Volatility mode, ranked against this symbol's own 252-bar history.
+   *
+   * Ported because it names what the convergence count was found to be doing.
+   * Measured across 19,399 observations, a maximum score of 5 averages 0.68x
+   * its category's typical 1-day move and a score of 1 averages 1.35x — the
+   * relationship is monotone. `support` selects price sitting on an MA or fib
+   * (coiled, not extended) and the Wyckoff no-demand/no-supply bars are DEFINED
+   * as narrow spread plus below-average volume, so a high count is largely a
+   * compression reading. Reporting the percentile alongside the score says that
+   * out loud instead of leaving it implied.
+   *
+   * Low percentile = quiet/coiled. High percentile = already moving.
+   */
+  volPctl: number | null;
 }
 
 const factorCount = (f: McdFactors): number =>
@@ -246,6 +286,16 @@ export function computeMcdSeries(bars: McdBar[], cfg: McdConfig = MCD_CONFIG): M
 
   const swingHi = highestSeries(highs, cfg.swingLen);
   const swingLo = lowestSeries(lows, cfg.swingLen);
+
+  // Self-volatility, as the Pine builds it: ATR as a share of price, smoothed,
+  // then percentile-ranked against the symbol's own history so the reading is
+  // comparable across a $65,000 name and a $0.02 one.
+  const selfVolRaw = atr.map((a, i) => (a === null || !closes[i] ? null : (a / closes[i]) * 100));
+  const selfVol = smaSeries(
+    selfVolRaw.map((v) => v ?? 0),
+    cfg.volSmaLen,
+  ).map((v, i) => (selfVolRaw[i] === null ? null : v));
+  const volPctl = percentRankSeries(selfVol, cfg.volPctlLen);
 
   // ── Wyckoff VSA detections (Factor 5 inputs) ──
   const volAvg = smaSeries(volumes, cfg.vsaVolAvgLen);
@@ -413,6 +463,7 @@ export function computeMcdSeries(bars: McdBar[], cfg: McdConfig = MCD_CONFIG): M
       rsi: r,
       atr: atr[i],
       close: b.c,
+      volPctl: volPctl[i],
     });
 
     prevLongScore = longScore;
