@@ -57,8 +57,30 @@ export const CONVERGENCE_CONFIG = {
    * to be entered and exited without the slippage swamping the signal.
    */
   minAvgQuoteVol: 250_000,
-  /** Matches the indicator's own default flag threshold. */
-  minScore: MCD_CONFIG.minScore,
+  /**
+   * Extra points for agreeing with quarterly anchored VWAP.
+   *
+   * The five MCD factors are a plain count, which treats them as equally
+   * informative — and measurement says they are not: `support` and `vsa` fire
+   * on ~60% and ~49% of bars while contributing an edge indistinguishable from
+   * zero (t = -0.01 and +0.10 over 199,553 observations). Quarterly VWAP is the
+   * level real size is benchmarked against for the quarter, so it is weighted
+   * above any single one of them rather than being one more tally mark.
+   *
+   * At weight 2 the maximum is 7 (five factors plus this).
+   *
+   * The threshold is 5, not 4. Price is always on ONE side of VWAP, so every
+   * name collects 2 points on one side for free; at a threshold of 4 that plus
+   * the two near-noise factors (`support` 60% and `vsa` 49% fire rates) clears
+   * the bar by itself — measured live, 340 of 432 liquid names qualified, which
+   * is a list of everything. At 5 a name needs VWAP agreement AND three of the
+   * five factors, which is the old 3-of-5 selectivity with VWAP made mandatory.
+   * A name that disagrees with quarterly VWAP now needs all five factors, which
+   * is what weighting it above the others means in practice.
+   */
+  vwapWeight: 2,
+  /** Threshold on the WEIGHTED score, out of `5 + vwapWeight`. */
+  minScore: 5,
   /** Per side. */
   topN: 8,
   /** Bars used for the liquidity average and the displayed move. */
@@ -115,9 +137,17 @@ export interface ConvergencePick {
   base: string;
   category: PerpCategory;
   side: Side;
+  /** Weighted: the five MCD factors at 1 point each, plus quarterly VWAP at
+   *  `vwapWeight`. Out of `maxScore`. */
   score: number;
   maxScore: number;
   factors: McdFactors;
+  /** Whether price sits on this side's half of quarterly anchored VWAP. */
+  vwapAgrees: boolean;
+  /** Quarterly anchored VWAP level, null when the quarter is too young. */
+  qvwap: number | null;
+  /** Distance from quarterly VWAP, %. Signed: positive means above. */
+  vwapDistPct: number | null;
   /** The opposing score, kept so a contested name is visible as contested. */
   opposingScore: number;
   price: number;
@@ -194,6 +224,38 @@ export interface ConvergenceResult {
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
 /**
+ * Volume-weighted average price anchored to the start of the current calendar
+ * quarter.
+ *
+ * Anchored, not rolling. A rolling 90-day VWAP drifts every bar and answers a
+ * different question; the anchored one is a fixed level for the quarter, which
+ * is what makes it a reference everyone is measured against rather than another
+ * moving average. Uses the typical price (H+L+C)/3 weighted by base volume.
+ *
+ * Returns null when the quarter is too young to be meaningful — early April,
+ * an anchored VWAP is two days of data pretending to be a quarterly level.
+ */
+export function quarterlyVwap(bars: PerpBar[], minBars = 30): number | null {
+  if (!bars.length) return null;
+  const last = new Date(bars[bars.length - 1].tClose);
+  const qStart = Date.UTC(last.getUTCFullYear(), Math.floor(last.getUTCMonth() / 3) * 3, 1);
+
+  let pv = 0;
+  let vol = 0;
+  let n = 0;
+  for (const b of bars) {
+    if (b.t < qStart) continue;
+    const typical = (b.h + b.l + b.c) / 3;
+    if (!Number.isFinite(typical) || !Number.isFinite(b.v) || b.v <= 0) continue;
+    pv += typical * b.v;
+    vol += b.v;
+    n++;
+  }
+  if (n < minBars || vol <= 0) return null;
+  return pv / vol;
+}
+
+/**
  * Scores one symbol's bars. Returns null when the history is too short to score
  * or the book is too thin to trade.
  */
@@ -214,6 +276,13 @@ export function scoreSymbol(
   const first = tail[0]?.c;
   const changePct = first ? (100 * (r.close - first)) / first : null;
 
+  // Quarterly VWAP carries `vwapWeight` points, not one — see CONVERGENCE_CONFIG.
+  const qvwap = quarterlyVwap(bars);
+  const aboveVwap = qvwap !== null ? r.close > qvwap : null;
+  const vwapDistPct = qvwap ? (100 * (r.close - qvwap)) / qvwap : null;
+  const longVwapPts = aboveVwap === true ? cfg.vwapWeight : 0;
+  const shortVwapPts = aboveVwap === false ? cfg.vwapWeight : 0;
+
   const base = {
     venue: sym.venue,
     symbol: sym.symbol,
@@ -223,7 +292,9 @@ export function scoreSymbol(
     // a percentile is meaningless for a single symbol in isolation.
     liquidityPctl: 0,
     contested: false,
-    maxScore: r.maxScore,
+    maxScore: r.maxScore + cfg.vwapWeight,
+    qvwap,
+    vwapDistPct,
     price: r.close,
     rsi: r.rsi,
     volPctl: r.volPctl,
@@ -236,17 +307,19 @@ export function scoreSymbol(
     long: {
       ...base,
       side: "long",
-      score: r.longScore,
+      score: r.longScore + longVwapPts,
       factors: r.longFactors,
-      opposingScore: r.shortScore,
+      vwapAgrees: aboveVwap === true,
+      opposingScore: r.shortScore + shortVwapPts,
       freshFlag: r.longFlag,
     },
     short: {
       ...base,
       side: "short",
-      score: r.shortScore,
+      score: r.shortScore + shortVwapPts,
       factors: r.shortFactors,
-      opposingScore: r.longScore,
+      vwapAgrees: aboveVwap === false,
+      opposingScore: r.longScore + longVwapPts,
       freshFlag: r.shortFlag,
     },
   };

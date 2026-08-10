@@ -90,10 +90,15 @@ const CATEGORY_TAG: Record<string, string> = {
   index: "📉",
 };
 
-/** Which of the five factors fired, as initials — the report's whole substance. */
+/**
+ * Which factors fired, as initials. `Q` is quarterly VWAP and is worth 2 points
+ * rather than 1, so it is listed first — a name scoring 4 with Q is a different
+ * animal from one scoring 4 without it.
+ */
 function factorInitials(p: ConvergencePick): string {
   const f = p.factors;
   const on: string[] = [];
+  if (p.vwapAgrees) on.push("Q");
   if (f.trend) on.push("T");
   if (f.pullback) on.push("P");
   if (f.support) on.push("S");
@@ -172,9 +177,11 @@ function renderSide(
       `${i + 1}. \`${clean(p.base)}\`${tag ? " " + tag : ""} ` +
         `*${p.score}/${p.maxScore}*${fresh}${contested}${trendBadge(p, trends)} · ${fmtPrice(p.price)}`,
     );
+    const vwap =
+      p.vwapDistPct === null ? "" : ` · qVWAP ${p.vwapDistPct >= 0 ? "+" : ""}${p.vwapDistPct.toFixed(1)}%`;
     lines.push(
-      `   \`${factorInitials(p).padEnd(5)}\` · RSI ${p.rsi === null ? "—" : Math.round(p.rsi)}` +
-        ` · 5d ${pct(p.changePct)}${compressionTag(p)}`,
+      `   \`${factorInitials(p).padEnd(6)}\` · RSI ${p.rsi === null ? "—" : Math.round(p.rsi)}` +
+        `${vwap} · 5d ${pct(p.changePct)}${compressionTag(p)}`,
     );
     const posLine = positioningLine(p, pos);
     if (posLine) lines.push(posLine);
@@ -228,7 +235,9 @@ export function formatMessage(
   lines.push(...renderSide(longs, `📈 *LONG* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends, pos));
   lines.push(...renderSide(shorts, `📉 *SHORT* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends, pos));
 
-  lines.push("_T=trend P=pullback S=support X=extreme V=volume · 🆕 new · ⚠️ contested_");
+  lines.push(
+    "_Q=quarterly VWAP (2pts) T=trend P=pullback S=support X=extreme V=volume · 🆕 new · ⚠️ contested_",
+  );
   lines.push("_Daily trend: ✅ agrees · ⛔ opposes · 〰️ unclear · 🪤 coiled · 🌊 moving_");
   const cats = Object.entries(funnel.byCategory)
     .map(([k, v]) => `${k} ${v}`)
