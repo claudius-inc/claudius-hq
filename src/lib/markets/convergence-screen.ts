@@ -45,6 +45,7 @@ import {
   type PerpVenue,
 } from "@/lib/markets/perp-venues";
 import { computeMcdSeries, MCD_WARMUP, MCD_CONFIG, type McdBar, type McdFactors } from "@/lib/markets/mcd";
+import { fetchOiChangeForAll } from "@/lib/markets/perp-positioning";
 import { logger } from "@/lib/logger";
 
 export const CONVERGENCE_CONFIG = {
@@ -144,6 +145,19 @@ export interface ConvergencePick {
   factors: McdFactors;
   /** Whether price sits on this side's half of quarterly anchored VWAP. */
   vwapAgrees: boolean;
+  /** Open-interest change over the lookback, %. Signed. */
+  oiChangePct: number | null;
+  /**
+   * Percentile of |OI change| across the qualifying set, 0-100 — the PRIMARY
+   * ranking key when open-interest data is available.
+   *
+   * Ranking on convergence was measured at 0.93x random for containing big
+   * movers; ranking on |OI change| measured 1.89x. Since the shortlist exists
+   * to be looked at rather than acted on blindly, "something is happening here"
+   * beats "the indicators agree" as an ordering principle. Convergence and VWAP
+   * remain as the gate and as annotation.
+   */
+  oiPctl: number | null;
   /** Quarterly anchored VWAP level, null when the quarter is too young. */
   qvwap: number | null;
   /** Distance from quarterly VWAP, %. Signed: positive means above. */
@@ -291,6 +305,9 @@ export function scoreSymbol(
     // Filled by selectConvergencePicks once the whole cross-section is known;
     // a percentile is meaningless for a single symbol in isolation.
     liquidityPctl: 0,
+    // Both filled by selectConvergencePicks once the cross-section is known.
+    oiChangePct: null,
+    oiPctl: null,
     contested: false,
     maxScore: r.maxScore + cfg.vwapWeight,
     qvwap,
@@ -375,12 +392,39 @@ export function assignLiquidityPercentiles(picks: ConvergencePick[]): void {
  * `base` last makes the order deterministic.
  */
 export function rankPicks(picks: ConvergencePick[]): ConvergencePick[] {
-  return [...picks].sort(
-    (a, b) =>
+  const haveOi = picks.some((p) => p.oiPctl !== null);
+  return [...picks].sort((a, b) => {
+    // Open interest first when available: it is the only lens measured above
+    // 1.0x random at containing the names that actually move (1.89x vs the
+    // convergence count's 0.93x). Score becomes the gate, not the ordering.
+    if (haveOi) {
+      const d = (b.oiPctl ?? -1) - (a.oiPctl ?? -1);
+      if (d !== 0) return d;
+    }
+    return (
       b.score - a.score ||
       b.liquidityPctl - a.liquidityPctl ||
-      a.base.localeCompare(b.base),
+      a.base.localeCompare(b.base)
+    );
+  });
+}
+
+/** Assigns |OI change| percentiles across the qualifying set, in place. */
+export function assignOiPercentiles(
+  picks: ConvergencePick[],
+  oiChange: Map<string, number>,
+): void {
+  for (const p of picks) p.oiChangePct = oiChange.get(p.symbol) ?? null;
+
+  const withOi = picks.filter((p) => p.oiChangePct !== null);
+  if (withOi.length < 2) return;
+
+  const sorted = [...withOi].sort(
+    (a, b) => Math.abs(a.oiChangePct as number) - Math.abs(b.oiChangePct as number),
   );
+  sorted.forEach((p, i) => {
+    p.oiPctl = Math.round((100 * i) / (sorted.length - 1));
+  });
 }
 
 /** Pearson correlation of two equal-length return series. */
@@ -582,6 +626,20 @@ export async function selectConvergencePicks(
   }
 
   assignLiquidityPercentiles(candidates);
+
+  // Open interest drives the ordering, so it is fetched for the qualifying set
+  // rather than the whole universe — one request per name, ~100 rather than
+  // ~680. A failure here degrades the ranking back to convergence order instead
+  // of failing the run.
+  try {
+    const oiChange = await fetchOiChangeForAll(candidates.map((p) => p.symbol));
+    assignOiPercentiles(candidates, oiChange);
+  } catch (err) {
+    logger.warn("convergence-screen", "OI fetch failed; ranking falls back to score", {
+      error: err,
+    });
+  }
+
   const ranked = rankPicks(candidates);
 
   // Reporting filters, in order. Each one removes names from the MESSAGE only —

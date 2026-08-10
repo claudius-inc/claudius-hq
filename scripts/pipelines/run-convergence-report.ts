@@ -41,9 +41,12 @@ import { logger } from "@/lib/logger";
 const TG = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT = process.env.TELEGRAM_ADMIN_CHAT_ID;
 const DRY_RUN = process.argv.includes("--dry-run");
+/** Runs and PERSISTS the screen without sending anything. Used to populate the
+ *  page's data without pushing a message nobody asked for. */
+const RECORD_ONLY = process.argv.includes("--record-only");
 
 async function send(text: string): Promise<boolean> {
-  if (DRY_RUN) {
+  if (DRY_RUN || RECORD_ONLY) {
     console.log(text);
     return true;
   }

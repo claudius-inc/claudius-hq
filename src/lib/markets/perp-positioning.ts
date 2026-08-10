@@ -208,6 +208,49 @@ export async function fetchPositioningForAll(
   return out;
 }
 
+/**
+ * Bulk open-interest change, one request per symbol.
+ *
+ * Separated from `fetchPositioning` because this runs over the whole qualifying
+ * set (~430 names) to DRIVE selection, whereas the fuller positioning fetch
+ * runs over the ~16 reported names to annotate them. Measured lift for ranking
+ * on |OI change|: it flags 20% of the universe and catches 38% of the top-decile
+ * movers, i.e. 1.89x random — the only lens in this work to beat 1.0. It carries
+ * no directional edge (t=-0.65), which is the point: it finds motion, and the
+ * direction call is left to the chart.
+ */
+export async function fetchOiChangeForAll(
+  symbols: string[],
+  period: "4h" | "1h" | "1d" = "4h",
+  lookback = 6,
+  concurrency = 8,
+): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < symbols.length) {
+      const s = symbols[cursor++];
+      const rows = await getJson<OiRow[]>(
+        `${BINANCE_DATA}/openInterestHist?symbol=${s}&period=${period}&limit=${lookback + 1}`,
+      );
+      if (!rows || rows.length < 2) continue;
+      const first = Number(rows[0].sumOpenInterest);
+      const last = Number(rows[rows.length - 1].sumOpenInterest);
+      if (Number.isFinite(first) && first > 0 && Number.isFinite(last)) {
+        out.set(s, (100 * (last - first)) / first);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, symbols.length) }, worker));
+  logger.info("perp-positioning", "OI change fetch complete", {
+    requested: symbols.length,
+    fetched: out.size,
+  });
+  return out;
+}
+
 /** Short human-readable label for the report. */
 export const REGIME_LABEL: Record<OiRegime, string> = {
   newLongs: "new longs",

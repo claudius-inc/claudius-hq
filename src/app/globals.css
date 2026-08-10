@@ -5,6 +5,25 @@
 @layer base {
   :root {
     color-scheme: light;
+
+    /* Canvas cannot read Tailwind classes, so the shortlist charts pull their
+       colors from these tokens via getComputedStyle. Defined here (not inside
+       a media query) so the light values always resolve. */
+    --chart-up: #1f7a52;
+    --chart-down: #a83a31;
+    --chart-grid: #dcd8d0;
+    --chart-vwap: #7a5ea8;
+    --chart-label: #7c8590;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --chart-up: #4fbf8b;
+      --chart-down: #e06c61;
+      --chart-grid: #262e36;
+      --chart-vwap: #b49ae0;
+      --chart-label: #6e7883;
+    }
   }
 
   body {
