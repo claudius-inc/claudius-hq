@@ -124,8 +124,17 @@ export default async function ShortlistPage() {
       </p>
 
       {charts.length === 0 ? (
+        // Three distinct failures, three distinct messages. Collapsing them into
+        // "nothing recorded yet" was actively misleading: when picks exist but
+        // the venue refuses the request, the shortlist is fine and only the
+        // candles are missing — a very different thing to go and fix.
         <p className="text-sm text-neutral-500">
-          No shortlist recorded yet. The screen runs daily at 00:10 UTC.
+          {rows.length === 0
+            ? "No shortlist recorded yet. The screen runs daily at 00:10 UTC."
+            : `${rows.length} names were shortlisted for ${rows[0].run_date}, but their price ` +
+              "history could not be loaded. Binance returns HTTP 451 to requests from " +
+              "restricted regions, which includes US-hosted serverless runtimes — this page " +
+              "needs to render from a permitted region."}
         </p>
       ) : (
         <ChartGrid charts={charts} />
