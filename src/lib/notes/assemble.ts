@@ -416,9 +416,6 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     macro,
     attributions:
       attributions.length > 0 ? { value: attributions, source: "Finnhub + Yahoo (dated, direction-checked)", asOf } : null,
-    // Filled by the pipeline AFTER assembly: resolution needs the finished facts
-    // (the rates spread) to decide derived-metric bets.
-    ledger: null,
   };
 }
 

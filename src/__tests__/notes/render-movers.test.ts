@@ -36,7 +36,6 @@ function facts(partial: Partial<StructuredFacts> = {}): StructuredFacts {
     movers: null,
     attributions: null,
     companyNames: null,
-    ledger: null,
     ...partial,
   };
 }
@@ -137,19 +136,6 @@ describe("overflow ladder", () => {
           signed: true,
         },
       ]),
-      ledger: {
-        ...fact([
-          {
-            subject: "GC=F",
-            comparator: "touch_above",
-            threshold: 4300,
-            noteDate: "2026-07-24",
-            status: "miss" as const,
-            resolvedValue: 4288.1,
-          },
-        ]),
-        openCount: 3,
-      },
     });
 
     const rungs = pushLadder({ facts: f, webUrl: "https://example.com/n", prose });
@@ -175,26 +161,16 @@ describe("overflow ladder", () => {
     }
   });
 
-  it("drops the ledger line before it touches any prose", () => {
+  it("drops the after-hours ornament before it touches any prose", () => {
     const prose: NoteProse = { hook: "A hook.", whatMatters: ["A claim. Its evidence."], bull: "Bull." };
     const f = facts({
-      ledger: {
-        ...fact([
-          {
-            subject: "GC=F",
-            comparator: "touch_above",
-            threshold: 4300,
-            noteDate: "2026-07-24",
-            status: "miss" as const,
-            resolvedValue: 4288.1,
-          },
-        ]),
-        openCount: 3,
-      },
+      movers: fact([{ ticker: "AKAM", changePct: -6.8 }]),
+      attributions: fact([AKAM_ATTRIBUTION]),
+      postMarket: fact([{ ticker: "AKAM", changePct: -3.1, asOfEt: "6:14pm" }]),
     });
     const rungs = pushLadder({ facts: f, webUrl: "https://example.com/n", prose });
-    expect(rungs[0]).toContain("LEDGER");
-    expect(rungs[1]).not.toContain("LEDGER");
+    expect(rungs[0]).toContain("after hours");
+    expect(rungs[1]).not.toContain("after hours");
     expect(rungs[1]).toContain("Bull.");
   });
 });

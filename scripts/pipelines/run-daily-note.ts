@@ -15,7 +15,6 @@ import { logger } from "@/lib/logger";
 import { checkTradingSession } from "@/lib/notes/session";
 import { assembleFacts } from "@/lib/notes/assemble";
 import { writeProse } from "@/lib/notes/write";
-import { resolveExpectations, countOpen } from "@/lib/notes/expectations";
 import { renderPush, renderWeb } from "@/lib/notes/render";
 import { sendNote, editNote, alertAdmin } from "@/lib/notes/telegram";
 
@@ -61,24 +60,7 @@ async function main() {
     return;
   }
 
-  // 2. RESOLVE EXPECTATIONS (§F) before the prose, so a settled bet can be part
-  // of the day's picture. Resolution is pure code over real closes — no model
-  // touches create or resolve, which is what keeps the ledger from flattering
-  // itself.
-  try {
-    // Returns everything that settled TODAY, not just this run's work, so the
-    // evening's second run does not strip the line out of the edited message.
-    const settled = await resolveExpectations(date, facts);
-    facts.ledger =
-      settled.length > 0
-        ? { value: settled, source: "Yahoo daily closes", asOf: facts.generatedAt, openCount: await countOpen() }
-        : null;
-  } catch (err) {
-    // A ledger failure must never cost the note.
-    logger.warn(SRC, "Expectation resolution failed; ledger omitted", { error: err });
-  }
-
-  // 3. WRITE PROSE (§8.2) + VALIDATE (§8.3) — additive; null → deterministic note.
+  // 2. WRITE PROSE (§8.2) + VALIDATE (§8.3) — additive; null → deterministic note.
   const prose = await writeProse(facts);
 
   // 3. RENDER (§2)

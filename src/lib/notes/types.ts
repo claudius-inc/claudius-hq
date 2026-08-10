@@ -96,17 +96,6 @@ export interface ContributionData {
   flipsWithoutTop: boolean;
 }
 
-/** An expectation that settled today (v2 §F). Hit and miss share one shape. */
-export interface LedgerEntry {
-  subject: string;
-  comparator: string;
-  threshold: number;
-  /** The session that registered it, so the reader sees how old the call was. */
-  noteDate: string;
-  status: "hit" | "miss";
-  resolvedValue: number;
-}
-
 /**
  * A name the day's ranking says matters (v2 §A), whether or not a reason was
  * retrieved for it. MOVERS renders these in rank order: a name with an
@@ -263,11 +252,6 @@ export interface StructuredFacts {
    * no reason to prefer one form over the other.
    */
   companyNames: Record<string, string> | null;
-  /**
-   * Expectations that settled today (§F), plus how many remain live. Template-
-   * rendered so the model can neither spin a miss nor omit one.
-   */
-  ledger: (Fact<LedgerEntry[]> & { openCount: number }) | null;
 }
 
 /**

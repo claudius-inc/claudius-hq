@@ -29,7 +29,6 @@ function facts(partial: Partial<StructuredFacts>): StructuredFacts {
     movers: null,
     attributions: null,
     companyNames: null,
-    ledger: null,
     ...partial,
   };
 }

@@ -26,8 +26,7 @@
 | **D** timeframes, single names | ❌ not built | Needs stage B's bars; one PR with the ATR re-rank |
 | **E** macro releases | ✅ shipped | Actual vs prior, basis stated, staleness-gated, revision-flagged |
 | **E** FOMC static list | ⏸ empty on purpose | The mechanism ships; the dates must be pasted from federalreserve.gov. Guessing them is the fabrication §1a exists to prevent |
-| **F** schema + resolution + LEDGER render | ✅ shipped | Best-engineered code in the feature |
-| **F** expectation **creation** | ❌ not built | **Nothing inserts a row.** The ledger has graded zero bets and structurally cannot |
+| **F** expectation memory | 🚫 **removed** | Built and correct, and it graded **zero** bets: nothing ever inserted a row, and structurally nothing could. See §F below |
 | **I** economic consensus | 🚫 closed | No free source. Reported vs prior, and said so. FMP client deleted |
 
 **Retired:** `FMP_API_KEY` and `sources/econ-calendar.ts`. The paid calendar was never configured, so the
@@ -604,77 +603,40 @@ weeks ago presented as news.
 
 ---
 
-## §F — Expectation memory
+## §F — Expectation memory — REMOVED
 
-**Two things must be built before anything can be reviewed** (both verified absent):
-persist `prose`, and emit expectations as **deterministic facts**.
+**Shipped, then deleted 2026-08-10.** The schema, the resolver, the LEDGER renderer, the
+degradation rung and all five structural anti-flattery locks were built and, as far as anyone
+could tell by reading them, correct. They graded **zero** expectations.
 
-A storable expectation is a tuple created **before the outcome is knowable**:
+Nothing ever inserted a row. There was no owner-facing way to register a bet and no `auto_*`
+generator, so `note_expectations` was written to by exactly nothing across the whole life of the
+slice — and `facts.ledger` was therefore null on every single note ever sent.
 
-> subject × metric × comparator × threshold × horizon (sessions) × baseline at creation
+The design was sound and the omission was one function. The reason for deleting rather than
+finishing it is that the owner does not want to register bets by hand, and the one origin the
+spec categorically refuses is the only one that would fill the table automatically: a model that
+writes the prose and mints the predictions will mint easy ones. With `owner` off the table and
+`llm` forbidden, there is no source of expectations left.
 
-Checkable: "gold closes above 4,300 within 5 sessions". Not checkable: "narrow leadership
-dressed as strength". Prose is never parsed for predictions — that path guarantees grading
-ambiguity.
+An accountability ledger that is permanently empty is worse than no ledger. It occupies the place
+where a record of our calls would go and implies there is nothing to report, when the truth is
+that nothing was ever registered. §1a's "omit rather than assert" applies to the note's own track
+record too.
 
-**Schema** — `note_expectations`, with `status ∈ {open, hit, miss, unresolvable}`, `origin ∈
-{owner, auto_*}` (**never `llm`**), immutable after creation except for resolution fields.
-Two comparator families only: *touch-within-horizon on closes* and *state-at-horizon*. Closes
-only — no intraday feed exists. **No tolerance parameter**: tolerance is where grading drift
-begins.
+**What went:** `note_expectations` (dropped by `drizzle/0029_drop_note_expectations.sql`;
+migrations 0025 and 0026 stay as history), `src/lib/notes/expectations.ts`, `ledgerSection` and the
+`showLedger` rung in `render.ts`, `LedgerEntry` and `StructuredFacts.ledger`, and the LEDGER entry
+in v1 §4's section order.
 
-**Resolution** runs inside the nightly pipeline after the §7a gate, with two corrections the
-first draft got wrong.
+**Worth salvaging if this is ever revisited, or if §C needs it:** `closesSince` — a small, correct
+"daily closes for a symbol since a date, keyed by ET date" helper that backfills the sessions a
+pipeline outage skipped. It is in git history at `src/lib/notes/expectations.ts`, and §C's
+divergence follow-through needs exactly that shape.
 
-**Count exchange sessions, not pipeline runs.** Counting gated runs looked elegant — a holiday
-consumes no horizon — but it silently conflates "no session" with "our pipeline was down". A
-three-day outage would both **hand every open bet three extra days** and **destroy genuine
-hits**, because a touch-within-horizon test only sees the closes it was awake for. Those two
-errors point in opposite directions, which is worse than a bias: it is noise wearing a
-ledger's clothes. So at resolution time, count elapsed sessions from the exchange's own bars
-and **backfill the missed closes from daily history**. Closes are retrievable retroactively;
-"no intraday feed" never justified skipping them.
-
-**Resolution fetches its own subjects.** Reading tonight's note facts would work only for the
-~20 benchmarks and whichever names cleared §A *that* day. A name flagged Monday is usually
-absent from Tuesday's facts, so it would sit unresolved until horizon + 2 turned it
-`unresolvable` — attrition would then dominate the denominator for exactly the most
-interesting bets. Resolution therefore pulls closes for its own open subjects, which is a
-handful of tickers and trivially cheap.
-
-If a deciding fact is genuinely unavailable, the row stays open and the session still counts.
-At horizon + 2 grace it becomes `unresolvable` and **stays in every denominator** as attrition.
-
-**Re-run safety:** the workflow fires twice per evening, so expectation creation needs an
-idempotency key of `noteDate` + `subject` + **`metric`** + `comparator` + `threshold` +
-**`horizonSessions`**. Omitting the last two collides the same level at 5 and 21 sessions and
-silently loses one registration.
-
-**Whose calendar?** Sessions are counted from **`^GSPC` daily bars** for equity subjects, so a
-delisted or halted subject still accrues horizon and reaches `unresolvable` rather than
-hanging open forever. Non-equity subjects that trade continuously (BTC) have no session at
-all: either define the horizon in calendar days or refuse such subjects. Note this scopes an
-earlier claim — `daily_notes.date` is the session calendar for **§C's week anchors only**;
-§F must not use it, because the whole point is to survive an outage in which no rows exist.
-
-**Rounding, disclosed:** stored facts are already rounded — `spread2s10Bp` is integer basis
-points — so a threshold inherits about ±0.5bp. That is a disclosure, not a tolerance
-parameter; no knob is added.
-
-**Feedback without self-congratulation.** Rendered by the deterministic renderer, never the
-LLM: one `LEDGER` line, only expectations resolved this session, identical format for hit and
-miss, capped at two — and when more than two resolve, the cap selects **misses first, then
-oldest first**. An unordered cap is selective narration wearing a rule. Overflow goes to the
-web ledger. Suppressed in the push: aggregate records, streaks, any hit-rate without
-both the denominator and the misses.
-
-**Five doors to flattery, each locked structurally:** rewriting the bet (immutable rows,
-pre-registered in the note transaction); grading by judgment (pure code, no LLM in create or
-resolve); forgetting losers (single-outcome invariant; attrition displayed); minting soft bets
-(origin restricted and sliceable, so a generator that is 95% right is visibly generating
-tautologies); selective narration (the LEDGER template makes misses mandatory).
-
----
+**If a ledger is ever wanted again, the hard part is not the code.** It is having a source of
+falsifiable, pre-registered claims that is neither hand-written nor model-invented. Solve that
+first; the resolver is recoverable from history in an afternoon.
 
 ## §G — After-hours
 
@@ -731,18 +693,25 @@ unit-blind `number[]`, so nothing can classify a prose numeral as "an EPS", and 
 
 **H0.2 — Extend the degradation ladder to cover deterministic content.** v1's ladder strips
 *prose* only (book → bull/bear → what-matters → prose-free), then trims spotlights, then
-**throws**. Every v2 addition — attribution clauses, after-hours annotations, a macro line, a
-LEDGER line — is deterministic, so on a heavy day the note can exceed 4,096 characters with
-prose already gone. Today that means **no note at all**.
+**throws**. Every v2 addition — attribution clauses, after-hours annotations, a macro line — is
+deterministic, so on a heavy day the note can exceed 4,096 characters with prose already gone.
+Today that means **no note at all**.
 
 **Interleave the new rungs; do not append them.** Appending would strip the entire product
-voice before dropping a single LEDGER line — inverted against v1's irreducible core, which is
-the reasoning, not the ornament. Order:
+voice before dropping a single decorative suffix — inverted against v1's irreducible core, which
+is the reasoning, not the ornament. Order:
 
 ```
-LEDGER line → after-hours annotations → macro detail (keep the headline, drop the context)
-→ THE BOOK → bull/bear → trim What-Matters bullets → prose-free → trim spotlights → throw
+after-hours annotations → macro detail (keep the headline, drop the context) → mover reason
+clauses → THE BOOK → bull/bear → trim What-Matters bullets → prose-free → trim spotlights → throw
 ```
+
+**The ladder must be monotonic, and this is not automatic.** Each rung is a set of flags, and an
+omitted flag defaults back to ON — so a later rung silently re-adds content an earlier one
+dropped, and degrading the note makes it bigger. This has been got wrong twice: once in the
+What-Matters trim rungs, and once at the boundary where the prose ladder fell back to a
+*full-ornament* deterministic note. `pushLadder` is exported for no reason other than to let a
+test assert the property directly.
 
 **Clause-dropping is restricted to deterministic renderer lines.** Stripping a phrase out of a
 *validated* LLM bullet leaves broken grammar and can re-violate §1b by orphaning a connective.
@@ -759,8 +728,7 @@ Each new rung must also specify its residual form — a degraded macro line keep
    value, most new surface.
 4. **§C weekly wrap** — needs (1) and the stored prose; ships without single-name weeklies
    on its first run.
-5. **§F expectations** — last, because it depends on §D resolution data and on there being
-   something worth registering.
+5. ~~**§F expectations**~~ — built, then removed. See §F.
 
 ---
 

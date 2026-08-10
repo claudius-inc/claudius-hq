@@ -194,8 +194,7 @@ claim ledger's guarantee hold: a bullet can never repeat a numeral the renderer 
 11. **BULL / BEAR** — one line each, a specific argument each.
 12. **THE BOOK** — dealer gamma / pin (omit if GEX unreliable/absent).
 13. **TOMORROW'S TELLS** — scheduled econ releases with ET times, from FRED's release calendar. Header label is next-trading-day-dynamic ("MONDAY'S TELLS" on a Friday).
-14. **LEDGER** — expectations that settled today (v2 §F), template-rendered, misses first. Renders last because it reviews past calls rather than describing today, and it is the first thing the overflow ladder drops.
-15. **Footer** — `<a href>` link to `…/markets/notes/YYYY-MM-DD`.
+14. **Footer** — `<a href>` link to `…/markets/notes/YYYY-MM-DD`.
 
 Rendering: HTML (escaped per §2), blank line between sections, bold the *label* not the line. **No emoji and
 no ▲/▼ glyphs** — both substitute per platform in the mobile UI font, so direction is signed text ("+1.5%")
@@ -397,8 +396,6 @@ BEAR — highs on three stocks while breadth runs 3:2 negative and cuts fade. VI
 THE BOOK — dealers long gamma, pin near 7,700 on SPY, +0.1% away
 
 MONDAY'S TELLS — CPI Wed 8:30 ET · Jobless claims Thu 8:30 ET
-
-LEDGER — called 2026-07-24: GC=F above 4300 → miss (4288.10) · 3 still open
 
 <a href="…/markets/notes/2026-08-07">Full note</a>
 ```

@@ -303,30 +303,6 @@ function moversSection(f: StructuredFacts, withReasons = true, max = 3): string 
   return `${b("MOVERS")}\n${lines.join("\n")}`;
 }
 
-/**
- * LEDGER — expectations that settled today (§F).
- *
- * Rendered from a template, never by the model, and hit and miss share one
- * format. The cap selects MISSES FIRST, then oldest: an unordered cap would be
- * selective narration wearing a rule. Aggregate records, streaks, and any hit
- * rate without its denominator are deliberately absent — the web ledger carries
- * the full table including the unresolvable rows.
- */
-function ledgerSection(f: StructuredFacts): string {
-  const settled = f.ledger?.value;
-  if (!settled?.length) return "";
-  const ordered = [...settled].sort((a, b) => {
-    if (a.status !== b.status) return a.status === "miss" ? -1 : 1;
-    return a.noteDate.localeCompare(b.noteDate);
-  });
-  const items = ordered.slice(0, 2).map((r) => {
-    const dir = r.comparator.includes("above") ? "above" : "below";
-    return `called ${escapeHtml(r.noteDate)}: ${escapeHtml(r.subject)} ${dir} ${r.threshold} → ${r.status} (${r.resolvedValue.toFixed(2)})`;
-  });
-  const open = f.ledger?.openCount ?? 0;
-  return `${b("LEDGER")} — ${items.join(" · ")}${open > 0 ? ` · ${open} still open` : ""}`;
-}
-
 function whatMattersSection(prose: NoteProse | undefined, ledger: Ledger): string {
   const items = (prose?.whatMatters ?? []).filter((x) => !ledger.isRedundant(x)).slice(0, 3);
   if (items.length === 0) return "";
@@ -498,14 +474,13 @@ function build(
   showAfterHours = true,
   macroDetail = true,
   moverReasons = true,
-  showLedger = true,
 ): string {
   // After-hours suffixes are ornament, not argument. Stripping them is the
   // cheapest thing the overflow ladder can do, so it happens before any of the
   // note's reasoning is touched.
   if (!showAfterHours) facts = { ...facts, postMarket: null };
-  // The ledger is filled by the deterministic sections FIRST, so they own their
-  // facts and any prose line that merely restates them is dropped.
+  // The claim ledger is filled by the deterministic sections FIRST, so they own
+  // their facts and any prose line that merely restates them is dropped.
   const ledger = makeLedger();
   const hook = hookLine(facts, prose);
   const tape = tapeSection(facts);
@@ -516,8 +491,7 @@ function build(
   const spot = spotlightSection(facts, maxSpotlight);
   const diverge = divergenceSection(facts);
   const movers = moversSection(facts, moverReasons);
-  const ledgerLine = showLedger ? ledgerSection(facts) : "";
-  for (const s of [hook, tape, trend, macro, rates, cross, spot, diverge, movers, ledgerLine]) ledger.claim(s);
+  for (const s of [hook, tape, trend, macro, rates, cross, spot, diverge, movers]) ledger.claim(s);
 
   return [
     hook,
@@ -536,10 +510,6 @@ function build(
     bullBearSection(prose, ledger),
     bookSection(facts, prose, ledger),
     tellsSection(facts),
-    // The ledger renders LAST before the footer: it is a review of past calls,
-    // not part of today's picture, and it is the first thing the overflow
-    // ladder drops.
-    ledgerLine,
     footer(webUrl),
   ]
     .filter((s) => s.length > 0)
@@ -557,32 +527,27 @@ function build(
  * bug only shows on a day heavy enough to reach the affected rung.
  */
 export function pushLadder({ facts, webUrl, prose }: RenderInput): string[] {
-  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean; macroDetail?: boolean; moverReasons?: boolean; showLedger?: boolean }[] = [];
+  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean; macroDetail?: boolean; moverReasons?: boolean }[] = [];
   if (prose) {
     candidates.push({ prose });
     // Drop the after-hours ornament BEFORE any reasoning. Appending this rung
     // after the prose ladder would strip the note's whole voice while decorative
     // "(+2.1% after hours)" suffixes survived.
-    // The ledger is a review of PAST calls, not part of today, so it is the
-    // very first thing dropped.
-    candidates.push({ prose, showLedger: false });
-    candidates.push({ prose, showLedger: false, showAfterHours: false });
+    candidates.push({ prose, showAfterHours: false });
     // Macro figures survive; only their framing goes.
-    candidates.push({ prose, showLedger: false, showAfterHours: false, macroDetail: false });
+    candidates.push({ prose, showAfterHours: false, macroDetail: false });
     // Then the mover reason clauses. The names and their moves survive; only
     // the retrieved explanation goes. Still ahead of any prose, because a
     // reason clause is worth less than the note's reasoning.
-    candidates.push({ prose, showLedger: false, showAfterHours: false, macroDetail: false, moverReasons: false });
+    candidates.push({ prose, showAfterHours: false, macroDetail: false, moverReasons: false });
     candidates.push({
       prose: { ...prose, book: undefined },
-      showLedger: false,
       showAfterHours: false,
       macroDetail: false,
       moverReasons: false,
     });
     candidates.push({
       prose: { ...prose, book: undefined, bull: undefined, bear: undefined },
-      showLedger: false,
       showAfterHours: false,
       macroDetail: false,
       moverReasons: false,
@@ -592,12 +557,9 @@ export function pushLadder({ facts, webUrl, prose }: RenderInput): string[] {
       // Keep EVERY ornament flag OFF here. Omitting a flag lets it default back
       // to true, so the dropped content was re-added exactly as bullets started
       // being cut — inverting the rule and making the ladder non-monotonic, so a
-      // later rung could render longer than an earlier one. All four must be
-      // repeated: an earlier fix set only two of them, which left the ledger
-      // line and the mover reason clauses coming back at the worst moment.
+      // later rung could render longer than an earlier one.
       candidates.push({
         prose: { ...prose, book: undefined, bull: undefined, bear: undefined, whatMatters: prose.whatMatters.slice(0, n) },
-        showLedger: false,
         showAfterHours: false,
         macroDetail: false,
         moverReasons: false,
@@ -611,24 +573,22 @@ export function pushLadder({ facts, webUrl, prose }: RenderInput): string[] {
   //
   // When prose DOES exist, this branch must not re-add anything: by the time the
   // ladder reaches here it has already walked past every stripped form and found
-  // none of them small enough, so restoring the ledger line, the after-hours
-  // suffixes, the macro framing and the reason clauses would make the note grow
-  // at the exact moment it has to shrink.
+  // none of them small enough, so restoring the after-hours suffixes, the macro
+  // framing and the reason clauses would make the note grow at the exact moment
+  // it has to shrink.
   if (!prose) {
     candidates.push({});
     // Same drop order as the prose ladder, so the two branches degrade alike.
-    candidates.push({ showLedger: false });
-    candidates.push({ showLedger: false, showAfterHours: false });
-    candidates.push({ showLedger: false, showAfterHours: false, macroDetail: false });
+    candidates.push({ showAfterHours: false });
+    candidates.push({ showAfterHours: false, macroDetail: false });
   }
-  candidates.push({ showLedger: false, showAfterHours: false, macroDetail: false, moverReasons: false });
+  candidates.push({ showAfterHours: false, macroDetail: false, moverReasons: false });
   // Last resort before throwing: the user can spotlight all 12 sectors, so trim
   // those callouts too rather than failing the send.
   const spotlightCount = facts.spotlight?.value.length ?? 0;
   for (let n = spotlightCount - 1; n >= 0; n--)
     candidates.push({
       maxSpotlight: n,
-      showLedger: false,
       showAfterHours: false,
       macroDetail: false,
       moverReasons: false,
@@ -643,7 +603,6 @@ export function pushLadder({ facts, webUrl, prose }: RenderInput): string[] {
       c.showAfterHours ?? true,
       c.macroDetail ?? true,
       c.moverReasons ?? true,
-      c.showLedger ?? true,
     ),
   );
 }
