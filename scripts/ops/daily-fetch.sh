@@ -15,15 +15,16 @@
 # INSTALL
 #   git clone git@github.com:claudius-inc/claudius-hq.git
 #   cd claudius-hq && npm ci
-#   cp .env.example .env    # then fill in the four vars listed below
+#   cp .env.example .env    # then fill in the two vars listed below
 #   chmod +x scripts/ops/daily-fetch.sh
 #
 # SCHEDULE (crontab -e). 00:10 UTC, after the 00:00 4h bar closes:
 #   10 0 * * * /home/USER/claudius-hq/scripts/ops/daily-fetch.sh >> /home/USER/claudius-hq/fetch.log 2>&1
 #
 # Required in .env:
-#   TURSO_DATABASE_URL, TURSO_AUTH_TOKEN     — where everything is written
-#   TELEGRAM_BOT_TOKEN, TELEGRAM_ADMIN_CHAT_ID — omit to skip the push
+#   TURSO_DATABASE_URL, TURSO_AUTH_TOKEN — where everything is written.
+#   These two are the ONLY credentials this box should hold. No Telegram token:
+#   see the --record-only note below.
 # Optional:
 #   BINANCE_API_BASE — only if relaying; unset means talk to Binance directly,
 #                      which is correct on a permitted host.
@@ -48,9 +49,15 @@ fi
 echo "Binance reachable (HTTP 200)"
 
 # The screen: universe -> score -> rank by open interest -> persist picks,
-# funnel counts and the candles the page renders. Sends the Telegram push too
-# unless the credentials are absent.
-npx tsx scripts/pipelines/run-convergence-report.ts
+# funnel counts and the candles the page renders.
+#
+# --record-only ON PURPOSE. This box exists to reach Binance, which is a
+# capability no other host has. Sending Telegram is NOT such a capability — it
+# works from anywhere with network access — so putting it here would import a
+# bot credential onto the box for no gain. The token is not write-only: the bot
+# handles inbound commands, so it also permits reading the bot's messages and
+# acting as it. It stays where it already lives.
+npx tsx scripts/pipelines/run-convergence-report.ts --record-only
 
 # Underlying daily history for the tradfi names, and the mapping re-verification
 # that demotes any contract whose Yahoo ticker has drifted from its index price.

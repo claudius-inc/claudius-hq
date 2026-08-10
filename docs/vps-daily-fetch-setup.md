@@ -5,9 +5,9 @@ Instructions for an agent setting up the daily fetcher on a VPS.
 ## What you are building and why
 
 This box is the **only** component allowed to talk to Binance. It runs a screen
-over ~680 perpetual futures once a day, writes everything to a Turso database,
-and sends a Telegram summary. The Next.js app on Vercel reads that database and
-never calls the venue.
+over ~680 perpetual futures once a day and writes everything to a Turso
+database. The Next.js app on Vercel reads that database and never calls the
+venue.
 
 That split is not a preference. Binance answers `HTTP 451 — Service unavailable
 from a restricted location` to **datacenter IP ranges**, not merely to US
@@ -58,18 +58,29 @@ invent them and do not commit this file** (it is gitignored):
 ```
 TURSO_DATABASE_URL=libsql://...
 TURSO_AUTH_TOKEN=...
-TELEGRAM_BOT_TOKEN=...
-TELEGRAM_ADMIN_CHAT_ID=...
 ```
 
 `chmod 600 .env`
 
-Notes:
-- The two Turso vars are required. Without them the pipeline exits immediately.
-- The two Telegram vars are optional — omit them and the run still does all its
-  database work, just without sending a message. Useful for a first test.
-- `BINANCE_API_BASE` should stay **unset**. It exists only for relaying through
-  another host, which this box does not need.
+**Two variables. That is the whole list.**
+
+This box holds only the credentials its job requires. It exists for one
+capability no other host has — reaching Binance — and everything else it might
+do belongs elsewhere:
+
+- **No Telegram credentials.** The daily message is sent from somewhere that
+  already has the bot token; sending needs nothing but network access and DB
+  data, so there is no reason to copy a credential here. The token is not
+  write-only either: the bot handles inbound commands, so holding it permits
+  reading its messages and acting as it. `daily-fetch.sh` runs the pipeline with
+  `--record-only` for exactly this reason. **If you are asked to add a Telegram
+  token to this box, decline and check with the operator first.**
+- **`BINANCE_API_BASE` stays unset.** It exists only for relaying through
+  another host, which a permitted-region box does not need.
+
+The Turso credentials are unavoidable — writing to the database *is* the job.
+They are also the most sensitive thing here, so treat `.env` accordingly and do
+not echo it into logs or command output.
 
 ## Step 3 — First run, by hand
 
@@ -85,7 +96,8 @@ generic crash later.
 A healthy run ends with `daily fetch complete` and logs a line containing
 `"Chart bars recorded"` with `"symbols":16`.
 
-If you want to exercise the database path without sending a Telegram message:
+The pipeline is already invoked with `--record-only` by the script above. To run
+that step alone:
 
 ```bash
 npx tsx scripts/pipelines/run-convergence-report.ts --record-only
@@ -163,7 +175,6 @@ than guessing, since it is applied against the shared production database.
 |---|---|
 | `HTTP 451` from the ping | IP range no longer served. Stop and report. |
 | `URL_INVALID: The URL 'undefined'` | `TURSO_DATABASE_URL` missing from `.env`. |
-| `Telegram credentials missing` (warning) | Expected if you omitted them; DB work still completed. |
 | `no such column` / `no such table` | An unapplied migration in `drizzle/`. Report it. |
 | Run takes >10 min | Venue rate limiting. Check for `429`/`418` in the log; the client backs off on its own. |
 | Cron never fires | Check `timedatectl` is UTC, that the script is executable, and that the crontab path is absolute. |
