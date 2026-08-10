@@ -603,6 +603,12 @@ export const perpConvergencePicks = sqliteTable(
     opposingScore: integer("opposing_score"),
     factors: text("factors"), // JSON
     freshFlag: integer("fresh_flag").default(0),
+    // Both directions cleared the threshold at equal score. Recorded, never
+    // reported — the control group needs them (see drizzle/0029).
+    contested: integer("contested").notNull().default(0),
+    // Within-category traded-value percentile: the tie-break that decided
+    // whether this row was reported, stored so a study can correct for it.
+    liquidityPctl: real("liquidity_pctl"),
     // Close of the scored bar, so a pick's forward return is measured from the
     // price the decision was actually made on.
     price: real("price"),
@@ -634,9 +640,16 @@ export const perpConvergenceRuns = sqliteTable("perp_convergence_runs", {
   interval: text("interval").notNull(),
   universeN: integer("universe_n"),
   withBarsN: integer("with_bars_n"),
+  // Split out of scorableN: a venue outage and a three-week-old contract are
+  // different failures, and neither used to be distinguishable.
+  noBarsN: integer("no_bars_n"),
+  tooShortN: integer("too_short_n"),
+  // Dropped by the per-symbol freshness gate (halted or delisted mid-run).
+  staleN: integer("stale_n"),
   scorableN: integer("scorable_n"),
   liquidN: integer("liquid_n"),
   qualifiedN: integer("qualified_n"),
+  contestedN: integer("contested_n"),
   longN: integer("long_n"),
   shortN: integer("short_n"),
   asOf: text("as_of"),

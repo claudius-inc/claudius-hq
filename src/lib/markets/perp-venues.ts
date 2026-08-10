@@ -37,6 +37,15 @@ export interface PerpSymbol {
 /** One OHLCV bar. `t` is the bar OPEN time in epoch ms. */
 export interface PerpBar {
   t: number;
+  /**
+   * Bar CLOSE time in epoch ms.
+   *
+   * Carried separately because `t` is the open. Reporting `t` as the moment a
+   * score was computed understates it by a full interval — a 00:10 UTC run
+   * scoring the 20:00-00:00 bar would announce "as of 20:00Z" and read four
+   * hours stale — and any join on that timestamp is off by one bar.
+   */
+  tClose: number;
   o: number;
   h: number;
   l: number;
@@ -97,11 +106,28 @@ interface BinanceSymbolInfo {
   underlyingType: string;
 }
 
+/**
+ * A response the venue will never satisfy — a bad symbol, a delisted contract.
+ *
+ * Distinguished from transient failures so it is not retried. The previous
+ * version threw a plain Error from inside the `try`, where its own `catch`
+ * immediately caught it and turned every permanent 400 into three attempts and
+ * six seconds of sleeps.
+ */
+class PermanentHttpError extends Error {}
+
+/** Per-request ceiling. Without it a hung socket parks a `fetchBarsForAll`
+ *  worker indefinitely, and that function has no deadline of its own. */
+const REQUEST_TIMEOUT_MS = 20_000;
+
 async function getJson<T>(url: string, what: string, retries = 3): Promise<T> {
   let lastErr: unknown = null;
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const res = await fetch(url, { headers: { accept: "application/json" } });
+      const res = await fetch(url, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
       if (res.ok) return (await res.json()) as T;
 
       // 418/429 are Binance's rate-limit responses and carry Retry-After.
@@ -110,8 +136,11 @@ async function getJson<T>(url: string, what: string, retries = 3): Promise<T> {
         await sleep(wait);
         continue;
       }
-      throw new Error(`${what}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`);
+      throw new PermanentHttpError(
+        `${what}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`,
+      );
     } catch (err) {
+      if (err instanceof PermanentHttpError) throw err;
       lastErr = err;
       await sleep(1000 * (attempt + 1));
     }
@@ -176,6 +205,8 @@ export const binanceVenue: PerpVenue = {
 
     const bars = raw.map((k) => ({
       t: Number(k[0]),
+      tClose: Number(k[6]), // closeTime
+
       o: Number(k[1]),
       h: Number(k[2]),
       l: Number(k[3]),

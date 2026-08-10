@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { scoreSymbol, CONVERGENCE_CONFIG } from "@/lib/markets/convergence-screen";
+import {
+  scoreSymbol,
+  rankPicks,
+  allocateByCategory,
+  assignLiquidityPercentiles,
+  CONVERGENCE_CONFIG,
+  type ConvergencePick,
+} from "@/lib/markets/convergence-screen";
 import { MCD_WARMUP } from "@/lib/markets/mcd";
 import type { PerpBar, PerpSymbol } from "@/lib/markets/perp-venues";
 
@@ -26,6 +33,7 @@ function bars(n: number, opts: { drift?: number; quoteVol?: number } = {}): Perp
     const close = Math.max(1, price + drift + (rand() - 0.5));
     out.push({
       t: i * 4 * 3600 * 1000,
+      tClose: (i + 1) * 4 * 3600 * 1000 - 1,
       o: open,
       h: Math.max(open, close) + rand() * 0.3,
       l: Math.min(open, close) - rand() * 0.3,
@@ -82,5 +90,113 @@ describe("scoreSymbol", () => {
     const first = b[b.length - CONVERGENCE_CONFIG.liquidityBars].c;
     const expected = (100 * (b[b.length - 1].c - first)) / first;
     expect(r.long.changePct).toBeCloseTo(expected, 9);
+  });
+});
+
+/** Minimal pick, only the fields the ranking logic reads. */
+function pick(over: Partial<ConvergencePick> & { base: string }): ConvergencePick {
+  return {
+    venue: "binance",
+    symbol: `${over.base}USDT`,
+    category: "crypto",
+    side: "long",
+    score: 3,
+    maxScore: 5,
+    factors: { trend: true, pullback: false, support: true, proximity: false, vsa: true },
+    opposingScore: 1,
+    price: 100,
+    rsi: 55,
+    changePct: 1,
+    avgQuoteVol: 1_000_000,
+    liquidityPctl: 0,
+    freshFlag: false,
+    contested: false,
+    ...over,
+  } as ConvergencePick;
+}
+
+describe("assignLiquidityPercentiles", () => {
+  it("ranks each name against its OWN category, not the whole field", () => {
+    // The equity is the thinnest name overall but the top of its own category;
+    // ranking on raw volume is what handed the report to the tradfi book.
+    const picks = [
+      pick({ base: "BTC", category: "crypto", avgQuoteVol: 100_000_000 }),
+      pick({ base: "ETH", category: "crypto", avgQuoteVol: 50_000_000 }),
+      pick({ base: "DOGE", category: "crypto", avgQuoteVol: 1_000_000 }),
+      pick({ base: "AAPL", category: "equity", avgQuoteVol: 5_000_000 }),
+      pick({ base: "META", category: "equity", avgQuoteVol: 2_000_000 }),
+    ];
+    assignLiquidityPercentiles(picks);
+
+    const by = Object.fromEntries(picks.map((p) => [p.base, p.liquidityPctl]));
+    expect(by.BTC).toBe(100);
+    expect(by.DOGE).toBe(0);
+    expect(by.AAPL).toBe(100); // top of equities despite being 4th overall
+    expect(by.META).toBe(0);
+  });
+
+  it("puts a lone category member at the top of its own group", () => {
+    const picks = [pick({ base: "GOLD", category: "commodity", avgQuoteVol: 1 })];
+    assignLiquidityPercentiles(picks);
+    expect(picks[0].liquidityPctl).toBe(100);
+  });
+});
+
+describe("rankPicks", () => {
+  it("sorts by score first, then within-category liquidity percentile", () => {
+    const picks = [
+      pick({ base: "LOW", score: 3, liquidityPctl: 90 }),
+      pick({ base: "HIGH", score: 4, liquidityPctl: 10 }),
+      pick({ base: "MID", score: 3, liquidityPctl: 95 }),
+    ];
+    expect(rankPicks(picks).map((p) => p.base)).toEqual(["HIGH", "MID", "LOW"]);
+  });
+
+  it("ignores freshFlag — it is a 1-in-6 sampling artifact, not evidence", () => {
+    const picks = [
+      pick({ base: "STALE", score: 3, liquidityPctl: 99, freshFlag: false }),
+      pick({ base: "FRESH", score: 3, liquidityPctl: 10, freshFlag: true }),
+    ];
+    expect(rankPicks(picks)[0].base).toBe("STALE");
+  });
+
+  it("is deterministic when score and liquidity are identical", () => {
+    const picks = [pick({ base: "ZZZ" }), pick({ base: "AAA" })];
+    expect(rankPicks(picks).map((p) => p.base)).toEqual(["AAA", "ZZZ"]);
+  });
+});
+
+describe("allocateByCategory", () => {
+  it("keeps a dominant category from taking every slot", () => {
+    // 16 equities and 4 crypto: a pure score sort gives equities all 8 seats.
+    const ranked = [
+      ...Array.from({ length: 16 }, (_, i) =>
+        pick({ base: `EQ${i}`, category: "equity", liquidityPctl: 100 - i }),
+      ),
+      ...Array.from({ length: 4 }, (_, i) =>
+        pick({ base: `CR${i}`, category: "crypto", liquidityPctl: 100 - i }),
+      ),
+    ];
+    const out = allocateByCategory(ranked, 8);
+
+    expect(out).toHaveLength(8);
+    const equities = out.filter((p) => p.category === "equity").length;
+    const crypto = out.filter((p) => p.category === "crypto").length;
+    expect(crypto).toBeGreaterThanOrEqual(1);
+    // 16/20 of qualifiers are equities, so ~6 of 8 seats, not 8 of 8.
+    expect(equities).toBeLessThan(8);
+    expect(equities + crypto).toBe(8);
+  });
+
+  it("returns everything when supply is at or below the cut", () => {
+    const ranked = [pick({ base: "A" }), pick({ base: "B" })];
+    expect(allocateByCategory(ranked, 8)).toHaveLength(2);
+  });
+
+  it("fills the cut exactly even when rounding undershoots", () => {
+    const ranked = Array.from({ length: 30 }, (_, i) =>
+      pick({ base: `X${i}`, category: i % 3 === 0 ? "equity" : "crypto" }),
+    );
+    expect(allocateByCategory(ranked, 8)).toHaveLength(8);
   });
 });
