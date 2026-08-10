@@ -29,8 +29,11 @@
  */
 import { logger } from "@/lib/logger";
 
-const BINANCE_DATA = "https://fapi.binance.com/futures/data";
-const BINANCE_FAPI = "https://fapi.binance.com/fapi/v1";
+// Same relay override as perp-venues: Binance enforces its 451 on datacenter IP
+// ranges, so the base must be redirectable for this to run on hosted infra.
+const BINANCE_BASE = process.env.BINANCE_API_BASE ?? "https://fapi.binance.com";
+const BINANCE_DATA = `${BINANCE_BASE}/futures/data`;
+const BINANCE_FAPI = `${BINANCE_BASE}/fapi/v1`;
 
 /**
  * How a name's open interest is changing relative to its price.

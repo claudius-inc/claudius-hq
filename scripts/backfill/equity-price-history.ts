@@ -50,7 +50,9 @@ const ONLY_SYMBOL = (() => {
 
 /** Binance index prices for every tradfi contract, in one request. */
 async function fetchIndexPrices(): Promise<Map<string, number>> {
-  const res = await fetch("https://fapi.binance.com/fapi/v1/premiumIndex", {
+  // Routed through BINANCE_API_BASE so verification works from hosted infra.
+  const base = process.env.BINANCE_API_BASE ?? "https://fapi.binance.com";
+  const res = await fetch(`${base}/fapi/v1/premiumIndex`, {
     headers: { accept: "application/json" },
     signal: AbortSignal.timeout(30_000),
   });

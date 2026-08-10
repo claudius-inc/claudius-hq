@@ -71,7 +71,21 @@ export interface PerpVenue {
   fetchBars(symbol: string, interval: PerpInterval, limit: number): Promise<PerpBar[]>;
 }
 
-const BINANCE_FAPI = "https://fapi.binance.com";
+/**
+ * Binance base URL, overridable so the fetch can be routed through a relay.
+ *
+ * Binance answers HTTP 451 to restricted locations, and that is enforced on
+ * datacenter IP RANGES, not merely on US geography — the block has been
+ * reported on Google Cloud from asia-northeast1 too, so "deploy to a non-US
+ * region" is not a reliable fix on its own. Since every venue call in this file
+ * goes through one constant, pointing that constant at a relay hosted on a
+ * served IP range is enough to run the whole pipeline from anywhere.
+ *
+ * The relay must expose the same paths (`/fapi/v1/...`) and pass the response
+ * through unchanged. Unset means talk to Binance directly, which is correct
+ * when running somewhere already permitted.
+ */
+export const BINANCE_FAPI = process.env.BINANCE_API_BASE ?? "https://fapi.binance.com";
 
 /**
  * Binance's `underlyingType` is authoritative here — it is the exchange's own

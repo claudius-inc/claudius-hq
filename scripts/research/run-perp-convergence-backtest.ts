@@ -184,7 +184,8 @@ async function loadFunding(symbols: PerpSymbol[], refresh: boolean): Promise<Rec
       const s = symbols[cursor++];
       try {
         const res = await fetch(
-          `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${s.symbol}&limit=1000`,
+          `${process.env.BINANCE_API_BASE ?? "https://fapi.binance.com"}` +
+            `/fapi/v1/fundingRate?symbol=${s.symbol}&limit=1000`,
           { headers: { accept: "application/json" }, signal: AbortSignal.timeout(20_000) },
         );
         if (!res.ok) {
