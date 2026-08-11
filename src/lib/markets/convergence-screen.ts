@@ -45,7 +45,7 @@ import {
   type PerpVenue,
 } from "@/lib/markets/perp-venues";
 import { computeMcdSeries, MCD_WARMUP, MCD_CONFIG, type McdBar, type McdFactors } from "@/lib/markets/mcd";
-import { fetchOiChangeForAll } from "@/lib/markets/perp-positioning";
+import { fetchOiChangeForAll, fetchFundingSnapshot } from "@/lib/markets/perp-positioning";
 import { logger } from "@/lib/logger";
 
 export const CONVERGENCE_CONFIG = {
@@ -110,6 +110,21 @@ export const CONVERGENCE_CONFIG = {
   maxCorrelation: 0.8,
   /** Bars of returns used for the correlation estimate. */
   correlationBars: 60,
+  /**
+   * Share of the qualifying set kept by the magnitude gate.
+   *
+   * The composite ranker validated in `docs/perp-signal-research.md` is
+   * `rvol + rev6 + fundingAbs`: gate to the busiest, most funding-stressed
+   * names, then order those by short-horizon reversal. 0.30 is the gate width
+   * the study fixed A PRIORI and never searched — varying it after seeing
+   * results would be an unaccounted extra dimension, so it is not a tunable
+   * here either.
+   */
+  magnitudeGateQ: 0.3,
+  /** Bars for the reversal leg of the composite: 6 bars = 1 day. */
+  reversalBars: 6,
+  /** Bars for the relative-volume leg. */
+  rvolBars: 20,
   /**
    * Days a reported name is suppressed before it can be reported again.
    *
@@ -177,6 +192,32 @@ export interface ConvergencePick {
   volPctl: number | null;
   /** Percent change over `liquidityBars` bars — context, never a ranking key. */
   changePct: number | null;
+  /**
+   * Relative volume: this bar's traded value over its own 20-bar average.
+   *
+   * Magnitude leg of the composite. High means the name is actually being
+   * traded right now, which is what separates a reversal worth looking at from
+   * a print in an empty book.
+   */
+  rvol: number | null;
+  /**
+   * Negated 1-day return. High means the name just FELL hardest.
+   *
+   * The directional leg, and the finding that most contradicts the screen's
+   * original premise: over 500 days of 4h bars, ranking perps by recent
+   * weakness beat ranking them by indicator convergence by a wide margin, and
+   * the convergence count's own information coefficient is negative.
+   */
+  rev6: number | null;
+  /** |latest funding rate|, as a fraction. Magnitude leg — crowding either way. */
+  fundingAbs: number | null;
+  /**
+   * The composite ranking score: cross-sectional rank-z of `rev6`, signed for
+   * this pick's side. Null when the inputs were unavailable.
+   */
+  comboScore: number | null;
+  /** Whether this name cleared the magnitude gate (top `magnitudeGateQ`). */
+  comboGated: boolean;
   avgQuoteVol: number;
   /**
    * Percentile of `avgQuoteVol` WITHIN this pick's category, 0-100.
@@ -311,6 +352,18 @@ export function scoreSymbol(
   const first = tail[0]?.c;
   const changePct = first ? (100 * (r.close - first)) / first : null;
 
+  // ---- composite legs ----
+  // Computed here so they travel with the pick; the cross-sectional ranking
+  // that turns them into a score needs the whole candidate set and happens in
+  // `assignComboScores`.
+  const last = bars[bars.length - 1];
+  const rvolWindow = bars.slice(-cfg.rvolBars).map((b) => b.q).filter(Number.isFinite);
+  const rvolAvg = mean(rvolWindow);
+  const rvol = rvolAvg > 0 && Number.isFinite(last.q) ? last.q / rvolAvg : null;
+
+  const prior = bars[bars.length - 1 - cfg.reversalBars]?.c;
+  const rev6 = prior && prior > 0 ? -(100 * (r.close - prior)) / prior : null;
+
   // Quarterly VWAP carries `vwapWeight` points, not one — see CONVERGENCE_CONFIG.
   const qvwap = quarterlyVwap(bars);
   const aboveVwap = qvwap !== null ? r.close > qvwap : null;
@@ -329,6 +382,12 @@ export function scoreSymbol(
     // Both filled by selectConvergencePicks once the cross-section is known.
     oiChangePct: null,
     oiPctl: null,
+    // Legs travel with the pick; the score they feed is cross-sectional.
+    rvol,
+    rev6,
+    fundingAbs: null,
+    comboScore: null,
+    comboGated: false,
     contested: false,
     maxScore: r.maxScore + cfg.vwapWeight,
     qvwap,
@@ -395,32 +454,154 @@ export function assignLiquidityPercentiles(picks: ConvergencePick[]): void {
 }
 
 /**
+ * Cross-sectional rank z-score, on ranks rather than raw values.
+ *
+ * Ties share an average rank; the result spans roughly [-1, 1]. Ranks and not
+ * raw values because every leg here is return- or volume-derived and therefore
+ * fat-tailed: one name up 400% would otherwise dominate the composite by
+ * itself. Same construction as `signals.ts:rankZ`, kept local so the screen
+ * does not depend on the research harness.
+ */
+function rankZ(values: (number | null)[]): (number | null)[] {
+  const present: { v: number; i: number }[] = [];
+  values.forEach((v, i) => {
+    if (v !== null && Number.isFinite(v)) present.push({ v, i });
+  });
+  const out = new Array<number | null>(values.length).fill(null);
+  const n = present.length;
+  if (n < 3) return out;
+
+  present.sort((a, b) => a.v - b.v);
+  let i = 0;
+  while (i < n) {
+    let j = i;
+    while (j + 1 < n && present[j + 1].v === present[i].v) j++;
+    const avgRank = (i + j) / 2;
+    // (2r - (n-1)) / (n-1), not (r/(n-1))*2 - 1: the two differ by one ULP in
+    // floating point and only this form makes the rank-z set exactly
+    // antisymmetric. See the same note in `perp-evaluate.ts:rankZWithin`.
+    const z = (2 * avgRank - (n - 1)) / (n - 1);
+    for (let k = i; k <= j; k++) out[present[k].i] = z;
+    i = j + 1;
+  }
+  return out;
+}
+
+/**
+ * Assigns the composite score and the magnitude gate, in place.
+ *
+ * THE RANKING THIS SCREEN NOW USES, AND WHY IT CHANGED
+ * ---------------------------------------------------
+ * A systematic search over ~4,700 indicator combinations on 500 days of 4h
+ * bars across 546 perps selected `rvol + rev6 + fundingAbs`, with a holdout
+ * information coefficient of 0.078 (t = 5.97) against a procedure-level
+ * bootstrap null of p = 0.005. The screen's own weighted convergence score
+ * measured -0.027 on the same holdout rows, and |OI change| — the key this
+ * replaces — could not be tested at all, because the venue serves only 30 days
+ * of open-interest history (5.3% coverage of the study panel).
+ *
+ * The two magnitude legs GATE and the directional leg ORDERS. That split is not
+ * stylistic: `rvol` and `fundingAbs` predict that a name will MOVE, not which
+ * way, so rank-averaging them with a directional signal would tilt the list
+ * toward big-|move| names without expressing a position. Gate first, then rank
+ * the survivors by reversal.
+ *
+ * `rev6` is signed by side. For a long, the best candidate is the name that
+ * fell hardest; for a short, the one that rose hardest. That is the reversal
+ * effect stated in both directions.
+ *
+ * WHAT IS NOT CLAIMED
+ * -------------------
+ * The composite was validated as a cross-sectional ranker over the LIQUID
+ * UNIVERSE, not over the convergence-qualified subset it is applied to here.
+ * Ranking within a set that has already passed a score >= 5 gate is an
+ * extrapolation from the measurement, and the honest next test is whether the
+ * convergence gate should exist at all — the study says it carries a negative
+ * IC. See `docs/perp-signal-research.md`.
+ *
+ * The ordering is also the ONLY thing shown to be better. The same holdout put
+ * the top-10 basket's excess return at t = 0.15 — indistinguishable from noise.
+ * This is a better order for a list a human reads, not a trading rule.
+ */
+export function assignComboScores(
+  picks: ConvergencePick[],
+  funding: Map<string, number>,
+  cfg: ConvergenceConfig = CONVERGENCE_CONFIG,
+): void {
+  for (const p of picks) {
+    const f = funding.get(p.symbol);
+    p.fundingAbs = f === undefined ? null : Math.abs(f);
+  }
+  if (picks.length < 3) return;
+
+  const zRvol = rankZ(picks.map((p) => p.rvol));
+  const zFund = rankZ(picks.map((p) => p.fundingAbs));
+
+  // Gate score averages whichever magnitude legs are available, so a missing
+  // funding snapshot degrades the gate rather than voiding it.
+  const gate = picks.map((_, i) => {
+    const parts = [zRvol[i], zFund[i]].filter((v): v is number => v !== null);
+    return parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : null;
+  });
+
+  const ordered = gate
+    .map((v, i) => ({ v, i }))
+    .filter((x): x is { v: number; i: number } => x.v !== null)
+    .sort((a, b) => b.v - a.v);
+  const keep = Math.max(1, Math.round(ordered.length * cfg.magnitudeGateQ));
+  const gated = new Set(ordered.slice(0, keep).map((x) => x.i));
+
+  // Reversal is ranked WITHIN each side, because the sign flips between them
+  // and a single pooled ranking would order longs and shorts against each
+  // other on a quantity that means the opposite thing for each.
+  for (const side of ["long", "short"] as const) {
+    const idxs = picks.map((p, i) => ({ p, i })).filter((x) => x.p.side === side);
+    if (idxs.length < 3) continue;
+    const signed = idxs.map((x) =>
+      x.p.rev6 === null ? null : side === "long" ? x.p.rev6 : -x.p.rev6,
+    );
+    const z = rankZ(signed);
+    idxs.forEach((x, k) => {
+      picks[x.i].comboScore = z[k];
+    });
+  }
+
+  picks.forEach((p, i) => {
+    p.comboGated = gated.has(i);
+  });
+}
+
+/**
  * Ranking key.
  *
- * Score first, because that is the thing the screen is about. The tie-break is
- * NOT a second opinion on quality — with a 0-5 integer score, ties are the norm
- * (a typical day puts ~78% of qualifiers on exactly 3), and any return-based
- * tie-break would quietly reintroduce the momentum ranking this screen
- * replaced. It is within-category liquidity: among names the indicator likes
- * equally, prefer the one most tradable RELATIVE TO ITS OWN COHORT.
+ * Gate first, then the composite score. `assignComboScores` carries the full
+ * argument for why this replaced ranking on |OI change|; the short version is
+ * that the composite was measured out-of-sample at IC 0.078 (t = 5.97) while
+ * the OI key could not be measured at all beyond a 30-day window.
  *
- * `freshFlag` was previously the second key. It is gone from the ordering: it
- * is true only on the single bar the score crosses the threshold, and a daily
- * report over 4h bars sees just one of every six bars, so as a sort key it was
- * a 1-in-6 sampling artifact with no evidence behind it. It survives as a
- * display badge.
+ * The convergence score survives as the third key, not the first. It gates the
+ * list — a name still needs 5 of 7 to be here — but among names that qualified
+ * it carries a negative measured IC, so it is a poor ordering principle.
  *
+ * Within-category liquidity remains the tie-break: among names the composite
+ * likes equally, prefer the one most tradable RELATIVE TO ITS OWN COHORT.
  * `base` last makes the order deterministic.
  */
 export function rankPicks(picks: ConvergencePick[]): ConvergencePick[] {
-  const haveOi = picks.some((p) => p.oiPctl !== null);
+  const haveCombo = picks.some((p) => p.comboScore !== null);
   return [...picks].sort((a, b) => {
-    // Open interest first when available: it is the only lens measured above
-    // 1.0x random at containing the names that actually move (1.89x vs the
-    // convergence count's 0.93x). Score becomes the gate, not the ordering.
-    if (haveOi) {
-      const d = (b.oiPctl ?? -1) - (a.oiPctl ?? -1);
-      if (d !== 0) return d;
+    if (haveCombo) {
+      // Gated names outrank ungated ones outright — the gate is a filter
+      // expressed as an ordering, so the list degrades gracefully when fewer
+      // than topN names clear it instead of coming back short.
+      if (a.comboGated !== b.comboGated) return a.comboGated ? -1 : 1;
+      // Compared BEFORE subtracting. Subtracting two sentinels gives
+      // -Infinity - -Infinity = NaN, and `NaN !== 0` is true, so the comparator
+      // would return NaN and hand `sort` undefined behaviour for any pair that
+      // both lack a score.
+      const av = a.comboScore ?? Number.NEGATIVE_INFINITY;
+      const bv = b.comboScore ?? Number.NEGATIVE_INFINITY;
+      if (av !== bv) return bv - av;
     }
     return (
       b.score - a.score ||
@@ -652,15 +833,29 @@ export async function selectConvergencePicks(
 
   assignLiquidityPercentiles(candidates);
 
-  // Open interest drives the ordering, so it is fetched for the qualifying set
-  // rather than the whole universe — one request per name, ~100 rather than
-  // ~680. A failure here degrades the ranking back to convergence order instead
-  // of failing the run.
+  // The composite drives the ordering. Funding for the whole universe is one
+  // request, so this is cheap; a failure degrades the gate to relative volume
+  // alone rather than failing the run.
+  try {
+    const funding = await fetchFundingSnapshot();
+    assignComboScores(candidates, funding, cfg);
+  } catch (err) {
+    logger.warn("convergence-screen", "Funding snapshot failed; gate uses rvol alone", {
+      error: err,
+    });
+    assignComboScores(candidates, new Map(), cfg);
+  }
+
+  // Open interest is now ANNOTATION, not the ranking key. It is still recorded
+  // because the stored rows are the only thing that will ever settle whether
+  // dropping it as an ordering principle was right — and because the venue's
+  // 30-day history means the only way to get a long OI series is to bank one
+  // day at a time.
   try {
     const oiChange = await fetchOiChangeForAll(candidates.map((p) => p.symbol));
     assignOiPercentiles(candidates, oiChange);
   } catch (err) {
-    logger.warn("convergence-screen", "OI fetch failed; ranking falls back to score", {
+    logger.warn("convergence-screen", "OI fetch failed; picks recorded without it", {
       error: err,
     });
   }

@@ -4,6 +4,7 @@ import {
   rankPicks,
   allocateByCategory,
   assignLiquidityPercentiles,
+  assignComboScores,
   CONVERGENCE_CONFIG,
   type ConvergencePick,
 } from "@/lib/markets/convergence-screen";
@@ -111,6 +112,15 @@ function pick(over: Partial<ConvergencePick> & { base: string }): ConvergencePic
     liquidityPctl: 0,
     freshFlag: false,
     contested: false,
+    // Explicit nulls, not omissions. `rankPicks` decides whether to use the
+    // composite path with `comboScore !== null`, and an omitted field is
+    // `undefined`, which passes that check and silently routes every test
+    // through the composite branch.
+    rvol: null,
+    rev6: null,
+    fundingAbs: null,
+    comboScore: null,
+    comboGated: false,
     ...over,
   } as ConvergencePick;
 }
@@ -163,6 +173,90 @@ describe("rankPicks", () => {
   it("is deterministic when score and liquidity are identical", () => {
     const picks = [pick({ base: "ZZZ" }), pick({ base: "AAA" })];
     expect(rankPicks(picks).map((p) => p.base)).toEqual(["AAA", "ZZZ"]);
+  });
+
+  // The composite is the live ranking key; the score-first ordering above is
+  // the documented fallback for when funding and volume are unavailable.
+  it("ranks by composite score once one exists, ahead of the score", () => {
+    const picks = [
+      pick({ base: "STRONGSCORE", score: 5, comboScore: -0.9, comboGated: true }),
+      pick({ base: "STRONGCOMBO", score: 3, comboScore: 0.9, comboGated: true }),
+    ];
+    expect(rankPicks(picks)[0].base).toBe("STRONGCOMBO");
+  });
+
+  it("puts every gated name above every ungated one", () => {
+    const picks = [
+      pick({ base: "UNGATED", score: 5, comboScore: 0.99, comboGated: false }),
+      pick({ base: "GATED", score: 3, comboScore: -0.99, comboGated: true }),
+    ];
+    expect(rankPicks(picks).map((p) => p.base)).toEqual(["GATED", "UNGATED"]);
+  });
+
+  it("stays deterministic when both picks lack a composite score", () => {
+    // Regression: the comparator subtracted two -Infinity sentinels, and
+    // `-Infinity - -Infinity` is NaN. `NaN !== 0` is true, so it returned NaN
+    // and handed `sort` undefined behaviour for any such pair.
+    const picks = [
+      pick({ base: "ZZZ", comboScore: null, comboGated: true }),
+      pick({ base: "AAA", comboScore: null, comboGated: true }),
+      pick({ base: "MMM", comboScore: 0.5, comboGated: true }),
+    ];
+    expect(rankPicks(picks).map((p) => p.base)).toEqual(["MMM", "AAA", "ZZZ"]);
+  });
+});
+
+describe("assignComboScores", () => {
+  it("gates on volume and funding, then orders by reversal within each side", () => {
+    // rev6 is the NEGATED return, so a higher rev6 means the name fell harder.
+    const picks = [
+      pick({ base: "BUSYFALL", rvol: 5, rev6: 8, side: "long" }),
+      pick({ base: "BUSYRISE", rvol: 4, rev6: -8, side: "long" }),
+      pick({ base: "QUIET1", rvol: 0.2, rev6: 9, side: "long" }),
+      pick({ base: "QUIET2", rvol: 0.1, rev6: 7, side: "long" }),
+    ];
+    const funding = new Map([
+      ["BUSYFALLUSDT", 0.01],
+      ["BUSYRISEUSDT", 0.008],
+      ["QUIET1USDT", 0.00001],
+      ["QUIET2USDT", 0.00002],
+    ]);
+    assignComboScores(picks, funding);
+
+    const by = Object.fromEntries(picks.map((p) => [p.base, p]));
+    expect(by.BUSYFALL.fundingAbs).toBeCloseTo(0.01, 9);
+    // The two busy, funding-stressed names clear the 30% gate; the quiet ones
+    // do not, however hard they fell.
+    expect(by.BUSYFALL.comboGated).toBe(true);
+    expect(by.QUIET1.comboGated).toBe(false);
+    // Within the long side, the bigger faller ranks higher.
+    expect(by.BUSYFALL.comboScore).toBeGreaterThan(by.BUSYRISE.comboScore as number);
+  });
+
+  it("flips the reversal sign for shorts", () => {
+    // For a short, the best candidate is the name that ROSE hardest, which is
+    // the most NEGATIVE rev6.
+    const picks = [
+      pick({ base: "ROSE", side: "short", rvol: 2, rev6: -9 }),
+      pick({ base: "FLAT", side: "short", rvol: 2, rev6: 0 }),
+      pick({ base: "FELL", side: "short", rvol: 2, rev6: 9 }),
+    ];
+    assignComboScores(picks, new Map());
+    const by = Object.fromEntries(picks.map((p) => [p.base, p]));
+    expect(by.ROSE.comboScore).toBeGreaterThan(by.FELL.comboScore as number);
+  });
+
+  it("degrades to the volume leg alone when funding is unavailable", () => {
+    const picks = [
+      pick({ base: "BUSY", rvol: 9, rev6: 1 }),
+      pick({ base: "MID", rvol: 5, rev6: 2 }),
+      pick({ base: "QUIET", rvol: 0.1, rev6: 3 }),
+    ];
+    assignComboScores(picks, new Map());
+    const by = Object.fromEntries(picks.map((p) => [p.base, p]));
+    expect(by.BUSY.comboGated).toBe(true);
+    expect(by.QUIET.comboGated).toBe(false);
+    expect(by.BUSY.fundingAbs).toBeNull();
   });
 });
 

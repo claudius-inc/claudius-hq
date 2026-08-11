@@ -254,6 +254,37 @@ export async function fetchOiChangeForAll(
   return out;
 }
 
+/**
+ * Latest funding rate for the WHOLE universe, in one request.
+ *
+ * `premiumIndex` without a symbol returns every contract's `lastFundingRate` in
+ * a single call — 861 symbols, one round trip — which is what makes funding
+ * usable as a SELECTION input rather than an annotation. `fetchPositioning`
+ * pages per symbol and is right for the ~16 reported names; it would be 861
+ * requests here.
+ *
+ * Used by the composite ranker for `fundingAbs`. See
+ * `docs/perp-signal-research.md` for why the absolute rate, and not the signed
+ * one, is what carried information: crowding is crowding whichever side is
+ * paying for it.
+ */
+export async function fetchFundingSnapshot(): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  const rows = await getJson<{ symbol: string; lastFundingRate: string }[]>(
+    `${BINANCE_FAPI}/premiumIndex`,
+  );
+  if (!rows) {
+    logger.warn("perp-positioning", "Funding snapshot unavailable");
+    return out;
+  }
+  for (const r of rows) {
+    const v = Number(r.lastFundingRate);
+    if (Number.isFinite(v)) out.set(r.symbol, v);
+  }
+  logger.info("perp-positioning", "Funding snapshot fetched", { symbols: out.size });
+  return out;
+}
+
 /** Short human-readable label for the report. */
 export const REGIME_LABEL: Record<OiRegime, string> = {
   newLongs: "new longs",

@@ -18,6 +18,9 @@ Every file under `scripts/` lives in exactly one of these subdirectories. No loo
 | `pipelines/` | Long-running or scheduled jobs (GH Actions, cron, operator-invoked daemons) | scanners, research-job processors, social fetchers |
 | `portfolio/` | Portfolio export / accounting tools | populated portfolio Excel exports |
 | `ops/` | Operational maintenance | cache clears, DB backups, build hooks |
+| `research/` | Re-runnable studies that answer "does this signal work" | signal studies, backtests, combination searches |
+
+`research/` scripts read cached data, print findings, and write nothing outside `tmp/`. They keep a `run-*.ts` / `fetch-*.ts` prefix because the folder describes a subject rather than an action, so the name has to carry the verb. Note that `tsconfig.json` excludes `scripts/`, so `npx tsc --noEmit` does not typecheck them — keep the logic in `src/lib/` and the script a thin arg-parse-and-print shell. `tsconfig.scripts.json` covers them explicitly.
 
 ## What doesn't belong in `scripts/`
 

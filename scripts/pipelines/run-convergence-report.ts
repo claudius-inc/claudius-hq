@@ -142,6 +142,31 @@ function compressionTag(p: ConvergencePick): string {
   return ` vol ${Math.round(p.volPctl)}`;
 }
 
+/**
+ * The composite ranking line — the reason this name sits where it does.
+ *
+ * Printed first, above the MCD factors, because it is now what orders the list.
+ * Showing the three legs rather than only the score means a reader can see
+ * WHICH part put a name near the top: a huge reversal, an unusually busy tape,
+ * or stretched funding.
+ *
+ * `⚡` marks a name that cleared the magnitude gate. Names below the gate can
+ * still appear when too few qualify, and they are worth reading differently —
+ * the reversal ordering was validated among names that are actually trading.
+ */
+function compositeLine(p: ConvergencePick): string {
+  const bits: string[] = [];
+  bits.push(p.comboGated ? "⚡" : "·");
+  if (p.rev6 !== null) {
+    // rev6 is the NEGATED return, so report the move itself: a long candidate
+    // that fell 8% reads "1d -8.0%", not "+8.0".
+    bits.push(`1d ${pct(-p.rev6)}`);
+  }
+  if (p.rvol !== null) bits.push(`rvol ${p.rvol.toFixed(1)}x`);
+  if (p.fundingAbs !== null) bits.push(`|fund| ${(p.fundingAbs * 10_000).toFixed(1)}bp`);
+  return bits.join(" · ");
+}
+
 /** Open-interest regime plus funding crowding — the perp-native context. */
 function positioningLine(p: ConvergencePick, pos: Map<string, Positioning>): string | null {
   const q = pos.get(p.symbol);
@@ -182,6 +207,7 @@ function renderSide(
     );
     const vwap =
       p.vwapDistPct === null ? "" : ` · qVWAP ${p.vwapDistPct >= 0 ? "+" : ""}${p.vwapDistPct.toFixed(1)}%`;
+    lines.push(`   ${compositeLine(p)}`);
     lines.push(
       `   \`${factorInitials(p).padEnd(6)}\` · RSI ${p.rsi === null ? "—" : Math.round(p.rsi)}` +
         `${vwap} · 5d ${pct(p.changePct)}${compressionTag(p)}`,
@@ -231,13 +257,16 @@ export function formatMessage(
 
   const lines = [
     "🎯 *Convergence — Binance Perps*",
-    `_MCD factors agreeing, ${CONVERGENCE_CONFIG.interval} bars · as of ${asOf}_`,
+    `_Ranked by reversal within busy, funding-stressed names · ${CONVERGENCE_CONFIG.interval} bars · as of ${asOf}_`,
     "",
   ];
 
   lines.push(...renderSide(longs, `📈 *LONG* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends, pos));
   lines.push(...renderSide(shorts, `📉 *SHORT* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends, pos));
 
+  lines.push(
+    "_⚡ cleared the volume+funding gate · order is by 1d reversal within the gate_",
+  );
   lines.push(
     "_Q=quarterly VWAP (2pts) T=trend P=pullback S=support X=extreme V=volume · 🆕 new · ⚠️ contested_",
   );
@@ -254,10 +283,13 @@ export function formatMessage(
     `_Held back: ${funnel.cooldownSkipped} on cooldown · ` +
       `${funnel.correlationSkipped} too correlated · ${funnel.contested} contested_`,
   );
-  // This is a shortlist to look at, not a set of calls. Say so.
+  // This is a shortlist to look at, not a set of calls. Say so — and be
+  // specific about what was and was not measured, because the ordering now has
+  // an out-of-sample number behind it and the profitability does not.
   lines.push(
-    "_⚠️ A shortlist to review, not signals. High scores select COILED names " +
-      "(score 5 ≈ 0.68× normal daily range); direction is unvalidated._",
+    "_⚠️ A shortlist to review, not signals. The ORDER is validated (holdout IC " +
+      "0.078, t=5.97); the PROFIT is not (top-10 basket t=0.15). The score still " +
+      "gates the list but ranks poorly on its own._",
   );
 
   return lines.join("\n");
@@ -308,8 +340,9 @@ async function recordPicks(result: ConvergenceResult, runDate: string): Promise<
                  score, max_score, opposing_score, factors, fresh_flag,
                  contested, liquidity_pctl,
                  price, rsi, change_pct, avg_quote_vol, as_of,
-                 vol_pctl, vwap_dist_pct, qvwap, oi_change_pct, oi_pctl)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                 vol_pctl, vwap_dist_pct, qvwap, oi_change_pct, oi_pctl,
+                 rvol, rev6, funding_abs, combo_score, combo_gated)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         args: [
           runDate, p.venue, p.symbol, p.base, p.category, p.side,
           rankOf.get(p) ?? i + 1,
@@ -321,6 +354,7 @@ async function recordPicks(result: ConvergenceResult, runDate: string): Promise<
           // Everything below is computed during the screen and would otherwise
           // be lost — the page cannot recompute it without calling the venue.
           p.volPctl, p.vwapDistPct, p.qvwap, p.oiChangePct, p.oiPctl,
+          p.rvol, p.rev6, p.fundingAbs, p.comboScore, p.comboGated ? 1 : 0,
         ] as never[],
       })),
     ],

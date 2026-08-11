@@ -51,6 +51,19 @@ const primaryTabs: PrimaryTab[] = [
     ],
   },
   {
+    // Both pages existed but were unreachable from the nav. They are grouped
+    // rather than promoted separately because they are two views of one thing:
+    // the shortlist is today's output, Combinations is what decides its order.
+    label: "Perps",
+    prefixLabel: "Perps",
+    href: "/markets/shortlist",
+    activePaths: ["/markets/shortlist", "/markets/combos"],
+    subTabs: [
+      { href: "/markets/shortlist", label: "Shortlist" },
+      { href: "/markets/combos", label: "Combinations" },
+    ],
+  },
+  {
     label: "Notes",
     prefixLabel: "Notes",
     href: "/markets/notes",

@@ -27,6 +27,10 @@ interface PickRow {
   vol_pctl: number | null;
   vwap_dist_pct: number | null;
   oi_change_pct: number | null;
+  rvol: number | null;
+  rev6: number | null;
+  funding_abs: number | null;
+  combo_gated: number | null;
   as_of: string | null;
   run_date: string;
 }
@@ -42,7 +46,8 @@ interface PickRow {
 async function loadLatestPicks(): Promise<PickRow[]> {
   const res = await rawClient.execute(`
     SELECT symbol, base, side, category, score, max_score, factors, rsi,
-           change_pct, vol_pctl, vwap_dist_pct, oi_change_pct, as_of, run_date
+           change_pct, vol_pctl, vwap_dist_pct, oi_change_pct,
+           rvol, rev6, funding_abs, combo_gated, as_of, run_date
     FROM perp_convergence_picks
     WHERE reported = 1
       AND run_date = (SELECT MAX(run_date) FROM perp_convergence_picks WHERE reported = 1)
@@ -135,6 +140,10 @@ export default async function ShortlistPage() {
         changePct: r.change_pct,
         vwapDistPct: r.vwap_dist_pct,
         oiChangePct: r.oi_change_pct,
+        rvol: r.rvol,
+        rev6: r.rev6,
+        fundingAbs: r.funding_abs,
+        comboGated: r.combo_gated === 1,
         qvwap: stored.qvwap,
         bars: stored.bars,
       });
@@ -174,9 +183,14 @@ export default async function ShortlistPage() {
         <p className="mb-1">
           Q quarterly VWAP (2pts) · T trend · P pullback · S support · X extreme · V volume
         </p>
+        <p className="mb-1">
+          ⚡ cleared the volume-and-funding gate · rvol is traded value against the name&rsquo;s own
+          20-bar average · 1d is the last day&rsquo;s move, and the list is ordered by its reversal
+        </p>
         <p>
-          Purple dashed line is quarterly anchored VWAP. High scores select coiled names, so
-          expect most of these to be quiet — the score gates the list, open interest orders it.
+          Purple dashed line is quarterly anchored VWAP. The score gates the list; a validated
+          composite orders it (holdout IC 0.078, t=5.97). The ordering is measured, the
+          profitability is not — see <code>docs/perp-signal-research.md</code>.
         </p>
       </div>
     </div>

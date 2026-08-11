@@ -44,6 +44,11 @@ interface Row {
   vol_pctl: number | null;
   vwap_dist_pct: number | null;
   oi_change_pct: number | null;
+  rvol: number | null;
+  rev6: number | null;
+  funding_abs: number | null;
+  combo_score: number | null;
+  combo_gated: number | null;
   run_date: string;
   as_of: string | null;
 }
@@ -120,6 +125,21 @@ function compression(v: number | null): string {
   return ` vol ${Math.round(v)}`;
 }
 
+/**
+ * The composite ranking line — why this name sits where it does.
+ *
+ * `⚡` means the name cleared the volume-and-funding gate. The 1-day move is
+ * printed as the MOVE, not as the stored `rev6`, which is its negation: a long
+ * candidate that fell 8% should read "1d -8.0%".
+ */
+function compositeLine(r: Row): string {
+  const bits: string[] = [r.combo_gated ? "⚡" : "·"];
+  if (r.rev6 !== null) bits.push(`1d ${pct(-r.rev6)}`);
+  if (r.rvol !== null) bits.push(`rvol ${r.rvol.toFixed(1)}x`);
+  if (r.funding_abs !== null) bits.push(`|fund| ${(r.funding_abs * 10_000).toFixed(1)}bp`);
+  return bits.join(" · ");
+}
+
 function renderSide(rows: Row[], heading: string): string[] {
   if (!rows.length) return [heading, "_none cleared the threshold_", ""];
   const lines = [heading];
@@ -129,6 +149,7 @@ function renderSide(rows: Row[], heading: string): string[] {
       `${i + 1}. \`${clean(r.base)}\`${tag ? " " + tag : ""} ` +
         `*${r.score}/${r.max_score}* · ${fmtPrice(r.price)}`,
     );
+    lines.push(`   ${compositeLine(r)}`);
     lines.push(
       `   \`${factorInitials(r.factors, r.score).padEnd(6)}\` · OI ${pct(r.oi_change_pct)}` +
         ` · qVWAP ${pct(r.vwap_dist_pct)} · RSI ${r.rsi === null ? "—" : Math.round(r.rsi)}` +
@@ -142,7 +163,9 @@ function renderSide(rows: Row[], heading: string): string[] {
 async function main() {
   const res = await rawClient.execute(`
     SELECT base, side, category, score, max_score, factors, price, rsi,
-           change_pct, vol_pctl, vwap_dist_pct, oi_change_pct, run_date, as_of
+           change_pct, vol_pctl, vwap_dist_pct, oi_change_pct,
+           rvol, rev6, funding_abs, combo_score, combo_gated,
+           run_date, as_of
     FROM perp_convergence_picks
     WHERE reported = 1
       AND run_date = (SELECT MAX(run_date) FROM perp_convergence_picks WHERE reported = 1)
@@ -184,14 +207,15 @@ async function main() {
 
   const lines = [
     "🎯 *Convergence — Binance Perps*",
-    `_Ranked by open interest · 4h bars · as of ${asOf}_`,
+    `_Ranked by reversal within busy, funding-stressed names · 4h bars · as of ${asOf}_`,
     "",
     ...renderSide(longs, "📈 *LONG*"),
     ...renderSide(shorts, "📉 *SHORT*"),
+    "_⚡ cleared the volume+funding gate · order is by 1d reversal within the gate_",
     "_Q=quarterly VWAP (2pts) T=trend P=pullback S=support X=extreme V=volume_",
     "_🪤 coiled · 🌊 moving (own-history volatility rank)_",
-    "_⚠️ A shortlist to review, not signals. Ordering is by open-interest change, " +
-      "which finds movement, not direction._",
+    "_⚠️ A shortlist to review, not signals. The ORDER is validated (holdout IC " +
+      "0.078, t=5.97); the PROFIT is not (top-10 basket t=0.15)._",
   ];
 
   logger.info("shortlist-telegram", "Sending shortlist", {

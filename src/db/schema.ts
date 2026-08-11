@@ -615,6 +615,14 @@ export const perpConvergencePicks = sqliteTable(
     rsi: real("rsi"),
     changePct: real("change_pct"),
     avgQuoteVol: real("avg_quote_vol"),
+    // The composite ranking key and its three legs (see drizzle/0033).
+    // `combo_score` orders the list; `rvol` and `funding_abs` decide whether
+    // the name cleared the magnitude gate at all.
+    rvol: real("rvol"),
+    rev6: real("rev6"),
+    fundingAbs: real("funding_abs"),
+    comboScore: real("combo_score"),
+    comboGated: integer("combo_gated").default(0),
     asOf: text("as_of"),
     createdAt: text("created_at").default(sql`(datetime('now'))`),
   },

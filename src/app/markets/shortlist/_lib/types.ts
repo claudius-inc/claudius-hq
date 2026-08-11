@@ -17,6 +17,14 @@ export interface ShortlistChart {
   vwapDistPct: number | null;
   oiChangePct: number | null;
   qvwap: number | null;
+  /** Relative volume: this bar's traded value over its own 20-bar average. */
+  rvol: number | null;
+  /** Negated 1-day return — high means the name just fell hardest. */
+  rev6: number | null;
+  /** |latest funding rate|, as a fraction. */
+  fundingAbs: number | null;
+  /** True when the name cleared the volume-and-funding magnitude gate. */
+  comboGated: boolean;
   bars: CompactBar[];
 }
 

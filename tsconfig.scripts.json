@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["scripts/research/**/*.ts", "src/**/*.ts"],
+  "exclude": []
+}
