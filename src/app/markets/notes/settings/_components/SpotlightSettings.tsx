@@ -79,12 +79,9 @@ export function SpotlightSettings() {
           const enabled = enabledBySector.get(meta.sector) ?? false;
           return (
             <Row key={meta.sector}>
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-lg leading-none">{meta.emoji}</span>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{meta.label}</p>
-                  <p className="text-xs text-gray-400 font-mono">{meta.sector}</p>
-                </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{meta.label}</p>
+                <p className="text-xs text-gray-500 font-mono">{meta.sector}</p>
               </div>
 
               {isLoading ? (

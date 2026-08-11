@@ -1,15 +1,15 @@
 /** Display metadata for the spotlight toggles. Order drives the rendered list. */
-export const SPOTLIGHT_SECTOR_META: { sector: string; label: string; emoji: string }[] = [
-  { sector: "XLE", label: "Energy", emoji: "🛢" },
-  { sector: "GOLD", label: "Gold", emoji: "🥇" },
-  { sector: "XLK", label: "Technology", emoji: "💻" },
-  { sector: "XLF", label: "Financials", emoji: "🏦" },
-  { sector: "XLY", label: "Consumer Discretionary", emoji: "🛍" },
-  { sector: "XLC", label: "Communication Services", emoji: "📡" },
-  { sector: "XLV", label: "Health Care", emoji: "💊" },
-  { sector: "XLI", label: "Industrials", emoji: "🏭" },
-  { sector: "XLP", label: "Consumer Staples", emoji: "🧺" },
-  { sector: "XLB", label: "Materials", emoji: "⛏" },
-  { sector: "XLRE", label: "Real Estate", emoji: "🏢" },
-  { sector: "XLU", label: "Utilities", emoji: "💡" },
+export const SPOTLIGHT_SECTOR_META: { sector: string; label: string }[] = [
+  { sector: "XLE", label: "Energy" },
+  { sector: "GOLD", label: "Gold" },
+  { sector: "XLK", label: "Technology" },
+  { sector: "XLF", label: "Financials" },
+  { sector: "XLY", label: "Consumer Discretionary" },
+  { sector: "XLC", label: "Communication Services" },
+  { sector: "XLV", label: "Health Care" },
+  { sector: "XLI", label: "Industrials" },
+  { sector: "XLP", label: "Consumer Staples" },
+  { sector: "XLB", label: "Materials" },
+  { sector: "XLRE", label: "Real Estate" },
+  { sector: "XLU", label: "Utilities" },
 ];

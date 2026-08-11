@@ -37,14 +37,14 @@ async function main() {
   const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
   if (dow !== 5) {
     logger.info(SRC, "Not a Friday — no wrap", { today, dow });
-    await alertAdmin(`📭 Weekly wrap skipped: ${today} is not a Friday.`);
+    await alertAdmin(`SKIPPED — weekly wrap: ${today} is not a Friday.`);
     return;
   }
 
   const anchors = await resolveWeek(today);
   if (!anchors) {
     // resolveWeek logs which of the three refusals applied.
-    await alertAdmin(`📭 Weekly wrap skipped for the week ending ${today}: the week could not be resolved.`);
+    await alertAdmin(`SKIPPED — weekly wrap for the week ending ${today}: the week could not be resolved.`);
     return; // exit 0 — a skip is a valid outcome
   }
 
@@ -60,7 +60,7 @@ async function main() {
       resolvedEnd: anchors.weekEnd,
     });
     await alertAdmin(
-      `⚠️ Weekly wrap skipped: ${session.marketDate} traded but has no daily note, so the week would be wrapped as if it ended ${anchors.weekEnd}. Fix the daily note, then re-run.`,
+      `WARNING — weekly wrap skipped: ${session.marketDate} traded but has no daily note, so the week would be wrapped as if it ended ${anchors.weekEnd}. Fix the daily note, then re-run.`,
     );
     return;
   }
@@ -107,7 +107,7 @@ async function main() {
   const chatId = Number(process.env.TELEGRAM_ADMIN_CHAT_ID);
   if (!Number.isFinite(chatId) || chatId === 0) {
     logger.error(SRC, "No chat id configured; wrap persisted but not sent", { weekEnd: facts.weekEnd });
-    await alertAdmin(`⚠️ Weekly wrap ${facts.weekEnd} persisted but NOT sent: no chat id configured.`);
+    await alertAdmin(`WARNING — weekly wrap ${facts.weekEnd} persisted but NOT sent: no chat id configured.`);
     process.exitCode = 1;
     return;
   }
@@ -134,6 +134,6 @@ async function main() {
 
 main().catch(async (err) => {
   logger.error(SRC, "Weekly wrap crashed", { error: err });
-  await alertAdmin(`❌ Weekly wrap crashed: ${err instanceof Error ? err.message : String(err)}`);
+  await alertAdmin(`FAILED — weekly wrap crashed: ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
 });

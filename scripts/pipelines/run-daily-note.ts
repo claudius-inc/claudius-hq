@@ -34,7 +34,7 @@ async function main() {
   const gate = await checkTradingSession();
   if (!gate.isSession) {
     logger.info(SRC, `Skipping — ${gate.reason}`, { marketDate: gate.marketDate });
-    await alertAdmin(`📭 Daily note skipped for ${gate.marketDate}: ${gate.reason}`);
+    await alertAdmin(`SKIPPED — daily note for ${gate.marketDate}: ${gate.reason}`);
     return; // exit 0 — a skip is a valid outcome
   }
   const date = gate.marketDate;
@@ -55,7 +55,7 @@ async function main() {
 
   if (!facts.indices) {
     // Without indices there is no note worth sending.
-    await alertAdmin(`⚠️ Daily note ${date}: no index data assembled; not sending.`);
+    await alertAdmin(`WARNING — daily note ${date}: no index data assembled; not sending.`);
     process.exitCode = 1;
     return;
   }
@@ -98,7 +98,7 @@ async function main() {
   if (!Number.isFinite(chatId) || chatId === 0) {
     // A config error must be loud (§2) — the note was persisted but nobody saw it.
     logger.error(SRC, "TELEGRAM_ADMIN_CHAT_ID missing or invalid; persisted but did not send", { date });
-    await alertAdmin(`⚠️ Daily note ${date} persisted but NOT sent: TELEGRAM_ADMIN_CHAT_ID missing or invalid.`);
+    await alertAdmin(`WARNING — daily note ${date} persisted but NOT sent: TELEGRAM_ADMIN_CHAT_ID missing or invalid.`);
     process.exitCode = 1;
     return;
   }
@@ -130,6 +130,6 @@ async function main() {
 
 main().catch(async (err) => {
   logger.error(SRC, "Daily note pipeline crashed", { error: err });
-  await alertAdmin(`❌ Daily note pipeline crashed: ${err instanceof Error ? err.message : String(err)}`);
+  await alertAdmin(`FAILED — daily note pipeline crashed: ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
 });
