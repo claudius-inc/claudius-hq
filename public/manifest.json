@@ -30,17 +30,17 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Scan → Themes",
-      "short_name": "Themes",
-      "description": "Stock themes & tag heatmap",
-      "url": "/markets/scanner/themes",
+      "name": "Daily Note",
+      "short_name": "Daily Note",
+      "description": "The most recent session note",
+      "url": "/markets/notes/latest",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Memoria",
-      "short_name": "Memoria",
-      "description": "Research memory & notes",
-      "url": "/memoria",
+      "name": "Perps Shortlist",
+      "short_name": "Perps",
+      "description": "Today's convergence picks as 4h candles",
+      "url": "/markets/shortlist",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ],
