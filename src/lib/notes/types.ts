@@ -39,7 +39,12 @@ export interface VixData {
   change: number;
   ytdLow: number;
   ytdHigh: number;
-  /** 0–100 percentile of `level` within its YTD range. */
+  /**
+   * Share of this year's closes BELOW `level`, 0–100. A rank percentile, NOT a
+   * position within `ytdLow`–`ytdHigh` — the two differ whenever the
+   * distribution is skewed, which for VIX is always. Phrase it as "below N% of
+   * this year's closes", never as "Nth percentile of the range".
+   */
   percentile: number;
   /** Consecutive-session run in `trendDir` (e.g. "up 3 days"). */
   trendDays: number;

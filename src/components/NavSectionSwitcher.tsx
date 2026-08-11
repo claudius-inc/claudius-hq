@@ -91,7 +91,11 @@ export function NavSectionSwitcher({
         className="flex items-center gap-1 text-sm text-gray-700 hover:text-gray-900 transition-colors py-1 px-1.5 -mx-1.5 rounded-md hover:bg-gray-100"
       >
         <span className={current ? "font-medium" : "text-gray-400"}>
-          {prefix && (
+          {/* The prefix only makes sense in front of a matched section. With no
+              match the label falls back to `placeholder`, which is the section's
+              own name — so rendering the prefix too printed "Notes › Notes" on
+              every page outside that section. */}
+          {prefix && current && (
             <>
               {prefix}
               <span className="text-gray-300 mx-1">›</span>

@@ -18,6 +18,8 @@ interface PrimaryTab {
   activePaths: string[];
   exact?: boolean;
   subTabs?: SubTab[];
+  /** Shown before the current sub-section, e.g. "Notes › Daily". */
+  prefixLabel?: string;
 }
 
 const primaryTabs: PrimaryTab[] = [
@@ -48,6 +50,16 @@ const primaryTabs: PrimaryTab[] = [
       { href: "/markets/scanner/social", label: "Social" },
     ],
   },
+  {
+    label: "Notes",
+    prefixLabel: "Notes",
+    href: "/markets/notes",
+    activePaths: ["/markets/notes"],
+    subTabs: [
+      { href: "/markets/notes", label: "Daily" },
+      { href: "/markets/notes/settings", label: "Settings" },
+    ],
+  },
 ];
 
 /* ── Component ────────────────────────────────────────────── */
@@ -72,6 +84,11 @@ export function MarketsTabs() {
                 : "border-transparent";
 
               if (hasSubTabs) {
+                // The switcher renders the CURRENT sub-section, so a tab whose
+                // sub-tab matches the landing route would otherwise lose its own
+                // name entirely — "Notes" showing only as "Daily". The prefix
+                // keeps the section named; Scanner does not need it because its
+                // landing route is a sub-tab the reader chose.
                 // The inner trigger button has its own `py-1`, so we shave 4px
                 // off both pt and pb here to make the button's *text* align
                 // with the plain Link tabs' text (not just the box bottoms).
@@ -82,6 +99,7 @@ export function MarketsTabs() {
                   >
                     <NavSectionSwitcher
                       sections={tab.subTabs!}
+                      prefix={tab.prefixLabel}
                       placeholder={tab.label}
                     />
                   </span>

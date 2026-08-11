@@ -1,43 +1,101 @@
-import { eq } from "drizzle-orm";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { db, dailyNotes } from "@/db";
+import { deterministicHook } from "@/lib/notes/render";
 import { PageHero } from "@/components/PageHero";
+import { loadNote, sectionRailItems } from "./_lib/note-data";
+import { prettyDate } from "./_lib/format";
+import { Scoreboard } from "./_components/Scoreboard";
+import { TheRead } from "./_components/TheRead";
+import { MarketsSection } from "./_components/MarketsSection";
+import { SectorBoard } from "./_components/SectorBoard";
+import { MoversSection } from "./_components/MoversSection";
+import { DivergenceSection } from "./_components/DivergenceSection";
+import { ConcentrationSection } from "./_components/ConcentrationSection";
+import { SpotlightSection } from "./_components/SpotlightSection";
+import { CalendarSection } from "./_components/CalendarSection";
+import { SectionRail, NoteFooterNav, SourcesFooter } from "./_components/NoteNav";
 
 // The note is written by the generation script (no Next context to call
 // revalidatePath from), so read fresh from the DB on each request.
 export const dynamic = "force-dynamic";
 
-function prettyDate(iso: string): string {
-  const d = new Date(`${iso}T12:00:00Z`);
-  return d.toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    timeZone: "UTC",
-  });
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Per-note metadata. Without it every note in the archive is titled "Claudius
+ * HQ" — indistinguishable in the tab bar, in history, in bookmarks and in any
+ * shared link preview.
+ */
+export async function generateMetadata(props: {
+  params: Promise<{ date: string }>;
+}): Promise<Metadata> {
+  const { date } = await props.params;
+  if (!DATE_RE.test(date)) return { title: "Note not found" };
+
+  const note = await loadNote(date);
+  if (!note) return { title: "Note not found" };
+
+  const title = `The Tape — ${prettyDate(note.date)}`;
+  const description = note.prose?.hook ?? deterministicHook(note.facts);
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "article",
+      publishedTime: note.facts.generatedAt,
+    },
+  };
 }
 
 export default async function DailyNotePage(props: { params: Promise<{ date: string }> }) {
   const params = await props.params;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(params.date)) notFound();
+  if (!DATE_RE.test(params.date)) notFound();
 
-  const rows = await db.select().from(dailyNotes).where(eq(dailyNotes.date, params.date)).limit(1);
-  const note = rows[0];
+  const note = await loadNote(params.date);
   if (!note) notFound();
 
+  const { facts, prose } = note;
+
+  // The deterministic hook is a NOTIFICATION preview — it exists so a Telegram
+  // banner is readable without opening anything, and every number in it is
+  // repeated by the scoreboard directly below. On the web that banner does not
+  // exist, so only genuine LLM prose earns the standfirst slot.
+  const standfirst = prose?.hook ?? null;
+
   return (
-    <div className="max-w-2xl mx-auto px-4 pb-16">
+    <div className="max-w-3xl mx-auto pb-16">
       <PageHero title="The Tape" subtitle={`Daily market note · ${prettyDate(note.date)}`} />
 
-      <article
-        className="prose prose-sm max-w-none text-gray-800 leading-relaxed [&_code]:font-mono [&_code]:text-gray-900"
-        dangerouslySetInnerHTML={{ __html: note.webBody }}
-      />
+      <div className="space-y-8">
+        {standfirst && (
+          <p className="text-lg text-gray-900 leading-snug max-w-[62ch]">{standfirst}</p>
+        )}
 
-      <p className="mt-10 text-xs text-gray-400">
-        Not investment advice. Educational purposes only.
-      </p>
+        <Scoreboard facts={facts} />
+
+        <SectionRail sections={sectionRailItems(facts, prose)} />
+
+        <TheRead facts={facts} prose={prose} />
+
+        <MarketsSection facts={facts} />
+        <SectorBoard facts={facts} />
+        <MoversSection facts={facts} />
+        <DivergenceSection facts={facts} />
+        <ConcentrationSection facts={facts} />
+        <SpotlightSection facts={facts} />
+        <CalendarSection facts={facts} />
+
+        <NoteFooterNav prevDate={note.prevDate} nextDate={note.nextDate} weekEnd={note.weekEnd} />
+
+        <SourcesFooter facts={facts} />
+
+        <p className="text-xs text-gray-600 border-t border-gray-200 pt-4">
+          Not investment advice. Educational purposes only.
+        </p>
+      </div>
     </div>
   );
 }

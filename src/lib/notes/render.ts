@@ -70,19 +70,6 @@ const NB = " ";
 /** Bind a label to its value: "Gold␣$4,403". */
 const bind = (label: string, value: string) => `${escapeHtml(label)}${NB}${value}`;
 
-/** 1 → "1st", 2 → "2nd", 3 → "3rd", 11 → "11th", 23 → "23rd". */
-function ordinal(n: number): string {
-  const v = Math.round(n);
-  const rem100 = v % 100;
-  if (rem100 >= 11 && rem100 <= 13) return `${v}th`;
-  switch (v % 10) {
-    case 1: return `${v}st`;
-    case 2: return `${v}nd`;
-    case 3: return `${v}rd`;
-    default: return `${v}th`;
-  }
-}
-
 /**
  * Claim ledger — the fix for the note's worst readability defect.
  *
@@ -167,9 +154,18 @@ function tapeSection(f: StructuredFacts): string {
   const vx: VixData | undefined = f.vix?.value;
   if (vx) {
     const chg = `${vx.change >= 0 ? "+" : ""}${vx.change.toFixed(1)}`;
-    const trend = vx.trendDays > 0 && vx.trendDir !== "flat" ? `, ${vx.trendDir} ${vx.trendDays} days` : "";
+    // A one-session "run" is just the day's change, which this same line already
+    // prints as `chg` — so a trend needs at least two sessions before it is
+    // worth a clause. "sessions", not "days", matches the deliberate
+    // 5-session/21-session convention in trendSection below.
+    const trend =
+      vx.trendDays >= 2 && vx.trendDir !== "flat" ? `, ${vx.trendDir} ${vx.trendDays} sessions` : "";
+    // `percentile` is a RANK (share of closes below `level`), not a position in
+    // the low–high range — see VixData. "8th percentile of the range" invited
+    // the reader to compute 8% of the way from the low to the high, which is a
+    // different and much weaker number.
     lines.push(
-      `VIX ${vx.level.toFixed(1)}, ${chg} — ${ordinal(vx.percentile)} percentile of this year's ${vx.ytdLow.toFixed(1)}–${vx.ytdHigh.toFixed(1)} range${trend}`,
+      `VIX ${vx.level.toFixed(1)}, ${chg} — below ${100 - vx.percentile}% of this year's closes (range ${vx.ytdLow.toFixed(1)}–${vx.ytdHigh.toFixed(1)})${trend}`,
     );
   }
   return lines.join("\n");
@@ -200,7 +196,15 @@ function trendSection(f: StructuredFacts): string {
     const sorted = [...sectors].sort((a, b) => (b.chg21s as number) - (a.chg21s as number));
     const best = sorted[0];
     const worst = sorted[sorted.length - 1];
-    lead = ` · over 21 sessions ${escapeHtml(best.symbol)} leads ${spct(best.chg21s as number)}, ${escapeHtml(worst.symbol)} lags ${spct(worst.chg21s as number)}`;
+    // Name the sector, not just its ETF. The sector tape a few lines down says
+    // "Energy", so printing "XLE" here asks the reader to hold the eleven-SPDR
+    // mapping in their head to connect two lines of the same note.
+    const byEtf = new Map((f.sectors?.value ?? []).map((s) => [s.etf, s.name]));
+    const named = (symbol: string) => {
+      const name = byEtf.get(symbol);
+      return escapeHtml(name ? `${name} (${symbol})` : symbol);
+    };
+    lead = ` · over 21 sessions ${named(best.symbol)} leads ${spct(best.chg21s as number)}, ${named(worst.symbol)} lags ${spct(worst.chg21s as number)}`;
   }
   return `${b("TREND")} — ${escapeHtml("S&P")} ${parts.join(" · ")}${lead}`;
 }
@@ -372,8 +376,13 @@ function bookSection(f: StructuredFacts, prose: NoteProse | undefined, ledger: L
   const parts: string[] = [];
   if (pin) {
     const stance = pin.netGammaPositive ? "dealers long gamma" : "dealers short gamma";
+    // Which SIDE the pin sits on is the whole actionable content, and
+    // `distancePct`'s sign convention is not worth trusting for it — derive the
+    // direction from the two prices. The "$" also stops a bare "775" being
+    // misread against the index level ("S&P 7,753") one line above.
+    const side = pin.pinStrike >= pin.spot ? "above" : "below";
     parts.push(
-      `${stance}, pin near ${intFmt(pin.pinStrike)} on ${escapeHtml(pin.symbol)}, ${spct(pin.distancePct)} away`,
+      `${stance}, pin near $${intFmt(pin.pinStrike)} on ${escapeHtml(pin.symbol)}, ${Math.abs(pin.distancePct).toFixed(1)}% ${side} spot`,
     );
   }
   // The gamma stance is numeral-free, so the validator can't catch an LLM line
@@ -452,7 +461,13 @@ function sectorTape(s: SectorPoint[]): string {
 function crossSection(f: StructuredFacts): string {
   const lines: string[] = [];
   if (f.crossAsset) {
-    lines.push(`${b("CROSS-ASSET")} — ${f.crossAsset.value.map(crossPrice).join(" · ")}`);
+    // A bare level standing next to a peer that carries a change reads as
+    // "unchanged", which is a claim the feed never made. Say once, at the end,
+    // that the unsigned quotes are levels only — cheaper than a per-item mark
+    // and it keeps the omission visible rather than silent.
+    const anyMissing = f.crossAsset.value.some((p) => p.changePct == null);
+    const caveat = anyMissing ? escapeHtml(" (unsigned quotes are levels only)") : "";
+    lines.push(`${b("CROSS-ASSET")} — ${f.crossAsset.value.map(crossPrice).join(" · ")}${caveat}`);
   }
   if (f.sectors) {
     const tape = sectorTape(f.sectors.value);
@@ -461,6 +476,12 @@ function crossSection(f: StructuredFacts): string {
   return lines.join("\n");
 }
 
+/**
+ * "Full note" link — PUSH ONLY. On the web body this renders on the very page
+ * it points at, so the only link in the note is a no-op self-reference that
+ * reads as "you are missing something". `build` therefore takes it as an opt-in
+ * and `renderWeb` never asks for it.
+ */
 function footer(webUrl: string): string {
   // Telegram rejects a relative href with a 400; only link when absolute.
   if (!/^https?:\/\//i.test(webUrl)) return "";
@@ -474,14 +495,33 @@ export interface RenderInput {
   prose?: NoteProse;
 }
 
+/**
+ * One rung's worth of build options. An object rather than positional flags:
+ * the ladder already assembles exactly this shape per candidate, and an omitted
+ * positional flag silently defaulting back to ON is the specific bug
+ * `pushLadder` warns about twice below.
+ */
+interface BuildOptions {
+  prose?: NoteProse;
+  maxSpotlight?: number;
+  showAfterHours?: boolean;
+  macroDetail?: boolean;
+  moverReasons?: boolean;
+  /** Append the "Full note" link. Push only — see `footer`. */
+  withFooter?: boolean;
+}
+
 function build(
   facts: StructuredFacts,
   webUrl: string,
-  prose?: NoteProse,
-  maxSpotlight = Infinity,
-  showAfterHours = true,
-  macroDetail = true,
-  moverReasons = true,
+  {
+    prose,
+    maxSpotlight = Infinity,
+    showAfterHours = true,
+    macroDetail = true,
+    moverReasons = true,
+    withFooter = false,
+  }: BuildOptions = {},
 ): string {
   // After-hours suffixes are ornament, not argument. Stripping them is the
   // cheapest thing the overflow ladder can do, so it happens before any of the
@@ -518,7 +558,7 @@ function build(
     bullBearSection(prose, ledger),
     bookSection(facts, prose, ledger),
     tellsSection(facts),
-    footer(webUrl),
+    withFooter ? footer(webUrl) : "",
   ]
     .filter((s) => s.length > 0)
     .join("\n\n");
@@ -535,7 +575,7 @@ function build(
  * bug only shows on a day heavy enough to reach the affected rung.
  */
 export function pushLadder({ facts, webUrl, prose }: RenderInput): string[] {
-  const candidates: { prose?: NoteProse; maxSpotlight?: number; showAfterHours?: boolean; macroDetail?: boolean; moverReasons?: boolean }[] = [];
+  const candidates: BuildOptions[] = [];
   if (prose) {
     candidates.push({ prose });
     // Drop the after-hours ornament BEFORE any reasoning. Appending this rung
@@ -602,17 +642,9 @@ export function pushLadder({ facts, webUrl, prose }: RenderInput): string[] {
       moverReasons: false,
     });
 
-  return candidates.map((c) =>
-    build(
-      facts,
-      webUrl,
-      c.prose,
-      c.maxSpotlight,
-      c.showAfterHours ?? true,
-      c.macroDetail ?? true,
-      c.moverReasons ?? true,
-    ),
-  );
+  // Every rung is a push, so every rung carries the "Full note" link — it must
+  // be inside the measured length, not appended after the cap check.
+  return candidates.map((c) => build(facts, webUrl, { ...c, withFooter: true }));
 }
 
 /**
@@ -691,8 +723,9 @@ function webSpotlight(f: StructuredFacts): string {
 /** Web body (HTML); the archive page renders this. */
 export function renderWeb({ facts, webUrl, prose }: RenderInput): string {
   // The web page has no 4096 cap, so render the FULL prose (build directly)
-  // rather than the possibly-trimmed push.
-  const push = build(facts, webUrl, prose);
+  // rather than the possibly-trimmed push. No footer: the "Full note" link
+  // would point at the page it is rendered on.
+  const push = build(facts, webUrl, { prose });
   const head = push
     .split("\n\n")
     .map((block) => `<p>${block.replace(/\n/g, "<br/>")}</p>`)
