@@ -1,12 +1,12 @@
 // Service Worker for Claudius HQ PWA
-const CACHE_NAME = 'claudius-hq-v2';
+const CACHE_NAME = 'claudius-hq-v3';
 
 // Assets to cache on install
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 // Install event - cache static assets

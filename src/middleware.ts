@@ -93,5 +93,7 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icons/|.*\\.png$|.*\\.ico$|.*\\.svg$).*)"],
+  // manifest.json and sw.js must stay public: Chrome fetches the manifest with
+  // credentials omitted, so an auth redirect here makes the app uninstallable.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest\\.json$|sw\\.js$|.*\\.png$|.*\\.ico$|.*\\.svg$).*)"],
 };
