@@ -1,2 +1,24 @@
 #!/usr/bin/env sh
+
+# lint-staged runs `git stash create` and parses its output as a commit SHA.
+# git writes safecrlf warnings ("LF will be replaced by CRLF the next time Git
+# touches it") to stderr, lint-staged folds them into the SHA, and the
+# resulting `git rev-parse` fails with "fatal: Needed a single revision" — so
+# EVERY commit aborts with "lint-staged failed due to a git error", pointing at
+# nothing in particular and looking like the developer's own changes broke it.
+#
+# .gitattributes now pins every text file to LF, which stops the drift that
+# produces those warnings. This is the belt to that braces: the warnings are
+# only ever emitted about a working tree that has not re-normalised yet, and a
+# clone made before .gitattributes landed will keep hitting them until it does.
+# They are noise here in either case — the index is uniformly LF, so no
+# conversion is lossy.
+#
+# GIT_CONFIG_* is used rather than `git -c`, because the setting has to reach
+# the git processes lint-staged spawns, not just this one.
+GIT_CONFIG_COUNT=1
+GIT_CONFIG_KEY_0=core.safecrlf
+GIT_CONFIG_VALUE_0=false
+export GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+
 npx lint-staged

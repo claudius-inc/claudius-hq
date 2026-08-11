@@ -1,5 +1,32 @@
-# Force LF for shell scripts and husky hooks so they execute correctly
-# on Windows checkouts (autocrlf would otherwise rewrite to CRLF and the
-# kernel/shell rejects them with "Exec format error").
+# Every text file is LF in the repository AND in the working tree.
+#
+# Without this, a Windows clone with the default `core.autocrlf=true`
+# checks files out as CRLF while the index stays LF. Any file a tool then
+# writes back as LF is out of step with what autocrlf wants, and git starts
+# printing:
+#
+#   warning: in the working copy of 'x.ts', LF will be replaced by CRLF
+#   the next time Git touches it
+#
+# That warning goes to stderr on ordinary plumbing commands, including
+# `git stash create` — and lint-staged reads that command's output as a
+# commit SHA. It hands the warnings plus the SHA to `git rev-parse`, which
+# fails with "fatal: Needed a single revision", and every commit then aborts
+# with "lint-staged failed due to a git error". The commit looks broken by
+# whatever you were changing; it is not.
+#
+# `eol=lf` overrides autocrlf per-repository, so no conversion happens in
+# either direction and the warning cannot occur. Every text file in the
+# index was already LF when this was added, so it renormalises nothing —
+# it only stops the working tree drifting to CRLF on checkout.
+#
+# There are no .bat/.cmd/.ps1 files here; if one is added it needs an
+# explicit `eol=crlf` line, because Windows shells require CRLF.
+* text=auto eol=lf
+
+# Kept explicit even though the rule above already covers them: these two
+# fail loudly and confusingly (the shell rejects a CRLF script with
+# "Exec format error"), so the requirement is worth stating where someone
+# editing this file will see it.
 .husky/* text eol=lf
 *.sh text eol=lf
