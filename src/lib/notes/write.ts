@@ -185,10 +185,14 @@ async function generate(f: StructuredFacts, violations: string[]): Promise<NoteP
           ],
           response_format: { type: "json_object" },
           temperature: 0.7,
-          // This is a reasoning model: it spends tokens on `reasoning_content`
-          // BEFORE the answer. A tight budget returns empty content with
-          // finish_reason "length". The note itself needs ~500 tokens.
-          max_tokens: 4000,
+          // This is a reasoning model, and `max_tokens` caps reasoning AND
+          // content together — so the budget must cover the thinking, not the
+          // answer. Measured reasoning cost on a full fact sheet is 4.2k–10.1k
+          // tokens; the note itself needs ~500. At 4000 the reasoning consumed
+          // the entire budget and content came back empty with finish_reason
+          // "length" on every single call, which killed the prose layer
+          // outright. Leave generous headroom above the observed ceiling.
+          max_tokens: 16000,
         }),
       }),
       60_000,
@@ -202,25 +206,38 @@ async function generate(f: StructuredFacts, violations: string[]): Promise<NoteP
     }
     const json = (await res.json()) as {
       choices?: {
-        message?: { content?: string; reasoning_content?: string };
+        message?: { content?: string };
         finish_reason?: string;
       }[];
-      usage?: { completion_tokens?: number };
+      usage?: {
+        completion_tokens?: number;
+        completion_tokens_details?: { reasoning_tokens?: number };
+      };
     };
-    const msg = json.choices?.[0]?.message;
-    // This reasoning model sometimes stops with an empty `content` after
-    // writing the answer inside `reasoning_content`. Read that as a fallback
-    // instead of losing the whole generation.
-    const text = msg?.content || msg?.reasoning_content;
+    const choice = json.choices?.[0];
+    // Budget exhaustion must never look like success. When the model stops on
+    // "length" it was cut off mid-thought, so whatever came back is a fragment
+    // — treating it as an answer is how a truncated draft ships as the note.
+    if (choice?.finish_reason === "length") {
+      logger.warn(SRC, "DeepSeek hit the token ceiling before answering; raise max_tokens", {
+        completionTokens: json.usage?.completion_tokens,
+        reasoningTokens: json.usage?.completion_tokens_details?.reasoning_tokens,
+      });
+      return null;
+    }
+    // ONLY `content` is the answer. `reasoning_content` is the model's
+    // scratchpad, and it is full of drafts, plans and schema sketches — reading
+    // it as a fallback published a note whose every field was the literal
+    // placeholder "..." (2026-08-11), because a planning skeleton has the right
+    // keys, no numerals and no tickers, so both validators pass it.
+    const text = choice?.message?.content;
     if (!text) {
       logger.warn(SRC, "Empty DeepSeek response", {
-        finishReason: json.choices?.[0]?.finish_reason,
+        finishReason: choice?.finish_reason,
         completionTokens: json.usage?.completion_tokens,
       });
       return null;
     }
-    // Take the LAST balanced-looking object: reasoning text often shows a draft
-    // before the final answer.
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) {
       logger.warn(SRC, "No JSON object in model response");
