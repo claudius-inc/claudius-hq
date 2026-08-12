@@ -125,6 +125,8 @@ export const CONVERGENCE_CONFIG = {
   reversalBars: 6,
   /** Bars for the relative-volume leg. */
   rvolBars: 20,
+  /** Fast window for the volume-surge leg: 3 bars against the 20-bar mean. */
+  rvolFastBars: 3,
   /**
    * Days a reported name is suppressed before it can be reported again.
    *
@@ -200,6 +202,10 @@ export interface ConvergencePick {
    * a print in an empty book.
    */
   rvol: number | null;
+  /** 3-bar mean traded value over the 20-bar mean — building interest. */
+  volSurge: number | null;
+  /** This bar's true range over ATR-14 — is the range opening up now. */
+  rangeExpansion: number | null;
   /**
    * Negated 1-day return. High means the name just FELL hardest.
    *
@@ -361,6 +367,22 @@ export function scoreSymbol(
   const rvolAvg = mean(rvolWindow);
   const rvol = rvolAvg > 0 && Number.isFinite(last.q) ? last.q / rvolAvg : null;
 
+  // Building interest rather than a single loud bar: a 3-bar mean against the
+  // 20-bar mean fires on a tape that has been busy for half a day, where `rvol`
+  // fires on one print.
+  const fastWindow = bars.slice(-cfg.rvolFastBars).map((b) => b.q).filter(Number.isFinite);
+  const fastAvg = mean(fastWindow);
+  const volSurge = rvolAvg > 0 && fastAvg > 0 ? fastAvg / rvolAvg : null;
+
+  // Range opening up right now, measured against the name's own ATR so it is
+  // comparable across a $65,000 name and a $0.02 one.
+  const prevClose = bars[bars.length - 2]?.c;
+  const trueRange =
+    prevClose === undefined
+      ? last.h - last.l
+      : Math.max(last.h - last.l, Math.abs(last.h - prevClose), Math.abs(last.l - prevClose));
+  const rangeExpansion = r.atr && r.atr > 0 ? trueRange / r.atr : null;
+
   const prior = bars[bars.length - 1 - cfg.reversalBars]?.c;
   const rev6 = prior && prior > 0 ? -(100 * (r.close - prior)) / prior : null;
 
@@ -384,6 +406,8 @@ export function scoreSymbol(
     oiPctl: null,
     // Legs travel with the pick; the score they feed is cross-sectional.
     rvol,
+    volSurge,
+    rangeExpansion,
     rev6,
     fundingAbs: null,
     comboScore: null,
@@ -492,13 +516,25 @@ function rankZ(values: (number | null)[]): (number | null)[] {
  *
  * THE RANKING THIS SCREEN NOW USES, AND WHY IT CHANGED
  * ---------------------------------------------------
- * A systematic search over ~4,700 indicator combinations on 500 days of 4h
- * bars across 546 perps selected `rvol + rev6 + fundingAbs`, with a holdout
- * information coefficient of 0.078 (t = 5.97) against a procedure-level
+ * A systematic search over ~4,700 indicator combinations on 500 days of 4h bars
+ * across 546 perps selected
+ * `rvol + volSurge + rev6 + fundingAbs + rangeExpansion`, with a holdout
+ * information coefficient of 0.085 (t = 6.43) against a procedure-level
  * bootstrap null of p = 0.005. The screen's own weighted convergence score
  * measured -0.027 on the same holdout rows, and |OI change| — the key this
  * replaces — could not be tested at all, because the venue serves only 30 days
  * of open-interest history (5.3% coverage of the study panel).
+ *
+ * THE SIZE OF THIS SET IS NOT SETTLED
+ * -----------------------------------
+ * Two runs of the same search chose differently: k=3 (`rvol + rev6 +
+ * fundingAbs`, holdout IC 0.078) and k=5 (this set, 0.085). The inner
+ * walk-forward scores that pick k were 0.0738 and 0.0739 — a gap far smaller
+ * than the noise between runs, so the selection flipped on a coin toss rather
+ * than on evidence. Read this as "k is somewhere in 3-5" and expect the next
+ * search to move it again. The two extra indicators are both magnitude legs,
+ * so they widen the gate's basis rather than change what the list is ordered
+ * by; the directional claim is `rev6` alone in either version.
  *
  * The two magnitude legs GATE and the directional leg ORDERS. That split is not
  * stylistic: `rvol` and `fundingAbs` predict that a name will MOVE, not which
@@ -535,12 +571,16 @@ export function assignComboScores(
   if (picks.length < 3) return;
 
   const zRvol = rankZ(picks.map((p) => p.rvol));
+  const zSurge = rankZ(picks.map((p) => p.volSurge));
   const zFund = rankZ(picks.map((p) => p.fundingAbs));
+  const zRange = rankZ(picks.map((p) => p.rangeExpansion));
 
   // Gate score averages whichever magnitude legs are available, so a missing
   // funding snapshot degrades the gate rather than voiding it.
   const gate = picks.map((_, i) => {
-    const parts = [zRvol[i], zFund[i]].filter((v): v is number => v !== null);
+    const parts = [zRvol[i], zSurge[i], zFund[i], zRange[i]].filter(
+      (v): v is number => v !== null,
+    );
     return parts.length ? parts.reduce((a, b) => a + b, 0) / parts.length : null;
   });
 

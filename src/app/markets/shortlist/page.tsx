@@ -28,6 +28,8 @@ interface PickRow {
   vwap_dist_pct: number | null;
   oi_change_pct: number | null;
   rvol: number | null;
+  vol_surge: number | null;
+  range_expansion: number | null;
   rev6: number | null;
   funding_abs: number | null;
   combo_gated: number | null;
@@ -47,7 +49,7 @@ async function loadLatestPicks(): Promise<PickRow[]> {
   const res = await rawClient.execute(`
     SELECT symbol, base, side, category, score, max_score, factors, rsi,
            change_pct, vol_pctl, vwap_dist_pct, oi_change_pct,
-           rvol, rev6, funding_abs, combo_gated, as_of, run_date
+           rvol, vol_surge, range_expansion, rev6, funding_abs, combo_gated, as_of, run_date
     FROM perp_convergence_picks
     WHERE reported = 1
       AND run_date = (SELECT MAX(run_date) FROM perp_convergence_picks WHERE reported = 1)
@@ -141,6 +143,8 @@ export default async function ShortlistPage() {
         vwapDistPct: r.vwap_dist_pct,
         oiChangePct: r.oi_change_pct,
         rvol: r.rvol,
+        volSurge: r.vol_surge,
+        rangeExpansion: r.range_expansion,
         rev6: r.rev6,
         fundingAbs: r.funding_abs,
         comboGated: r.combo_gated === 1,

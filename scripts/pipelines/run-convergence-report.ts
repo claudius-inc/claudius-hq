@@ -163,6 +163,8 @@ function compositeLine(p: ConvergencePick): string {
     bits.push(`1d ${pct(-p.rev6)}`);
   }
   if (p.rvol !== null) bits.push(`rvol ${p.rvol.toFixed(1)}x`);
+  if (p.volSurge !== null) bits.push(`surge ${p.volSurge.toFixed(1)}x`);
+  if (p.rangeExpansion !== null) bits.push(`rng ${p.rangeExpansion.toFixed(1)}x`);
   if (p.fundingAbs !== null) bits.push(`|fund| ${(p.fundingAbs * 10_000).toFixed(1)}bp`);
   return bits.join(" · ");
 }
@@ -341,8 +343,9 @@ async function recordPicks(result: ConvergenceResult, runDate: string): Promise<
                  contested, liquidity_pctl,
                  price, rsi, change_pct, avg_quote_vol, as_of,
                  vol_pctl, vwap_dist_pct, qvwap, oi_change_pct, oi_pctl,
-                 rvol, rev6, funding_abs, combo_score, combo_gated)
-              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                 rvol, rev6, funding_abs, combo_score, combo_gated,
+                 vol_surge, range_expansion)
+              VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         args: [
           runDate, p.venue, p.symbol, p.base, p.category, p.side,
           rankOf.get(p) ?? i + 1,
@@ -355,6 +358,7 @@ async function recordPicks(result: ConvergenceResult, runDate: string): Promise<
           // be lost — the page cannot recompute it without calling the venue.
           p.volPctl, p.vwapDistPct, p.qvwap, p.oiChangePct, p.oiPctl,
           p.rvol, p.rev6, p.fundingAbs, p.comboScore, p.comboGated ? 1 : 0,
+          p.volSurge, p.rangeExpansion,
         ] as never[],
       })),
     ],

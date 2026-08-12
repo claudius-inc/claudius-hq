@@ -45,6 +45,8 @@ interface Row {
   vwap_dist_pct: number | null;
   oi_change_pct: number | null;
   rvol: number | null;
+  vol_surge: number | null;
+  range_expansion: number | null;
   rev6: number | null;
   funding_abs: number | null;
   combo_score: number | null;
@@ -136,6 +138,8 @@ function compositeLine(r: Row): string {
   const bits: string[] = [r.combo_gated ? "⚡" : "·"];
   if (r.rev6 !== null) bits.push(`1d ${pct(-r.rev6)}`);
   if (r.rvol !== null) bits.push(`rvol ${r.rvol.toFixed(1)}x`);
+  if (r.vol_surge !== null) bits.push(`surge ${r.vol_surge.toFixed(1)}x`);
+  if (r.range_expansion !== null) bits.push(`rng ${r.range_expansion.toFixed(1)}x`);
   if (r.funding_abs !== null) bits.push(`|fund| ${(r.funding_abs * 10_000).toFixed(1)}bp`);
   return bits.join(" · ");
 }
@@ -165,6 +169,7 @@ async function main() {
     SELECT base, side, category, score, max_score, factors, price, rsi,
            change_pct, vol_pctl, vwap_dist_pct, oi_change_pct,
            rvol, rev6, funding_abs, combo_score, combo_gated,
+           vol_surge, range_expansion,
            run_date, as_of
     FROM perp_convergence_picks
     WHERE reported = 1

@@ -19,6 +19,10 @@ export interface ShortlistChart {
   qvwap: number | null;
   /** Relative volume: this bar's traded value over its own 20-bar average. */
   rvol: number | null;
+  /** 3-bar mean traded value over the 20-bar mean — building interest. */
+  volSurge: number | null;
+  /** This bar's true range over ATR-14. */
+  rangeExpansion: number | null;
   /** Negated 1-day return — high means the name just fell hardest. */
   rev6: number | null;
   /** |latest funding rate|, as a fraction. */

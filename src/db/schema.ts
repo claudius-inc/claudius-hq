@@ -619,6 +619,8 @@ export const perpConvergencePicks = sqliteTable(
     // `combo_score` orders the list; `rvol` and `funding_abs` decide whether
     // the name cleared the magnitude gate at all.
     rvol: real("rvol"),
+    volSurge: real("vol_surge"),
+    rangeExpansion: real("range_expansion"),
     rev6: real("rev6"),
     fundingAbs: real("funding_abs"),
     comboScore: real("combo_score"),

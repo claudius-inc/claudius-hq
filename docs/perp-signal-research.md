@@ -16,15 +16,53 @@ quarter — so nothing is deleted when it fails.
 The daily *Convergence — Binance Perps* message ranks by a validated composite:
 
 ```
-gate:  top 30% of qualifiers by  mean( rankZ(rvol), rankZ(|funding|) )
+gate:  top 30% of qualifiers by
+       mean( rankZ(rvol), rankZ(volSurge), rankZ(|funding|), rankZ(rangeExpansion) )
 order: rankZ( rev6 ), signed by side, ranked within each side
 ```
 
-| Leg | Bucket | What it is |
+| Leg | Bucket | Polarity | What it is |
+| --- | --- | --- | --- |
+| `rvol` | volume | magnitude | Bar traded value ÷ its own 20-bar average |
+| `volSurge` | volume | magnitude | 3-bar mean traded value ÷ the 20-bar mean |
+| `rangeExpansion` | volatility | magnitude | This bar's true range ÷ ATR-14 |
+| `fundingAbs` | attention | magnitude | \|latest funding rate\| |
+| `rev6` | momentum | directional | Negated 1-day return — high means it just fell hardest |
+
+Four magnitude legs gate; one directional leg orders. **The directional claim is
+`rev6` alone** — everything else decides *whether a name is worth ranking*, not
+which way it goes.
+
+### The size of this set is not settled — and the selector cannot settle it
+
+`k=3` is a strict SUBSET of `k=5`; the only question is whether `volSurge` and
+`rangeExpansion` earn their place. Three runs of the same search, showing the
+inner walk-forward score that chooses k:
+
+| Run | k=3 | k=5 | Chose | What differed |
+| --- | --- | --- | --- | --- |
+| 1 | 0.0738 | 0.0719 | k=3 | — |
+| 2 | 0.0738 | 0.0739 | k=5 | rank-z antisymmetry fix |
+| 3 | 0.0738 | 0.0738 | k=3 | greedy dedup fix; exact tie, parsimony tiebreak |
+
+The selector is **tied to four decimals** and has been decided by incidental
+implementation details every time. It cannot answer the question. But every
+measurement that is not the selector points the same way:
+
+| Measurement | k=3 | k=5 |
 | --- | --- | --- |
-| `rvol` | volume (validation) | Bar traded value ÷ its own 20-bar average |
-| `fundingAbs` | attention (liquidity) | \|latest funding rate\| |
-| `rev6` | momentum (speed) | Negated 1-day return — high means it just fell hardest |
+| Inner walk-forward (the selector) | 0.0738 | 0.0738 — tied |
+| Full-panel holdout IC | 0.0783 (t=5.97) | 0.0846 (t=6.43) |
+| Explorer panel, 96 timestamps | 0.0767 (t=4.43) | 0.0867 (t=5.23) |
+
+**k=5 ships.** It leads on both out-of-sample readings and ties on the selector,
+so parsimony alone does not justify dropping two legs. Treat the margin as
+provisional: the holdout has been opened repeatedly, and the explorer panel
+overlaps it. Do not re-litigate this from the selector alone — it is tied and
+will stay tied.
+
+Both legs are MAGNITUDE signals, so they widen the gate's basis. The directional
+claim is `rev6` alone in either version.
 
 The convergence score still **gates** the list at ≥ 5 of 7. It no longer orders
 it. `|OI change|`, the previous ranking key, is now annotation only.
@@ -265,7 +303,52 @@ bets rather than three spellings of one.
 momentum, attention — and zero from price structure.** Structure is the bucket
 the existing screen already saturates.
 
-### 3.4 Template for the next entry
+### 3.4 Combination search — horizon 6, objective `ic`, 2026-08-12
+
+Re-run of §3.3 after the rank-z antisymmetry fix. Same panel, same 4,663
+combinations, same 200-draw null.
+
+| k | Effective rank | Best set | Train | Holdout |
+| --- | --- | --- | --- | --- |
+| 1 | 1.00 | `rev6VolAdj` | 0.0332 | 0.0390 |
+| 2 | 1.90 | `rvol + rev6` | 0.0791 | 0.0888 |
+| 3 | 2.90 | `rvol + rev6 + fundingAbs` | 0.0822 | 0.0783 |
+| 4 | 3.45 | `volSurge + rev6 + rangeExpansion + fundingAbs` | 0.0825 | 0.0847 |
+| 5 | 3.11 | **`rvol + volSurge + rev6 + fundingAbs + rangeExpansion`** | 0.0832 | 0.0846 |
+
+**Champion `rvol + volSurge + rev6 + fundingAbs + rangeExpansion`** (k=5, effective
+rank 3.11):
+
+- Holdout IC **0.085**, t = **6.43**, 117 timestamps
+- Procedure-level null: best real 0.0832 vs null median 0.0297,
+  **p = 0.005 ± 0.010** (200/200 usable draws)
+- Holdout capture 3.53× · basket excess +0.080% (t = 0.21) · absolute +0.001%
+  vs buy-everything −0.079% · dateWin 52.1%
+- Incumbent `shippedScore` on the same rows: **IC −0.027**
+
+A third run, after fixing a duplicate-set bug in the greedy stage, produced the
+identical frontier but scored the selector as an EXACT tie (k=3 and k=5 both
+0.0738), so its parsimony tiebreak returned k=3. See §1: the selector cannot
+resolve this and every other measurement favours k=5, which is what ships.
+
+**Verdict: shipped (k=5).** The holdout basket is still not significant
+(t = 0.21) in any run: the *ordering* improved, the *profitability* did not.
+
+The k=1 through k=3 rows are unchanged across all three runs, so neither fix
+moved anything material at small k — they changed the k=4/k=5 cells by enough to
+flip which side of a tie the selector landed on, which is the point.
+
+**Two bugs surfaced by these re-runs**, both now fixed:
+
+- `rankCorrMatrix` ran k² Spearman sorts over all 139,649 rows for every stored
+  row — ~15 billion operations, which hung the first persist for 13 minutes
+  without completing. It now subsamples at stride 20 (~7,000 pairs, SE ≈ 0.012
+  against a diagnostic printed to 2dp).
+- The greedy stage reached the same SET by several routes (`{A,B,C}+D` and
+  `{A,B,D}+C`), so it re-evaluated duplicates and then violated the unique index
+  on insert. Combinations are now keyed by their canonical sorted name list.
+
+### 3.5 Template for the next entry
 
 ```
 ### 3.N  <what was tested> — horizon <h>, objective <obj>, <YYYY-MM-DD>

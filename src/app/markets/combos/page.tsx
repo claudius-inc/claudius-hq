@@ -13,7 +13,7 @@ import type { ComboResultRow } from "./_lib/types";
 export const revalidate = 300;
 
 /** The set the daily report currently ranks by. */
-const SHIPPED = ["rvol", "rev6", "fundingAbs"];
+const SHIPPED = ["rvol", "volSurge", "rev6", "fundingAbs", "rangeExpansion"];
 
 async function loadResults(): Promise<ComboResultRow[]> {
   const res = await rawClient.execute(`

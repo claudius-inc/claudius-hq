@@ -363,19 +363,36 @@ export function objectiveValue(r: ComboResult, obj: ObjectiveName): number {
 
 // ── redundancy ────────────────────────────────────────────────────────────
 
-/** Pairwise Spearman between signal columns, pooled over masked rows. */
+/**
+ * Pairwise Spearman between signal columns, pooled over masked rows.
+ *
+ * `stride` SUBSAMPLES the rows, and the default is not a shortcut — it is what
+ * makes this callable in a loop. Each Spearman sorts its inputs, so a k-signal
+ * matrix costs k^2 sorts of the full column; over ~140,000 rows and a few
+ * hundred combinations that is billions of operations and does not finish.
+ * (Measured: the first version of `persistResults` ran for 13 minutes on 250
+ * rows without completing.)
+ *
+ * Correlation converges far faster than that precision implies: at stride 20
+ * the estimate still rests on ~7,000 pairs, whose standard error is about
+ * 0.012. This value only feeds `effectiveRank`, a redundancy diagnostic printed
+ * to two decimals, so the sampling error is an order below what is displayed.
+ * Pass `stride = 1` when an exact figure is genuinely wanted.
+ */
 export function rankCorrMatrix(
   panel: Panel,
   names: string[],
   mask: Uint8Array,
+  stride = 20,
 ): number[][] {
+  const rows: number[] = [];
+  for (let r = 0; r < panel.nRows; r += stride) {
+    if (mask[r] === 1) rows.push(r);
+  }
   const cols = names.map((n) => {
     const s = panel.signalNames.indexOf(n);
-    const out: number[] = [];
-    for (let r = 0; r < panel.nRows; r++) {
-      if (mask[r] === 1) out.push(panel.values[s * panel.nRows + r]);
-    }
-    return out;
+    const off = s * panel.nRows;
+    return rows.map((r) => panel.values[off + r]);
   });
   return cols.map((a) => cols.map((b) => spearman(a, b)));
 }

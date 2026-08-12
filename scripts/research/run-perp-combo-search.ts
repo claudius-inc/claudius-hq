@@ -212,14 +212,24 @@ async function main() {
   // single best: a single-seed nest measures one path through the space, and a
   // frontier that "flattens at 3" would then be an artifact of the seed.
   const bestOf = (k: number) => scored.filter((s) => s.names.length === k).slice(0, 5);
+
+  // A SET has one identity regardless of the order it was assembled in. Seeding
+  // greedy from five different (k-1) sets reaches the same k-set by several
+  // routes — {A,B,C}+D and {A,B,D}+C are the same combination — so without a
+  // canonical key the search evaluates it repeatedly and, worse, later tries to
+  // store it twice under one unique index.
+  const seen = new Set(scored.map((s) => [...s.names].sort().join("|")));
   for (let k = 4; k <= MAX_K; k++) {
     const seeds = bestOf(k - 1);
     for (const seed of seeds) {
       for (const name of covered) {
         if (seed.names.includes(name)) continue;
         const names = [...seed.names, name];
+        const key = [...names].sort().join("|");
+        if (seen.has(key)) continue;
         const idxs = names.map((n) => covered.indexOf(n));
         if (tooClose(idxs)) continue;
+        seen.add(key);
         scored.push(evalNames(names));
       }
     }
@@ -498,9 +508,13 @@ async function persistResults(
   const champion = scored.filter((s) => s.names.length === chosenK)[0];
   const championKey = champion ? champion.names.join("|") : "";
 
+  // Keyed by the CANONICAL (sorted) name list, which is what the unique index
+  // is on. Keying by the assembly order instead lets two spellings of one set
+  // both survive and collide on insert.
+  const canon = (names: string[]) => [...names].sort().join("|");
   const keep = new Map<string, Scored>();
-  for (const s of scored.slice(0, 200)) keep.set(s.names.join("|"), s);
-  for (const s of scored) if (frontier.has(s.names.join("|"))) keep.set(s.names.join("|"), s);
+  for (const s of scored.slice(0, 200)) keep.set(canon(s.names), s);
+  for (const s of scored) if (frontier.has(s.names.join("|"))) keep.set(canon(s.names), s);
 
   const rows = Array.from(keep.values()).map((s) => {
     const hold = evaluateCombo(panel, cache, s.names, fullMask, panel.fwdNet, inHold);

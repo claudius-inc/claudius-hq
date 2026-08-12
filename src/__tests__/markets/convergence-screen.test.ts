@@ -117,6 +117,8 @@ function pick(over: Partial<ConvergencePick> & { base: string }): ConvergencePic
     // `undefined`, which passes that check and silently routes every test
     // through the composite branch.
     rvol: null,
+    volSurge: null,
+    rangeExpansion: null,
     rev6: null,
     fundingAbs: null,
     comboScore: null,
@@ -246,7 +248,31 @@ describe("assignComboScores", () => {
     expect(by.ROSE.comboScore).toBeGreaterThan(by.FELL.comboScore as number);
   });
 
-  it("degrades to the volume leg alone when funding is unavailable", () => {
+  it("averages all four magnitude legs into the gate", () => {
+    // A name that is unremarkable on relative volume but extreme on the other
+    // three must still clear the gate — otherwise the extra legs the k=5 set
+    // added are decorative.
+    const picks = [
+      pick({ base: "SURGE", rvol: 1, volSurge: 9, rangeExpansion: 9, rev6: 1 }),
+      pick({ base: "LOUDBAR", rvol: 9, volSurge: 1, rangeExpansion: 1, rev6: 2 }),
+      pick({ base: "DEAD1", rvol: 0.5, volSurge: 0.5, rangeExpansion: 0.5, rev6: 3 }),
+      pick({ base: "DEAD2", rvol: 0.4, volSurge: 0.4, rangeExpansion: 0.4, rev6: 4 }),
+      pick({ base: "DEAD3", rvol: 0.3, volSurge: 0.3, rangeExpansion: 0.3, rev6: 5 }),
+    ];
+    const funding = new Map([
+      ["SURGEUSDT", 0.02],
+      ["LOUDBARUSDT", 0.0001],
+      ["DEAD1USDT", 0.00001],
+      ["DEAD2USDT", 0.00001],
+      ["DEAD3USDT", 0.00001],
+    ]);
+    assignComboScores(picks, funding);
+    const by = Object.fromEntries(picks.map((p) => [p.base, p]));
+    expect(by.SURGE.comboGated).toBe(true);
+    expect(by.DEAD3.comboGated).toBe(false);
+  });
+
+  it("degrades to the available legs when some are unavailable", () => {
     const picks = [
       pick({ base: "BUSY", rvol: 9, rev6: 1 }),
       pick({ base: "MID", rvol: 5, rev6: 2 }),
