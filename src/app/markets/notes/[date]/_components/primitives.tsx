@@ -47,10 +47,10 @@ export function NoValue({ reason = "Not available from the source feed" }: { rea
  * months later, and it is the only way to know the Treasury yields are a
  * 3:30pm ET print while the index closes are 4:00pm.
  *
- * Read in the viewer's zone like every other clock on the page. The date is
- * deliberately left off — the line is one column of a section header — so a
- * reading that falls on another day carries "(+1d)" instead, and the sources
- * footer prints the full date.
+ * Read in the viewer's zone like every other clock on the page, and printed
+ * bare: the hero states the zone once for the whole page. The date is left off
+ * too — the line is one column of a section header — and the sources footer
+ * carries the full date for anyone who needs it.
  */
 export function Provenance({ fact }: { fact: Fact<unknown> | null }) {
   if (!fact) return null;

@@ -30,16 +30,6 @@ export function zoneOffsetMs(timeZone: string, at: Date): number {
   return Date.UTC(f.year, f.month - 1, f.day, f.hour, f.minute, f.second) - at.getTime();
 }
 
-/** The YYYY-MM-DD an instant falls on in a zone. */
-export function zoneDate(at: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(at);
-}
-
 /**
  * An ET wall-clock reading on an ET calendar date, as a real instant.
  *
@@ -95,15 +85,6 @@ export function zoneAbbr(timeZone: string, at: Date): string {
   return parts.find((p) => p.type === "timeZoneName")?.value ?? timeZone;
 }
 
-/** The zone's readable name, e.g. "Singapore Time", "ET". */
-export function zoneName(timeZone: string, at: Date): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    timeZoneName: "shortGeneric",
-  }).formatToParts(at);
-  return parts.find((p) => p.type === "timeZoneName")?.value ?? timeZone;
-}
-
 /** The zone the browser is set to. Falls back to ET where Intl has no answer. */
 export function viewerZone(): string {
   try {
@@ -113,31 +94,24 @@ export function viewerZone(): string {
   }
 }
 
-/** True when a zone keeps the same clock as ET, so "not ET" would be a lie. */
-export function isEasternClock(timeZone: string, at: Date): boolean {
-  return timeZone === ET_ZONE || zoneOffsetMs(timeZone, at) === zoneOffsetMs(ET_ZONE, at);
-}
-
 export interface ClockOptions {
-  /** Prefix the date, e.g. "Mar 19, 2:00am GMT+8". */
+  /** Prefix the weekday and date, e.g. "Mar 19, 2:00am". */
   withDate?: boolean;
   /**
-   * Append "(+1d)" when the instant reads on a different calendar day here than
-   * it does in ET. Without it, a 4:00pm ET close renders as "4:00am" against a
-   * session dated the day before, which states something untrue. Ignored when
-   * `withDate` is set — the date already carries it.
+   * Append the zone label. Off by default: a page that states its zone once,
+   * at the top, does not want it repeated on every row.
    */
-  markEtDayShift?: boolean;
+  showZone?: boolean;
   /** Override the label, e.g. "ET" instead of Intl's "EDT". */
   abbr?: string;
 }
 
-/** An instant as wall-clock in a zone, e.g. "4:00am GMT+8 (+1d)". */
+/** An instant as wall-clock in a zone, e.g. "4:00am" or "Mar 19, 2:00am GMT+8". */
 export function formatClock(at: Date, timeZone: string, opts: ClockOptions = {}): string {
   const time = tidyMeridiem(
     at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone }),
   );
-  const label = opts.abbr ?? zoneAbbr(timeZone, at);
+  const zone = opts.showZone ? ` ${opts.abbr ?? zoneAbbr(timeZone, at)}` : "";
 
   if (opts.withDate) {
     const day = at.toLocaleDateString("en-US", {
@@ -146,24 +120,9 @@ export function formatClock(at: Date, timeZone: string, opts: ClockOptions = {})
       day: "numeric",
       timeZone,
     });
-    return `${day}, ${time} ${label}`;
+    return `${day}, ${time}${zone}`;
   }
-
-  const shift = opts.markEtDayShift ? etDayShift(at, timeZone) : "";
-  return `${time} ${label}${shift}`;
-}
-
-/** " (+1d)" / " (−1d)" when a zone reads the instant on a different date to ET. */
-function etDayShift(at: Date, timeZone: string): string {
-  const here = zoneDate(at, timeZone);
-  const there = zoneDate(at, ET_ZONE);
-  if (here === there) return "";
-
-  const delta = Math.round(
-    (Date.parse(`${here}T00:00:00Z`) - Date.parse(`${there}T00:00:00Z`)) / 86_400_000,
-  );
-  if (!Number.isFinite(delta) || delta === 0) return "";
-  return ` (${delta > 0 ? "+" : "−"}${Math.abs(delta)}d)`;
+  return `${time}${zone}`;
 }
 
 /**

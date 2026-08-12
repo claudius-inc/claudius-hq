@@ -59,8 +59,7 @@ export function CalendarSection({ facts }: { facts: StructuredFacts }) {
                     </td>
                     {/* A release time is a bare ET wall clock; the session date
                         anchors it to a real instant so it can be re-read
-                        locally. An afternoon print crosses midnight east of
-                        Europe, which is what "+1d" is for. */}
+                        locally. */}
                     <td className="px-3 py-2 text-sm text-gray-600 tabular-nums">
                       <EtClock date={facts.date} clock={m.timeEt} />
                     </td>
