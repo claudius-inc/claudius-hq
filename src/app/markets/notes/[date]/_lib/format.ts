@@ -1,3 +1,5 @@
+import { etWallClockToInstant } from "@/lib/time/zones";
+
 /**
  * Number and date formatting for the daily note page.
  *
@@ -121,15 +123,15 @@ export function shortDate(iso: string): string {
 }
 
 /**
- * ET wall-clock of an ISO instant, e.g. "4:00pm ET". The facts carry an `asOf`
- * per section; showing it is what lets a reader tell a stale section from a
- * fresh one.
+ * A bare ET wall-clock string as an ISO instant, anchored to its ET date.
+ *
+ * Parts of the fact set carry a formatted ET reading rather than a timestamp —
+ * `MacroRelease.timeEt` ("8:30"), `PostMarketMove.asOfEt` ("6:14pm"), and both
+ * are already written into every archived note, so they cannot be re-typed.
+ * Anchoring them to the session date recovers the instant, which is what
+ * `LocalTime` needs to read them in the viewer's zone.
  */
-export function etTime(iso: string): string {
-  const t = new Date(iso).toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/New_York",
-  });
-  return `${t.replace(/\s?([AP])M/i, (_, p: string) => p.toLowerCase() + "m")} ET`;
+export function etClockIso(etDate: string, etClock: string): string | null {
+  return etWallClockToInstant(etDate, etClock)?.toISOString() ?? null;
 }
+

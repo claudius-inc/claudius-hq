@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Fact } from "@/lib/notes/types";
-import { spct, toneClass, etTime } from "../_lib/format";
+import { LocalTime } from "@/components/ui/LocalTime";
+import { spct, toneClass, etClockIso } from "../_lib/format";
 
 /**
  * Shared leaf components for the daily note.
@@ -45,14 +46,41 @@ export function NoValue({ reason = "Not available from the source feed" }: { rea
  * every section (`Fact<T>`); showing it is what makes an archived note citable
  * months later, and it is the only way to know the Treasury yields are a
  * 3:30pm ET print while the index closes are 4:00pm.
+ *
+ * Read in the viewer's zone like every other clock on the page. The date is
+ * deliberately left off — the line is one column of a section header — so a
+ * reading that falls on another day carries "(+1d)" instead, and the sources
+ * footer prints the full date.
  */
 export function Provenance({ fact }: { fact: Fact<unknown> | null }) {
   if (!fact) return null;
   return (
     <p className="text-[11px] text-gray-500 tabular-nums">
-      {fact.source} &middot; {etTime(fact.asOf)}
+      {fact.source} &middot; <LocalTime iso={fact.asOf} />
     </p>
   );
+}
+
+/**
+ * A bare ET wall-clock reading from the fact set, shown in the viewer's zone.
+ *
+ * Some times arrive already formatted in ET rather than as instants, so the ET
+ * calendar date they belong to has to be supplied to recover the instant. An
+ * unparseable reading falls back to the raw ET string: a time nobody can place
+ * is still better than a blank cell.
+ */
+export function EtClock({
+  date,
+  clock,
+  withDate = false,
+}: {
+  date: string;
+  clock: string;
+  withDate?: boolean;
+}) {
+  const iso = etClockIso(date, clock);
+  if (!iso) return <>{clock} ET</>;
+  return <LocalTime iso={iso} withDate={withDate} />;
 }
 
 /**

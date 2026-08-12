@@ -1,5 +1,5 @@
 import type { StructuredFacts } from "@/lib/notes/types";
-import { Section, TableWrap, Th, Absent } from "./primitives";
+import { Section, TableWrap, Th, Absent, EtClock } from "./primitives";
 
 /**
  * What printed today, and what prints next.
@@ -57,7 +57,13 @@ export function CalendarSection({ facts }: { facts: StructuredFacts }) {
                         <span className="block text-[11px] text-gray-500">revised since first print</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-600 tabular-nums">{m.timeEt} ET</td>
+                    {/* A release time is a bare ET wall clock; the session date
+                        anchors it to a real instant so it can be re-read
+                        locally. An afternoon print crosses midnight east of
+                        Europe, which is what "+1d" is for. */}
+                    <td className="px-3 py-2 text-sm text-gray-600 tabular-nums">
+                      <EtClock date={facts.date} clock={m.timeEt} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -79,14 +85,11 @@ export function CalendarSection({ facts }: { facts: StructuredFacts }) {
             {events.map((e) => (
               <li key={`${e.date}-${e.name}`} className="text-sm text-gray-600">
                 <span className="font-medium text-gray-900">{e.name}</span>{" "}
+                {/* Date and time move together. Printing the ET date beside a
+                    local clock would put a 2:00pm Wednesday release on
+                    Wednesday for a reader whose Wednesday it is not. */}
                 <span className="tabular-nums">
-                  {new Date(`${e.date}T12:00:00Z`).toLocaleDateString("en-US", {
-                    weekday: "short",
-                    month: "short",
-                    day: "numeric",
-                    timeZone: "UTC",
-                  })}
-                  , {e.timeEt} ET
+                  <EtClock date={e.date} clock={e.timeEt} withDate />
                 </span>
               </li>
             ))}

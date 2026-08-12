@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, List } from "lucide-react";
 import type { StructuredFacts } from "@/lib/notes/types";
-import { prettyDate, shortDate, etTime } from "../_lib/format";
+import { LocalTime } from "@/components/ui/LocalTime";
+import { prettyDate, shortDate } from "../_lib/format";
 
 /**
  * A horizontal rail of anchors to the tier-3 sections.
@@ -155,12 +156,12 @@ export function SourcesFooter({ facts }: { facts: StructuredFacts }) {
         {present.map((p) => (
           <li key={p.label} className="text-xs text-gray-600">
             <span className="font-medium text-gray-900">{p.label}</span> — {p.source} &middot;{" "}
-            <span className="tabular-nums">{etTime(p.asOf)}</span>
+            <LocalTime iso={p.asOf} withDate className="tabular-nums" />
           </li>
         ))}
       </ul>
       <p className="mt-3 text-xs text-gray-600">
-        Note assembled <span className="tabular-nums">{etTime(facts.generatedAt)}</span>. Sections whose
+        Note assembled <LocalTime iso={facts.generatedAt} withDate className="tabular-nums" />. Sections whose
         feed failed or returned non-authoritative data are omitted rather than approximated.
       </p>
     </details>

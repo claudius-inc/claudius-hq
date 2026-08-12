@@ -3,6 +3,7 @@
 import { rawClient } from "@/db";
 import { logger } from "@/lib/logger";
 import { PageHero } from "@/components/PageHero";
+import { LastUpdated } from "@/components/ui/LocalTime";
 import ChartGrid from "./_components/ChartGrid";
 import type { CompactBar, ShortlistChart } from "./_lib/types";
 
@@ -83,6 +84,14 @@ async function loadChartBars(
   return out;
 }
 
+/** A SQLite datetime ("2026-08-10 23:59:00") as an ISO instant, read as UTC. */
+function toIsoUtc(value: string): string | null {
+  const iso = value.includes("T") ? value : value.replace(" ", "T");
+  const stamped = /(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`;
+  const at = new Date(stamped);
+  return Number.isNaN(at.getTime()) ? null : at.toISOString();
+}
+
 /** Renders the stored factor JSON as initials, `Q` first (it is worth 2). */
 function factorInitials(json: string | null, score: number, maxScore: number): string {
   if (!json) return "";
@@ -154,7 +163,9 @@ export default async function ShortlistPage() {
     }
   }
 
-  const asOf = rows[0]?.as_of ? `${rows[0].as_of.replace("T", " ").slice(0, 16)}Z` : null;
+  // The column is a UTC datetime with no zone marker, which `new Date()` would
+  // otherwise read as local and place the run up to a day out.
+  const asOf = rows[0]?.as_of ? toIsoUtc(rows[0].as_of) : null;
 
   return (
     <div className="mx-auto max-w-[1400px] px-4 pb-20 sm:px-6">
@@ -164,7 +175,7 @@ export default async function ShortlistPage() {
       />
 
       <p className="mb-6 font-mono text-[11px] uppercase tracking-wider text-neutral-500">
-        {asOf ? `As of ${asOf}` : "Awaiting first run"}
+        {asOf ? <LastUpdated iso={asOf} /> : "Awaiting first run"}
         {charts.length > 0 && ` · ${charts.length} names · 4h`}
       </p>
 

@@ -56,7 +56,10 @@ export function MarketsSection({ facts }: { facts: StructuredFacts }) {
         id="rates"
         title="Rates"
         fact={facts.rates}
-        intro="Treasury constant-maturity yields against the prior close. Note these print at 15:30 ET, half an hour before the equity close."
+        // No clock in this sentence: the ET print time is fixed but its local
+        // reading is not, so a hard-coded figure would be wrong for most
+        // readers and wrong twice a year for the rest.
+        intro="Treasury constant-maturity yields against the prior close. Note these print half an hour before the equity close."
       >
         {!r ? (
           <Absent fact={facts.rates} quiet="No Treasury yields were published for this session." missing="Treasury yields" />

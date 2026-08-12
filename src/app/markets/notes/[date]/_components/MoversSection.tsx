@@ -4,7 +4,7 @@ import { toYahooSymbol } from "@/lib/notes/sources/daily-bars";
 import { displayName } from "@/lib/notes/display-name";
 import { spct, toneClass } from "../_lib/format";
 import { DivergingBar, ReversalScatter } from "./charts";
-import { Section, Ticker, TableWrap, Th, Absent, NoValue } from "./primitives";
+import { Section, Ticker, TableWrap, Th, Absent, NoValue, EtClock } from "./primitives";
 
 /**
  * The day's ranked names, their session context, and — the point of the whole
@@ -100,7 +100,8 @@ export function MoversSection({ facts }: { facts: StructuredFacts }) {
                         {spct(m.changePct)}
                         {pm && (
                           <span className="block text-[11px] font-normal text-gray-500">
-                            {spct(pm.changePct)} after hours, {pm.asOfEt} ET
+                            {spct(pm.changePct)} after hours,{" "}
+                            <EtClock date={facts.date} clock={pm.asOfEt} />
                           </span>
                         )}
                       </td>

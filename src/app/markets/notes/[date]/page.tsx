@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { deterministicHook } from "@/lib/notes/render";
 import { PageHero } from "@/components/PageHero";
+import { LastUpdated, TimezoneNote } from "@/components/ui/LocalTime";
 import { loadNote, sectionRailItems } from "./_lib/note-data";
 import { prettyDate } from "./_lib/format";
 import { Scoreboard } from "./_components/Scoreboard";
@@ -68,6 +69,16 @@ export default async function DailyNotePage(props: { params: Promise<{ date: str
   return (
     <div className="max-w-3xl mx-auto pb-16">
       <PageHero title="The Tape" subtitle={`Daily market note · ${prettyDate(note.date)}`} />
+
+      {/* Tucked under the hero rather than inside it: freshness and zone are
+          about how to read the page, not what the page is. The zone note is
+          load-bearing — the numbers below are a US session, so a reader who
+          sees a 4am close needs to be told the clock moved, not the market. */}
+      <p className="-mt-7 mb-8 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500">
+        <LastUpdated iso={facts.generatedAt} />
+        <span aria-hidden="true">&middot;</span>
+        <TimezoneNote />
+      </p>
 
       <div className="space-y-8">
         {standfirst && (
