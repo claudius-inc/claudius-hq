@@ -90,7 +90,10 @@ function factSheet(f: StructuredFacts): string {
       `Positioning: dealers net ${g.netGammaPositive ? "LONG" : "SHORT"} gamma on ${g.symbol}; largest-gamma strike (pin) ${num(g.pinStrike)}, spot ${num(g.spot)} (${pct(g.distancePct)} away). Note OI is start-of-day, so treat as directional.`,
     );
   }
-  if (f.macro) {
+  // Length, not presence: a reached-but-empty calendar is a legitimate fact
+  // (see `fetchMacroReleases`), and heading an empty list with "Economic data
+  // released TODAY:" invites the model to fill the silence.
+  if (f.macro?.value.length) {
     // Without this the model never learns that CPI printed today, so on the
     // day's most important number it structurally cannot lead with it — while
     // the validator pooled those numerals as though prose could use them.
@@ -126,7 +129,7 @@ function factSheet(f: StructuredFacts): string {
         f.postMarket.value.map((m) => `${m.ticker} ${pct(m.changePct)} as of ${m.asOfEt} ET`).join(", "),
     );
   }
-  if (f.econEvents) {
+  if (f.econEvents?.value.length) {
     lines.push(
       "Upcoming releases (scheduled events — no consensus is available, so do not imply one): " +
         f.econEvents.value.map((e) => `${e.name} ${e.date} ${e.timeEt} ET`).join("; "),

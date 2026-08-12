@@ -130,12 +130,17 @@ async function getJson<T>(path: string): Promise<T | null> {
  * endpoint returns no FUTURE dates, which is exactly what a "this week" query
  * needs.
  */
-async function releaseDatesIn(from: string, to: string, realtimeStart: string): Promise<Map<number, string[]>> {
+async function releaseDatesIn(
+  from: string,
+  to: string,
+  realtimeStart: string,
+): Promise<{ answered: boolean; byRelease: Map<number, string[]> }> {
   const k = key();
-  const out = new Map<number, string[]>();
-  if (!k) return out;
+  const byRelease = new Map<number, string[]>();
+  if (!k) return { answered: false, byRelease };
 
   const ids = Array.from(new Set(RELEASES.map((r) => r.releaseId)));
+  let answered = false;
   for (const id of ids) {
     // `realtime_start` must never be in the future — FRED rejects the request,
     // and the forward-looking window asks for exactly that. It is therefore a
@@ -145,10 +150,15 @@ async function releaseDatesIn(from: string, to: string, realtimeStart: string): 
       `/release/dates?release_id=${id}&realtime_start=${realtimeStart}&realtime_end=${to}` +
         `&include_release_dates_with_no_data=true&api_key=${k}&file_type=json`,
     );
+    // One successful reply is enough to know the CALENDAR was reachable, which
+    // is the only question the callers need answered. Without this flag an
+    // empty map means both "FRED says nothing is scheduled" and "every request
+    // failed", and the page renders opposite claims from the same null.
+    if (json) answered = true;
     const dates = (json?.release_dates ?? []).map((d) => d.date).filter((d) => d >= from && d <= to);
-    if (dates.length > 0) out.set(id, Array.from(new Set(dates)).sort());
+    if (dates.length > 0) byRelease.set(id, Array.from(new Set(dates)).sort());
   }
-  return out;
+  return { answered, byRelease };
 }
 
 /**
@@ -177,7 +187,7 @@ export async function fetchUpcomingReleases(
 
   const events: EconEvent[] = [];
 
-  const byRelease = await releaseDatesIn(from, to, today);
+  const { answered, byRelease } = await releaseDatesIn(from, to, today);
   for (const [releaseId, dates] of Array.from(byRelease.entries())) {
     const name = RELEASE_NAMES[releaseId];
     // Every whitelisted series for a release shares one publication time, so
@@ -191,7 +201,13 @@ export async function fetchUpcomingReleases(
     if (m.date >= from && m.date <= to) events.push({ name: "FOMC decision", date: m.date, timeEt: m.timeEt });
   }
 
-  if (events.length === 0) return null;
+  // "FRED answered and the week ahead is empty" is a FACT the reader can use;
+  // "we never reached FRED" is not. Only the second is null — see `Absent`,
+  // which renders a different sentence for each.
+  if (events.length === 0) {
+    if (!answered) return null;
+    return { value: [], source: "FRED release calendar (no consensus available)", asOf };
+  }
   events.sort((a, b) => (a.date + a.timeEt).localeCompare(b.date + b.timeEt));
   logger.info(SRC, "Upcoming releases loaded", { count: events.length, from, to });
   return { value: events.slice(0, 4), source: "FRED release calendar (no consensus available)", asOf };
@@ -244,8 +260,14 @@ async function priorWasRevised(spec: ReleaseSpec, priorPeriod: string): Promise<
 
 /**
  * Releases that PRINTED on `marketDate`, each with its actual and the prior as
- * originally published. Returns null when nothing landed or FRED is unusable —
- * the section is then simply omitted (§1a).
+ * originally published.
+ *
+ * An EMPTY value and null are different answers and the archive page renders
+ * them as different sentences. Empty means FRED was reached and no whitelisted
+ * release was dated that session — a quiet calendar, which is most sessions.
+ * Null means we could not ask, or a release was dated but its figure was not
+ * yet ingested, and the page then says the calendar is unavailable rather than
+ * asserting that nothing printed.
  */
 export async function fetchMacroReleases(marketDate: string, asOf: string): Promise<Fact<MacroRelease[]> | null> {
   if (!key()) {
@@ -253,12 +275,16 @@ export async function fetchMacroReleases(marketDate: string, asOf: string): Prom
     return null;
   }
 
-  const dates = await releaseDatesIn(marketDate, marketDate, marketDate);
-  if (dates.size === 0) return null;
+  const { answered, byRelease } = await releaseDatesIn(marketDate, marketDate, marketDate);
+  if (!answered) return null;
+  if (byRelease.size === 0) {
+    logger.info(SRC, "No tracked release was dated this session", { marketDate });
+    return { value: [], source: "FRED (actual vs prior — no consensus available)", asOf };
+  }
 
   const out: MacroRelease[] = [];
   for (const spec of RELEASES) {
-    if (!dates.has(spec.releaseId)) continue;
+    if (!byRelease.has(spec.releaseId)) continue;
     const obs = await latestTwo(spec);
     if (obs.length < 2) continue;
 
