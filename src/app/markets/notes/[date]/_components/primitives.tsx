@@ -168,13 +168,43 @@ export function TableWrap({ children, hint }: { children: ReactNode; hint?: stri
   );
 }
 
+/**
+ * The pinned identity column.
+ *
+ * A table that scrolls sideways carries its own defect: once the reader pushes
+ * past the second column, every number on screen belongs to a row they can no
+ * longer name. On a phone that happens immediately — the movers table is 34rem
+ * wide inside a ~20rem viewport — so the ticker, the one cell that makes the
+ * rest of the row mean anything, is the first thing to leave.
+ *
+ * Applied ONLY where the first column is the ticker. Pinning a column that is
+ * not the row's identity (a Role or a Sector name that repeats down the table)
+ * spends the same screen width on nothing.
+ *
+ * `bg-white` is load-bearing, not cosmetic: a transparent sticky cell lets the
+ * scrolled columns slide visibly beneath the text. `border-r` is the affordance
+ * that says the column is frozen rather than overlapping by accident.
+ *
+ * The `before` strip covers `TableWrap`'s own `px-4`. The cell pins to the
+ * scrollport's CONTENT edge, which leaves that 1rem of padding uncovered — and
+ * the columns scrolling underneath stay visible in it, so a pinned ticker sat
+ * beside slivers of the percentage column bleeding through the gutter.
+ * `bg-inherit` keeps the strip on whatever the cell is currently painted,
+ * including the hover tint.
+ */
+const STICKY_COL =
+  "sticky left-0 border-r border-gray-200 before:absolute before:inset-y-0 before:right-full before:w-4 before:bg-inherit sm:before:hidden";
+
 export function Th({
   children,
   align = "left",
+  sticky = false,
   className = "",
 }: {
   children: ReactNode;
   align?: "left" | "right";
+  /** Pin this header cell while the table scrolls under it. */
+  sticky?: boolean;
   className?: string;
 }) {
   return (
@@ -182,9 +212,31 @@ export function Th({
       scope="col"
       className={`px-3 py-2 text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap ${
         align === "right" ? "text-right" : "text-left"
+      } ${
+        // The header's own bottom rule is repeated on the cell. A sticky cell
+        // forms a stacking context, which lifts its background above the row's
+        // collapsed border and would otherwise erase the underline just for
+        // this one column.
+        sticky ? `${STICKY_COL} z-20 bg-white border-b border-gray-200` : ""
       } ${className}`}
     >
       {children}
+    </th>
+  );
+}
+
+/**
+ * A row's ticker, as the pinned row header.
+ *
+ * The hover tint has to be repeated here via `group-hover` — the cell paints its
+ * own opaque background to stay readable over the scrolled columns, so it would
+ * otherwise be the one cell in the row that ignores the row highlight. Requires
+ * `group` on the enclosing `<tr>`.
+ */
+export function TickerTh({ symbol }: { symbol: string }) {
+  return (
+    <th scope="row" className={`${STICKY_COL} z-10 bg-white group-hover:bg-gray-50 px-3 py-2 text-left`}>
+      <Ticker symbol={symbol} />
     </th>
   );
 }

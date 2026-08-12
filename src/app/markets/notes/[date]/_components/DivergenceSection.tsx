@@ -2,7 +2,7 @@ import type { StructuredFacts } from "@/lib/notes/types";
 import { displayName } from "@/lib/notes/display-name";
 import { spct, toneClass } from "../_lib/format";
 import { DivergenceLollipop, sharedDomain } from "./charts";
-import { Section, Ticker, TableWrap, Th, Absent, NoValue } from "./primitives";
+import { Section, TickerTh, TableWrap, Th, Absent, NoValue } from "./primitives";
 
 /**
  * Names that closed against their own sector.
@@ -56,7 +56,7 @@ export function DivergenceSection({ facts }: { facts: StructuredFacts }) {
                   </caption>
                   <thead>
                     <tr className="border-b border-gray-200">
-                      <Th>Ticker</Th>
+                      <Th sticky>Ticker</Th>
                       <Th>Company</Th>
                       <Th align="right">Today</Th>
                       <Th align="right">Gap vs sector</Th>
@@ -64,10 +64,8 @@ export function DivergenceSection({ facts }: { facts: StructuredFacts }) {
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {d.names.map((n) => (
-                      <tr key={n.ticker} className="hover:bg-gray-50">
-                        <th scope="row" className="px-3 py-2 text-left">
-                          <Ticker symbol={n.ticker} />
-                        </th>
+                      <tr key={n.ticker} className="group hover:bg-gray-50">
+                        <TickerTh symbol={n.ticker} />
                         <td className="px-3 py-2 text-sm text-gray-600">
                           {displayName(n.name ?? names[n.ticker]) ?? (
                             <NoValue reason="No company name in the holdings file" />

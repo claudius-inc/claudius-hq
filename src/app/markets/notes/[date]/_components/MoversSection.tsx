@@ -4,7 +4,7 @@ import { toYahooSymbol } from "@/lib/notes/sources/daily-bars";
 import { displayName } from "@/lib/notes/display-name";
 import { spct, toneClass } from "../_lib/format";
 import { DivergingBar, ReversalScatter } from "./charts";
-import { Section, Ticker, TableWrap, Th, Absent, NoValue, EtClock } from "./primitives";
+import { Section, TickerTh, TableWrap, Th, Absent, NoValue, EtClock } from "./primitives";
 
 /**
  * The day's ranked names, their session context, and — the point of the whole
@@ -73,7 +73,7 @@ export function MoversSection({ facts }: { facts: StructuredFacts }) {
               </caption>
               <thead>
                 <tr className="border-b border-gray-200">
-                  <Th>Ticker</Th>
+                  <Th sticky>Ticker</Th>
                   <Th>Company</Th>
                   <Th align="right">Today</Th>
                   <Th><span className="sr-only">Today, as a bar</span></Th>
@@ -89,10 +89,8 @@ export function MoversSection({ facts }: { facts: StructuredFacts }) {
                   const reason = reasons.get(m.ticker);
                   return (
                     <Fragment key={m.ticker}>
-                    <tr className="hover:bg-gray-50 align-top">
-                      <th scope="row" className="px-3 py-2 text-left">
-                        <Ticker symbol={m.ticker} />
-                      </th>
+                    <tr className="group hover:bg-gray-50 align-top">
+                      <TickerTh symbol={m.ticker} />
                       <td className="px-3 py-2 text-sm text-gray-600">
                         {displayName(names[m.ticker]) ?? <NoValue reason="No company name in the holdings file" />}
                       </td>
