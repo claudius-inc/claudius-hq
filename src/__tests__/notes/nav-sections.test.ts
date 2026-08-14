@@ -5,6 +5,7 @@ import { resolveSection } from "@/components/NavSectionSwitcher";
 const NOTES = [
   { href: "/markets/notes", label: "All notes", root: true },
   { href: "/markets/notes/daily", label: "Daily" },
+  { href: "/markets/notes/weekly", label: "Weekly" },
   { href: "/markets/notes/13f", label: "13F quarterly" },
   { href: "/markets/notes/settings", label: "Settings" },
 ];
@@ -34,10 +35,10 @@ describe("nav section resolution", () => {
     expect(trigger("/markets/notes")).toBe("Notes");
   });
 
-  it("does not claim a weekly wrap is a daily note", () => {
-    // Weekly has no entry of its own, so it must fall back to the section name
-    // rather than borrowing a sibling's label.
-    expect(trigger("/markets/notes/weekly/2026-08-07")).toBe("Notes");
+  it("names a weekly wrap", () => {
+    // Before weekly had a path segment of its own it matched the Daily entry
+    // and a wrap announced itself as a daily note.
+    expect(trigger("/markets/notes/weekly/2026-08-07")).toBe("Notes › Weekly");
   });
 
   it("keeps the archive reachable from the menu", () => {

@@ -42,7 +42,7 @@ type NoteKind = "daily" | "weekly" | "quarterly";
 const KIND: Record<NoteKind, { label: string; cls: string }> = {
   daily: { label: "Daily", cls: "bg-gray-100 text-gray-600" },
   weekly: { label: "Weekly", cls: "bg-sky-50 text-sky-700" },
-  quarterly: { label: "13F", cls: "bg-amber-50 text-amber-700" },
+  quarterly: { label: "13F", cls: "bg-gray-400 text-white" },
 };
 
 interface Entry {

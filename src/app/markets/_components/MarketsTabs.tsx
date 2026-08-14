@@ -78,6 +78,7 @@ const primaryTabs: PrimaryTab[] = [
     subTabs: [
       { href: "/markets/notes", label: "All notes", root: true },
       { href: "/markets/notes/daily", label: "Daily" },
+      { href: "/markets/notes/weekly", label: "Weekly" },
       { href: "/markets/notes/13f", label: "13F quarterly" },
       { href: "/markets/notes/settings", label: "Settings" },
     ],
