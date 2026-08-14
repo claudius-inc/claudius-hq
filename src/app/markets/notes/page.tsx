@@ -10,7 +10,7 @@ import { FileText } from "lucide-react";
 import { deterministicHook } from "@/lib/notes/render";
 import { THIRTEEN_F_PERIODS } from "@/lib/notes/thirteenf/periods";
 import type { StructuredFacts, NoteProse } from "@/lib/notes/types";
-import { shortDayDate, shortDate, spct, intFmt, toneClass } from "./[date]/_lib/format";
+import { shortDayDate, shortDate, spct, intFmt, toneClass } from "./daily/[date]/_lib/format";
 
 // Same reasoning as the note page: written by an external script with no Next
 // context to revalidate from, so read fresh per request.
@@ -65,7 +65,7 @@ function toDaily(date: string, factsJson: string, proseJson: string | null): Ent
     return {
       kind: "daily",
       date,
-      href: `/markets/notes/${date}`,
+      href: `/markets/notes/daily/${date}`,
       summary: prose?.hook ?? deterministicHook(facts),
       close: sp?.close ?? null,
       changePct: sp?.changePct ?? null,
@@ -78,7 +78,7 @@ function toDaily(date: string, factsJson: string, proseJson: string | null): Ent
     return {
       kind: "daily",
       date,
-      href: `/markets/notes/${date}`,
+      href: `/markets/notes/daily/${date}`,
       summary: <span className="italic text-gray-500">This note&apos;s record could not be read.</span>,
       close: null,
       changePct: null,
@@ -170,7 +170,7 @@ export default async function NotesIndexPage() {
             // conclude it was never written.
             <p className="mt-3 text-xs text-gray-600">
               Showing the most recent {LIMIT} sessions. Older notes remain reachable at
-              <span className="font-mono"> /markets/notes/YYYY-MM-DD</span>.
+              <span className="font-mono"> /markets/notes/daily/YYYY-MM-DD</span>.
             </p>
           )}
         </>

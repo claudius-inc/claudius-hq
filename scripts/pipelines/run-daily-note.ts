@@ -28,7 +28,7 @@ const WEB_BASE_URL = "https://claudiusinc.com";
 function webUrl(date: string): string {
   // Env override exists only for local runs and preview deploys.
   const base = (process.env.NOTE_WEB_BASE_URL || WEB_BASE_URL).replace(/\/$/, "");
-  return `${base}/markets/notes/${date}`;
+  return `${base}/markets/notes/daily/${date}`;
 }
 
 async function main() {

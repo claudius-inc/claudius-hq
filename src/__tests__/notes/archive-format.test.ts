@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shortDayDate } from "@/app/markets/notes/[date]/_lib/format";
+import { shortDayDate } from "@/app/markets/notes/daily/[date]/_lib/format";
 
 describe("shortDayDate", () => {
   it("prints the weekday instead of the year", () => {

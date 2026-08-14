@@ -3,13 +3,13 @@ import { desc } from "drizzle-orm";
 import { db, dailyNotes } from "@/db";
 import { logger } from "@/lib/logger";
 
-// A stable entry point for the newest note — the manifest shortcut and any
-// bookmark point here, so it must never serve a cached date.
+// A stable entry point for the newest session, so the nav tab has an href that
+// does not move as notes are written. Must never serve a cached date.
 export const dynamic = "force-dynamic";
 
-const SRC = "markets/notes/latest";
+const SRC = "markets/notes/daily";
 
-export default async function LatestNotePage() {
+export default async function DailyLatestPage() {
   let date: string | null = null;
   try {
     const [row] = await db
@@ -23,6 +23,6 @@ export default async function LatestNotePage() {
   }
 
   // No note yet, or the lookup failed: the archive says so properly rather
-  // than 404ing a shortcut the user just tapped.
+  // than 404ing a tab the reader just clicked.
   redirect(date ? `/markets/notes/daily/${date}` : "/markets/notes");
 }

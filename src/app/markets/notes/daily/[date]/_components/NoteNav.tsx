@@ -56,7 +56,7 @@ export function NoteFooterNav({
       <div className="flex items-center justify-between gap-3">
         {prevDate ? (
           <Link
-            href={`/markets/notes/${prevDate}`}
+            href={`/markets/notes/daily/${prevDate}`}
             className="inline-flex items-center gap-1 text-sm text-emerald-700 hover:text-emerald-800"
             rel="prev"
           >
@@ -77,7 +77,7 @@ export function NoteFooterNav({
 
         {nextDate ? (
           <Link
-            href={`/markets/notes/${nextDate}`}
+            href={`/markets/notes/daily/${nextDate}`}
             className="inline-flex items-center gap-1 text-sm text-emerald-700 hover:text-emerald-800"
             rel="next"
           >

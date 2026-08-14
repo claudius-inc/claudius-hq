@@ -10,6 +10,8 @@ import { TickerSearch } from "@/components/TickerSearch";
 interface SubTab {
   href: string;
   label: string;
+  /** The section's landing page — named as the section itself, not a sub-section. */
+  root?: boolean;
 }
 
 interface PrimaryTab {
@@ -69,12 +71,13 @@ const primaryTabs: PrimaryTab[] = [
     href: "/markets/notes",
     activePaths: ["/markets/notes"],
     // The switcher picks the LONGEST matching href, which is what keeps these
-    // from colliding: every note route begins with `/markets/notes`, so without
-    // a `/markets/notes/13f` entry a quarterly note would sit under the Daily
-    // label. The 13F href is the redirect route, not a period, so the tab keeps
-    // matching when a newer quarter lands.
+    // from colliding: every note route begins with `/markets/notes`, so the
+    // archive is marked `root` and each kind carries its own path segment.
+    // Both kind hrefs are redirect routes rather than a specific note, so the
+    // tab keeps matching as new notes are written.
     subTabs: [
-      { href: "/markets/notes", label: "Daily" },
+      { href: "/markets/notes", label: "All notes", root: true },
+      { href: "/markets/notes/daily", label: "Daily" },
       { href: "/markets/notes/13f", label: "13F quarterly" },
       { href: "/markets/notes/settings", label: "Settings" },
     ],

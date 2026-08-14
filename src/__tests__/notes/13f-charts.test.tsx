@@ -33,6 +33,26 @@ describe("13F note charts", () => {
     expect(svg).toContain("12 bought");
   });
 
+  it("flow chart gives every row its own line, whatever the list length", () => {
+    // The split between the bought block and the sold block was once the
+    // literal 5. At ten a side that stacked the eleventh row onto the first,
+    // and every assertion above still passed because the text was all present.
+    const bought = f.topBought!.value;
+    const sold = f.topSold!.value;
+    expect(bought.length).toBe(10);
+    expect(sold.length).toBe(10);
+
+    const svg = renderToStaticMarkup(<FlowChart bought={bought} sold={sold} />);
+    const barYs = [...svg.matchAll(/<rect[^>]*\sy="([\d.]+)"[^>]*height="12"/g)].map((m) => Number(m[1]));
+    expect(barYs).toHaveLength(bought.length + sold.length);
+    expect(new Set(barYs).size).toBe(barYs.length);
+
+    // The canvas has to grow with the list, not clip it.
+    const vb = svg.match(/viewBox="0 0 620 ([\d.]+)"/);
+    expect(vb).not.toBeNull();
+    expect(Number(vb![1])).toBeGreaterThan(Math.max(...barYs));
+  });
+
   it("conviction chart shows both ends of every move", () => {
     const svg = renderToStaticMarkup(<ConvictionChart moves={f.conviction!.value} />);
     assertFiniteGeometry(svg, "ConvictionChart");

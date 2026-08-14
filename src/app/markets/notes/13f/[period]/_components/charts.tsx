@@ -56,7 +56,18 @@ export function FlowChart({ bought, sold }: { bought: NameFlow[]; sold: NameFlow
   const SCALE = 240 / (max / 1e9);
   const px = (usd: number) => (Math.abs(usd) / 1e9) * SCALE;
 
-  const y = (i: number) => (i < 5 ? 50 + i * 30 : 210 + (i - 5) * 30);
+  // Geometry is derived from the arrays, not written down. The split was once a
+  // literal 5, which silently stacked the eleventh row on top of the first the
+  // moment the list grew.
+  const TOP = 50;
+  const ROW = 30;
+  /** Clear air between the bought block and the sold block. */
+  const GAP = 40;
+  const split = bought.length;
+  const y = (i: number) => (i < split ? TOP + i * ROW : TOP + split * ROW + GAP + (i - split) * ROW);
+  const dividerY = TOP + split * ROW + GAP / 2;
+  const axisY = y(rows.length - 1) + 25;
+  const height = axisY + 46;
 
   const note = (r: NameFlow) => {
     const who =
@@ -73,9 +84,14 @@ export function FlowChart({ bought, sold }: { bought: NameFlow[]; sold: NameFlow
     .join("; ");
 
   return (
-    <svg viewBox="0 0 620 392" className="w-full h-auto" role="img" aria-label={`Net dollars traded per name. ${reading}.`}>
-      <line x1={CX} y1={34} x2={CX} y2={348} stroke={RULE} strokeWidth={1} />
-      <line x1={40} y1={190} x2={580} y2={190} stroke={GRID} strokeWidth={1} />
+    <svg
+      viewBox={`0 0 620 ${height}`}
+      className="w-full h-auto"
+      role="img"
+      aria-label={`Net dollars traded per name. ${reading}.`}
+    >
+      <line x1={CX} y1={34} x2={CX} y2={axisY} stroke={RULE} strokeWidth={1} />
+      <line x1={40} y1={dividerY} x2={580} y2={dividerY} stroke={GRID} strokeWidth={1} />
 
       {rows.map((r, i) => {
         const cy = y(i);
@@ -126,11 +142,11 @@ export function FlowChart({ bought, sold }: { bought: NameFlow[]; sold: NameFlow
       <text x={CX + 8} y={28} fontSize={10} fill={LABEL}>
         ← sold
       </text>
-      <line x1={40} y1={348} x2={580} y2={348} stroke={RULE} />
-      <text x={310} y={368} textAnchor="middle" fontSize={10} fill={INK}>
+      <line x1={40} y1={axisY} x2={580} y2={axisY} stroke={RULE} />
+      <text x={310} y={axisY + 20} textAnchor="middle" fontSize={10} fill={INK}>
         net dollars traded across the 26 managers
       </text>
-      <text x={310} y={384} textAnchor="middle" fontSize={9} fill={LABEL}>
+      <text x={310} y={axisY + 36} textAnchor="middle" fontSize={9} fill={LABEL}>
         share-count change priced at the period-end mark, not the change in reported value
       </text>
     </svg>

@@ -9,6 +9,16 @@ import { ChevronDown, Check } from "lucide-react";
 interface Section {
   href: string;
   label: string;
+  /**
+   * The section's own landing page, rather than one of its sub-sections.
+   *
+   * It still appears in the menu and still gets the checkmark, but the trigger
+   * shows the plain section name for it — "Notes", not "Notes › All notes".
+   * Without this the landing page has to be either mislabelled as a sub-section
+   * or left out of the menu entirely, and leaving it out makes it unreachable
+   * once a tab has sub-tabs, because the tab itself is no longer a link.
+   */
+  root?: boolean;
 }
 
 /**
@@ -55,6 +65,9 @@ export function NavSectionSwitcher({
   const pathname = usePathname();
 
   const current = resolveSection(sections, pathname);
+  // The menu tracks `current`; the trigger tracks this. They differ only on the
+  // section's own landing page, which names itself rather than a sub-section.
+  const shown = current && !current.root ? current : null;
 
   // Recompute panel position. The panel is portalled into <body> with
   // position: fixed so an overflow:hidden ancestor (like the horizontally
@@ -109,17 +122,18 @@ export function NavSectionSwitcher({
         className="flex items-center gap-1 text-sm text-gray-700 hover:text-gray-900 transition-colors py-1 px-1.5 -mx-1.5 rounded-md hover:bg-gray-100"
       >
         <span className={current ? "font-medium" : "text-gray-400"}>
-          {/* The prefix only makes sense in front of a matched section. With no
-              match the label falls back to `placeholder`, which is the section's
-              own name — so rendering the prefix too printed "Notes › Notes" on
-              every page outside that section. */}
-          {prefix && current && (
+          {/* The prefix only makes sense in front of a matched SUB-section. With
+              no match the label falls back to `placeholder`, which is the
+              section's own name — so rendering the prefix too printed
+              "Notes › Notes" on every page outside that section, and the same
+              on the section's own landing page once it joined the menu. */}
+          {prefix && shown && (
             <>
               {prefix}
               <span className="text-gray-300 mx-1">›</span>
             </>
           )}
-          {current?.label ?? placeholder}
+          {shown?.label ?? placeholder}
         </span>
         <ChevronDown
           className={`w-3.5 h-3.5 text-gray-400 transition-transform ${

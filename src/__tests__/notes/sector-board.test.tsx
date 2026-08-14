@@ -13,7 +13,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { SectorBoard } from "@/app/markets/notes/[date]/_components/SectorBoard";
+import { SectorBoard } from "@/app/markets/notes/daily/[date]/_components/SectorBoard";
 import type { StructuredFacts, Fact } from "@/lib/notes/types";
 
 const fact = <T,>(value: T): Fact<T> => ({ value, source: "test", asOf: "2026-08-12T20:00:00Z" });

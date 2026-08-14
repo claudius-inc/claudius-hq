@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHero } from "@/components/PageHero";
-import { Section, Absent } from "../../[date]/_components/primitives";
-import { prettyDate } from "../../[date]/_lib/format";
+import { Section, Absent } from "../../daily/[date]/_components/primitives";
+import { prettyDate } from "../../daily/[date]/_lib/format";
 import { getPeriod, THIRTEEN_F_PERIODS } from "@/lib/notes/thirteenf/periods";
 import { SECTION_ORDER } from "@/lib/notes/thirteenf/types";
 import {
