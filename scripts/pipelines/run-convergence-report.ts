@@ -27,10 +27,16 @@ import {
 import { MAPPING_BY_SYMBOL } from "@/lib/markets/perp-underlying";
 import {
   fetchPositioningForAll,
-  classifyRegime,
-  REGIME_LABEL,
   type Positioning,
 } from "@/lib/markets/perp-positioning";
+import {
+  HEADER,
+  SHORTLIST_BUTTON,
+  fmtAsOf,
+  footer,
+  renderSide,
+  type MessageRow,
+} from "@/lib/markets/convergence-message";
 import {
   loadAdjustedSeries,
   computeDailyTrend,
@@ -57,7 +63,12 @@ async function send(text: string): Promise<boolean> {
   const res = await fetch(`https://api.telegram.org/bot${TG}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: CHAT, text, parse_mode: "Markdown" }),
+    body: JSON.stringify({
+      chat_id: CHAT,
+      text,
+      parse_mode: "Markdown",
+      reply_markup: SHORTLIST_BUTTON,
+    }),
   });
   if (!res.ok) {
     logger.error("convergence-report", "Telegram send failed", {
@@ -69,156 +80,36 @@ async function send(text: string): Promise<boolean> {
   return true;
 }
 
-// Strips the legacy-Markdown control characters Telegram would choke on.
-// Backtick included: an unpaired one 400s the whole message.
-const clean = (s: string) => String(s).replace(/[_*[\]`]/g, "").trim();
-
-const pct = (v: number | null) =>
-  v === null || v === undefined ? "—" : (v >= 0 ? "+" : "") + v.toFixed(1) + "%";
-
-function fmtPrice(p: number | null): string {
-  if (p === null || p === undefined) return "";
-  if (p >= 1000) return "$" + Math.round(p).toLocaleString("en-US");
-  if (p >= 1) return "$" + p.toFixed(2);
-  if (p >= 0.01) return "$" + p.toFixed(4);
-  return "$" + Number(p).toPrecision(2);
-}
-
-/** Compact category marker, so a tradfi name is distinguishable at a glance. */
-const CATEGORY_TAG: Record<string, string> = {
-  crypto: "",
-  equity: "📊",
-  premarket: "🚀",
-  commodity: "🛢",
-  index: "📉",
-};
-
 /**
- * Which factors fired, as initials. `Q` is quarterly VWAP and is worth 2 points
- * rather than 1, so it is listed first — a name scoring 4 with Q is a different
- * animal from one scoring 4 without it.
- */
-function factorInitials(p: ConvergencePick): string {
-  const f = p.factors;
-  const on: string[] = [];
-  if (p.vwapAgrees) on.push("Q");
-  if (f.trend) on.push("T");
-  if (f.pullback) on.push("P");
-  if (f.support) on.push("S");
-  if (f.proximity) on.push("X");
-  if (f.vsa) on.push("V");
-  return on.join("");
-}
-
-/**
- * Long-term daily trend agreement, from the UNDERLYING's own daily series.
+ * A pick, as the shared renderer sees it.
  *
- * The 4h score cannot see past ~33 days, and its highest readings amount to
- * "closing near the 50-bar high" — the reading that most needs a longer-horizon
- * check. `✅` means the daily MA stack agrees with the side being proposed,
- * `⛔` means it points the other way, `〰️` means the stack is not cleanly
- * ordered. Blank means no long-term read exists for that name.
+ * Open interest comes from the positioning snapshot rather than the pick, which
+ * is why this mapping needs both. Everything the old three-line layout carried
+ * beyond this — factor initials, RSI, qVWAP, the 5-day change, funding basis
+ * points, the taker ratio — is on the page the message now links to. It did not
+ * survive the width budget, and on a phone it was arriving as wrapped fragments
+ * nobody read.
  */
-function trendBadge(p: ConvergencePick, trends: Map<string, TrendDirection>): string {
-  const d = trends.get(p.symbol);
-  if (!d) return "";
-  if (d === "mixed") return " 〰️";
-  const agrees = (p.side === "long" && d === "up") || (p.side === "short" && d === "down");
-  return agrees ? " ✅" : " ⛔";
-}
-
-/**
- * Compression reading, stated plainly.
- *
- * The convergence count was measured to select quiet names — score 5 averages
- * 0.68x its category's typical 1-day move, score 1 averages 1.35x, monotonically.
- * Rather than let a high score imply "conviction", the volatility percentile is
- * printed next to it so a coiled name reads as coiled.
- */
-function compressionTag(p: ConvergencePick): string {
-  if (p.volPctl === null) return "";
-  if (p.volPctl <= 25) return ` 🪤coiled ${Math.round(p.volPctl)}`;
-  if (p.volPctl >= 75) return ` 🌊moving ${Math.round(p.volPctl)}`;
-  return ` vol ${Math.round(p.volPctl)}`;
-}
-
-/**
- * The composite ranking line — the reason this name sits where it does.
- *
- * Printed first, above the MCD factors, because it is now what orders the list.
- * Showing the three legs rather than only the score means a reader can see
- * WHICH part put a name near the top: a huge reversal, an unusually busy tape,
- * or stretched funding.
- *
- * `⚡` marks a name that cleared the magnitude gate. Names below the gate can
- * still appear when too few qualify, and they are worth reading differently —
- * the reversal ordering was validated among names that are actually trading.
- */
-function compositeLine(p: ConvergencePick): string {
-  const bits: string[] = [];
-  bits.push(p.comboGated ? "⚡" : "·");
-  if (p.rev6 !== null) {
-    // rev6 is the NEGATED return, so report the move itself: a long candidate
-    // that fell 8% reads "1d -8.0%", not "+8.0".
-    bits.push(`1d ${pct(-p.rev6)}`);
-  }
-  if (p.rvol !== null) bits.push(`rvol ${p.rvol.toFixed(1)}x`);
-  if (p.volSurge !== null) bits.push(`surge ${p.volSurge.toFixed(1)}x`);
-  if (p.rangeExpansion !== null) bits.push(`rng ${p.rangeExpansion.toFixed(1)}x`);
-  if (p.fundingAbs !== null) bits.push(`|fund| ${(p.fundingAbs * 10_000).toFixed(1)}bp`);
-  return bits.join(" · ");
-}
-
-/** Open-interest regime plus funding crowding — the perp-native context. */
-function positioningLine(p: ConvergencePick, pos: Map<string, Positioning>): string | null {
-  const q = pos.get(p.symbol);
-  if (!q) return null;
-
-  const bits: string[] = [];
-  const regime = classifyRegime(q.oiChangePct, p.changePct);
-  if (regime !== "flat") {
-    bits.push(`${REGIME_LABEL[regime]} (OI ${pct(q.oiChangePct)})`);
-  } else if (q.oiChangePct !== null) {
-    bits.push(`OI ${pct(q.oiChangePct)}`);
-  }
-  if (q.fundingBps !== null) {
-    const crowd = q.fundingPctl !== null && (q.fundingPctl >= 90 || q.fundingPctl <= 10) ? "!" : "";
-    bits.push(`fund ${q.fundingBps >= 0 ? "+" : ""}${q.fundingBps.toFixed(1)}bp${crowd}`);
-  }
-  if (q.takerRatio !== null) bits.push(`taker ${q.takerRatio.toFixed(2)}`);
-
-  return bits.length ? `   ${bits.join(" · ")}` : null;
-}
-
-function renderSide(
-  picks: ConvergencePick[],
-  heading: string,
+function toMessageRow(
+  p: ConvergencePick,
   trends: Map<string, TrendDirection>,
   pos: Map<string, Positioning>,
-): string[] {
-  if (picks.length === 0) return [heading, "_none cleared the threshold_", ""];
-
-  const lines = [heading];
-  picks.forEach((p, i) => {
-    const tag = CATEGORY_TAG[p.category] ?? "";
-    const fresh = p.freshFlag ? " 🆕" : "";
-    const contested = p.opposingScore >= 2 ? ` ⚠️${p.opposingScore}` : "";
-    lines.push(
-      `${i + 1}. \`${clean(p.base)}\`${tag ? " " + tag : ""} ` +
-        `*${p.score}/${p.maxScore}*${fresh}${contested}${trendBadge(p, trends)} · ${fmtPrice(p.price)}`,
-    );
-    const vwap =
-      p.vwapDistPct === null ? "" : ` · qVWAP ${p.vwapDistPct >= 0 ? "+" : ""}${p.vwapDistPct.toFixed(1)}%`;
-    lines.push(`   ${compositeLine(p)}`);
-    lines.push(
-      `   \`${factorInitials(p).padEnd(6)}\` · RSI ${p.rsi === null ? "—" : Math.round(p.rsi)}` +
-        `${vwap} · 5d ${pct(p.changePct)}${compressionTag(p)}`,
-    );
-    const posLine = positioningLine(p, pos);
-    if (posLine) lines.push(posLine);
-  });
-  lines.push("");
-  return lines;
+): MessageRow {
+  return {
+    base: p.base,
+    category: p.category,
+    score: p.score,
+    maxScore: p.maxScore,
+    price: p.price,
+    rev6: p.rev6,
+    oiChangePct: pos.get(p.symbol)?.oiChangePct ?? null,
+    volPctl: p.volPctl,
+    comboGated: p.comboGated,
+    freshFlag: p.freshFlag,
+    contested: p.opposingScore >= 2,
+    trend: trends.get(p.symbol) ?? null,
+    side: p.side,
+  };
 }
 
 /**
@@ -255,43 +146,32 @@ export function formatMessage(
   pos: Map<string, Positioning> = new Map(),
 ): string {
   const { longs, shorts, funnel } = result;
-  const asOf = result.asOf.replace("T", " ").slice(0, 16) + "Z";
+  const map = (picks: ConvergencePick[]) => picks.map((p) => toMessageRow(p, trends, pos));
+  const longRows = map(longs);
+  const shortRows = map(shorts);
 
   const lines = [
-    "🎯 *Convergence — Binance Perps*",
-    `_Ranked by reversal within busy, funding-stressed names · ${CONVERGENCE_CONFIG.interval} bars · as of ${asOf}_`,
+    HEADER,
+    `_${CONVERGENCE_CONFIG.interval} bars · ${fmtAsOf(result.asOf)}_`,
     "",
+    ...renderSide(longRows, "📈 *LONG*"),
+    ...renderSide(shortRows, "📉 *SHORT*"),
+    ...footer([...longRows, ...shortRows]),
   ];
 
-  lines.push(...renderSide(longs, `📈 *LONG* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends, pos));
-  lines.push(...renderSide(shorts, `📉 *SHORT* (score ≥ ${CONVERGENCE_CONFIG.minScore})`, trends, pos));
-
-  lines.push(
-    "_⚡ cleared the volume+funding gate · order is by 1d reversal within the gate_",
-  );
-  lines.push(
-    "_Q=quarterly VWAP (2pts) T=trend P=pullback S=support X=extreme V=volume · 🆕 new · ⚠️ contested_",
-  );
-  lines.push("_Daily trend: ✅ agrees · ⛔ opposes · 〰️ unclear · 🪤 coiled · 🌊 moving_");
+  // The funnel counts belong to this script only — the CI sender reads picks,
+  // not runs, so it has no funnel to report. They stay last: they say how hard
+  // the screen worked, which is worth knowing occasionally and never worth
+  // reading before the list.
   const cats = Object.entries(funnel.byCategory)
     .map(([k, v]) => `${k} ${v}`)
     .join(" · ");
   lines.push(
-    `_${funnel.qualified} of ${funnel.liquid} liquid perps qualified` +
-      (cats ? ` · ${cats}` : "") +
-      `_`,
+    `_${funnel.qualified} of ${funnel.liquid} liquid perps qualified` + (cats ? ` · ${cats}` : "") + `_`,
   );
   lines.push(
     `_Held back: ${funnel.cooldownSkipped} on cooldown · ` +
       `${funnel.correlationSkipped} too correlated · ${funnel.contested} contested_`,
-  );
-  // This is a shortlist to look at, not a set of calls. Say so — and be
-  // specific about what was and was not measured, because the ordering now has
-  // an out-of-sample number behind it and the profitability does not.
-  lines.push(
-    "_⚠️ A shortlist to review, not signals. The ORDER is validated (holdout IC " +
-      "0.078, t=5.97); the PROFIT is not (top-10 basket t=0.15). The score still " +
-      "gates the list but ranks poorly on its own._",
   );
 
   return lines.join("\n");

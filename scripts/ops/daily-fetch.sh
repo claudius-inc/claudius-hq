@@ -48,6 +48,22 @@ if [ "$HTTP" != "200" ]; then
 fi
 echo "Binance reachable (HTTP 200)"
 
+# Track main before running.
+#
+# WITHOUT THIS THE BOX SILENTLY ROTS. The clone was made once at install and
+# nothing ever moved it, so this script kept running a months-old screen against
+# a current schema: every ranking column added on 2026-08-12 (`rev6`, `rvol`,
+# `funding_abs`, `combo_gated`) was written NULL for weeks, the send rendered an
+# empty line where the ranking reason belonged, and nothing failed — the rows
+# were there, the counts looked normal, only the values were missing. A frozen
+# checkout is the failure mode that looks most like health.
+#
+# `--ff-only` so a dirty box refuses to run rather than silently merging.
+git fetch --quiet origin main
+git merge --ff-only origin/main
+npm ci --silent
+echo "Checkout at $(git rev-parse --short HEAD)"
+
 # The screen: universe -> score -> rank by open interest -> persist picks,
 # funnel counts and the candles the page renders.
 #

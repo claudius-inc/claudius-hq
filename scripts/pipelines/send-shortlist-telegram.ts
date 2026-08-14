@@ -26,6 +26,14 @@
 import "dotenv/config";
 import { rawClient } from "@/db";
 import { logger } from "@/lib/logger";
+import {
+  HEADER,
+  SHORTLIST_BUTTON,
+  fmtAsOf,
+  footer,
+  renderSide,
+  type MessageRow,
+} from "@/lib/markets/convergence-message";
 
 const TG = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT = process.env.TELEGRAM_ADMIN_CHAT_ID;
@@ -37,25 +45,37 @@ interface Row {
   category: string;
   score: number;
   max_score: number;
-  factors: string | null;
   price: number | null;
-  rsi: number | null;
-  change_pct: number | null;
   vol_pctl: number | null;
-  vwap_dist_pct: number | null;
   oi_change_pct: number | null;
-  rvol: number | null;
-  vol_surge: number | null;
-  range_expansion: number | null;
   rev6: number | null;
-  funding_abs: number | null;
-  combo_score: number | null;
+  fresh_flag: number | null;
+  opposing_score: number | null;
   combo_gated: number | null;
   run_date: string;
   as_of: string | null;
 }
 
-async function send(text: string): Promise<boolean> {
+/** DB row to the shape the renderer takes. */
+const toMessageRow = (r: Row): MessageRow => ({
+  base: r.base,
+  category: r.category,
+  score: r.score,
+  maxScore: r.max_score,
+  price: r.price,
+  rev6: r.rev6,
+  oiChangePct: r.oi_change_pct,
+  volPctl: r.vol_pctl,
+  comboGated: r.combo_gated === 1,
+  freshFlag: r.fresh_flag === 1,
+  // NOT the `contested` column. That one records why a name was DROPPED, so on
+  // a reported row it is always 0 and the flag could never fire — this sender
+  // has been silently unable to show ⚠️ at all. The report script derives it
+  // from the opposing score; read the same thing from the same rows.
+  contested: (r.opposing_score ?? 0) >= 2,
+});
+
+async function send(text: string, withButton = false): Promise<boolean> {
   if (DRY_RUN) {
     console.log(text);
     return true;
@@ -67,7 +87,16 @@ async function send(text: string): Promise<boolean> {
   const res = await fetch(`https://api.telegram.org/bot${TG}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: CHAT, text, parse_mode: "Markdown" }),
+    body: JSON.stringify({
+      chat_id: CHAT,
+      text,
+      parse_mode: "Markdown",
+      // The message deliberately no longer carries RSI, qVWAP, the factor
+      // initials or the volatility percentile — they did not fit the width and
+      // they are all on the page. The button is what makes that a move rather
+      // than a loss, so it ships with the list and not with the alerts.
+      ...(withButton ? { reply_markup: SHORTLIST_BUTTON } : {}),
+    }),
   });
   if (!res.ok) {
     logger.error("shortlist-telegram", "Telegram send failed", {
@@ -79,97 +108,10 @@ async function send(text: string): Promise<boolean> {
   return true;
 }
 
-// Backtick included: an unpaired one in a base name 400s the whole message.
-const clean = (s: string) => String(s).replace(/[_*[\]`]/g, "").trim();
-
-const pct = (v: number | null) =>
-  v === null || v === undefined ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
-
-function fmtPrice(p: number | null): string {
-  if (p === null || p === undefined) return "";
-  if (p >= 1000) return "$" + Math.round(p).toLocaleString("en-US");
-  if (p >= 1) return "$" + p.toFixed(2);
-  if (p >= 0.01) return "$" + p.toFixed(4);
-  return "$" + Number(p).toPrecision(2);
-}
-
-const CATEGORY_TAG: Record<string, string> = {
-  crypto: "",
-  equity: "📊",
-  premarket: "🚀",
-  commodity: "🛢",
-  index: "📉",
-};
-
-/** `Q` first — quarterly VWAP is worth 2 points, the others 1 each. */
-function factorInitials(json: string | null, score: number): string {
-  if (!json) return "";
-  try {
-    const f = JSON.parse(json) as Record<string, boolean>;
-    const on: string[] = [];
-    const plain = Object.values(f).filter(Boolean).length;
-    if (score - plain >= 2) on.push("Q");
-    if (f.trend) on.push("T");
-    if (f.pullback) on.push("P");
-    if (f.support) on.push("S");
-    if (f.proximity) on.push("X");
-    if (f.vsa) on.push("V");
-    return on.join("");
-  } catch {
-    return "";
-  }
-}
-
-function compression(v: number | null): string {
-  if (v === null) return "";
-  if (v <= 25) return ` 🪤coiled ${Math.round(v)}`;
-  if (v >= 75) return ` 🌊moving ${Math.round(v)}`;
-  return ` vol ${Math.round(v)}`;
-}
-
-/**
- * The composite ranking line — why this name sits where it does.
- *
- * `⚡` means the name cleared the volume-and-funding gate. The 1-day move is
- * printed as the MOVE, not as the stored `rev6`, which is its negation: a long
- * candidate that fell 8% should read "1d -8.0%".
- */
-function compositeLine(r: Row): string {
-  const bits: string[] = [r.combo_gated ? "⚡" : "·"];
-  if (r.rev6 !== null) bits.push(`1d ${pct(-r.rev6)}`);
-  if (r.rvol !== null) bits.push(`rvol ${r.rvol.toFixed(1)}x`);
-  if (r.vol_surge !== null) bits.push(`surge ${r.vol_surge.toFixed(1)}x`);
-  if (r.range_expansion !== null) bits.push(`rng ${r.range_expansion.toFixed(1)}x`);
-  if (r.funding_abs !== null) bits.push(`|fund| ${(r.funding_abs * 10_000).toFixed(1)}bp`);
-  return bits.join(" · ");
-}
-
-function renderSide(rows: Row[], heading: string): string[] {
-  if (!rows.length) return [heading, "_none cleared the threshold_", ""];
-  const lines = [heading];
-  rows.forEach((r, i) => {
-    const tag = CATEGORY_TAG[r.category] ?? "";
-    lines.push(
-      `${i + 1}. \`${clean(r.base)}\`${tag ? " " + tag : ""} ` +
-        `*${r.score}/${r.max_score}* · ${fmtPrice(r.price)}`,
-    );
-    lines.push(`   ${compositeLine(r)}`);
-    lines.push(
-      `   \`${factorInitials(r.factors, r.score).padEnd(6)}\` · OI ${pct(r.oi_change_pct)}` +
-        ` · qVWAP ${pct(r.vwap_dist_pct)} · RSI ${r.rsi === null ? "—" : Math.round(r.rsi)}` +
-        compression(r.vol_pctl),
-    );
-  });
-  lines.push("");
-  return lines;
-}
-
 async function main() {
   const res = await rawClient.execute(`
-    SELECT base, side, category, score, max_score, factors, price, rsi,
-           change_pct, vol_pctl, vwap_dist_pct, oi_change_pct,
-           rvol, rev6, funding_abs, combo_score, combo_gated,
-           vol_surge, range_expansion,
+    SELECT base, side, category, score, max_score, price,
+           vol_pctl, oi_change_pct, rev6, fresh_flag, opposing_score, combo_gated,
            run_date, as_of
     FROM perp_convergence_picks
     WHERE reported = 1
@@ -206,30 +148,46 @@ async function main() {
     return;
   }
 
-  const longs = rows.filter((r) => r.side === "long");
-  const shorts = rows.filter((r) => r.side === "short");
-  const asOf = rows[0].as_of ? `${rows[0].as_of.replace("T", " ").slice(0, 16)}Z` : runDate;
+  // The SECOND way this job can publish a plausible-looking lie.
+  //
+  // The freshness gate above catches a fetch that did not run. It cannot catch
+  // a fetch that ran an out-of-date checkout: the rows land, dated today, with
+  // the right counts and a NULL in every ranking column. That is what shipped
+  // for weeks — a header claiming the list was ranked by reversal above rows
+  // that could not show one, and a lone "·" where the reason should have been.
+  // Say it in the message rather than degrade quietly.
+  const degraded = rows.every((r) => r.rev6 === null);
+  if (degraded) {
+    logger.error("shortlist-telegram", "Ranking columns are NULL for the whole run", {
+      runDate,
+      rows: rows.length,
+    });
+  }
+
+  const longs = rows.filter((r) => r.side === "long").map(toMessageRow);
+  const shorts = rows.filter((r) => r.side === "short").map(toMessageRow);
+  const asOf = rows[0].as_of ? fmtAsOf(rows[0].as_of) : runDate;
 
   const lines = [
-    "🎯 *Convergence — Binance Perps*",
-    `_Ranked by reversal within busy, funding-stressed names · 4h bars · as of ${asOf}_`,
+    HEADER,
+    `_4h bars · ${asOf}_`,
     "",
+    ...(degraded
+      ? ["⚠️ _Ranking data missing — order is not meaningful. The fetch box is on an old checkout._", ""]
+      : []),
     ...renderSide(longs, "📈 *LONG*"),
     ...renderSide(shorts, "📉 *SHORT*"),
-    "_⚡ cleared the volume+funding gate · order is by 1d reversal within the gate_",
-    "_Q=quarterly VWAP (2pts) T=trend P=pullback S=support X=extreme V=volume_",
-    "_🪤 coiled · 🌊 moving (own-history volatility rank)_",
-    "_⚠️ A shortlist to review, not signals. The ORDER is validated (holdout IC " +
-      "0.078, t=5.97); the PROFIT is not (top-10 basket t=0.15)._",
+    ...footer([...longs, ...shorts]),
   ];
 
   logger.info("shortlist-telegram", "Sending shortlist", {
     runDate,
     longs: longs.length,
     shorts: shorts.length,
+    degraded,
   });
 
-  const ok = await send(lines.join("\n"));
+  const ok = await send(lines.join("\n"), true);
   if (!ok) process.exitCode = 1;
 }
 
