@@ -24,7 +24,7 @@ export const metadata: Metadata = {
 const SRC = "markets/notes/index";
 const LIMIT = 60;
 
-type NoteKind = "daily" | "weekly" | "quarterly";
+import { FILTERS, resolveFilter, kindFor, filterHref, type NoteKind } from "./_lib/filter";
 
 /**
  * The badge that tells the three note kinds apart.
@@ -86,7 +86,10 @@ function toDaily(date: string, factsJson: string, proseJson: string | null): Ent
   }
 }
 
-export default async function NotesIndexPage() {
+export default async function NotesIndexPage(props: {
+  searchParams: Promise<{ kind?: string }>;
+}) {
+  const active = resolveFilter((await props.searchParams).kind);
   const [daily, weekly] = await Promise.all([
     db
       .select({ date: dailyNotes.date, facts: dailyNotes.facts, prose: dailyNotes.prose })
@@ -116,6 +119,17 @@ export default async function NotesIndexPage() {
     })),
   ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
+  // Counts come from the FULL set, so a pill still shows what it would reveal
+  // while a different filter is applied — a "13F 1" that reads 0 whenever you
+  // are not already looking at 13F notes would be useless.
+  const counts = FILTERS.map((f) => ({
+    ...f,
+    n: f.kind ? entries.filter((e) => e.kind === f.kind).length : entries.length,
+  }));
+  const want = kindFor(active);
+  const shown = want ? entries.filter((e) => e.kind === want) : entries;
+  const activeLabel = FILTERS.find((f) => f.key === active)!.label.toLowerCase();
+
   return (
     <div className="max-w-3xl mx-auto pb-16">
       <PageHero title="Market notes" subtitle="The Tape, The Week, and The Filing" />
@@ -128,8 +142,37 @@ export default async function NotesIndexPage() {
         />
       ) : (
         <>
+          <nav aria-label="Filter notes by type" className="flex flex-wrap gap-1.5 mb-4">
+            {counts.map((f) => {
+              const on = f.key === active;
+              return (
+                <Link
+                  key={f.key}
+                  href={filterHref(f.key)}
+                  aria-current={on ? "page" : undefined}
+                  className={`text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                    on
+                      ? "bg-gray-900 text-white border-gray-900"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-900"
+                  }`}
+                >
+                  {f.label}
+                  {/* The count is the affordance: it says what a pill will show
+                      before it is clicked, so an empty kind is visibly empty
+                      rather than a filter that appears to have broken. */}
+                  <span className={`ml-1.5 tabular-nums ${on ? "text-gray-300" : "text-gray-400"}`}>{f.n}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {shown.length === 0 ? (
+            <p className="text-sm text-gray-500 italic py-6">
+              No {activeLabel} notes yet. The other types are still listed under All.
+            </p>
+          ) : (
           <ul className="divide-y divide-gray-100 border-t border-gray-200">
-            {entries.map((e) => (
+            {shown.map((e) => (
               <li key={`${e.kind}-${e.date}`}>
                 <Link
                   href={e.href}
@@ -164,7 +207,11 @@ export default async function NotesIndexPage() {
               </li>
             ))}
           </ul>
-          {daily.length === LIMIT && (
+          )}
+          {/* Only when dailies are actually on screen — the cap is a daily one,
+              and printing it under a 13F-only list would claim a truncation
+              that did not happen. */}
+          {daily.length === LIMIT && shown.some((e) => e.kind === "daily") && (
             // The archive truncates. Saying so beats a list that just stops —
             // a reader looking for a note from four months ago would otherwise
             // conclude it was never written.
