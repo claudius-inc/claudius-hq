@@ -68,8 +68,14 @@ const primaryTabs: PrimaryTab[] = [
     prefixLabel: "Notes",
     href: "/markets/notes",
     activePaths: ["/markets/notes"],
+    // The switcher picks the LONGEST matching href, which is what keeps these
+    // from colliding: every note route begins with `/markets/notes`, so without
+    // a `/markets/notes/13f` entry a quarterly note would sit under the Daily
+    // label. The 13F href is the redirect route, not a period, so the tab keeps
+    // matching when a newer quarter lands.
     subTabs: [
       { href: "/markets/notes", label: "Daily" },
+      { href: "/markets/notes/13f", label: "13F quarterly" },
       { href: "/markets/notes/settings", label: "Settings" },
     ],
   },

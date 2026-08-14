@@ -11,6 +11,27 @@ interface Section {
   label: string;
 }
 
+/**
+ * The section the current path belongs to, or null.
+ *
+ * Longest match wins, and that is the whole rule: sibling sections nest inside
+ * one another's prefixes, so `/markets/notes/13f/2026-03-31` matches both
+ * `/markets/notes` and `/markets/notes/13f` and only the deeper one is right.
+ * A first-match-wins rule would label every quarterly note "Daily".
+ *
+ * The `+ "/"` is equally load-bearing: a bare `startsWith` would make
+ * `/markets/notes-archive` match `/markets/notes`.
+ *
+ * Exported so the rule can be tested without mounting the component.
+ */
+export function resolveSection<T extends Section>(sections: T[], pathname: string): T | null {
+  return (
+    sections
+      .filter((s) => pathname === s.href || pathname.startsWith(s.href + "/"))
+      .sort((a, b) => b.href.length - a.href.length)[0] ?? null
+  );
+}
+
 interface NavSectionSwitcherProps {
   sections: Section[];
   /** Optional label rendered before the current section, e.g. "Scanner › Stocks". */
@@ -33,10 +54,7 @@ export function NavSectionSwitcher({
   const panelRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
-  // Find the most specific matching section (longest href that matches)
-  const current = sections
-    .filter((s) => pathname === s.href || pathname.startsWith(s.href + "/"))
-    .sort((a, b) => b.href.length - a.href.length)[0] ?? null;
+  const current = resolveSection(sections, pathname);
 
   // Recompute panel position. The panel is portalled into <body> with
   // position: fixed so an overflow:hidden ancestor (like the horizontally

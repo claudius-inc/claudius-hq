@@ -113,6 +113,22 @@ export function prettyDate(iso: string): string {
   });
 }
 
+/**
+ * "Aug 13, Thu" — the archive list, where the weekday carries more than the year.
+ *
+ * Which session a note covers is most of what a reader scans for: a Monday note
+ * opens on the weekend's news and a Friday one closes the week, and that is
+ * invisible in a bare date. The year is dropped rather than added because the
+ * list is sorted newest-first, so it is recoverable from position, while the
+ * weekday is not recoverable from anything.
+ */
+export function shortDayDate(iso: string): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  const md = d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const wd = d.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" });
+  return `${md}, ${wd}`;
+}
+
 /** "Aug 10" — for dense contexts such as the prev/next rail. */
 export function shortDate(iso: string): string {
   return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", {
