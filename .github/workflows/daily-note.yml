@@ -59,6 +59,14 @@ jobs:
           # carries a compliant default, so this only needs setting to change the
           # address — leave the repo variable unset and the default applies.
           SEC_EDGAR_USER_AGENT: ${{ vars.SEC_EDGAR_USER_AGENT }}
+          # A dead-man's switch that lives OUTSIDE this repository, because
+          # everything inside it shares one failure domain: GitHub disables
+          # scheduled workflows after 60 days of inactivity, and a disabled cron
+          # sends nothing at all — no failure, no skip, no alert. The job pings on
+          # success; an external service alerts on a ping that never arrives,
+          # which is the only signal that survives the repo going dark.
+          # Unset is fine — the ping is skipped silently.
+          HEALTHCHECK_PING_URL: ${{ secrets.HEALTHCHECK_PING_URL }}
 
       - name: Summary
         if: always()

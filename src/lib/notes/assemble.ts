@@ -22,7 +22,8 @@ import type { ConstituentQuote } from "@/lib/notes/divergence";
 import { fetchRatesFact } from "@/lib/notes/sources/treasury";
 import { computeDivergenceFacts } from "@/lib/notes/divergence";
 import { fetchGexPinFact } from "@/lib/notes/sources/gex-pin";
-import { fetchMacroReleases, fetchUpcomingReleases } from "@/lib/notes/sources/fred-releases";
+import { fetchMacroReleases, fetchUpcomingReleases, fomcHorizonHealth } from "@/lib/notes/sources/fred-releases";
+import { missingFromRegistry, type ConnectorHealth } from "@/lib/notes/health";
 import { fetchEarningsCalendar } from "@/lib/notes/sources/earnings-calendar";
 import { buildAttributions } from "@/lib/notes/attribution";
 import { loadEnabledSpotlights, buildSpotlightBlocks } from "@/lib/notes/spotlight";
@@ -40,6 +41,7 @@ import type {
   PostMarketMove,
   ContributionData,
   MoverName,
+  GexPinData,
 } from "@/lib/notes/types";
 
 const yahooFinance = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
@@ -65,6 +67,22 @@ const SECTOR_ETFS: { etf: string; name: string }[] = [
   { etf: "XLRE", name: "Real Estate" },
   { etf: "XLU", name: "Utilities" },
 ];
+
+/**
+ * Industry ETFs that are NOT GICS sectors but move like one — see
+ * `StructuredFacts.thematics` for why they are kept out of `SECTOR_ETFS`.
+ *
+ * Semis is the case that forced this: XLK is a third Apple and Microsoft, so a
+ * day where semiconductors run 3% and software falls is a flat Technology
+ * print, and the board says nothing happened. Each entry here is an industry
+ * whose move is regularly the opposite of the sector containing it.
+ *
+ * Adding one is a single line. Candidates that clear the same bar: IGV
+ * (software — the other half of the AI trade), XBI (equal-weight biotech, where
+ * XLV is mega-cap pharma), KRE (regional banks, where XLF is money-centre),
+ * XRT (retail, where XLY is Amazon and Tesla).
+ */
+const THEMATIC_ETFS: { etf: string; name: string }[] = [{ etf: "SMH", name: "Semiconductors" }];
 
 const CROSS_ASSETS: { symbol: string; label: string }[] = [
   { symbol: "DX-Y.NYB", label: "DXY" },
@@ -123,6 +141,22 @@ function sectorsFact(map: Map<string, QuoteLike>, marketDate: string, now: numbe
   // A partial board can't support a market-wide "top-2 / bottom-2" claim (§1a):
   // require the full 11 sectors or omit.
   if (pts.length !== SECTOR_ETFS.length) return null;
+  return { value: pts, source: "Yahoo", asOf: etStamp(marketDate, "16:00:00", now) };
+}
+
+/**
+ * The thematic strip. Unlike `sectorsFact` this does NOT demand a complete set:
+ * no claim is made across these rows — they are read one at a time — so a
+ * missing quote costs one line rather than invalidating the block.
+ */
+function thematicsFact(map: Map<string, QuoteLike>, marketDate: string, now: number): Fact<SectorPoint[]> | null {
+  const pts: SectorPoint[] = [];
+  for (const { etf, name } of THEMATIC_ETFS) {
+    const q = map.get(etf);
+    if (q?.regularMarketChangePercent == null || !Number.isFinite(q.regularMarketChangePercent)) continue;
+    pts.push({ etf, name, changePct: round(q.regularMarketChangePercent) });
+  }
+  if (pts.length === 0) return null;
   return { value: pts, source: "Yahoo", asOf: etStamp(marketDate, "16:00:00", now) };
 }
 
@@ -287,23 +321,100 @@ async function breadthFact(marketDate: string, now: number): Promise<Fact<Breadt
   }
 }
 
+/**
+ * The assembled facts, and how each connector behaved getting them.
+ *
+ * Health rides ALONGSIDE the facts rather than inside them. `StructuredFacts` is
+ * persisted per session and re-rendered months later, so embedding operational
+ * state would bloat every archived note and put unregistered numerals next to the
+ * renderer.
+ */
+export interface AssembleResult {
+  facts: StructuredFacts;
+  health: ConnectorHealth[];
+}
+
+/**
+ * Race a fetch against a deadline.
+ *
+ * A connector that never resolves stalls the whole pipeline, and then no digest is
+ * composed and nothing is ever reported — so a timeout is a PRECONDITION for
+ * "down" being detectable at all, not a refinement. The abandoned promise lingers;
+ * the run proceeds, which is the actual requirement. Same shape as `write.ts`'s
+ * DeepSeek guard.
+ */
+async function capped<T>(label: string, ms: number, p: Promise<T>, fallback: T): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<T>((resolve) => {
+    timer = setTimeout(() => {
+      logger.warn(SRC, `${label} exceeded ${ms}ms — continuing without it`);
+      resolve(fallback);
+    }, ms);
+  });
+  try {
+    return await Promise.race([p, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Generous enough that a slow-but-working feed is never cut off. */
+const CONNECTOR_TIMEOUT_MS = 90_000;
+
 /** Assemble the full deterministic fact set for `marketDate` (YYYY-MM-DD, ET). */
-export async function assembleFacts(marketDate: string, now = Date.now()): Promise<StructuredFacts> {
-  const quoteSymbols = [...INDICES.map((i) => i.symbol), ...SECTOR_ETFS.map((s) => s.etf)];
+export async function assembleFacts(marketDate: string, now = Date.now()): Promise<AssembleResult> {
+  const health: ConnectorHealth[] = [];
+  const quoteSymbols = [
+    ...INDICES.map((i) => i.symbol),
+    ...SECTOR_ETFS.map((s) => s.etf),
+    ...THEMATIC_ETFS.map((s) => s.etf),
+  ];
 
   const [quoteMap, vix, crossAsset, rates, breadth] = await Promise.all([
-    fetchBatchQuoteMap(quoteSymbols).catch((error) => {
-      logger.error(SRC, "Batch quote failed", { error });
-      return new Map<string, QuoteLike>();
-    }),
-    vixFact(marketDate, now),
-    crossAssetFact(now),
-    fetchRatesFact(marketDate),
-    breadthFact(marketDate, now),
+    capped(
+      "Yahoo quotes",
+      CONNECTOR_TIMEOUT_MS,
+      fetchBatchQuoteMap(quoteSymbols).catch((error) => {
+        logger.error(SRC, "Batch quote failed", { error });
+        return new Map<string, QuoteLike>();
+      }),
+      new Map<string, QuoteLike>(),
+    ),
+    capped("Yahoo VIX", CONNECTOR_TIMEOUT_MS, vixFact(marketDate, now), null),
+    capped("Yahoo cross-asset", CONNECTOR_TIMEOUT_MS, crossAssetFact(now), null),
+    capped("Treasury yields", CONNECTOR_TIMEOUT_MS, fetchRatesFact(marketDate), null),
+    capped("WSJ breadth", CONNECTOR_TIMEOUT_MS, breadthFact(marketDate, now), null),
   ]);
 
   const indices = indicesFact(quoteMap, marketDate, now);
   const sectors = sectorsFact(quoteMap, marketDate, now);
+  const thematics = thematicsFact(quoteMap, marketDate, now);
+
+  // A partial quote batch is worse than a failed one: the sector board silently
+  // omits rather than erroring, so coverage is the signal, not an exception.
+  health.push({
+    name: "Yahoo quotes",
+    status: quoteMap.size === 0 ? "down" : quoteMap.size < quoteSymbols.length ? "degraded" : "ok",
+    detail: quoteMap.size === 0 ? "no quotes returned" : quoteMap.size < quoteSymbols.length ? "partial batch" : undefined,
+    itemsExpected: quoteSymbols.length,
+    itemsGot: quoteMap.size,
+  });
+  health.push({ name: "Yahoo VIX", status: vix ? "ok" : "down", detail: vix ? undefined : "no VIX quote or history" });
+  health.push({
+    name: "Yahoo cross-asset",
+    status: crossAsset ? (crossAsset.value.length < 5 ? "degraded" : "ok") : "down",
+    detail: crossAsset && crossAsset.value.length < 5 ? "some instruments had no 16:00 ET bar" : crossAsset ? undefined : "no instruments resolved",
+    itemsExpected: CROSS_ASSETS.length,
+    itemsGot: crossAsset?.value.length ?? 0,
+  });
+  health.push({ name: "Treasury yields", status: rates ? "ok" : "down", detail: rates ? undefined : "no same-day yields" });
+  // Breadth is source-gated (§1a): a non-WSJ or stale answer is REJECTED upstream,
+  // so a null here already means "answered wrong" as often as "did not answer".
+  health.push({
+    name: "WSJ breadth",
+    status: breadth ? "ok" : "degraded",
+    detail: breadth ? undefined : "rejected — not WSJ-sourced, stale, or non-finite (see log)",
+  });
 
   // Divergence + contribution need the sector benchmarks and the index move,
   // so they run after the batch quote resolves (§5, §8).
@@ -316,7 +427,7 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
   // Each degrades to null independently (§1a) — the section is simply omitted.
   const nextDay = new Date(now + 86_400_000);
   const nextDate = etDate(nextDay.getTime());
-  const [gexPin, econEvents, enabledSpotlights, macro] = await Promise.all([
+  const [gexPin, econRes, enabledSpotlights, macroRes] = await Promise.all([
     fetchGexPinFact(asOf),
     // Window covers the next few calendar days so a Friday note reaches Monday.
     // `marketDate` is passed separately as the realtime anchor: FRED rejects a
@@ -325,6 +436,20 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     loadEnabledSpotlights(),
     fetchMacroReleases(marketDate, asOf),
   ]);
+  const econEvents = econRes.fact;
+  const macro = macroRes.fact;
+  health.push(...econRes.health, ...macroRes.health);
+  health.push(fomcHorizonHealth(marketDate));
+  health.push(
+    gexPin
+      ? { name: "SPY option chain", status: "ok", itemsGot: gexPin.value.expiriesUsed }
+      : { name: "SPY option chain", status: "degraded", detail: "no usable chain — see the gex-pin log for which guard tripped" },
+  );
+
+  // The overnight positioning delta. Attached here rather than inside
+  // `fetchGexPinFact` because it is the only part of THE BOOK that needs the
+  // database, and the fetcher is otherwise a pure Yahoo call.
+  await attachPriorPin(gexPin, marketDate);
 
   // §A relevance + §D timeframes. The relevance ranking is computed from data
   // already in hand; the timeframe bars are the only new fetch, and they cover
@@ -336,6 +461,7 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
   const benchmarks = [
     ...INDICES.map((i) => i.symbol),
     ...SECTOR_ETFS.map((s) => s.etf),
+    ...THEMATIC_ETFS.map((s) => s.etf),
     ...CROSS_ASSETS.map((c) => c.symbol),
     "^VIX",
   ];
@@ -373,6 +499,32 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     closeMinute,
   );
 
+  // SPDR holdings drives divergence, contribution and the relevance ranking, so a
+  // stale seed silently disables three sections at once.
+  health.push({
+    name: "SPDR holdings",
+    status: constituents.length === 0 ? "down" : constituents.length < 400 ? "degraded" : "ok",
+    detail:
+      constituents.length === 0
+        ? "no constituents — seed missing or rejected as too stale"
+        : constituents.length < 400
+          ? "partial quote coverage across the index"
+          : undefined,
+    itemsGot: constituents.length,
+  });
+  // Attribution legitimately does nothing when the ranking found nobody. That is
+  // `skipped`, not a failure — but the reason travels with it, because on a run
+  // with failures the cascade has to read as one story.
+  health.push(
+    relevance.length === 0
+      ? {
+          name: "Attribution",
+          status: "skipped",
+          detail: constituents.length === 0 ? "relevance ranked nothing (SPDR holdings was down)" : "relevance ranked no names",
+        }
+      : { name: "Attribution", status: "ok", itemsExpected: relevance.length, itemsGot: attributions.length },
+  );
+
   // §A's ranking is what decides which names deserve a line at all. Persisting
   // it — not just the subset that earned an attribution — is what lets MOVERS
   // honour §B rung 7: a name that cleared the ranking but whose reason failed
@@ -391,7 +543,7 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     movers: moversBySector,
   });
 
-  return {
+  const facts: StructuredFacts = {
     date: marketDate,
     generatedAt: new Date(now).toISOString(),
     indices,
@@ -399,6 +551,7 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     vix,
     crossAsset,
     sectors,
+    thematics,
     breadth,
     divergence: divergence.length > 0 ? { value: divergence, source: "Yahoo + SPDR holdings", asOf } : null,
     contribution: contribution ? { value: contribution, source: "Yahoo + SPY float weights", asOf } : null,
@@ -432,6 +585,83 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
           }
         : null,
   };
+
+  // The registry check runs last, so it sees everything that did report. It is
+  // the only thing that catches a connector which stopped being CALLED — no
+  // per-call error handler can see an absence of calls.
+  health.push(...missingFromRegistry(health));
+
+  return { facts, health };
+}
+
+/**
+ * Attach the previous session's gamma figures, for the overnight delta.
+ *
+ * This is the only positioning FLOW read these sources allow. Open interest is a
+ * snapshot, so the level says where the book sits; only the change says where it
+ * moved, and the notes table has been storing the snapshots all along.
+ *
+ * Every guard here exists to stop a comparison that is not one:
+ *
+ *  - **Same symbol.** An SPX-quoted pin and an SPY-quoted pin are not the same
+ *    number, and the fallback symbol is a real code path.
+ *  - **Both sides carry `dealerGammaSign`.** A note from before the sign fix
+ *    states the opposite stance, so "the book flipped" would fire on the
+ *    deploy rather than on the market.
+ *  - **Equal `horizonDays`.** Measured on 2026-08-13, the same book reads +0.53B
+ *    over three expirations and +0.82B over 45 days. Comparing across the
+ *    horizon change would report a 55% move that never happened.
+ *  - **Within four sessions.** Reuses `fetchPriorSessionDate`'s rule: if a note
+ *    failed to ship, the latest row can be several sessions old, and "overnight"
+ *    would be a week.
+ *
+ * Note the duplication this creates: day N stores a copy of day N−1's figures,
+ * so regenerating N−1 afterwards leaves N's snapshot stale. Accepted — the push
+ * is composed at assemble time and needs the delta then — and recorded rather
+ * than left to be discovered.
+ */
+async function attachPriorPin(gexPin: Fact<GexPinData> | null, marketDate: string): Promise<void> {
+  const today = gexPin?.value;
+  if (!today || today.dealerGammaSign == null) return;
+
+  try {
+    const rows = await db
+      .select({ date: dailyNotes.date, facts: dailyNotes.facts })
+      .from(dailyNotes)
+      .where(lt(dailyNotes.date, marketDate))
+      .orderBy(desc(dailyNotes.date))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return;
+
+    const gapDays = (Date.parse(`${marketDate}T00:00:00Z`) - Date.parse(`${row.date}T00:00:00Z`)) / 86_400_000;
+    if (!Number.isFinite(gapDays) || gapDays > 4) return;
+
+    const prior = (JSON.parse(row.facts) as StructuredFacts).gexPin?.value;
+    if (
+      !prior ||
+      prior.symbol !== today.symbol ||
+      prior.dealerGammaSign == null ||
+      prior.horizonDays !== today.horizonDays
+    ) {
+      return;
+    }
+
+    today.prior = {
+      date: row.date,
+      pinStrike: prior.pinStrike,
+      dealerGammaSign: prior.dealerGammaSign,
+      zeroGamma: prior.zeroGamma ?? null,
+    };
+    logger.info(SRC, "Prior gamma snapshot attached", {
+      priorDate: row.date,
+      pinMoved: prior.pinStrike !== today.pinStrike,
+      stanceFlipped: prior.dealerGammaSign !== today.dealerGammaSign,
+    });
+  } catch (error) {
+    // Additive: the section reads fine without it (§1a).
+    logger.warn(SRC, "Prior gamma snapshot unavailable", { error });
+  }
 }
 
 /**

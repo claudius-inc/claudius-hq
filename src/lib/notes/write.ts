@@ -22,9 +22,11 @@ import {
   collectAllowedNumbers,
   validateProseField,
   checkCausalRule,
+  checkLexicon,
   collectProseSubjects,
 } from "@/lib/notes/validate";
 import { deterministicHook } from "@/lib/notes/render";
+import { gammaStance, stanceWord, pinNoun } from "@/lib/notes/gamma-stance";
 
 const SRC = "notes/write";
 const API_URL = "https://api.deepseek.com/chat/completions";
@@ -53,6 +55,14 @@ function factSheet(f: StructuredFacts): string {
   }
   if (f.crossAsset) lines.push("Cross-asset: " + f.crossAsset.value.map((c) => `${c.label} ${num(c.price)}${c.changePct != null ? ` (${pct(c.changePct)})` : ""}`).join(", "));
   if (f.sectors) lines.push("Sectors (1d%): " + f.sectors.value.map((s) => `${s.name} ${pct(s.changePct)}`).join(", "));
+  // Labelled as industries, not sectors, and told they are already inside one:
+  // "semis led the sectors" would be a false claim about a slice of Technology.
+  if (f.thematics?.value.length) {
+    lines.push(
+      "Industry groups (1d%) — NOT sectors; each sits INSIDE a sector above and its members are already counted there: " +
+        f.thematics.value.map((s) => `${s.name} (${s.etf}) ${pct(s.changePct)}`).join(", "),
+    );
+  }
   if (f.breadth) {
     const bd = f.breadth.value;
     lines.push(`Breadth (NYSE): ${num(bd.advances)} advancers / ${num(bd.declines)} decliners, A/D ${bd.ratio.toFixed(2)}, new highs ${bd.newHighs} / new lows ${bd.newLows}`);
@@ -86,9 +96,16 @@ function factSheet(f: StructuredFacts): string {
   }
   if (f.gexPin) {
     const g = f.gexPin.value;
-    lines.push(
-      `Positioning: dealers net ${g.netGammaPositive ? "LONG" : "SHORT"} gamma on ${g.symbol}; largest-gamma strike (pin) ${num(g.pinStrike)}, spot ${num(g.spot)} (${pct(g.distancePct)} away). Note OI is start-of-day, so treat as directional.`,
-    );
+    const stance = gammaStance(g);
+    if (stance) {
+      // SPY scale throughout, never the index equivalent. The converted figure is
+      // renderer-owned and deliberately unpooled (§H0.1), so showing it here
+      // would invite the model to cite a numeral the validator must drop.
+      const zero = g.zeroGamma != null ? `; total gamma turns ${stance.sign === 1 ? "negative" : "positive"} near ${num(g.zeroGamma)}` : "";
+      lines.push(
+        `Positioning: dealers net ${stanceWord(stance).toUpperCase()} gamma on ${g.symbol}; largest-gamma strike (${pinNoun(g, stance)}) ${num(g.pinStrike)}, spot ${num(g.spot)} (${pct(g.distancePct)} away)${zero}. OI is start-of-day, so treat as directional.`,
+      );
+    }
   }
   // Length, not presence: a reached-but-empty calendar is a legitimate fact
   // (see `fetchMacroReleases`), and heading an empty list with "Economic data
@@ -97,15 +114,19 @@ function factSheet(f: StructuredFacts): string {
     // Without this the model never learns that CPI printed today, so on the
     // day's most important number it structurally cannot lead with it — while
     // the validator pooled those numerals as though prose could use them.
+    const sfmt = (v: number, m: { dp: number; suffix: string; signed: boolean }) =>
+      `${m.signed && v >= 0 ? "+" : ""}${v.toFixed(m.dp)}${m.suffix}`;
     lines.push(
-      "Economic data released TODAY (measured against the PRIOR reading, not a consensus — no consensus feed is available): " +
+      "Economic data released TODAY. Where a consensus is shown it is ONE survey's median (Investing.com's), not the only street number — say 'above/below/in line with consensus', never 'beat', 'miss', 'hot' or 'cool': " +
         f.macro.value
-          .map(
-            (m) =>
-              `${m.label} ${m.signed && m.actual >= 0 ? "+" : ""}${m.actual.toFixed(m.dp)}${m.suffix} vs ` +
-              `${m.signed && m.prior >= 0 ? "+" : ""}${m.prior.toFixed(m.dp)}${m.suffix} prior` +
-              `${m.priorRevised ? " (that prior has since been revised)" : ""}`,
-          )
+          .map((m) => {
+            const cons = m.consensus != null ? ` vs ${sfmt(m.consensus, m)} consensus` : " (no consensus sourced)";
+            const ctx = m.context?.[0] ? `, ${sfmt(m.context[0].value, m)} on the ${m.context[0].windowPeriods}-period ${m.context[0].kind}` : "";
+            return (
+              `${m.label} ${sfmt(m.actual, m)}${cons} vs ${sfmt(m.prior, m)} prior` +
+              `${m.priorRevised ? " (that prior has since been revised)" : ""}${ctx}`
+            );
+          })
           .join("; "),
     );
   }
@@ -131,8 +152,18 @@ function factSheet(f: StructuredFacts): string {
   }
   if (f.econEvents?.value.length) {
     lines.push(
-      "Upcoming releases (scheduled events — no consensus is available, so do not imply one): " +
-        f.econEvents.value.map((e) => `${e.name} ${e.date} ${e.timeEt} ET`).join("; "),
+      "Upcoming releases. A consensus is published about one session ahead and not beyond, so most of these carry only a range — do NOT invent an expectation for the ones without one: " +
+        f.econEvents.value
+          .map((e) => {
+            const x = e.expects;
+            const r = e.range;
+            const f2 = (v: number, s: { dp: number; suffix: string; signed: boolean }) =>
+              `${s.signed && v >= 0 ? "+" : ""}${v.toFixed(s.dp)}${s.suffix}`;
+            if (x) return `${e.name} ${e.date} ${e.timeEt} ET — street looks for ${f2(x.value, x)} vs ${f2(x.prior, x)} last`;
+            if (r) return `${e.name} ${e.date} ${e.timeEt} ET — ${r.label} last ${f2(r.last, r)}, 12-month range ${f2(r.low, r)} to ${f2(r.high, r)}`;
+            return `${e.name} ${e.date} ${e.timeEt} ET`;
+          })
+          .join("; "),
     );
   }
   return lines.join("\n");
@@ -145,6 +176,8 @@ HARD RULES:
 - Every "whatMatters" bullet must carry a because / despite. No naked price recaps.
 - DO NOT NAME INDIVIDUAL COMPANIES in any field — not by ticker ("AKAM") and not by name ("Akamai"). The note already prints the movers and their reasons on its own lines, immediately above yours. Refer to them collectively ("three of the four biggest reporters fell") or by sector. A field that names a company either way alongside a causal word is deleted before sending.
 - Do not use magnitude adjectives the number doesn't support (a 2bp move is not "a huge flattening").
+- NEVER write "hot", "cool", "hawkish", "dovish", "beat", "missed expectations", "blowout", "disappointing", or "upside/downside surprise". A consensus makes the SURPRISE a fact; it does not make the CONSEQUENCE one. Say "above consensus", "below consensus", "in line". A field using a banned word is deleted before sending.
+- Do NOT write conditional forecasts ("if PPI comes in above consensus, the front end sells off"). What a print will do is not in the fact sheet.
 - Lead the hook with the day's divergence + the single most important number. Hook ≤ 120 characters, plain text, no emoji.
 - Balance bull vs bear (one line each, each a specific argument). Keep it tight.
 - If a section has nothing real to say, omit it (empty string / omit the key).
@@ -292,7 +325,7 @@ function applyFallbacks(f: StructuredFacts, p: NoteProse, allowed: number[]): No
   // it must not name an instrument alongside a causal connective (§1b). The
   // second stops an invented mechanism riding on a legitimately-pooled number.
   const okField = (t?: string) =>
-    !!t && validateProseField(t, allowed).ok && checkCausalRule(t, subjects).ok;
+    !!t && validateProseField(t, allowed).ok && checkCausalRule(t, subjects).ok && checkLexicon(t).ok;
 
   for (const t of [p.hook, p.curveRead, ...p.whatMatters, p.bull, p.bear, p.book]) {
     if (!t) continue;
@@ -302,6 +335,12 @@ function applyFallbacks(f: StructuredFacts, p: NoteProse, allowed: number[]): No
         subject: causal.subject,
         connective: causal.connective,
       });
+    }
+    // A sourced consensus makes the surprise a fact, not the consequence. These
+    // words state the consequence and dress it as description.
+    const lex = checkLexicon(t);
+    if (!lex.ok) {
+      logger.info(SRC, "Dropping field: expectation-loaded language", { word: lex.word });
     }
   }
 

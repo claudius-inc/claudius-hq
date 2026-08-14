@@ -38,6 +38,7 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
       if (c.label === "BTC") push(c.price / 1000); // "$118k"
     }
   if (f.sectors) for (const s of f.sectors.value) push(s.changePct);
+  if (f.thematics) for (const s of f.thematics.value) push(s.changePct);
   if (f.breadth) {
     const bd = f.breadth.value;
     push(bd.advances, bd.declines, bd.ratio, bd.newHighs, bd.newLows);
@@ -55,20 +56,39 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
   }
   if (f.gexPin) {
     const g = f.gexPin.value;
-    push(g.spot, g.pinStrike, g.distancePct);
+    // SPY scale only. The index equivalent the page prints is renderer-owned and
+    // stays OUT of the pool on purpose — the fact sheet never shows it, so a
+    // bullet citing an index-scale gamma level is a bullet that invented it.
+    push(g.spot, g.pinStrike, g.distancePct, g.zeroGamma, g.prior?.pinStrike, g.prior?.zeroGamma);
   }
-  // econEvents contribute no numerals: a scheduled release carries only a name
-  // and an ET clock, and clock forms are whitelisted structure, not facts.
+  // §C2: a scheduled release now carries an expectation and a twelve-month range,
+  // so it DOES contribute numerals — it used to carry only a name and a clock.
+  if (f.econEvents)
+    for (const e of f.econEvents.value) {
+      push(e.expects?.value, e.expects?.prior, e.range?.last, e.range?.low, e.range?.high);
+      if (e.expects?.suffix === "k") push(e.expects.value * 1000, e.expects.prior * 1000);
+      if (e.range?.suffix === "k") push(e.range.last * 1000, e.range.low * 1000, e.range.high * 1000);
+    }
   // §G: prose may refer to an after-hours move ("the after-hours bid forgives it"),
   // so its numerals must be in the pool or a legitimate bullet gets dropped.
   if (f.postMarket) for (const m of f.postMarket.value) push(m.changePct);
   // §D: prose may put the day in its 5- or 21-session context, so those figures
   // must be in the pool or a legitimate bullet gets dropped.
   if (f.timeframes) for (const t of f.timeframes.value) push(t.chg5s, t.chg21s);
-  // §E: prose may read the print against its prior.
+  // §E: prose may read the print against its prior, its consensus, or the
+  // deterministic context under it. The DISPLAYED surprise is pooled as well as
+  // the raw difference — a bullet saying "0.2pp below consensus" cites the former,
+  // and pooling only the latter would drop it.
   if (f.macro)
     for (const m of f.macro.value) {
-      push(m.actual, m.prior);
+      push(m.actual, m.prior, m.consensus, m.surprise);
+      for (const c of m.context ?? []) push(c.value);
+      // The k-suffixed forms, mirroring the actual/prior handling below: claims
+      // and payrolls render as "199k" and the extractor multiplies a k by 1000.
+      if (m.suffix === "k") {
+        push(m.consensus != null ? m.consensus * 1000 : null, m.surprise != null ? m.surprise * 1000 : null);
+        for (const c of m.context ?? []) push(c.value * 1000);
+      }
       // A "k"-suffixed figure is shown to the model as "199k", and the numeral
       // extractor multiplies a k-suffix by 1000 — so the pooled 199 could never
       // match and the bullet leading with the day's payrolls or claims print was
@@ -259,6 +279,38 @@ export function checkCausalRule(text: string, subjects: string[]): CausalCheck {
   const m = text.match(CAUSAL_CONNECTIVES);
   if (!m) return { ok: true };
   return { ok: false, subject, connective: m[0] };
+}
+
+/**
+ * Words that import a market interpretation the number does not carry.
+ *
+ * A sourced consensus makes the SURPRISE a fact. It does not make the
+ * CONSEQUENCE one, and every word here is a consequence smuggled in as a
+ * description. "A hot CPI print" is not a reading of 3.4% against 3.4% — it is a
+ * claim about what the market will do with it.
+ *
+ * Enforced as a validator rather than a prompt line because nothing else in this
+ * file trusts the prompt: §1b's causal check and the numeral pool are both
+ * default-deny for the same reason. `RULES` still says it, which reduces how
+ * often this has to fire.
+ *
+ * "Miss" is deliberately bounded to the economic senses — "missed expectations",
+ * "a miss", "missing" — so that an ordinary use ("the tape missed nothing") is
+ * not swept up. The whole field is dropped on a hit, so a false positive costs a
+ * legitimate bullet.
+ */
+const BANNED_LEXICON =
+  /\b(?:hot(?:ter|test)?|cool(?:er|est)?|hawkish|dovish|beat(?:s|en)?|missed?\s+(?:expectations?|estimates?|consensus|forecasts?)|(?:a|the)\s+(?:big\s+)?miss\b|upside\s+surprise|downside\s+surprise|blowout|disappoint(?:ing|ed|ment)?)\b/i;
+
+export interface LexiconCheck {
+  ok: boolean;
+  word?: string;
+}
+
+/** True when the field is free of expectation-loaded language. */
+export function checkLexicon(text: string): LexiconCheck {
+  const m = text.match(BANNED_LEXICON);
+  return m ? { ok: false, word: m[0] } : { ok: true };
 }
 
 /** Validate one prose string against the fact pool. */

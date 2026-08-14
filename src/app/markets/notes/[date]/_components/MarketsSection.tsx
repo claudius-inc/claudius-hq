@@ -9,26 +9,52 @@ import { Section, TableWrap, Th, Absent, NoValue } from "./primitives";
  *
  * Keyed by label with an explicit default, so a newly configured instrument
  * gets a sane general-purpose format rather than silently inheriting DXY's
- * one-decimal index style. The magnitude fallback is chosen so a four-figure
- * price never prints as "4447.0".
+ * one-decimal index style.
+ *
+ * Crude and BTC are quoted in full. Rounding crude to the dollar threw away the
+ * cents that ARE the day's move on a quiet session, and "$63k" for bitcoin
+ * cannot be reconciled against any other quote the reader holds — the point of
+ * a level is that it can be checked, and a level rounded to the nearest
+ * thousand cannot be. The push (`render.ts`) keeps the short forms: it is
+ * character-capped and this page is not.
  */
 function crossPrice(p: CrossAssetPoint): string {
   switch (p.label) {
     case "BTC":
-      return `$${Math.round(p.price / 1000)}k`;
-    case "Gold":
-    case "Crude":
       return `$${intFmt(p.price)}`;
+    case "Gold":
+      return `$${intFmt(p.price)}`;
+    case "Crude":
     case "Copper":
       return `$${p.price.toFixed(2)}`;
     case "DXY":
       return p.price.toFixed(1);
     default:
-      if (p.price >= 10000) return `$${Math.round(p.price / 1000)}k`;
       if (p.price >= 100) return `$${intFmt(p.price)}`;
       return `$${p.price.toFixed(2)}`;
   }
 }
+
+/**
+ * What the row is actually quoting, where the label alone would mislead.
+ *
+ * "Gold" is the case that forced this. The feed is Yahoo's `GC=F`, which is not
+ * spot and not the front month either — it resolves to the most-ACTIVE COMEX
+ * contract, and gold's volume sits in the next even delivery month, which is
+ * routinely three to five months out. On 2026-08-13 that was December at
+ * 4,492.6 against 4,445 for the August contract: a 1.1% carry premium that a
+ * reader comparing against a spot quote reads as a broken feed. Yahoo carries
+ * no spot gold series at all (`XAUUSD=X` is delisted) and the dated near
+ * contract has too few intraday bars to survive the 16:00 ET close-bar rule, so
+ * the honest fix is to name the contract rather than to change the source.
+ */
+const QUOTE_NOTE: Record<string, string> = {
+  Gold: "COMEX gold futures. Yahoo maps GC=F to the most-active contract, which is typically several months out, so it trades above spot by the cost of carry.",
+  Crude: "WTI front-month futures on NYMEX.",
+  Copper: "COMEX copper futures, in dollars per pound.",
+  DXY: "ICE US Dollar Index — an index level, not a price.",
+  BTC: "Bitcoin against the dollar, from Yahoo's composite feed. It trades 24/7, so its close is the 16:00 ET bar, not a session close.",
+};
 
 /**
  * Rates and cross-asset.
@@ -145,8 +171,21 @@ export function MarketsSection({ facts }: { facts: StructuredFacts }) {
               <tbody className="divide-y divide-gray-100">
                 {cross.map((p) => (
                   <tr key={p.label} className="hover:bg-gray-50">
-                    <th scope="row" className="px-3 py-2 text-sm font-medium text-gray-900 text-left">
-                      {p.label}
+                    {/* One line, not a stacked pair. The symbol is what makes
+                        the level checkable, so it belongs beside the name at the
+                        same size rather than under it as a footnote — and a
+                        second line here set the row height for the whole
+                        table. `title` alone is unreachable on touch and by
+                        keyboard, so the detail is an aria-label too — the same
+                        rule `NoValue` follows. */}
+                    <th
+                      scope="row"
+                      className="px-3 py-2 text-sm font-medium text-gray-900 text-left whitespace-nowrap"
+                      title={QUOTE_NOTE[p.label]}
+                      aria-label={QUOTE_NOTE[p.label] ? `${p.label} — ${QUOTE_NOTE[p.label]}` : undefined}
+                    >
+                      {p.label}{" "}
+                      <span className="font-mono text-[0.8125rem] font-normal text-gray-500">({p.symbol})</span>
                     </th>
                     <td className="px-3 py-2 text-sm text-right tabular-nums text-gray-900">
                       {crossPrice(p)}

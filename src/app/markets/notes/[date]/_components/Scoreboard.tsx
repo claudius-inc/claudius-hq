@@ -50,8 +50,8 @@ function MicroStat({
 }) {
   return (
     <div className="min-w-0">
-      {/* Not uppercased: these labels are already conventional casing, and
-          `uppercase` turned "2s10s" into the unreadable "2S10S". */}
+      {/* Not uppercased: these labels are already conventional casing, and a
+          curve label like "2s10s" comes out of `uppercase` as "2S10S". */}
       <p className="text-xs tracking-wide text-gray-500 truncate">{label}</p>
       <p className={`text-sm font-semibold tabular-nums ${tone ?? "text-gray-900"}`}>{value}</p>
       {hint ? <p className="text-[11px] text-gray-500 truncate">{hint}</p> : null}
@@ -162,10 +162,14 @@ export function Scoreboard({ facts }: { facts: StructuredFacts }) {
             value={rates ? `${rates.y2.toFixed(2)}%` : <NoValue />}
             hint={rates ? `${sbp(rates.chg2Bp)} on the day` : undefined}
           />
+          {/* The long end, not 2s10s. The spread is a derived figure and it is
+              already printed with its change in the Rates table below; the 30Y
+              is a level nobody can reconstruct from the other two tiles, and it
+              is the one that carries term premium and issuance. */}
           <MicroStat
-            label="2s10s"
-            value={rates ? sbp(rates.spread2s10Bp) : <NoValue />}
-            hint={rates ? `${sbp(rates.spread2s10ChgBp)} on the day` : undefined}
+            label="30Y"
+            value={rates ? `${rates.y30.toFixed(2)}%` : <NoValue />}
+            hint={rates ? `${sbp(rates.chg30Bp)} on the day` : undefined}
           />
           <MicroStat
             label="Dollar (DXY)"

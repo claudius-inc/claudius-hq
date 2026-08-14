@@ -2,10 +2,13 @@
  * Economic releases — see docs/daily-note-v2-spec.md §E.
  *
  * FRED's release calendar is free and answers "what lands today, and this week".
- * It does NOT carry consensus: both FMP's and Finnhub's economic calendars are
- * paywalled, so the note reports each print against its **prior**, and says so.
- * A surprise against the prior is real information; calling it a consensus miss
- * would not be true.
+ * It does not itself carry consensus — but a free source for that DOES exist and
+ * §I was wrong to call the question settled. See `nasdaq-consensus.ts`. Each print
+ * is reported against the street's median where one could be sourced and
+ * unambiguously joined, and against its prior where it could not.
+ *
+ * The prior is never dropped: it is what makes the line survive a consensus
+ * outage, and a revision is often larger than the surprise being reported.
  *
  * Four things a naive implementation gets wrong, all handled here:
  *
@@ -27,10 +30,34 @@
  *     event elsewhere, never as actual-vs-prior.
  */
 import { logger } from "@/lib/logger";
-import type { Fact, MacroRelease, EconEvent } from "@/lib/notes/types";
+import type { Fact, MacroRelease, MacroContext, EconEvent } from "@/lib/notes/types";
+import type { ConnectorHealth } from "@/lib/notes/health";
+import { fetchConsensus, matchRow, consensusHealth } from "@/lib/notes/sources/nasdaq-consensus";
 
 const SRC = "notes/fred-releases";
 const BASE = "https://api.stlouisfed.org/fred";
+/** How many forward events the push can carry. FOMC is exempt — see below. */
+const MAX_EVENTS = 4;
+
+/**
+ * Provenance, and the one wording rule that matters.
+ *
+ * These strings are persisted into every stored note, and the archive page
+ * re-renders old notes with NEW component code. So the no-consensus form must
+ * assert the BASIS of the figures in front of it and never make a claim about the
+ * world: "no free feed carries consensus" was true when §I was written, it is
+ * false now, and rendering it onto an old note would be a freshly false sentence
+ * rather than a caveat. Archived `source` strings are left exactly as written.
+ */
+const SOURCE_RELEASES = (withConsensus: boolean) =>
+  withConsensus
+    ? "FRED + Investing.com survey median via Nasdaq"
+    : "FRED (measured against the prior reading)";
+
+const SOURCE_CALENDAR = (withConsensus: boolean) =>
+  withConsensus
+    ? "FRED + Federal Reserve calendar + Investing.com survey median via Nasdaq"
+    : "FRED release calendar + Federal Reserve calendar";
 
 interface ReleaseSpec {
   releaseId: number;
@@ -54,18 +81,50 @@ interface ReleaseSpec {
    * present weeks-old data as today's news. Sized by frequency.
    */
   maxAgeDays: number;
+  /**
+   * The event's name on Nasdaq's calendar, transcribed from a live payload.
+   * Absent means this release does not carry consensus — see the GDP note.
+   */
+  nasdaqEventName?: string;
+  /**
+   * The seasonally adjusted twin, for short-horizon arithmetic only. The headline
+   * still comes from `seriesId`. Also used for `publishedAverage`, where FRED
+   * publishes the derived figure directly and computing it would be worse.
+   */
+  contextSeriesId?: string;
+  /** Which context reads correctly for this series. One formula does not fit all eight. */
+  contextKind?: "index" | "count" | "rate" | "average" | "publishedAverage" | "none";
 }
 
-/** The releases a market reader actually positions around. */
+/**
+ * The releases a market reader actually positions around.
+ *
+ * `nasdaqEventName` is TRANSCRIBED from a real payload on a real release day,
+ * never guessed — the same discipline `FOMC_DECISIONS` follows. A guessed name
+ * yields zero matches forever, and that is invisible without the join-health
+ * signal in `consensusHealth`. Each one below was read off the live calendar on
+ * 2026-08-13/14 and checked against this spec's own prior.
+ *
+ * GDP is deliberately WITHOUT a name. Its hazard is structural: the annual NIPA
+ * revision lands with the Q2 advance every July and moves FRED's prior in the
+ * same release. The same-release-revision mechanism predicts a match, but that
+ * is extrapolated from claims, and GDP advance days come four times a year with
+ * no chance to learn quietly. Observe one, then fill it in.
+ *
+ * `contextSeriesId` is the SEASONALLY ADJUSTED twin, used only for short-horizon
+ * arithmetic. A 3-month annualized rate off an NSA series is seasonality, not
+ * signal; over twelve months it cancels, which is exactly why the headline y/y is
+ * correct on NSA. Two of the headline series are NSA and both need a twin.
+ */
 const RELEASES: ReleaseSpec[] = [
-  { releaseId: 10, seriesId: "CPIAUCNS", label: "CPI y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 60 },
-  { releaseId: 46, seriesId: "PPIFID", label: "PPI y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 60 },
-  { releaseId: 50, seriesId: "PAYEMS", label: "Payrolls", units: "chg", timeEt: "8:30", suffix: "k", dp: 0, signed: true, maxAgeDays: 60 },
-  { releaseId: 50, seriesId: "UNRATE", label: "Unemployment", units: "lin", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 60 },
-  { releaseId: 54, seriesId: "PCEPILFE", label: "Core PCE y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 70 },
-  { releaseId: 9, seriesId: "RSAFS", label: "Retail sales m/m", units: "pch", timeEt: "8:30", suffix: "%", dp: 1, signed: true, maxAgeDays: 60 },
-  { releaseId: 180, seriesId: "ICSA", label: "Jobless claims", units: "lin", timeEt: "8:30", suffix: "k", dp: 0, scale: 1e-3, signed: false, maxAgeDays: 8 },
-  { releaseId: 53, seriesId: "A191RL1Q225SBEA", label: "GDP q/q ann. (advance)", units: "lin", timeEt: "8:30", suffix: "%", dp: 1, signed: true, maxAgeDays: 130 },
+  { releaseId: 10, seriesId: "CPIAUCNS", label: "CPI y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 60, nasdaqEventName: "CPI", contextSeriesId: "CPIAUCSL", contextKind: "index" },
+  { releaseId: 46, seriesId: "PPIFID", label: "PPI y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 60, nasdaqEventName: "PPI", contextSeriesId: "PPIFIS", contextKind: "index" },
+  { releaseId: 50, seriesId: "PAYEMS", label: "Payrolls", units: "chg", timeEt: "8:30", suffix: "k", dp: 0, signed: true, maxAgeDays: 60, nasdaqEventName: "Nonfarm Payrolls", contextKind: "count" },
+  { releaseId: 50, seriesId: "UNRATE", label: "Unemployment", units: "lin", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 60, nasdaqEventName: "Unemployment Rate", contextKind: "rate" },
+  { releaseId: 54, seriesId: "PCEPILFE", label: "Core PCE y/y", units: "pc1", timeEt: "8:30", suffix: "%", dp: 1, signed: false, maxAgeDays: 70, nasdaqEventName: "Core PCE Price Index", contextKind: "index" },
+  { releaseId: 9, seriesId: "RSAFS", label: "Retail sales m/m", units: "pch", timeEt: "8:30", suffix: "%", dp: 1, signed: true, maxAgeDays: 60, nasdaqEventName: "Retail Sales", contextKind: "average" },
+  { releaseId: 180, seriesId: "ICSA", label: "Jobless claims", units: "lin", timeEt: "8:30", suffix: "k", dp: 0, scale: 1e-3, signed: false, maxAgeDays: 8, nasdaqEventName: "Initial Jobless Claims", contextKind: "publishedAverage", contextSeriesId: "IC4WSA" },
+  { releaseId: 53, seriesId: "A191RL1Q225SBEA", label: "GDP q/q ann. (advance)", units: "lin", timeEt: "8:30", suffix: "%", dp: 1, signed: true, maxAgeDays: 130, contextKind: "none" },
 ];
 
 /**
@@ -94,17 +153,125 @@ const RELEASE_NAMES: Record<number, string> = {
  * announce "FOMC lands today" forever. The Fed publishes its own calendar years
  * ahead, so the honest source is a hand-maintained list.
  *
- * It is EMPTY on purpose. Guessing meeting dates would be exactly the
- * fabrication §1a forbids, and a wrong FOMC date is the most damaging single
- * error this note could make. Paste the real dates from
- * https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm to switch the
- * section on; the rendering path below already handles them.
+ * TRANSCRIBED, NEVER GUESSED, from
+ * https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm on 2026-08-13.
+ * A wrong FOMC date is the most damaging single error this note can make, so
+ * when this list runs out it must be refilled from that page and nowhere else —
+ * do not extrapolate the pattern, and do not carry a date forward from memory.
+ *
+ * The DATE here is the second day of a two-day meeting, because that is the day
+ * the decision lands. The statement is released at 14:00 ET; the press
+ * conference follows at 14:30 and is not a separate event.
+ *
+ * The Fed's own footnote applies and is the reason this list stops at 2027:
+ * "Each meeting date is tentative until confirmed at the meeting immediately
+ * preceding it."
  *
  * Framed as an EVENT, never as actual-vs-prior: the target rate is unchanged at
  * all but a handful of observations a year, and the content that matters —
  * statement, projections — is not a FRED series at all.
  */
-const FOMC_DECISIONS: { date: string; timeEt: string }[] = [];
+const FOMC_DECISIONS: { date: string; timeEt: string; projections: boolean }[] = [
+  // 2026
+  { date: "2026-01-28", timeEt: "14:00", projections: false },
+  { date: "2026-03-18", timeEt: "14:00", projections: true },
+  { date: "2026-04-29", timeEt: "14:00", projections: false },
+  { date: "2026-06-17", timeEt: "14:00", projections: true },
+  { date: "2026-07-29", timeEt: "14:00", projections: false },
+  { date: "2026-09-16", timeEt: "14:00", projections: true },
+  { date: "2026-10-28", timeEt: "14:00", projections: false },
+  { date: "2026-12-09", timeEt: "14:00", projections: true },
+  // 2027 — listed by the Fed as a future year, so every date is tentative.
+  { date: "2027-01-27", timeEt: "14:00", projections: false },
+  { date: "2027-03-17", timeEt: "14:00", projections: true },
+  { date: "2027-04-28", timeEt: "14:00", projections: false },
+  { date: "2027-06-09", timeEt: "14:00", projections: true },
+  { date: "2027-07-28", timeEt: "14:00", projections: false },
+  { date: "2027-09-15", timeEt: "14:00", projections: true },
+  { date: "2027-10-27", timeEt: "14:00", projections: false },
+  { date: "2027-12-08", timeEt: "14:00", projections: true },
+];
+
+/**
+ * A projection meeting is a different event from a plain one — the dot plot is
+ * what reprices the front end, and a reader positions around it differently.
+ * Carried in the NAME rather than as a field on `EconEvent`, because the name is
+ * already the whole claim the section makes and a second field would have to be
+ * rendered somewhere anyway.
+ */
+const FOMC_NAME = (projections: boolean) =>
+  projections ? "FOMC decision + projections" : "FOMC decision";
+
+/**
+ * Sort key for the forward calendar.
+ *
+ * `date + timeEt` compared directly is wrong the moment a release does not print
+ * at 8:30: "14:00" sorts BEFORE "8:30" lexicographically, so the FOMC would lead
+ * a day it actually closes. Zero-padding the hour is the whole fix. Anything
+ * that does not parse falls back to the raw string rather than throwing — a
+ * mis-ordered event is better than a dropped section.
+ */
+function eventSortKey(e: EconEvent): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(e.timeEt);
+  return m ? `${e.date} ${m[1].padStart(2, "0")}:${m[2]}` : `${e.date} ${e.timeEt}`;
+}
+
+const isFomc = (e: EconEvent) => e.name.startsWith("FOMC");
+
+/** Runway below this and the list needs refilling; below the second, urgently. */
+const FOMC_WARN_DAYS = 120;
+const FOMC_CRITICAL_DAYS = 30;
+
+/**
+ * Health for a HAND-MAINTAINED LIST, which is the failure no liveness check sees.
+ *
+ * `FOMC_DECISIONS` shipped as an empty array for months and every run was
+ * perfectly healthy, because a static array has nothing to fail. A hand-kept list
+ * is a source whose "fetch" is a date comparison, so it belongs in the same
+ * registry and the same digest — that is the only thing that guarantees anyone
+ * looks at it.
+ *
+ * The Fed publishes the following year by mid-year, so 120 days is ample notice.
+ * The 30-day escalation exists because a `degraded` that only reminds weekly can
+ * otherwise be snoozed for the whole four months.
+ */
+export function fomcHorizonHealth(marketDate: string): ConnectorHealth {
+  const future = FOMC_DECISIONS.map((m) => m.date).filter((d) => d >= marketDate).sort();
+  const name = "FOMC calendar";
+  if (future.length === 0) {
+    return { name, status: "down", detail: "no future meetings listed — refill from federalreserve.gov" };
+  }
+  const runway = (Date.parse(`${future[future.length - 1]}T00:00:00Z`) - Date.parse(`${marketDate}T00:00:00Z`)) / 86_400_000;
+  if (runway < FOMC_CRITICAL_DAYS) {
+    return { name, status: "down", detail: `only ${Math.round(runway)} days of meetings left — refill from federalreserve.gov` };
+  }
+  if (runway < FOMC_WARN_DAYS) {
+    return { name, status: "degraded", detail: `${Math.round(runway)} days of meetings left — refill from federalreserve.gov` };
+  }
+  return { name, status: "ok", itemsGot: future.length };
+}
+
+/**
+ * The forward calendar, in time order and trimmed to what the push can carry.
+ *
+ * The cap keeps the push inside its character budget, but trimming the FOMC out
+ * of an FOMC week is the one case where the cap costs more than it saves: it is
+ * the single event that reprices the whole curve, and a busy week is exactly
+ * when it gets pushed past fourth place. So it is kept and the data releases
+ * fill the slots that remain.
+ *
+ * Exported for its own test. The two failures it guards — a 14:00 event sorting
+ * ahead of an 8:30 one, and the FOMC falling off the end of a crowded week —
+ * are both silent, and neither is visible in any log.
+ */
+export function orderEvents(events: EconEvent[], max = MAX_EVENTS): EconEvent[] {
+  const byTime = (a: EconEvent, b: EconEvent) => eventSortKey(a).localeCompare(eventSortKey(b));
+  const sorted = [...events].sort(byTime);
+  const fomc = sorted.filter(isFomc);
+  if (fomc.length === 0) return sorted.slice(0, max);
+  const rest = sorted.filter((e) => !isFomc(e)).slice(0, Math.max(0, max - fomc.length));
+  return [...fomc, ...rest].sort(byTime);
+}
 
 function key(): string | null {
   return process.env.FRED_API_KEY || null;
@@ -169,20 +336,20 @@ async function releaseDatesIn(
  * the section it fed silently rendered as nothing every night. FRED answers the
  * same question — what lands, and when — for free, on the key already in use.
  *
- * The one thing it cannot answer is CONSENSUS, and per §I that is settled
- * rather than pending: the note announces the event and its time, and says
- * nothing about what the street expects. An announcement with no number is
- * honest and useful; a consensus we cannot source would be neither.
+ * Consensus is attached separately and only reaches about ONE session forward —
+ * measured, the calendar carries tomorrow's median and is blank four days out.
+ * Beyond that the twelve-month range stands in, which is why every event gets one.
+ * An announcement with no number is still honest and useful.
  */
 export async function fetchUpcomingReleases(
   from: string,
   to: string,
   today: string,
   asOf: string,
-): Promise<Fact<EconEvent[]> | null> {
+): Promise<{ fact: Fact<EconEvent[]> | null; health: ConnectorHealth[] }> {
   if (!key()) {
     logger.info(SRC, "FRED_API_KEY not set — upcoming releases omitted");
-    return null;
+    return { fact: null, health: [{ name: "FRED calendar", status: "down", detail: "FRED_API_KEY not set" }] };
   }
 
   const events: EconEvent[] = [];
@@ -198,24 +365,240 @@ export async function fetchUpcomingReleases(
   }
 
   for (const m of FOMC_DECISIONS) {
-    if (m.date >= from && m.date <= to) events.push({ name: "FOMC decision", date: m.date, timeEt: m.timeEt });
+    if (m.date >= from && m.date <= to) {
+      events.push({ name: FOMC_NAME(m.projections), date: m.date, timeEt: m.timeEt });
+    }
   }
 
   // "FRED answered and the week ahead is empty" is a FACT the reader can use;
   // "we never reached FRED" is not. Only the second is null — see `Absent`,
   // which renders a different sentence for each.
+  //
+  // The FOMC list is static, so it alone cannot tell us the calendar was
+  // reachable. `answered` still has to come from FRED.
   if (events.length === 0) {
-    if (!answered) return null;
-    return { value: [], source: "FRED release calendar (no consensus available)", asOf };
+    if (!answered) return { fact: null, health: [{ name: "FRED calendar", status: "down", detail: "no answer" }] };
+    return {
+      fact: { value: [], source: SOURCE_CALENDAR(false), asOf },
+      health: [{ name: "FRED calendar", status: "empty", detail: "nothing scheduled in the window" }],
+    };
   }
-  events.sort((a, b) => (a.date + a.timeEt).localeCompare(b.date + b.timeEt));
-  logger.info(SRC, "Upcoming releases loaded", { count: events.length, from, to });
-  return { value: events.slice(0, 4), source: "FRED release calendar (no consensus available)", asOf };
+  const value = orderEvents(events);
+  await attachExpectations(value, asOf);
+  const withConsensus = value.some((e) => e.expects);
+  logger.info(SRC, "Upcoming releases loaded", {
+    count: value.length,
+    dropped: events.length - value.length,
+    withConsensus: value.filter((e) => e.expects).length,
+    from,
+    to,
+  });
+  return {
+    fact: { value, source: SOURCE_CALENDAR(withConsensus), asOf },
+    health: [{ name: "FRED calendar", status: "ok", itemsExpected: events.length, itemsGot: value.length }],
+  };
+}
+
+/**
+ * Attach what the street expects, and a twelve-month range as the fallback.
+ *
+ * Consensus reaches about ONE SESSION forward and no further — measured, the
+ * calendar is populated for tomorrow's print and blank four days out. So the
+ * expectation is looked up only for the nearest date, and every event still gets
+ * a range, which is what makes the line worth reading when no survey has been
+ * published yet.
+ *
+ * Neither is fatal: an event with neither still renders as name and time, exactly
+ * as it does today.
+ */
+async function attachExpectations(events: EconEvent[], asOf: string): Promise<void> {
+  const nearest = events[0]?.date;
+  if (!nearest) return;
+
+  const byName = new Map<string, ReleaseSpec[]>();
+  for (const spec of RELEASES) {
+    const name = RELEASE_NAMES[spec.releaseId];
+    if (!name) continue;
+    const list = byName.get(name);
+    if (list) list.push(spec);
+    else byName.set(name, [spec]);
+  }
+
+  // One calendar call, for the nearest session only.
+  const fetched = await fetchConsensus(nearest);
+
+  for (const e of events) {
+    const specs = byName.get(e.name);
+    // The headline series for a release is its first spec — payrolls for the
+    // Employment Situation, not the unemployment rate.
+    const spec = specs?.[0];
+    if (!spec) continue;
+
+    const range = await twelveMonthRange(spec);
+    if (range) {
+      e.range = {
+        label: spec.label,
+        last: range.last,
+        low: range.low,
+        high: range.high,
+        suffix: spec.suffix,
+        dp: spec.dp,
+        signed: spec.signed,
+      };
+    }
+
+    if (e.date !== nearest || !spec.nasdaqEventName || !fetched.rows || !range) continue;
+    const row = matchRow(fetched.rows, spec.nasdaqEventName, range.last, spec.dp);
+    if (row?.consensus == null) continue;
+    e.expects = {
+      value: row.consensus,
+      prior: range.last,
+      label: spec.label,
+      suffix: spec.suffix,
+      dp: spec.dp,
+      signed: spec.signed,
+      asOf,
+    };
+  }
 }
 
 interface Observation {
   date: string;
   value: string;
+}
+
+/** Observations for any series/transform, newest first. */
+async function observations(seriesId: string, units: string, limit: number): Promise<Observation[]> {
+  const k = key();
+  if (!k) return [];
+  const json = await getJson<{ observations?: Observation[] }>(
+    `/series/observations?series_id=${seriesId}&units=${units}` +
+      `&sort_order=desc&limit=${limit}&api_key=${k}&file_type=json`,
+  );
+  return (json?.observations ?? []).filter((o) => o.value !== ".");
+}
+
+/**
+ * Deterministic context for one release — the second line, under the surprise.
+ *
+ * Per series, because one formula fits four of the eight and is wrong for the
+ * rest: an annualized rate off a weekly claims count is meaningless, and a 3-month
+ * annualized rate off an NSA index is seasonality rather than signal. The `kind`
+ * on each spec decides which reading applies.
+ *
+ * At most one entry per release. Two numbers under a surprise is a paragraph, not
+ * a note.
+ */
+async function buildContext(spec: ReleaseSpec): Promise<MacroContext[]> {
+  const kind = spec.contextKind ?? "none";
+  if (kind === "none") return [];
+
+  try {
+    // Claims: FRED publishes the four-week average directly as IC4WSA, and the
+    // published figure is the one every desk quotes. Computing our own would be a
+    // different number with the same name.
+    if (kind === "publishedAverage" && spec.contextSeriesId) {
+      const obs = await observations(spec.contextSeriesId, "lin", 1);
+      if (obs.length === 0) return [];
+      const v = Number(obs[0].value) * (spec.scale ?? 1);
+      if (!Number.isFinite(v)) return [];
+      return [{
+        kind: "publishedAverage",
+        value: Math.round(v * 10 ** spec.dp) / 10 ** spec.dp,
+        windowPeriods: 4,
+        seriesId: spec.contextSeriesId,
+        inputPeriods: [obs[0].date],
+      }];
+    }
+
+    // Price indices: the 3-month annualized rate, from the SEASONALLY ADJUSTED
+    // twin. Off an NSA series this figure is seasonality — which is exactly why
+    // the headline y/y is correct on NSA and this is not.
+    if (kind === "index") {
+      const series = spec.contextSeriesId ?? spec.seriesId;
+      const obs = await observations(series, "lin", 4);
+      if (obs.length < 4) return [];
+      const latest = Number(obs[0].value);
+      const threeAgo = Number(obs[3].value);
+      if (!Number.isFinite(latest) || !Number.isFinite(threeAgo) || threeAgo <= 0) return [];
+      const annualized = ((latest / threeAgo) ** 4 - 1) * 100;
+      return [{
+        kind: "annualized",
+        value: Math.round(annualized * 10) / 10,
+        windowPeriods: 3,
+        seriesId: series,
+        inputPeriods: [obs[3].date, obs[0].date],
+      }];
+    }
+
+    // Payrolls: the three-month average monthly change, which is how the number
+    // is read once a single month's noise is set aside.
+    if (kind === "count") {
+      const obs = await observations(spec.seriesId, spec.units, 3);
+      if (obs.length < 3) return [];
+      const vals = obs.map((o) => Number(o.value) * (spec.scale ?? 1));
+      if (vals.some((v) => !Number.isFinite(v))) return [];
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      return [{
+        kind: "average",
+        value: Math.round(avg * 10 ** spec.dp) / 10 ** spec.dp,
+        windowPeriods: 3,
+        seriesId: spec.seriesId,
+        inputPeriods: obs.map((o) => o.date).reverse(),
+      }];
+    }
+
+    // Retail sales: the three-month average m/m. NOT annualized — the annualized
+    // form of a noisy monthly retail print reads as a trend it cannot support.
+    if (kind === "average") {
+      const obs = await observations(spec.seriesId, spec.units, 3);
+      if (obs.length < 3) return [];
+      const vals = obs.map((o) => Number(o.value));
+      if (vals.some((v) => !Number.isFinite(v))) return [];
+      const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+      return [{
+        kind: "average",
+        value: Math.round(avg * 10) / 10,
+        windowPeriods: 3,
+        seriesId: spec.seriesId,
+        inputPeriods: obs.map((o) => o.date).reverse(),
+      }];
+    }
+
+    // Unemployment: a level, so the useful context is where it sat three months
+    // ago. An annualized rate of a rate is nonsense.
+    if (kind === "rate") {
+      const obs = await observations(spec.seriesId, "lin", 4);
+      if (obs.length < 4) return [];
+      const now = Number(obs[0].value);
+      const then = Number(obs[3].value);
+      if (!Number.isFinite(now) || !Number.isFinite(then)) return [];
+      return [{
+        kind: "levelChange",
+        value: Math.round((now - then) * 10) / 10,
+        windowPeriods: 3,
+        seriesId: spec.seriesId,
+        inputPeriods: [obs[3].date, obs[0].date],
+      }];
+    }
+  } catch (error) {
+    logger.warn(SRC, "Release context unavailable", { label: spec.label, error });
+  }
+  return [];
+}
+
+/** Twelve-month low/high of the headline transform, plus the last print. */
+async function twelveMonthRange(
+  spec: ReleaseSpec,
+): Promise<{ last: number; low: number; high: number } | null> {
+  // Weekly series need ~52 observations to span a year; monthly need 12.
+  const limit = spec.seriesId === "ICSA" ? 52 : 13;
+  const obs = await observations(spec.seriesId, spec.units, limit);
+  if (obs.length < 6) return null;
+  const vals = obs.map((o) => Number(o.value) * (spec.scale ?? 1)).filter((v) => Number.isFinite(v));
+  if (vals.length < 6) return null;
+  const r = (n: number) => Math.round(n * 10 ** spec.dp) / 10 ** spec.dp;
+  return { last: r(vals[0]), low: r(Math.min(...vals)), high: r(Math.max(...vals)) };
 }
 
 /** Latest two observations for a spec, transformed by FRED itself. */
@@ -269,18 +652,39 @@ async function priorWasRevised(spec: ReleaseSpec, priorPeriod: string): Promise<
  * yet ingested, and the page then says the calendar is unavailable rather than
  * asserting that nothing printed.
  */
-export async function fetchMacroReleases(marketDate: string, asOf: string): Promise<Fact<MacroRelease[]> | null> {
+export async function fetchMacroReleases(
+  marketDate: string,
+  asOf: string,
+): Promise<{ fact: Fact<MacroRelease[]> | null; health: ConnectorHealth[] }> {
+  const health: ConnectorHealth[] = [];
   if (!key()) {
     logger.info(SRC, "FRED_API_KEY not set — macro releases omitted");
-    return null;
+    health.push({ name: "FRED releases", status: "down", detail: "FRED_API_KEY not set" });
+    health.push({ name: "Nasdaq consensus", status: "skipped", detail: "no releases to match" });
+    return { fact: null, health };
   }
 
   const { answered, byRelease } = await releaseDatesIn(marketDate, marketDate, marketDate);
-  if (!answered) return null;
+  if (!answered) {
+    health.push({ name: "FRED releases", status: "down", detail: "no answer from the release calendar" });
+    health.push({ name: "Nasdaq consensus", status: "skipped", detail: "FRED releases was down" });
+    return { fact: null, health };
+  }
   if (byRelease.size === 0) {
     logger.info(SRC, "No tracked release was dated this session", { marketDate });
-    return { value: [], source: "FRED (actual vs prior — no consensus available)", asOf };
+    health.push({ name: "FRED releases", status: "empty", detail: "no tracked release dated today" });
+    health.push({ name: "Nasdaq consensus", status: "skipped", detail: "no releases printed today" });
+    // A reached-but-quiet calendar is a FACT the page states; only an unreachable
+    // one is null. The two render as different sentences.
+    return { fact: { value: [], source: SOURCE_RELEASES(false), asOf }, health };
   }
+
+  // One calendar fetch for the whole session, before the loop. `rows === null`
+  // means the endpoint never answered, which is a different state from answering
+  // with nothing — the health record has to tell those apart.
+  const scheduled = RELEASES.filter((s) => byRelease.has(s.releaseId) && s.nasdaqEventName);
+  const consensusFetch = scheduled.length > 0 ? await fetchConsensus(marketDate) : null;
+  let matched = 0;
 
   const out: MacroRelease[] = [];
   for (const spec of RELEASES) {
@@ -308,22 +712,63 @@ export async function fetchMacroReleases(marketDate: string, asOf: string): Prom
       continue;
     }
     const priorRevised = await priorWasRevised(spec, obs[1].date);
+    const roundedActual = Math.round(actual * 10 ** spec.dp) / 10 ** spec.dp;
+    const roundedPrior = Math.round(prior * 10 ** spec.dp) / 10 ** spec.dp;
+
+    // The join: unique match on the prior, never first-match-wins. Compared at
+    // this spec's own display precision and AFTER its scale, so ICSA's "200K"
+    // meets FRED's 200,000 as 200 against 200.
+    let consensus: number | undefined;
+    let surprise: number | undefined;
+    if (spec.nasdaqEventName && consensusFetch?.rows) {
+      const row = matchRow(consensusFetch.rows, spec.nasdaqEventName, roundedPrior, spec.dp);
+      if (row) {
+        matched++;
+        if (row.consensus != null) {
+          consensus = row.consensus;
+          surprise = Math.round((roundedActual - row.consensus) * 10 ** spec.dp) / 10 ** spec.dp;
+        }
+      }
+    }
 
     out.push({
       label: spec.label,
       period: obs[0].date,
       timeEt: spec.timeEt,
-      actual: Math.round(actual * 10 ** spec.dp) / 10 ** spec.dp,
-      prior: Math.round(prior * 10 ** spec.dp) / 10 ** spec.dp,
+      actual: roundedActual,
+      prior: roundedPrior,
       priorRevised,
       suffix: spec.suffix,
       dp: spec.dp,
       signed: spec.signed,
+      consensus,
+      surprise,
+      consensusAsOf: consensus != null ? asOf : undefined,
+      context: await buildContext(spec),
     });
   }
 
-  if (out.length === 0) return null;
-  logger.info(SRC, "Macro releases printed today", { count: out.length, labels: out.map((o) => o.label) });
-  return { value: out, source: "FRED (actual vs prior — no consensus available)", asOf };
+  if (consensusFetch) {
+    health.push(consensusHealth(consensusFetch, scheduled.length, matched));
+  } else {
+    health.push({ name: "Nasdaq consensus", status: "skipped", detail: "no consensus-carrying release today" });
+  }
+
+  if (out.length === 0) {
+    health.push({ name: "FRED releases", status: "degraded", detail: "releases were scheduled but none resolved" });
+    return { fact: null, health };
+  }
+  health.push({
+    name: "FRED releases",
+    status: "ok",
+    itemsExpected: Array.from(byRelease.keys()).length,
+    itemsGot: out.length,
+  });
+  logger.info(SRC, "Macro releases printed today", {
+    count: out.length,
+    labels: out.map((o) => o.label),
+    withConsensus: out.filter((o) => o.consensus != null).length,
+  });
+  return { fact: { value: out, source: SOURCE_RELEASES(out.some((o) => o.consensus != null)), asOf }, health };
 }
 

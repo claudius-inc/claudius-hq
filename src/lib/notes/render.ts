@@ -7,6 +7,7 @@
  * arrive with slices 2 and 4. Sections whose fact is null are omitted (§1a).
  */
 import { extractNumerals } from "@/lib/notes/validate";
+import { gammaStance, stanceWord, pinNoun } from "@/lib/notes/gamma-stance";
 import { SECTOR_SPDRS } from "@/lib/notes/sources/spdr-holdings";
 import { toYahooSymbol } from "@/lib/notes/sources/daily-bars";
 import type {
@@ -210,15 +211,20 @@ function trendSection(f: StructuredFacts): string {
 }
 
 /**
- * Economic releases that printed today (§E), measured against the PRIOR.
+ * Economic releases that printed today (§E).
  *
- * The basis is stated in the label, not buried: no free feed carries consensus,
- * so calling a gap versus the prior a "consensus miss" would be untrue. When the
- * prior has since been revised, say so — a revision is often larger than the
- * surprise being reported.
+ * Against the street's median where one was sourced and unambiguously joined,
+ * and against the prior otherwise. When the prior has since been revised, say so
+ * — a revision is often larger than the surprise being reported.
  *
- * `detail = false` is the degraded form for the overflow ladder: the figures
- * survive, the framing goes.
+ * The basis line asserts what these figures ARE and never makes a claim about
+ * the world. It used to read "no consensus feed", which was true when it was
+ * written and is now false; a stored note keeps its own string, but nothing new
+ * should ever restate it.
+ *
+ * `detail = false` is the degraded form for the overflow ladder. The consensus
+ * is the first thing to go: it is the figure with an external dependency, and
+ * the prior comparison stands on its own.
  */
 function macroSection(f: StructuredFacts, detail = true): string {
   const rel = f.macro?.value;
@@ -233,9 +239,11 @@ function macroSection(f: StructuredFacts, detail = true): string {
     // a since-revised figure as "prior" without saying so misstates the
     // comparison, and the label is the whole reason we may quote it at all.
     const revised = r.priorRevised ? " revised" : "";
-    return `${escapeHtml(r.label)} ${fmt(r.actual, r)} vs ${fmt(r.prior, r)} prior${revised}`;
+    const cons = detail && r.consensus != null ? ` vs ${fmt(r.consensus, r)} cons` : "";
+    return `${escapeHtml(r.label)} ${fmt(r.actual, r)}${cons} vs ${fmt(r.prior, r)} prior${revised}`;
   });
-  const basis = detail ? " (vs prior — no consensus feed)" : "";
+  const anyConsensus = detail && rel.some((r) => r.consensus != null);
+  const basis = detail ? (anyConsensus ? " (vs consensus and prior)" : " (vs prior)") : "";
   return `${b("DATA")}${escapeHtml(basis)} — ${items.join(" · ")}`;
 }
 
@@ -373,24 +381,24 @@ function spotlightSection(f: StructuredFacts, max = Infinity): string {
  */
 function bookSection(f: StructuredFacts, prose: NoteProse | undefined, ledger: Ledger): string {
   const pin = f.gexPin?.value;
+  const stance = pin ? gammaStance(pin) : null;
   const parts: string[] = [];
-  if (pin) {
-    const stance = pin.netGammaPositive ? "dealers long gamma" : "dealers short gamma";
+  if (pin && stance) {
     // Which SIDE the pin sits on is the whole actionable content, and
     // `distancePct`'s sign convention is not worth trusting for it — derive the
     // direction from the two prices. The "$" also stops a bare "775" being
     // misread against the index level ("S&P 7,753") one line above.
     const side = pin.pinStrike >= pin.spot ? "above" : "below";
     parts.push(
-      `${stance}, pin near $${intFmt(pin.pinStrike)} on ${escapeHtml(pin.symbol)}, ${Math.abs(pin.distancePct).toFixed(1)}% ${side} spot`,
+      `dealers ${stanceWord(stance)} gamma, ${pinNoun(pin, stance)} near $${intFmt(pin.pinStrike)} on ${escapeHtml(pin.symbol)}, ${Math.abs(pin.distancePct).toFixed(1)}% ${side} spot`,
     );
   }
   // The gamma stance is numeral-free, so the validator can't catch an LLM line
   // that states the opposite. Drop a book line that contradicts the fact.
   const contradictsStance =
-    pin != null &&
+    stance != null &&
     prose?.book != null &&
-    new RegExp(pin.netGammaPositive ? "short gamma" : "long gamma", "i").test(prose.book);
+    new RegExp(stance.sign === 1 ? "short gamma" : "long gamma", "i").test(prose.book);
   // The pin line above already states stance + strike, and the model tends to
   // restate it verbatim. A book line that repeats the strike or the stance adds
   // nothing, so keep only genuinely additive colour.

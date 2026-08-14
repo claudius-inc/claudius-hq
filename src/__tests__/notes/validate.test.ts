@@ -17,6 +17,7 @@ function facts(partial: Partial<StructuredFacts>): StructuredFacts {
     vix: null,
     crossAsset: null,
     sectors: null,
+    thematics: null,
     breadth: null,
     divergence: null,
     contribution: null,

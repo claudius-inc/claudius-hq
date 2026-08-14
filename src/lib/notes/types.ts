@@ -131,9 +131,38 @@ export interface Attribution {
 }
 
 /**
- * An economic release that printed today (v2 §E). Measured against the PRIOR,
- * not a consensus — no free feed carries consensus, and calling a prior-gap a
- * consensus miss would be untrue.
+ * One deterministic reading of a release's recent run.
+ *
+ * Stored as DATA, never as a rendered sentence. Seasonal factors are re-estimated
+ * annually, so re-fetching FRED months later will not reproduce a stored
+ * "3.1% 3-month annualized" — a frozen string plus a bare number is un-auditable,
+ * while these fields carry their own inputs and stay checkable forever. It also
+ * matches how `MacroRelease` already works: values here, formatting in the
+ * component.
+ */
+export interface MacroContext {
+  kind: "annualized" | "average" | "levelChange" | "publishedAverage" | "rank";
+  value: number;
+  /** How many periods the window spans. 3 for a 3-month annualized rate. */
+  windowPeriods: number;
+  /** Which series produced it — usually the seasonally adjusted twin, not the headline. */
+  seriesId: string;
+  /** The observation dates it was computed from, so the figure can be re-derived. */
+  inputPeriods: string[];
+  /** `rank` only: which extreme this print set. */
+  extreme?: "high" | "low";
+  /** `rank` only: "the fastest since February 2025". */
+  sinceDate?: string;
+}
+
+/**
+ * An economic release that printed today (v2 §E).
+ *
+ * Carries a street consensus when one could be sourced AND unambiguously joined
+ * (see `nasdaq-consensus.ts`), and falls back to the prior alone when it could
+ * not. The fallback wording must assert the BASIS — "measured against the prior
+ * reading" — and never claim no consensus exists: that was true when §I was
+ * written, it is false now, and new rendering code renders old notes.
  */
 export interface MacroRelease {
   label: string;
@@ -153,6 +182,21 @@ export interface MacroRelease {
   dp: number;
   /** Whether a leading "+" belongs — true for changes, false for levels. */
   signed: boolean;
+  /**
+   * The survey median, when one was sourced and joined unambiguously. Absent
+   * means we could not get one for THIS release — not that none exists.
+   */
+  consensus?: number;
+  /** `actual − consensus`, in the series' own units. Present only with `consensus`. */
+  surprise?: number;
+  /**
+   * When the consensus was captured. Survey medians drift as forecasters submit,
+   * so the median at 18:15 ET on release day is not the median three days out, and
+   * a note re-rendered months later must be able to say which one it quoted.
+   */
+  consensusAsOf?: string;
+  /** Deterministic context from the series' own history. At most two entries. */
+  context?: MacroContext[];
 }
 
 /**
@@ -180,24 +224,73 @@ export interface PostMarketMove {
   asOfEt: string;
 }
 
-/** Dealer gamma pin for THE BOOK (§4.8). */
+/**
+ * Dealer gamma pin for THE BOOK (§4.8).
+ *
+ * `netGammaPositive` and `dealerGammaSign` are the SAME quantity under opposite
+ * sign conventions, and exactly one of them is present on any given note. The
+ * old field was computed as `put gamma − call gamma`, which is backwards; the
+ * new one is `call − put`, the published convention. They are not both written,
+ * because a field that means one thing on Tuesday and its opposite on Wednesday
+ * is worse than two fields.
+ *
+ * Read `dealerGammaSign` when it exists. When it does not, the note predates the
+ * correction and its stance claim is inverted — the renderer says so on the page
+ * rather than silently flipping it, because the archived prose was itself
+ * selected to agree with the wrong sign.
+ */
 export interface GexPinData {
   symbol: string;
   spot: number;
   pinStrike: number;
-  /** True = dealers net long gamma (vol-dampening). */
-  netGammaPositive: boolean;
+  /**
+   * LEGACY, inverted. Present only on notes written before the sign fix, and
+   * never written again. `true` on such a note means dealers were net SHORT
+   * gamma under the corrected convention.
+   */
+  netGammaPositive?: boolean;
+  /** +1 = dealers net long gamma (vol-dampening); −1 = short. */
+  dealerGammaSign?: 1 | -1;
+  /**
+   * Signed dealer gamma AT `pinStrike`. Positive draws price toward the strike;
+   * negative accelerates through it. Net gamma can be positive while the
+   * heaviest strike is put-dominated, so this is what decides the wording.
+   */
+  pinGex?: number;
+  /**
+   * Spot at which total dealer gamma crosses zero — the nearest crossing to
+   * spot. `null` means none was detected inside the search band, which is not
+   * the same as none existing.
+   */
+  zeroGamma?: number | null;
+  /** Longest expiry included, in days. Two notes are comparable only at equal horizons. */
+  horizonDays?: number;
   /** Pin distance from spot, in percent. */
   distancePct: number;
   /** How many expirations were aggregated (each priced at its own dte). */
   expiriesUsed: number;
+  /**
+   * The same figures from the previous session, for the overnight delta — the
+   * only genuine positioning FLOW read these sources allow. Omitted unless the
+   * two notes are strictly comparable: same symbol, same sign convention, same
+   * horizon, and no more than four sessions apart.
+   */
+  prior?: {
+    date: string;
+    pinStrike: number;
+    dealerGammaSign: 1 | -1;
+    zeroGamma: number | null;
+  };
 }
 
 /**
  * A scheduled economic release for TOMORROW'S TELLS (§4.9), from FRED's release
- * calendar. Carries no consensus and no prior: consensus has no free source
- * (v2 §I, settled), and a prior belongs with the print, not the announcement.
- * The event and its ET time are the whole claim.
+ * calendar plus the Fed's own.
+ *
+ * Consensus reaches about one session forward and no further — measured, the
+ * calendar is populated for tomorrow's print and blank four days out. So `expects`
+ * is present for the next session and absent beyond it, and `range` is the
+ * fallback that makes the line worth reading either way.
  */
 export interface EconEvent {
   name: string;
@@ -205,6 +298,31 @@ export interface EconEvent {
   date: string;
   /** ET clock time, HH:mm. */
   timeEt: string;
+  /** The survey median, where one is published this far ahead. */
+  expects?: {
+    value: number;
+    /** The last print, so the expectation has something to sit against. */
+    prior: number;
+    label: string;
+    suffix: string;
+    dp: number;
+    signed: boolean;
+    asOf: string;
+  };
+  /**
+   * Twelve-month low and high of the headline transform, and the last print.
+   * The fallback when no consensus is published yet, and the thing that says what
+   * a new extreme would take.
+   */
+  range?: {
+    label: string;
+    last: number;
+    low: number;
+    high: number;
+    suffix: string;
+    dp: number;
+    signed: boolean;
+  };
 }
 
 /** An expanded sector block (§6) — push callout + web deep-dive. */
@@ -235,6 +353,20 @@ export interface StructuredFacts {
   vix: Fact<VixData> | null;
   crossAsset: Fact<CrossAssetPoint[]> | null;
   sectors: Fact<SectorPoint[]> | null;
+  /**
+   * Non-GICS industry ETFs shown alongside the sector board — semis today.
+   *
+   * Deliberately a SEPARATE field rather than extra rows in `sectors`. Every
+   * downstream claim keyed off `sectors` is a claim about the eleven GICS
+   * sectors: the top-2/bottom-2 tape, the 21-session leader line, and the
+   * divergence benchmark each constituent is measured against. Folding SMH in
+   * would make "semis was the best sector today" sayable, which is false — it is
+   * a slice of Technology, and its members are already counted inside XLK.
+   *
+   * Absent on every note written before this field existed, so read it with `?.`
+   * like any other optional section.
+   */
+  thematics: Fact<SectorPoint[]> | null;
   breadth: Fact<BreadthData> | null;
   divergence: Fact<DivergenceSector[]> | null;
   contribution: Fact<ContributionData> | null;

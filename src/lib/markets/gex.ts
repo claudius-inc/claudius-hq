@@ -1,233 +1,190 @@
 /**
- * Gamma Exposure (GEX) Calculator
- * 
- * Calculates dealer gamma exposure from options chains.
- * Negative GEX = dealers short gamma (bearish positioning)
- * Positive GEX = dealers long gamma (bullish positioning)
+ * Dealer gamma exposure.
+ *
+ * Two things this file gets right that its first version did not, both of which
+ * changed the answer rather than tidying it:
+ *
+ * 1. **The dealer side.** Gamma exposure is `call gamma − put gamma`: customers
+ *    systematically buy puts for protection and overwrite calls, so the dealer
+ *    is long call gamma and short put gamma. The previous code had the signs
+ *    reversed behind a comment that contradicted itself (it claimed dealers were
+ *    short both, then added put gamma positively), so every published stance was
+ *    the opposite of the truth. Measured on 2026-08-13: +0.82B, net long, on a
+ *    day the note said "net short".
+ *
+ *    This is an ASSUMPTION about who is on the other side, not a measurement.
+ *    The trade-side data that would settle it (CBOE Open-Close) is paid. Say so
+ *    wherever the number is published.
+ *
+ * 2. **Every leg carries its own expiry.** Gamma scales roughly 1/sqrt(T), so
+ *    pricing a 1-day chain at a 30-day T understates its gamma several-fold.
+ *    `OptionLeg.daysToExpiry` is per leg, and the caller passes the whole
+ *    multi-expiry book in one call.
+ *
+ * Deleted along the way, and deliberately not replaced: `maxPainStrike` (it was
+ * the highest-OI strike, which is neither max pain nor a pin, computed in
+ * quadratic time), `flipZone` (a cumulative-OI artefact, not a gamma flip — see
+ * `zeroGammaLevel` for the real thing), and the `interpretGex` / `formatGex`
+ * display helpers. Their only caller was an API route with no consumers.
  */
 
-// Standard normal CDF approximation (Abramowitz and Stegun)
-function normCdf(x: number): number {
-  const a1 = 0.254829592;
-  const a2 = -0.284496736;
-  const a3 = 1.421413741;
-  const a4 = -1.453152027;
-  const a5 = 1.061405429;
-  const p = 0.3275911;
-
-  const sign = x < 0 ? -1 : 1;
-  x = Math.abs(x) / Math.sqrt(2);
-
-  const t = 1.0 / (1.0 + p * x);
-  const y = 1.0 - ((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
-
-  return 0.5 * (1.0 + sign * y);
-}
-
-// Standard normal PDF
+/** Standard normal PDF. */
 function normPdf(x: number): number {
   return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
 }
 
-interface OptionData {
+/** Black-Scholes gamma. Zero for any degenerate input rather than NaN. */
+function calculateGamma(S: number, K: number, T: number, r: number, sigma: number): number {
+  if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0) return 0;
+  const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+  return normPdf(d1) / (S * sigma * Math.sqrt(T));
+}
+
+export interface OptionLeg {
   strike: number;
   openInterest: number;
   impliedVolatility: number;
-  type: 'call' | 'put';
+  type: "call" | "put";
+  /** Calendar days to THIS leg's expiry. Never a shared figure. */
+  daysToExpiry: number;
 }
 
-interface GexByStrike {
+export interface GexByStrike {
   strike: number;
   callGex: number;
   putGex: number;
   totalGex: number;
 }
 
-interface GexResult {
-  symbol: string;
+export interface GexResult {
   spotPrice: number;
+  /** Positive = dealers net long gamma, which dampens moves. */
   totalGex: number;
   callGex: number;
   putGex: number;
   byStrike: GexByStrike[];
-  maxPainStrike: number | null;
-  flipZone: number | null; // Price where GEX flips from positive to negative
-  lastUpdated: string;
 }
 
-/**
- * Calculate gamma for a single option using Black-Scholes
- * 
- * @param S - Spot price
- * @param K - Strike price
- * @param T - Time to expiration (in years)
- * @param r - Risk-free rate
- * @param sigma - Implied volatility
- * @returns Gamma value
- */
-function calculateGamma(S: number, K: number, T: number, r: number, sigma: number): number {
-  if (T <= 0 || sigma <= 0 || S <= 0 || K <= 0) return 0;
-  
-  const d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
-  const gamma = normPdf(d1) / (S * sigma * Math.sqrt(T));
-  
-  return gamma;
-}
+/** +1 for a call leg, −1 for a put leg — the dealer-side assumption, once. */
+const legSign = (type: "call" | "put") => (type === "call" ? 1 : -1);
 
 /**
- * Calculate GEX for a list of options
- * 
- * Convention: Dealers are typically short calls and long puts (market makers)
- * - When customers buy calls, dealers sell calls → dealers short gamma on calls
- * - When customers buy puts, dealers sell puts → dealers short gamma on puts
- * 
- * Net dealer gamma = put gamma - call gamma
- * (positive = dealers benefit from stability, negative = dealers amplify moves)
+ * Dollar gamma per 1% move, aggregated and split by strike.
+ *
+ * The per-strike sign is what decides whether a heavy strike is a magnet or an
+ * accelerant, so it is preserved rather than folded into a magnitude.
  */
-export function calculateGex(
-  options: OptionData[],
-  spotPrice: number,
-  daysToExpiry: number,
-  riskFreeRate: number = 0.05
-): GexResult {
-  const T = daysToExpiry / 365;
-  const contractMultiplier = 100; // Standard options = 100 shares per contract
-  
+export function calculateGex(legs: OptionLeg[], spotPrice: number, riskFreeRate = 0.05): GexResult {
   const strikeMap = new Map<number, { callGex: number; putGex: number }>();
-  
   let totalCallGex = 0;
   let totalPutGex = 0;
-  
-  for (const opt of options) {
-    const gamma = calculateGamma(spotPrice, opt.strike, T, riskFreeRate, opt.impliedVolatility);
-    // GEX = gamma * OI * 100 * spot price (dollar gamma)
-    // Convention: call gamma is negative (dealers short), put gamma is positive (dealers long)
-    const dollarGamma = gamma * opt.openInterest * contractMultiplier * spotPrice;
-    
-    if (!strikeMap.has(opt.strike)) {
-      strikeMap.set(opt.strike, { callGex: 0, putGex: 0 });
+
+  for (const leg of legs) {
+    const g = calculateGamma(spotPrice, leg.strike, leg.daysToExpiry / 365, riskFreeRate, leg.impliedVolatility);
+    // 100 shares per contract; × spot again converts share gamma to dollars.
+    const dollarGamma = g * leg.openInterest * 100 * spotPrice;
+
+    let entry = strikeMap.get(leg.strike);
+    if (!entry) {
+      entry = { callGex: 0, putGex: 0 };
+      strikeMap.set(leg.strike, entry);
     }
-    
-    const strikeData = strikeMap.get(opt.strike)!;
-    
-    if (opt.type === 'call') {
-      // Dealers short calls = negative gamma exposure
-      strikeData.callGex -= dollarGamma;
-      totalCallGex -= dollarGamma;
+    if (leg.type === "call") {
+      entry.callGex += dollarGamma;
+      totalCallGex += dollarGamma;
     } else {
-      // Dealers long puts (from selling puts) = positive gamma exposure
-      strikeData.putGex += dollarGamma;
-      totalPutGex += dollarGamma;
+      entry.putGex -= dollarGamma;
+      totalPutGex -= dollarGamma;
     }
   }
-  
-  // Convert to array and sort by strike
+
   const byStrike: GexByStrike[] = Array.from(strikeMap.entries())
-    .map(([strike, data]) => ({
+    .map(([strike, d]) => ({
       strike,
-      callGex: Math.round(data.callGex),
-      putGex: Math.round(data.putGex),
-      totalGex: Math.round(data.callGex + data.putGex),
+      callGex: Math.round(d.callGex),
+      putGex: Math.round(d.putGex),
+      totalGex: Math.round(d.callGex + d.putGex),
     }))
     .sort((a, b) => a.strike - b.strike);
-  
-  // Find max pain (strike with highest total OI)
-  let maxPainStrike: number | null = null;
-  let maxOi = 0;
-  for (const opt of options) {
-    const strikeOi = options
-      .filter(o => o.strike === opt.strike)
-      .reduce((sum, o) => sum + o.openInterest, 0);
-    if (strikeOi > maxOi) {
-      maxOi = strikeOi;
-      maxPainStrike = opt.strike;
-    }
-  }
-  
-  // Find flip zone (where cumulative GEX crosses zero)
-  let flipZone: number | null = null;
-  let cumulativeGex = 0;
-  for (const s of byStrike) {
-    const prevCumulative = cumulativeGex;
-    cumulativeGex += s.totalGex;
-    if (prevCumulative < 0 && cumulativeGex >= 0) {
-      flipZone = s.strike;
-      break;
-    } else if (prevCumulative > 0 && cumulativeGex <= 0) {
-      flipZone = s.strike;
-      break;
-    }
-  }
-  
+
   return {
-    symbol: '',
     spotPrice,
     totalGex: Math.round(totalCallGex + totalPutGex),
     callGex: Math.round(totalCallGex),
     putGex: Math.round(totalPutGex),
     byStrike,
-    maxPainStrike,
-    flipZone,
-    lastUpdated: new Date().toISOString(),
   };
 }
 
-/**
- * Format GEX value for display (e.g., -5.4B, 2.3M)
- */
-export function formatGex(value: number): string {
-  const absValue = Math.abs(value);
-  const sign = value < 0 ? '-' : '';
-  
-  if (absValue >= 1e12) {
-    return `${sign}$${(absValue / 1e12).toFixed(1)}T`;
-  } else if (absValue >= 1e9) {
-    return `${sign}$${(absValue / 1e9).toFixed(1)}B`;
-  } else if (absValue >= 1e6) {
-    return `${sign}$${(absValue / 1e6).toFixed(1)}M`;
-  } else if (absValue >= 1e3) {
-    return `${sign}$${(absValue / 1e3).toFixed(0)}K`;
-  }
-  return `${sign}$${absValue.toFixed(0)}`;
-}
+/** How far either side of spot the zero-gamma search looks. */
+const ZERO_GAMMA_BAND = 0.2;
 
 /**
- * Interpret GEX for market implications
+ * The spot price at which total dealer gamma crosses zero — the regime boundary.
+ *
+ * This is NOT a running sum of per-strike gamma at today's spot, which is what
+ * the deleted `flipZone` computed. Gamma is a function of spot, so the whole book
+ * must be RE-PRICED at each candidate level.
+ *
+ * The `× 100 × S` dollar-gamma multiplier is omitted on purpose: `S > 0` across
+ * the search band, so every positive-scalar variant of the objective has exactly
+ * the same root, and no magnitude is displayed. Dropping it is one fewer
+ * multiplication per evaluation across ~200k of them.
+ *
+ * Each side of spot is bracketed SEPARATELY, and the nearest crossing wins. A
+ * single endpoint-to-endpoint test would miss the case where a root sits on each
+ * side — the endpoints then agree in sign and the search reports nothing — and
+ * the claim the caller renders is about the nearest boundary, not about the
+ * existence of some root inside a 40%-wide band.
+ *
+ * `null` means "no crossing detected within the band". It does not mean there is
+ * none, and the caller must not word it as though it did (§1a).
  */
-export function interpretGex(totalGex: number): {
-  label: string;
-  meaning: string;
-  marketImpact: string;
-  color: 'green' | 'amber' | 'red';
-} {
-  // GEX thresholds vary by symbol, these are rough SPY-calibrated levels
-  if (totalGex > 5e9) {
-    return {
-      label: 'Strong Positive',
-      meaning: 'Dealers long gamma, will sell rallies and buy dips',
-      marketImpact: 'Volatility suppression, mean reversion likely',
-      color: 'green',
-    };
-  } else if (totalGex > 0) {
-    return {
-      label: 'Positive',
-      meaning: 'Dealers slightly long gamma',
-      marketImpact: 'Mild stabilizing force on prices',
-      color: 'green',
-    };
-  } else if (totalGex > -5e9) {
-    return {
-      label: 'Negative',
-      meaning: 'Dealers short gamma, hedging amplifies moves',
-      marketImpact: 'Increased volatility, trend continuation',
-      color: 'amber',
-    };
-  } else {
-    return {
-      label: 'Strong Negative',
-      meaning: 'Dealers heavily short gamma',
-      marketImpact: 'High volatility, potential for sharp moves',
-      color: 'red',
-    };
+export function zeroGammaLevel(legs: OptionLeg[], spotPrice: number, riskFreeRate = 0.05): number | null {
+  if (legs.length === 0 || spotPrice <= 0) return null;
+
+  const f = (S: number): number => {
+    let sum = 0;
+    for (const leg of legs) {
+      sum +=
+        legSign(leg.type) *
+        calculateGamma(S, leg.strike, leg.daysToExpiry / 365, riskFreeRate, leg.impliedVolatility) *
+        leg.openInterest;
+    }
+    return sum;
+  };
+
+  const roots = [
+    bisect(f, spotPrice * (1 - ZERO_GAMMA_BAND), spotPrice),
+    bisect(f, spotPrice, spotPrice * (1 + ZERO_GAMMA_BAND)),
+  ].filter((r): r is number => r != null);
+
+  if (roots.length === 0) return null;
+  return roots.reduce((best, r) => (Math.abs(r - spotPrice) < Math.abs(best - spotPrice) ? r : best));
+}
+
+/** Root of `f` in [lo, hi], or null when the endpoints do not straddle one. */
+function bisect(f: (s: number) => number, lo: number, hi: number): number | null {
+  let a = lo;
+  let b = hi;
+  let fa = f(a);
+  const fb = f(b);
+  if (fa === 0) return a;
+  if (fb === 0) return b;
+  if (fa > 0 === fb > 0) return null;
+
+  // 40 halvings of a 20%-wide bracket resolves to ~1e-10 of spot. The cost is
+  // trivial next to the fetches, so precision is not the thing to economise on.
+  for (let i = 0; i < 40; i++) {
+    const m = (a + b) / 2;
+    const fm = f(m);
+    if (fm === 0) return m;
+    if (fa > 0 !== fm > 0) {
+      b = m;
+    } else {
+      a = m;
+      fa = fm;
+    }
   }
+  return (a + b) / 2;
 }

@@ -17,6 +17,8 @@ import { assembleFacts } from "@/lib/notes/assemble";
 import { writeProse } from "@/lib/notes/write";
 import { renderPush, renderWeb } from "@/lib/notes/render";
 import { sendNote, editNote, alertAdmin } from "@/lib/notes/telegram";
+import { reportHealth, recordPipelineHeartbeat } from "@/lib/notes/health-report";
+import { archiveSurprises } from "@/lib/notes/surprise-archive";
 
 const SRC = "notes/pipeline";
 
@@ -30,6 +32,14 @@ function webUrl(date: string): string {
 }
 
 async function main() {
+  // 0a. HEARTBEAT — before the gate, so it records that the JOB ran, not that a
+  // note shipped. Those are different questions and only this one can answer
+  // "is the scheduler still alive": the cron fires every weekday, and on a
+  // holiday it fires and then skips at the gate below. A watchdog keyed off notes
+  // would have to know the market calendar to tell a holiday from a dead cron;
+  // keyed off this, it does not.
+  await recordPipelineHeartbeat();
+
   // 0. GATE (§7a)
   const gate = await checkTradingSession();
   if (!gate.isSession) {
@@ -40,7 +50,7 @@ async function main() {
   const date = gate.marketDate;
 
   // 1. ASSEMBLE (§8.1)
-  const facts = await assembleFacts(date);
+  const { facts, health } = await assembleFacts(date);
   logger.info(SRC, "Facts assembled", {
     date,
     have: {
@@ -54,7 +64,10 @@ async function main() {
   });
 
   if (!facts.indices) {
-    // Without indices there is no note worth sending.
+    // Without indices there is no note worth sending. Report health anyway — this
+    // is exactly the run whose connector state the operator most needs, and the
+    // streak counter is only useful if the worst runs still update it.
+    await reportHealth(date, health);
     await alertAdmin(`WARNING — daily note ${date}: no index data assembled; not sending.`);
     process.exitCode = 1;
     return;
@@ -125,6 +138,48 @@ async function main() {
     const res = await sendNote(chatId, pushHtml);
     if (res.messageId) await persistMessageId(res.messageId);
     logger.info(SRC, "Sent new note", { date, messageId: res.messageId });
+  }
+
+  // 6. ARCHIVE the day's surprises. Collection only — nothing renders this yet.
+  // It runs after the send because it is for a question two years from now, not
+  // for tonight's note.
+  await archiveSurprises(facts);
+
+  // 7. CONNECTOR HEALTH — after the send, and it swallows its own errors.
+  //
+  // §1a governs the note: a failed feed was already omitted above, silently and
+  // correctly. This is the second channel, and the only one that tells a human a
+  // source has stopped answering. It runs last so it can never cost the note.
+  await reportHealth(date, health);
+
+  // "Did the job run at all" is answered by the heartbeat at step 0a and read by
+  // /api/cron/note-watchdog, which runs on Vercel — a different execution
+  // environment, so a dead Actions runner leaves the watchdog running. An
+  // optional outbound ping to an external service is supported as well, for the
+  // one case neither can cover: our whole infrastructure being down at once.
+  await pingDeadMansSwitch();
+}
+
+/**
+ * Optional third-party dead-man's switch.
+ *
+ * The Vercel watchdog covers a dead GitHub Actions runner, which is the failure
+ * that actually happens. This covers the residual one it cannot: Vercel and
+ * Actions both down, where nothing we own is left to notice. Unset is a
+ * legitimate configuration and the call is skipped silently.
+ */
+async function pingDeadMansSwitch(): Promise<void> {
+  const url = process.env.HEALTHCHECK_PING_URL;
+  if (!url) return;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
+    await fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
+    logger.info(SRC, "Dead-man's switch pinged");
+  } catch (error) {
+    // A missed ping is exactly what the external service is watching for, so a
+    // failure here is already covered by the mechanism it belongs to.
+    logger.warn(SRC, "Dead-man's ping failed", { error });
   }
 }
 

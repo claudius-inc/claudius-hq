@@ -1237,3 +1237,67 @@ export const weeklyNotes = sqliteTable("weekly_notes", {
 
 export type WeeklyNote = typeof weeklyNotes.$inferSelect;
 
+
+// Connector health for the daily-note pipeline — see
+// docs/implementation-plans/2026-08-13-tape-accuracy.md Part E.
+//
+// Its own table, deliberately NOT a JSON column on `daily_notes`. That row is
+// only written after the session gate passes and indices exist, so the hardest
+// failures — the ones with the longest streaks — would write no row at all, and
+// the streak would reset exactly when it matters most. This is written
+// unconditionally, on every run, before anything else can bail out.
+export const connectorHealth = sqliteTable("connector_health", {
+  name: text("name").primaryKey(), // matches CONNECTOR_REGISTRY
+  lastStatus: text("last_status").notNull(), // ok | empty | skipped | degraded | down
+  // Consecutive runs in a failing state. Zero whenever the last run was healthy.
+  streakCount: integer("streak_count").notNull().default(0),
+  lastRunDate: text("last_run_date").notNull(),
+  // The run we last SENT an alert for — null means the operator has never been
+  // told. Drives both the weekly reminder and whether a recovery is worth saying.
+  lastAlertedDate: text("last_alerted_date"),
+  lastDetail: text("last_detail"),
+  updatedAt: text("updated_at").default(sql`(datetime('now'))`),
+});
+
+export type ConnectorHealthRow = typeof connectorHealth.$inferSelect;
+export type NewConnectorHealthRow = typeof connectorHealth.$inferInsert;
+
+// One row per economic release, pairing the surprise with the session's move.
+//
+// COLLECTION ONLY. Nothing renders this yet and nothing should until it holds
+// enough rows to be worth a second look: a median over ~10 observations against a
+// 5-7bp daily standard deviation is noise, and a rendered median gets read as a
+// playbook however carefully it is framed.
+//
+// The two provenance columns exist because mixing vintages would silently ruin
+// any future study. `consensusCaptured` separates a same-day capture (the only
+// join the measurements validate) from a backfilled one, whose `previous` reflects
+// a vintage FRED has since revised. `measuredAs` separates close-to-close — which
+// contains the whole day, not the reaction — from a forward-collected intraday
+// window, which only becomes possible from the day collection starts because
+// Yahoo retains 5-minute bars for about 60 days.
+export const macroSurpriseHistory = sqliteTable(
+  "macro_surprise_history",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    releaseId: integer("release_id").notNull(),
+    seriesId: text("series_id").notNull(),
+    releaseDate: text("release_date").notNull(), // true ET date, not Nasdaq's bucket
+    consensus: real("consensus"),
+    actual: real("actual").notNull(),
+    prior: real("prior"),
+    surprise: real("surprise"), // actual − consensus, in the series' own units
+    spyPct: real("spy_pct"),
+    tnxBp: real("tnx_bp"),
+    vixChg: real("vix_chg"),
+    measuredAs: text("measured_as").notNull().default("close-to-close"),
+    consensusCaptured: text("consensus_captured").notNull().default("same-day"),
+    createdAt: text("created_at").default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    uniq: uniqueIndex("macro_surprise_unique").on(table.releaseId, table.seriesId, table.releaseDate),
+  }),
+);
+
+export type MacroSurpriseRow = typeof macroSurpriseHistory.$inferSelect;
+export type NewMacroSurpriseRow = typeof macroSurpriseHistory.$inferInsert;
