@@ -161,16 +161,23 @@ Add log rotation so the file cannot grow without bound. `/etc/logrotate.d/claudi
 
 ## Step 6 — Keeping the code current
 
-The pipeline changes as the screen is tuned. To update:
+Nothing to do — `daily-fetch.sh` fast-forwards to `origin/main` and runs
+`npm ci` before each fetch, and prints the commit it settled on.
 
-```bash
-cd ~/claudius-hq && git pull && npm ci
-```
+It did not always. The clone was made once at install and nothing moved it, so
+the box ran a months-old screen against a current schema for weeks: every
+ranking column added on 2026-08-12 was written NULL, the counts looked normal,
+and nothing failed. That is why the sync is in the script rather than in this
+document — a step a human has to remember is a step that eventually stops
+happening, and this particular omission was invisible from the output.
 
-**Check `drizzle/` for new migration files after every pull.** They are not
-applied automatically. If a new numbered `.sql` appears and the next run fails
-with "no such column", that migration has not been applied — report it rather
-than guessing, since it is applied against the shared production database.
+The merge is `--ff-only`, so a box with local commits refuses to run rather
+than silently merging. If that happens, reset it to `origin/main` by hand.
+
+**Check `drizzle/` for new migration files when a run fails.** They are not
+applied automatically. If a run fails with "no such column", the migration for
+it has not been applied — report it rather than guessing, since it is applied
+against the shared production database.
 
 ## Troubleshooting
 
