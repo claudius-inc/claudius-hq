@@ -253,6 +253,56 @@ export function shippedScoreSeries(bars: PerpBar[], vwapWeight = 2): (number | n
   return out;
 }
 
+/** The Fibonacci EMA ribbon the shortlist is being asked about. */
+export const EMA_RIBBON = [8, 21, 34, 55, 89] as const;
+
+/**
+ * Bars before a ribbon reading is trusted.
+ *
+ * `emaSeries` seeds each EMA with an SMA of its own length, so EMA-89 has a
+ * value at bar 88 — but that value is a flat average pretending to be an
+ * exponential one, and the four rungs converge at four different speeds, which
+ * would put a spurious ORDER on the ribbon exactly where the signal reads it.
+ * Twice the slowest length is the usual convergence allowance.
+ *
+ * It costs nothing here: the panel's warmup is the MAX over every registered
+ * signal and `volPctl252` already sets that at 552, so this is well inside it
+ * and adding the ribbon changes no existing row.
+ */
+const EMA_RIBBON_WARMUP = 2 * EMA_RIBBON[EMA_RIBBON.length - 1];
+
+/**
+ * The four log gaps between adjacent ribbon rungs, per bar.
+ *
+ * `out[i][k] = log(ema_k / ema_{k+1})` — positive means that rung is stacked
+ * bullishly. Null until every rung has a positive value, so a partially warmed
+ * ribbon cannot report an order it does not have. Computed once per symbol in
+ * one pass, because the panel replays thousands of bars across ~680 symbols.
+ */
+function emaRibbon(bars: PerpBar[]): (number[] | null)[] {
+  const closes = bars.map((b) => b.c);
+  const lines = EMA_RIBBON.map((len) => emaSeries(closes, len));
+  const out = new Array<number[] | null>(bars.length).fill(null);
+
+  for (let i = 0; i < bars.length; i++) {
+    const vals: number[] = [];
+    let ok = true;
+    for (const line of lines) {
+      const v = line[i];
+      if (v === null || !(v > 0)) {
+        ok = false;
+        break;
+      }
+      vals.push(v);
+    }
+    if (!ok) continue;
+    const rungs: number[] = [];
+    for (let k = 0; k + 1 < vals.length; k++) rungs.push(Math.log(vals[k] / vals[k + 1]));
+    out[i] = rungs;
+  }
+  return out;
+}
+
 /** Joins a sparse positioning series onto bar indices, carrying last value forward. */
 function alignToBars<T extends { t: number }>(
   bars: PerpBar[],
@@ -396,6 +446,58 @@ export const PERP_SIGNALS: PerpSignalSpec[] = [
         // ORDERED, rather than how far price has travelled from its base.
         return Math.min(Math.log(px / x), Math.log(x / y), Math.log(y / z));
       });
+    },
+  }),
+
+  perSymbol({
+    name: "emaStackAll",
+    group: "structure",
+    polarity: "directional",
+    tier: "core",
+    minBars: EMA_RIBBON_WARMUP,
+    description:
+      "The Fibonacci EMA ribbon as stated: +1 when 8>21>34>55>89 all hold, -1 when fully inverted, 0 otherwise.",
+    compute: (bars) => {
+      const r = emaRibbon(bars);
+      return r.map((rungs) => {
+        if (rungs === null) return null;
+        if (rungs.every((g) => g > 0)) return 1;
+        if (rungs.every((g) => g < 0)) return -1;
+        return 0;
+      });
+    },
+  }),
+  perSymbol({
+    name: "emaStackNet",
+    group: "structure",
+    polarity: "directional",
+    tier: "core",
+    minBars: EMA_RIBBON_WARMUP,
+    description:
+      "Rungs of the 8/21/34/55/89 ribbon ordered up minus ordered down, -4..+4 — the same rule, graded.",
+    compute: (bars) => {
+      const r = emaRibbon(bars);
+      return r.map((rungs) =>
+        rungs === null ? null : rungs.reduce((a, g) => a + Math.sign(g), 0),
+      );
+    },
+  }),
+  perSymbol({
+    name: "emaStackMin",
+    group: "structure",
+    polarity: "directional",
+    tier: "core",
+    minBars: EMA_RIBBON_WARMUP,
+    description:
+      "Weakest rung of the 8/21/34/55/89 ribbon, in log gap — how well ordered the ribbon is, not how extended.",
+    compute: (bars) => {
+      const r = emaRibbon(bars);
+      // THE MIN, NOT THE SUM — the same telescoping trap as `maStack` above:
+      // log(e8/e21) + log(e21/e34) + log(e34/e55) + log(e55/e89) === log(e8/e89),
+      // which after the cross-sectional rank transform is a pure ribbon-width
+      // signal and not a ribbon-ORDER one. The min is the binding constraint:
+      // it goes negative the moment any single rung crosses.
+      return r.map((rungs) => (rungs === null ? null : Math.min(...rungs)));
     },
   }),
 

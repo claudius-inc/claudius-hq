@@ -136,7 +136,14 @@ Three rules the harness enforces rather than trusts:
 npx tsx scripts/research/fetch-perp-positioning.ts          # ~20 min, once
 npx tsx scripts/research/run-perp-signal-study.ts --horizon 6
 npx tsx scripts/research/run-perp-combo-search.ts --horizon 6 --objective ic --reps 200
+npx tsx scripts/research/run-perp-tradfi-study.ts          # crypto excluded, shallow registry
+npx tsx scripts/research/run-perp-regime.ts                # live; what tape are we in
 ```
+
+`run-perp-regime.ts` is the odd one out: it reads the venue live rather than the
+cached panel, and it measures the market rather than a signal. It calls the same
+`summarizeRegime` the daily screen calls, so what it prints is what the Telegram
+message will say.
 
 Panels are cached under `tmp/perp-panel/` keyed by a hash of the registry, the
 config and the positioning fetch time, so any change invalidates automatically.
@@ -348,7 +355,130 @@ flip which side of a tie the selector landed on, which is the point.
   `{A,B,D}+C`), so it re-evaluated duplicates and then violated the unique index
   on insert. Combinations are now keyed by their canonical sorted name list.
 
-### 3.5 Template for the next entry
+### 3.5 The Fibonacci EMA ribbon 8/21/34/55/89 — horizons 6 and 18, entry lag 1, 2026-08-15
+
+The rule as stated: *8 EMA above 21, 21 above 34, 34 above 55, 55 above 89*.
+Registered three ways, because the encoding is a free choice the rule does not
+make and each asks a different question:
+
+| Signal | Encoding |
+| --- | --- |
+| `emaStackAll` | +1 when all four hold, −1 when fully inverted, 0 otherwise — the rule verbatim |
+| `emaStackNet` | rungs ordered up minus rungs ordered down, −4..+4 — the same rule, graded |
+| `emaStackMin` | weakest rung as a log gap — ribbon *order*, not ribbon *extension* |
+
+Panel h=6: 149,991 rows · 546 symbols · 407 timestamps · 99.6% crypto.
+Panel h=18: 49,759 rows · 541 symbols · 135 timestamps.
+
+| Signal | h=6 IC | t | h=18 IC | t | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| `emaStackNet` | −0.033 | −5.72 | −0.032 | −3.08 | survives **negative**, both horizons |
+| `emaStackAll` | −0.030 | −5.50 | −0.031 | −3.12 | survives **negative**, both horizons |
+| `emaStackMin` | −0.007 | −0.96 | −0.006 | −0.55 | no |
+
+Bonferroni line \|t\| > 2.807. The sign is the finding: over this panel a fully
+stacked ribbon predicts that the name **underperforms its category** over the
+next one to three days. That is the opposite of how the ribbon is traded.
+
+Top-10 basket, long the most-stacked names:
+
+| Horizon | Basket excess | t | Absolute | Buy-everything |
+| --- | --- | --- | --- | --- |
+| 6 | −0.031% | −0.21 | −0.184% | −0.153% |
+| 18 | −0.271% | −0.68 | −0.533% | −0.258% |
+
+Worse than the cross-section *and* worse than buying everything, at both
+horizons. Note the inverse is **not** thereby shown to make money — the bottom
+decile was not evaluated, and the basket t-statistics here are insignificant.
+
+**It is not new information.** Rank correlations at h=6: `emaStackNet` ↔
+`momVolAdj` 0.78, ↔ `roc42` 0.76, and `emaStackAll` ↔ `emaStackNet` **0.97**. The
+ribbon is a slow momentum signal wearing structural clothing, and slow momentum
+is already measured negative on this panel (`roc42` −0.032, `momVolAdj` −0.031).
+`rev6` states the same effect more directly and more strongly (+0.032, t = 4.93).
+
+**Grading the rule buys nothing.** At 0.97 rank correlation the four-condition
+boolean and the −4..+4 count are the same signal after the rank transform.
+
+**The one encoding that is not a momentum proxy measures nothing.**
+`emaStackMin` asks whether the ribbon is *ordered* rather than how far price has
+travelled, and returns \|t\| < 1 at both horizons — the same shape as `maStack`,
+its SMMA sibling.
+
+**Verdict: rejected, not shipped.** Kept in the registry so the combination
+search can still reach it and so this is not re-tried next quarter. As always,
+99.6% crypto — this says nothing about the tradfi book, which is where ribbon
+following is conventionally applied.
+
+### 3.6 The tradfi book on its own — horizons 6 and 18, entry lag 1, 2026-08-15
+
+Open question 3, attempted. `scripts/research/run-perp-tradfi-study.ts`, which
+needs two changes at once and is therefore a separate script:
+`PanelConfig.categories` excludes crypto, and only signals with
+`minBars <= 178` are registered so the warmup falls from 552 to 178.
+
+| Panel | Rows | Symbols | Usable timestamps | Mix |
+| --- | --- | --- | --- | --- |
+| h=6 | 6,029 | 97 | 81 / 500 | equity 84.3%, commodity 15.7% |
+| h=18 | 1,954 | 90 | 26 / 167 | equity 84.1%, commodity 15.9% |
+
+**Nothing is significant. Not one signal at either horizon.** The strongest
+readings were `rev6VolAdj` at IC +0.054 (t = 1.95) at h=6 and `roc42` at −0.063
+(t = −1.26) at h=18. With 81 and 26 usable timestamps, this is a POWER result,
+not a finding: the tradfi book does not yet have enough history to answer.
+
+The ribbon specifically:
+
+| Signal | h=6 IC | t | h=18 IC | t |
+| --- | --- | --- | --- | --- |
+| `emaStackNet` | **+0.033** | 1.03 | **+0.053** | 1.03 |
+| `emaStackAll` | +0.028 | 0.89 | +0.047 | 0.93 |
+| `emaStackMin` | +0.015 | 0.39 | +0.021 | 0.35 |
+
+The sign is POSITIVE on tradfi and negative on crypto (§3.5), which is the
+direction ribbon-followers would expect. It is also unfalsifiable at t ≈ 1 over
+81 timestamps. Do not read the flip as a finding; read it as the reason to keep
+banking history. It is the most interesting negative result here.
+
+**Two limits specific to this panel, beyond the usual list:**
+
+- `premarket` and `index` are **still absent** even here — they fail the $250k
+  liquidity floor, not the warmup. Only `equity` and `commodity` survive.
+- The shallow registry excludes `mcdNet`, `shippedScore`, `distSmma200`,
+  `maStack`, `volPctl252` and `pos252`, all of which need MCD's 300-bar warmup.
+  `shippedScore` is the incumbent, so **this study cannot compare anything to
+  the live rule.** It can only say whether a shallow signal orders the tradfi
+  cross-section, and the answer so far is that nothing measurably does.
+
+### 3.7 Combination search with the ribbon registered — horizon 6, objective `ic`, 2026-08-15
+
+Re-run of §3.4 with `emaStackAll`, `emaStackNet` and `emaStackMin` in the
+registry. 34 searchable signals, **6,202** combinations (up from 4,663), same
+284/122 train/holdout split, same 200-draw null.
+
+| k | effRank | Best set | Train | Holdout |
+| --- | --- | --- | --- | --- |
+| 1 | 1.00 | `rev6VolAdj` | 0.0332 | 0.0390 |
+| 2 | 1.90 | `rvol+rev6` | 0.0791 | 0.0888 |
+| 3 | 2.90 | **`rvol+rev6+fundingAbs`** | 0.0822 | 0.0783 |
+| 4 | 3.43 | `volSurge+rev6+rangeExpansion+fundingAbs` | 0.0825 | 0.0847 |
+| 5 | 3.09 | `volSurge+rev6+rangeExpansion+fundingAbs+rvol` | 0.0830 | 0.0845 |
+
+**No ribbon signal appears at any k.** The frontier is identical to §3.4 with
+1,539 more combinations searched, which is the cleanest possible statement that
+the ribbon adds nothing: it was available at every k and chosen at none.
+
+Champion `rvol + rev6 + fundingAbs`, holdout IC **0.078**, t = **5.97**,
+procedure null p = 0.005 ± 0.010, incumbent `shippedScore` −0.027 on the same
+rows. Unchanged from §3.3.
+
+The k selector tied AGAIN — 0.0738 at k=3 and 0.0738 at k=5, the fourth run in a
+row to land on the same two-decimal tie. §1 already says this selector cannot
+settle k. Nothing here changes what ships.
+
+**Holdout opens: 6.**
+
+### 3.8 Template for the next entry
 
 ```
 ### 3.N  <what was tested> — horizon <h>, objective <obj>, <YYYY-MM-DD>
@@ -387,9 +517,12 @@ Recorded because each was invisible until something specific was measured.
 ## 5. Limits — read before trusting any number above
 
 - **The panel is 99.6% crypto.** At horizon 6: crypto 147,727 rows, equity 634,
-  premarket / commodity / index **zero**. Nothing here speaks to the tradfi book,
-  which is a large part of why the screen exists. Category counts are printed
-  before every result.
+  premarket / commodity / index **zero**. Nothing in §3.1–§3.5 or §3.7 speaks to
+  the tradfi book, which is a large part of why the screen exists. Category
+  counts are printed before every result. §3.6 builds a tradfi-only panel to
+  attack this directly and finds it **underpowered rather than informative** — 81
+  usable timestamps, nothing significant, and no way to test the incumbent at
+  all. The limit is narrower now, not gone.
 - **Open interest cannot be tested.** Probed live: `openInterestHist` and
   `takerlongshortRatio` serve **30.8 days**, and `startTime` beyond that returns
   HTTP 400. That is 5.3% coverage, so all four OI/taker signals — including
@@ -424,8 +557,12 @@ Recorded because each was invisible until something specific was measured.
    the composite is currently extrapolated across it.
 2. **Does any of this hold at horizon 18 (3 days)?** Searchable (167 timestamps,
    50 holdout) and untested. Horizons 42 and 90 fail the `MIN_EFF_N = 20` gate.
-3. **Does it hold on the tradfi book?** Needs a separate panel with a lower
-   `minBars` and a crypto exclusion, or it will always be 99.6% crypto.
+3. ~~**Does it hold on the tradfi book?**~~ **Attempted, §3.6.** The panel exists
+   now (`run-perp-tradfi-study.ts`) and the answer is that the book is too young
+   to say: 81 usable timestamps at h=6, nothing significant, and the incumbent
+   cannot be scored there at all because it needs a 300-bar warmup. Re-run it in
+   a quarter — the question is now waiting on data, not on code. Note the ribbon
+   flips sign between the two books, which is the one lead worth re-checking.
 4. **Bank OI history.** A daily snapshot into a table makes the attention bucket
    answerable in a few months. `tmp/perp-backtest/oi.json` already holds one
    30-day pull. Until then no OI claim can be tested.

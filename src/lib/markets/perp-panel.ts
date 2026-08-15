@@ -97,6 +97,18 @@ export interface PanelConfig {
   liquidityBars: number;
   /** Offset into the grid, for phase-robustness runs. */
   gridPhase: number;
+  /**
+   * Categories the panel is built from. `null` means all of them.
+   *
+   * This exists because the default panel is 99.6% crypto and no amount of
+   * reading it can say anything about the tradfi book. The cause is the WARMUP:
+   * it is the max `minBars` over every registered signal, which `volPctl252`
+   * sets at 552, and no equity or premarket perp has that much 4h history. So a
+   * tradfi answer needs BOTH a shallower signal subset and this filter — the
+   * subset alone would still let 147,727 crypto rows drown 634 equity ones in a
+   * pooled information coefficient.
+   */
+  categories: PerpCategory[] | null;
 }
 
 /**
@@ -113,6 +125,7 @@ export const LEGACY_CONFIG: PanelConfig = {
   liquidityFloor: 0,
   liquidityBars: 30,
   gridPhase: 0,
+  categories: null,
 };
 
 export const STUDY_CONFIG: PanelConfig = {
@@ -124,6 +137,22 @@ export const STUDY_CONFIG: PanelConfig = {
   liquidityFloor: 250_000,
   liquidityBars: 30,
   gridPhase: 0,
+  categories: null,
+};
+
+/**
+ * The tradfi book on its own, at a warmup every equity perp can actually reach.
+ *
+ * `minPerCategory` drops to 8 because that is what the book HAS — commodity has
+ * ~8 liquid names and premarket ~2, so the study default of 15 would null the
+ * excess column for every category except equity and leave nothing to compare.
+ * It is a necessity of the universe, not a tuning choice, and it is the reason
+ * this config is named rather than passed inline at a call site.
+ */
+export const TRADFI_CONFIG: PanelConfig = {
+  ...STUDY_CONFIG,
+  minPerCategory: 8,
+  categories: ["equity", "premarket", "commodity", "index"],
 };
 
 export interface Panel {
@@ -256,8 +285,18 @@ export function buildPanel(
   let illiquid = 0;
   let nRows = 0;
 
+  const allowed = cfg.categories === null ? null : new Set<string>(cfg.categories);
+
   for (const [symbol, bars] of Object.entries(payload.bars)) {
-    if (!symbolMeta.has(symbol)) continue;
+    const meta = symbolMeta.get(symbol);
+    if (!meta) continue;
+    // Filtered at BUILD time, not by masking rows afterwards. `excess` is
+    // already demeaned per (timestamp, category), so that part would survive
+    // either way — but the evaluator scores one Spearman per TIMESTAMP over the
+    // whole cross-section present, and picks its basket from it. Leave crypto
+    // in and a tradfi name is ranked against ~360 coins, so the pooled IC is
+    // the crypto answer again and no tradfi name ever reaches the basket.
+    if (allowed && !allowed.has(meta.category)) continue;
     if (bars.length < warmup + cfg.entryLag + cfg.horizon + 1) {
       tooShort++;
       continue;
