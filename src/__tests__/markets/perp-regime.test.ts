@@ -191,7 +191,7 @@ describe("renderRegime", () => {
   const group = (name: string, over: Partial<Record<string, number>> = {}) => ({
     group: name,
     n: 20,
-    ret7: 1,
+    ret7: (over.ret7 as number) ?? 2.2,
     ret30: (over.ret30 as number) ?? 2.2,
     er30: 0.067,
     erMultiple: (over.erMultiple as number) ?? 0.9,
@@ -240,24 +240,27 @@ describe("renderRegime", () => {
     expect(bodies[1]).toContain("semis");
   });
 
-  it("captions the horizon once and does not repeat it", () => {
-    const bodies = renderRegime(
+  it("captions the horizon once, in the header, so it covers both lines", () => {
+    const lines = renderRegime(
       summary([group("majors"), group("alts"), group("semis"), group("tech")]),
-    ).filter((l) => l.startsWith("   "));
-    expect(bodies[0]).toContain("30d");
-    expect(bodies[1]).not.toContain("30d");
+    );
+    expect(lines[0]).toContain("7d");
+    for (const body of lines.filter((l) => l.startsWith("   "))) {
+      expect(body).not.toContain("7d");
+    }
   });
 
-  it("names the baseline in the headline rather than deferring to a legend", () => {
-    const head = renderRegime(summary([group("alts")]))[0];
-    expect(head).toContain("coin flip");
-    expect(head).not.toContain("rw");
+  it("renders an arrow rather than NaN when a group scored no return", () => {
+    const lines = renderRegime(summary([group("alts", { ret7: NaN })])).join("\n");
+    expect(lines).not.toContain("NaN");
+    expect(lines).toContain("→");
   });
 
-  it("drops the multiple rather than printing NaN when no member scored an ER", () => {
-    const head = renderRegime(summary([group("alts")], NaN))[0];
-    expect(head).not.toContain("NaN");
-    expect(head).toContain("Crabbing");
+  it("calls a move inside the flat band flat rather than asserting a direction", () => {
+    const flat = renderRegime(summary([group("alts", { ret7: 0.4 })])).join("\n");
+    expect(flat).toContain("→");
+    expect(flat).not.toContain("↗");
+    expect(flat).not.toContain("↘");
   });
 
   it("hides the residual bucket", () => {
@@ -279,19 +282,29 @@ describe("renderRegime", () => {
     expect(bodies.join(" · ").split("·")).toHaveLength(4);
   });
 
-  it("warns only when the tape contradicts the reversal ranking", () => {
-    const calm = renderRegime(summary([group("alts")], 0.9)).join("\n");
-    const trending = renderRegime(summary([group("alts")], 2.5)).join("\n");
-    expect(calm).not.toContain("trending");
-    expect(trending).toContain("trending");
+  it("makes no claim about whether the ranking suits the tape", () => {
+    // The block used to lead with a regime label and an efficiency multiple and
+    // warn on a trending tape. Measured over 1,003 days, the multiple does not
+    // predict the reversal ranking's daily IC at any window once the ER window
+    // is embargoed off `rev6`'s own formation bars — family-wise p = 0.553. See
+    // scripts/research/run-perp-regime-windows.ts and the docstring on
+    // renderRegime. A trending tape must not resurrect the warning by accident.
+    for (const mult of [0.9, 2.5]) {
+      const lines = renderRegime(summary([group("alts")], mult)).join("\n");
+      expect(lines).not.toContain("trending");
+      expect(lines).not.toContain("coin flip");
+      expect(lines).not.toContain("Crabbing");
+      expect(lines).not.toContain("suits chop");
+    }
   });
 
-  it("signs the move rather than carrying direction in a glyph", () => {
-    // Every other return in this message is signed (`1d -8.0%`). Two encodings
-    // of one quantity is a tax on the reader, so the arrows went.
-    const lines = renderRegime(summary([group("alts", { ret30: -6.9 })])).join("\n");
-    expect(lines).toContain("-7%");
-    expect(lines).not.toContain("↓");
-    expect(lines).not.toContain("↑");
+  it("carries direction in a glyph, because the percent it would duplicate is gone", () => {
+    // The inverse of an earlier rule, and the rule itself is intact: a signed
+    // percent BESIDE an arrow is two encodings of one quantity, which is why
+    // `1d -8.0%` still carries no glyph. Here the percent was dropped, so the
+    // arrow is the only encoding rather than a duplicate of one.
+    const lines = renderRegime(summary([group("alts", { ret7: -6.9 })])).join("\n");
+    expect(lines).toContain("↘");
+    expect(lines).not.toContain("%");
   });
 });

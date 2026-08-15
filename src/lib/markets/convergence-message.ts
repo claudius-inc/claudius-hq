@@ -226,15 +226,75 @@ const GROUP_LABEL: Record<string, string> = {
 };
 
 /**
- * The regime block: what the tape is doing, and to which book.
+ * Horizon the block describes, and the caption it prints.
  *
- * WHY THIS IS ON THE MESSAGE AT ALL
- * ---------------------------------
- * The list is ordered by `rev6`, a one-day reversal. Reversal is a
- * mean-reversion bet, so it is the right ranking in a sideways tape and the
- * wrong one in a trending tape — and the reader had no way to tell which they
- * were being handed. The efficiency multiple states it: 1.0x is exactly as
- * directional as a coin flip.
+ * `ret7` and not `ret30`. A message that goes out every morning describing a
+ * 30-day median is reporting something the reader has already lived through,
+ * and the 7-day read is the only one every group has the history to fill: the
+ * tradfi book is the young cohort, and at 90 days `industrial` and
+ * `equity-other` fall under the 5-name floor entirely while `semis` and `tech`
+ * roughly halve. See the coverage table in
+ * `scripts/research/run-perp-regime-windows.ts`.
+ */
+const REGIME_HORIZON = "7d";
+
+/**
+ * Flat band for the direction glyph, in percent.
+ *
+ * An arrow asserts a direction, so a group whose weekly median sits inside this
+ * band gets "→" instead. Below a percent the move is not distinguishable from
+ * noise in either book, and an arrow would claim more than the number carries.
+ */
+const FLAT_BAND_PCT = 1;
+
+/** Which way a book has been going, or that it has not been going anywhere. */
+function directionGlyph(ret: number): string {
+  if (!Number.isFinite(ret)) return "→";
+  if (ret >= FLAT_BAND_PCT) return "↗";
+  if (ret <= -FLAT_BAND_PCT) return "↘";
+  return "→";
+}
+
+/**
+ * The regime block: what each book has been doing lately. Nothing more.
+ *
+ * WHAT THIS BLOCK USED TO CLAIM, AND WHY IT NO LONGER DOES
+ * --------------------------------------------------------
+ * It led with the universe's regime label and an efficiency multiple —
+ * "Crabbing · 1.2× coin flip" — and warned when the tape was trending, on the
+ * argument that `rev6` is a mean-reversion bet and so suits a sideways tape and
+ * not a trending one. That argument was never measured. It has now been, by
+ * `scripts/research/run-perp-regime-windows.ts --deep=1095`, which regresses the
+ * daily cross-sectional IC of the reversal ranking on the efficiency multiple at
+ * 7/14/30/60/90-day windows across 1,003 days, and there is nothing there:
+ *
+ *   - every window lands between -0.046 and +0.037, none significant;
+ *   - the 30-day window this block actually printed reads corr +0.018 at a
+ *     block-permutation p of 0.60. The number shown every morning had no
+ *     measurable relationship with whether that morning's ordering worked;
+ *   - correcting for five windows having been tried, family-wise p = 0.553;
+ *   - the largest spread any window could hand a reader is 0.011 of IC.
+ *
+ * Meanwhile the ranking itself measures 0.0480 at t = 9.31 over the same days.
+ * The ORDER is fine. It is the framing around it that was unsupported.
+ *
+ * TWO TRAPS, RECORDED SO THEY ARE NOT WALKED INTO TWICE
+ * -----------------------------------------------------
+ * First, `rev6` IS the last 6 bars, so an efficiency window ending at t contains
+ * the ranking key — 14% of a 42-bar window against 1% of a 540-bar one. That
+ * contamination scales as 6/W and manufactures a "short windows win" ranking out
+ * of nothing, so every window in the study is embargoed to end 6 bars early.
+ *
+ * Second, an earlier pass over 158 days — all the 1,500-bar per-call ceiling
+ * allowed before `fetchBarsDeep` existed — put 7 days at corr -0.171, negative
+ * in all three panels and in both halves, which reads exactly like a real effect
+ * short on power. Over 1,003 days it is +0.031. The sign flipped. A consistent
+ * sign across two halves of a single regime era is worth very little.
+ *
+ * So the block reports what the books have DONE, which is observation, and
+ * claims nothing about what today's ordering is worth, which the data does not
+ * support. `RegimeSummary.universe` is deliberately unread here — the headline
+ * it fed was the unsupported part.
  *
  * IT IS NOT A TABLE, BECAUSE TELEGRAM CANNOT DRAW ONE
  * ---------------------------------------------------
@@ -246,15 +306,14 @@ const GROUP_LABEL: Record<string, string> = {
  * picks it is meant to frame, it cannot carry bold, and its backticks are a 400
  * waiting to happen. Two groups to a line needs no alignment at all.
  *
- * The breadth column went with it. `aboveVwapPct` and `ret30` answer the same
- * question — which way has this group been going — and agreed in every group on
- * the day this was rewritten. A second number that tracks the first is width,
- * not information, and the breadth is on the page the button links to.
- *
- * The trending warning is CONDITIONAL on purpose. A caveat that prints every
- * morning becomes furniture within a week, which is the same reasoning the
- * footer is built on; this one appears only when the tape actually contradicts
- * the ranking.
+ * WHY A GLYPH HERE AND A SIGNED PERCENT EVERYWHERE ELSE
+ * -----------------------------------------------------
+ * An earlier pass removed arrows from this block on the rule that a signed
+ * percent beside an arrow is two encodings of one quantity. That rule is intact
+ * — it is the reason `1d -8.0%` still carries no glyph. What changed is that
+ * the percent is gone from HERE, so the arrow is now the only encoding rather
+ * than a duplicate of one, and it buys the line enough slack to fit two books
+ * on a 30-character screen. The magnitudes are on the page the button links to.
  */
 export function renderRegime(s: RegimeSummary | null): string[] {
   if (!s || !s.groups.length) return [];
@@ -269,36 +328,18 @@ export function renderRegime(s: RegimeSummary | null): string[] {
   const shown = [...spine, ...rest].slice(0, REGIME_MAX_GROUPS);
   if (!shown.length) return [];
 
-  const u = s.universe;
-  // "coin flip" and not "rw". The multiple is the most important number in the
-  // message and it was the only one needing a glossary entry to read — naming
-  // its baseline in words puts the anchor in the unit, so 1.0x is obviously the
-  // neutral point and the footer no longer has to say so every morning.
-  //
-  // Guarded because `erMultiple` is a ratio of two medians and goes NaN when no
-  // member scored an ER at all. "NaN× coin flip" reads as a broken job rather
-  // than a thin universe, so the state prints without a figure instead.
-  const scale = Number.isFinite(u.erMultiple) ? ` · ${u.erMultiple.toFixed(1)}× coin flip` : "";
-  const lines = [`🌡 *${u.label.charAt(0).toUpperCase()}${u.label.slice(1)}*${scale}`];
+  // The horizon is captioned once, in the header, rather than leading the first
+  // pair. It applies to every arrow below it, and a caption that sits inside one
+  // of the two lines reads as though it qualifies only that line.
+  const lines = [`🌡 *Tape · ${REGIME_HORIZON}*`];
 
-  // Signed, and whole percent. Signed because every other return in this message
-  // is signed and two encodings of one quantity is a tax on the reader; whole
-  // because a tenth of a percent on a group's 30-day median is precision the
-  // number does not have, and the two characters buy the pairing its slack.
   const cells = shown.map(
-    (g) => `${clean(GROUP_LABEL[g.group] ?? g.group).slice(0, 6)} ${pct0(g.ret30)}`,
+    (g) => `${clean(GROUP_LABEL[g.group] ?? g.group).slice(0, 6)} ${directionGlyph(g.ret7)}`,
   );
   for (let i = 0; i < cells.length; i += REGIME_PER_LINE) {
-    // The horizon leads the first pair and captions both lines. Unlabelled, a
-    // reader takes -7% for today's move, which is wrong by an order of
-    // magnitude; repeated on the second line it is furniture.
-    const scope = i === 0 ? "30d " : "";
-    lines.push(`   _${scope}${cells.slice(i, i + REGIME_PER_LINE).join(" · ")}_`);
+    lines.push(`   _${cells.slice(i, i + REGIME_PER_LINE).join(" · ")}_`);
   }
 
-  if (u.label !== "crabbing") {
-    lines.push("⚠️ _The tape is trending. A reversal ranking suits chop._");
-  }
   lines.push("");
   return lines;
 }

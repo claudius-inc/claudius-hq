@@ -69,6 +69,15 @@ export interface PerpVenue {
   listSymbols(): Promise<PerpSymbol[]>;
   /** Bars oldest-first, ending at the most recent CLOSED bar. */
   fetchBars(symbol: string, interval: PerpInterval, limit: number): Promise<PerpBar[]>;
+  /**
+   * The same, but past the venue's per-call ceiling, by paging backwards.
+   *
+   * Separate from `fetchBars` because it is NOT free: one call becomes several,
+   * each carrying full rate-limit weight, so it belongs to research runs and
+   * never to the daily screen. Returns however much history exists when that is
+   * less than `target`.
+   */
+  fetchBarsDeep(symbol: string, interval: PerpInterval, target: number): Promise<PerpBar[]>;
 }
 
 /**
@@ -217,25 +226,71 @@ export const binanceVenue: PerpVenue = {
       `binance klines ${symbol}`,
     );
 
-    const bars = raw.map((k) => ({
-      t: Number(k[0]),
-      tClose: Number(k[6]), // closeTime
-
-      o: Number(k[1]),
-      h: Number(k[2]),
-      l: Number(k[3]),
-      c: Number(k[4]),
-      v: Number(k[5]),
-      q: Number(k[7]), // quoteAssetVolume
-    }));
-
     // The final kline is the bar currently forming: its close is the live price
     // and its high/low/volume are incomplete. Scoring it would make the screen
     // depend on the minute it ran, and would make a backtest that replays
     // closed bars disagree with live output. Drop it.
-    return bars.slice(0, -1).filter((b) => Number.isFinite(b.c) && b.c > 0);
+    return raw.map(toBar).slice(0, -1).filter(isUsableBar);
+  },
+
+  /**
+   * Pages backwards with `endTime` until `target` bars are held.
+   *
+   * `endTime` filters on a kline's OPEN time and is inclusive, so the cursor is
+   * `firstOpenOfPage - 1` — that excludes the bar already held and makes the
+   * pages abut exactly, with no overlap to de-duplicate and no gap.
+   *
+   * Only the FIRST page can contain the forming bar, because every later page
+   * is bounded above by a bar that has already closed. Dropping the last row of
+   * every page would silently delete one real bar per page and leave holes that
+   * a contiguity check elsewhere would later report as missing history.
+   *
+   * A short page means the contract's listing date has been reached, which is
+   * the normal stop for a young name and is not an error.
+   */
+  async fetchBarsDeep(symbol: string, interval: PerpInterval, target: number): Promise<PerpBar[]> {
+    const out: PerpBar[] = [];
+    let endTime: number | null = null;
+
+    while (out.length < target) {
+      const q: string =
+        `symbol=${symbol}&interval=${interval}&limit=${MAX_KLINES_PER_CALL}` +
+        (endTime === null ? "" : `&endTime=${endTime}`);
+      const raw: unknown[][] = await getJson<unknown[][]>(
+        `${BINANCE_FAPI}/fapi/v1/klines?${q}`,
+        `binance klines ${symbol}`,
+      );
+      if (!raw.length) break;
+
+      const mapped: PerpBar[] = raw.map(toBar);
+      const page: PerpBar[] = (endTime === null ? mapped.slice(0, -1) : mapped).filter(isUsableBar);
+      if (!page.length) break;
+
+      out.unshift(...page);
+      // Short page = start of this contract's history; there is nothing older.
+      if (raw.length < MAX_KLINES_PER_CALL) break;
+      endTime = page[0].t - 1;
+    }
+
+    return out.slice(-target);
   },
 };
+
+/** Binance's per-call kline ceiling. */
+const MAX_KLINES_PER_CALL = 1500;
+
+const toBar = (k: unknown[]): PerpBar => ({
+  t: Number(k[0]),
+  tClose: Number(k[6]), // closeTime
+  o: Number(k[1]),
+  h: Number(k[2]),
+  l: Number(k[3]),
+  c: Number(k[4]),
+  v: Number(k[5]),
+  q: Number(k[7]), // quoteAssetVolume
+});
+
+const isUsableBar = (b: PerpBar) => Number.isFinite(b.c) && b.c > 0;
 
 export const VENUES: Record<string, PerpVenue> = { binance: binanceVenue };
 
@@ -346,6 +401,66 @@ export async function fetchBarsForAll(
   logger.info("perp-venues", "Bar fetch complete", {
     venue: venue.name,
     interval,
+    requested: symbols.length,
+    fetched: out.size,
+    failures,
+  });
+  return out;
+}
+
+/**
+ * `fetchBarsForAll`, but deep — for research runs that need years, not weeks.
+ *
+ * Concurrency defaults LOWER than the shallow version on purpose. Each symbol
+ * is now several full-weight calls rather than one, so the same worker count
+ * would multiply the request rate by the page count and earn a 418 ban. The
+ * per-request retry already honours `Retry-After`; this keeps the run from
+ * needing it.
+ *
+ * Progress is logged because this takes minutes, and a silent process that
+ * looks hung is one an operator kills halfway through.
+ */
+export async function fetchBarsDeepForAll(
+  venue: PerpVenue,
+  symbols: PerpSymbol[],
+  interval: PerpInterval,
+  target: number,
+  concurrency = 4,
+): Promise<Map<string, PerpBar[]>> {
+  const out = new Map<string, PerpBar[]>();
+  let cursor = 0;
+  let failures = 0;
+  let done = 0;
+
+  const worker = async () => {
+    while (cursor < symbols.length) {
+      const s = symbols[cursor++];
+      try {
+        const bars = await venue.fetchBarsDeep(s.symbol, interval, target);
+        if (bars.length) out.set(s.symbol, bars);
+      } catch (err) {
+        failures++;
+        logger.warn("perp-venues", "Deep bar fetch failed; symbol dropped", {
+          symbol: s.symbol,
+          error: err,
+        });
+      }
+      if (++done % 50 === 0) {
+        logger.info("perp-venues", "Deep bar fetch progress", {
+          done,
+          of: symbols.length,
+          failures,
+        });
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, symbols.length) }, worker));
+
+  logger.info("perp-venues", "Deep bar fetch complete", {
+    venue: venue.name,
+    interval,
+    target,
     requested: symbols.length,
     fetched: out.size,
     failures,

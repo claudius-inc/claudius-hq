@@ -496,6 +496,90 @@ Champion:   <set>
 Verdict:    <shipped | rejected | inconclusive> — <one line>
 ```
 
+### 3.9 Does the regime read predict whether the reversal ranking works? — horizon 6, 2026-08-15
+
+Not a combination search, so it does not take the template above. The question is
+whether the efficiency multiple the Telegram regime block printed every morning
+has any relationship with the thing it implicitly claimed: that `rev6` — a
+mean-reversion bet — works in a sideways tape and fails in a trending one.
+
+```
+Panel:      471 liquid names, 391 scorable · 1,003 daily timestamps (33.4 months)
+            up to 6,570 4h bars each (depth: min 558, median 3,119, max 6,570)
+Regressor:  median efficiency ratio over W bars ÷ 1/sqrt(W), W ∈ {42, 84, 180, 360, 540}
+            ending 6 bars BEFORE t — see the embargo note below
+Outcome:    daily cross-sectional Spearman between rev6 and the forward 1-day return
+Inference:  2,000 circular block permutations of the IC series, 21-day blocks, seed 20260815
+Script:     scripts/research/run-perp-regime-windows.ts --deep=1095
+```
+
+Unconditional reversal IC over the sample: **0.0480, t = 9.31, hit 63%** — the
+ranking itself is in good health over three years. It is the regime conditioning
+that fails.
+
+| window | corr | pBlock | 1st half | 2nd half | IC calm | IC dir | spread |
+| ------ | ---- | ------ | -------- | -------- | ------- | ------ | ------ |
+| 7d  | +0.031 | 0.326 | +0.004 | +0.071 | 0.0491 | 0.0517 | −0.0026 |
+| 14d | +0.037 | 0.267 | +0.031 | +0.048 | 0.0441 | 0.0568 | −0.0126 |
+| 30d | +0.018 | 0.599 | +0.003 | +0.043 | 0.0514 | 0.0532 | −0.0018 |
+| 60d | −0.046 | 0.172 | −0.023 | −0.071 | 0.0562 | 0.0451 | +0.0110 |
+| 90d | −0.011 | 0.742 | +0.013 | −0.045 | 0.0487 | 0.0414 | +0.0074 |
+
+Family-wise p for "best of 5 windows" (max |corr| = 0.046): **0.553**. The
+largest spread any window would hand a reader is 0.011 of IC, at p = 0.17.
+
+Controls agree. Balanced panel (97 names present on all 1,003 days, guarding
+against the count drifting 97 → 391): 7d +0.031, p = 0.34, nothing else closer.
+Horse race against cross-sectional dispersion (+0.039, p = 0.22) and realized
+vol (+0.038, p = 0.28): also nothing.
+
+**Verdict: rejected.** No window's regime read predicts the reversal ranking's
+daily IC. The regime block was rewritten to be purely descriptive — it states
+each book's 7-day direction and makes no claim about today's ordering.
+
+#### The two traps this took to find
+
+**1. Window/key overlap.** `rev6` IS the last 6 bars, so an ER window ending at
+`t` contains the ranking key: 14% of a 42-bar window, 3% of a 180-bar one, 1% of
+a 540-bar one. Contamination scaling as 6/W manufactures a "short windows win"
+ranking out of nothing. Every figure above is therefore embargoed — each window
+ends 6 bars before `t`. Keep the embargo in any successor study even though, at
+three years, the contaminated and embargoed runs agree (7d reads +0.014 vs
++0.031); the artifact is real, it simply needs a short sample to bite.
+
+**2. Five months is not a sample.** A first pass on 158 days (the 1,500-bar
+per-call ceiling, before `fetchBarsDeep` existed) reported 7d at corr −0.171,
+negative in all three panels and in both halves — textbook real-but-underpowered.
+The contaminated version of that same pass read −0.289 at p = 0.011 and looked
+publishable. On 1,003 days the 7d figure is **+0.031**: the sign flipped. Nothing
+about the short-sample result was informative, including its apparent stability.
+The relevant lesson is that "consistent sign across sub-periods" carries almost
+no weight when the sub-periods are two halves of one regime era.
+
+Related, and the reason the short sample could not have answered this: over
+158 days `xrw` never reached the 1.8x trending threshold at any window (it fired
+on 1–4 days out of 158). The three-year sample reaches materially more
+directional territory — the 7d upper tercile cut rises from 0.92 to 1.10, and
+90d from 1.13 to 1.36 — so the trending end of the range is now represented
+rather than extrapolated into.
+
+**Coverage, which is a separate reason to distrust long windows here.** A window
+can only describe a group whose names carry enough history to fill it, and the
+tradfi book is the young cohort:
+
+| group | liquid | 7d | 14d | 30d | 60d | 90d |
+| ----- | ------ | -- | --- | --- | --- | --- |
+| alts | 362 | 361 | 361 | 360 | 355 | 352 |
+| equity-other | 34 | 31 | 30 | 22 | 12 | 2\* |
+| semis | 21 | 21 | 21 | 21 | 19 | 10 |
+| tech | 20 | 20 | 19 | 19 | 18 | 9 |
+| commodity | 8 | 8 | 8 | 8 | 8 | 8 |
+| industrial | 7 | 7 | 7 | 7 | 7 | 2\* |
+| majors | 6 | 6 | 6 | 6 | 6 | 6 |
+
+\* below `REGIME_CONFIG.minGroupN`, so the group gets no line at that window. A
+90-day regime read would silently stop reporting most of the tradfi book.
+
 ---
 
 ## 4. Bugs this work found
@@ -568,6 +652,12 @@ Recorded because each was invisible until something specific was measured.
    30-day pull. Until then no OI claim can be tested.
 5. **Turnover and slippage.** `PanelConfig` supports the robustness sweeps
    (`gridPhase`, `liquidityFloor`) but no runner is wired.
-6. **Extract the shared core.** `run-perp-convergence-backtest.ts` still
+6. ~~**Does the regime read survive more history?**~~ **Answered, §3.9 — no.**
+   `fetchBarsDeep` pages past the 1,500-bar per-call ceiling, and on 1,003 days
+   the effect is absent at every window (family-wise p = 0.553) with the 7d sign
+   flipped versus the 5-month pass. The Telegram block is descriptive and should
+   stay that way. Anything that proposes to put a verdict back on it has to
+   clear an embargoed family-wise p < 0.05 on a sample of this depth.
+7. **Extract the shared core.** `run-perp-convergence-backtest.ts` still
    duplicates the replay logic. `LEGACY_CONFIG` in `perp-panel.ts` exists to make
    the extraction output-identical; the extraction itself is not done.
