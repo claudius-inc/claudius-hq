@@ -249,8 +249,8 @@ async function recordPicks(result: ConvergenceResult, runDate: string): Promise<
     sql: `INSERT INTO perp_convergence_runs
             (run_date, venue, interval, universe_n, with_bars_n, no_bars_n,
              too_short_n, stale_n, scorable_n, liquid_n, qualified_n,
-             contested_n, long_n, short_n, as_of)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             contested_n, long_n, short_n, as_of, regime)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
           ON CONFLICT(run_date) DO UPDATE SET
             venue=excluded.venue, interval=excluded.interval,
             universe_n=excluded.universe_n, with_bars_n=excluded.with_bars_n,
@@ -259,13 +259,17 @@ async function recordPicks(result: ConvergenceResult, runDate: string): Promise<
             scorable_n=excluded.scorable_n, liquid_n=excluded.liquid_n,
             qualified_n=excluded.qualified_n, contested_n=excluded.contested_n,
             long_n=excluded.long_n, short_n=excluded.short_n,
-            as_of=excluded.as_of`,
+            as_of=excluded.as_of, regime=excluded.regime`,
     args: [
       runDate, "binance", CONVERGENCE_CONFIG.interval,
       result.funnel.universe, result.funnel.withBars, result.funnel.noBars,
       result.funnel.tooShort, result.funnel.stale, result.funnel.scorable,
       result.funnel.liquid, result.funnel.qualified, result.funnel.contested,
       result.longs.length, result.shorts.length, result.asOf,
+      // JSON rather than columns: the group list is variable-length and the
+      // sender only ever renders it whole. Null when the read failed, so the
+      // message drops the block instead of printing an empty one.
+      result.regime ? JSON.stringify(result.regime) : null,
     ] as never[],
   });
 }

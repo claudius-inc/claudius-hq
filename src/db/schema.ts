@@ -663,6 +663,10 @@ export const perpConvergenceRuns = sqliteTable("perp_convergence_runs", {
   longN: integer("long_n"),
   shortN: integer("short_n"),
   asOf: text("as_of"),
+  // The tape's state at run time, as a `RegimeSummary` JSON blob. Written by
+  // the VPS because only it can reach the venue; read by the CI sender, which
+  // cannot (see drizzle/0037).
+  regime: text("regime"),
   createdAt: text("created_at").default(sql`(datetime('now'))`),
 });
 

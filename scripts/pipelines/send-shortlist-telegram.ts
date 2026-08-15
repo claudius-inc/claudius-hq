@@ -31,9 +31,11 @@ import {
   SHORTLIST_BUTTON,
   fmtAsOf,
   footer,
+  renderRegime,
   renderSide,
   type MessageRow,
 } from "@/lib/markets/convergence-message";
+import type { RegimeSummary } from "@/lib/markets/perp-regime";
 
 const TG = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT = process.env.TELEGRAM_ADMIN_CHAT_ID;
@@ -108,6 +110,30 @@ async function send(text: string, withButton = false): Promise<boolean> {
   return true;
 }
 
+/**
+ * The regime blob for a run, or null.
+ *
+ * Parsed defensively. This column is written by a different machine on a
+ * different schedule, so the sender can meet a row written by an older checkout
+ * where the column is absent or empty. A malformed blob costs the regime block
+ * and must not cost the shortlist, which is the whole message.
+ */
+async function loadRegime(runDate: string): Promise<RegimeSummary | null> {
+  try {
+    const res = await rawClient.execute({
+      sql: "SELECT regime FROM perp_convergence_runs WHERE run_date = ?",
+      args: [runDate] as never[],
+    });
+    const raw = res.rows[0]?.regime;
+    if (typeof raw !== "string" || !raw) return null;
+    const parsed = JSON.parse(raw) as RegimeSummary;
+    return parsed?.universe ? parsed : null;
+  } catch (err) {
+    logger.warn("shortlist-telegram", "Regime unavailable; sending without it", { error: err });
+    return null;
+  }
+}
+
 async function main() {
   const res = await rawClient.execute(`
     SELECT base, side, category, score, max_score, price,
@@ -167,6 +193,8 @@ async function main() {
   const longs = rows.filter((r) => r.side === "long").map(toMessageRow);
   const shorts = rows.filter((r) => r.side === "short").map(toMessageRow);
   const asOf = rows[0].as_of ? fmtAsOf(rows[0].as_of) : runDate;
+  const regime = await loadRegime(runDate);
+  const regimeBlock = renderRegime(regime);
 
   const lines = [
     HEADER,
@@ -175,6 +203,8 @@ async function main() {
     ...(degraded
       ? ["⚠️ _Ranking data missing — order is not meaningful. The fetch box is on an old checkout._", ""]
       : []),
+    // Above the picks, because it frames how they should be read.
+    ...regimeBlock,
     ...renderSide(longs, "📈 *LONG*"),
     ...renderSide(shorts, "📉 *SHORT*"),
     ...footer([...longs, ...shorts]),

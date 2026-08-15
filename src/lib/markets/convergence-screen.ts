@@ -46,6 +46,7 @@ import {
 } from "@/lib/markets/perp-venues";
 import { computeMcdSeries, MCD_WARMUP, MCD_CONFIG, type McdBar, type McdFactors } from "@/lib/markets/mcd";
 import { fetchOiChangeForAll, fetchFundingSnapshot } from "@/lib/markets/perp-positioning";
+import { summarizeRegime, type RegimeInput, type RegimeSummary } from "@/lib/markets/perp-regime";
 import { logger } from "@/lib/logger";
 
 export const CONVERGENCE_CONFIG = {
@@ -280,6 +281,16 @@ export interface ConvergenceResult {
   };
   /** Bar close time the scores were computed from, ISO. */
   asOf: string;
+  /**
+   * What the tape is doing, over the LIQUID universe rather than the picks.
+   *
+   * Computed here because this is the only place the bars for the whole
+   * universe exist in memory. The sender cannot recompute it: that job runs in
+   * CI, and the venue answers HTTP 451 to datacenter ranges, which is the same
+   * constraint that split the two jobs in the first place. So it is measured
+   * here, stored by the pipeline, and read back at send time.
+   */
+  regime: RegimeSummary | null;
 }
 
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
@@ -809,6 +820,8 @@ export async function selectConvergencePicks(
   let latestBarClose = 0;
   const candidates: ConvergencePick[] = [];
   const byCategory: Record<string, number> = {};
+  /** Every liquid name, for the regime read — NOT only the qualifiers. */
+  const regimeInputs: RegimeInput[] = [];
   /** Trailing returns per symbol, kept for the correlation de-duplication. */
   const returnsBySymbol = new Map<string, number[]>();
 
@@ -845,6 +858,12 @@ export async function selectConvergencePicks(
     if (scored.avgQuoteVol < cfg.minAvgQuoteVol) continue;
     liquid++;
     latestBarClose = Math.max(latestBarClose, lastClose);
+    // Recorded here, at the liquidity gate, and not further down at the score
+    // gate: the regime describes the market the shortlist is drawn FROM. Reading
+    // it off the qualifiers would describe the shortlist instead, and a screen
+    // whose gate favours coiled names would then report a calm tape by
+    // construction, on any tape.
+    regimeInputs.push({ base: sym.base, category: sym.category, bars });
 
     // A name can clear the threshold in both directions — the factors are not
     // mutually exclusive (support and VSA fire on either side). Reporting it
@@ -948,7 +967,18 @@ export async function selectConvergencePicks(
     },
     // The bar CLOSE, not its open — the moment the scored data was complete.
     asOf: latestBarClose ? new Date(latestBarClose).toISOString() : new Date().toISOString(),
+    regime: null,
   };
+
+  // After `asOf` is known, so the read is stamped with the same moment the
+  // scores are. A failure here costs the regime block and not the shortlist.
+  try {
+    result.regime = summarizeRegime(regimeInputs, result.asOf);
+  } catch (err) {
+    logger.warn("convergence-screen", "Regime read failed; picks stand without it", {
+      error: err,
+    });
+  }
 
   logger.info("convergence-screen", "Screen complete", {
     venue: venueName,

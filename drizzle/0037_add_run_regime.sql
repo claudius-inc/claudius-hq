@@ -1,0 +1,25 @@
+-- What was the tape doing when this run was scored?
+--
+-- The shortlist is ORDERED by `rev6`, a one-day reversal. Reversal is a
+-- mean-reversion bet, so it is the right ranking in a sideways tape and the
+-- wrong one in a trending tape. The message has never said which one the reader
+-- was being handed, and the screen never knew: it scores each symbol alone and
+-- has no notion of market state at all.
+--
+-- WHY THE COLUMN LIVES HERE AND NOT IN THE SENDER
+-- -----------------------------------------------
+-- The regime is measured over the whole liquid universe, so it needs the bars
+-- for every symbol. Only the VPS has them: the venue answers HTTP 451 to
+-- datacenter IP ranges, which is the reason the screen and the send were split
+-- across two machines to begin with. The sender runs in GitHub Actions and
+-- cannot recompute this, so the value has to travel through the database.
+--
+-- JSON rather than a set of columns. The group list is variable length — the
+-- sectors present depend on which names cleared the liquidity floor that day —
+-- and the sender only ever renders the object whole. Splitting it into columns
+-- would fix a shape that is not fixed.
+--
+-- Nullable, and the renderer drops the block when it is null. A regime read
+-- that fails must cost the regime line and never the shortlist.
+
+ALTER TABLE `perp_convergence_runs` ADD COLUMN `regime` text;
