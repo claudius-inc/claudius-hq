@@ -47,3 +47,9 @@ next-env.d.ts
 
 # workflow artifacts (ticker-profile backfill, batch outputs, etc.)
 /tmp/
+
+# The fetch VPS writes its cron log into the repo root (see daily-fetch.sh).
+# Untracked it is harmless; committed on the box it would be a local commit,
+# which makes the script's `git merge --ff-only` refuse for good.
+/fetch.log
+/fetch.log.*

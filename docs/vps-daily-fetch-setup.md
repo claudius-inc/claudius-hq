@@ -88,9 +88,14 @@ not echo it into logs or command output.
 ## Step 3 — First run, by hand
 
 ```bash
-chmod +x scripts/ops/daily-fetch.sh
 ./scripts/ops/daily-fetch.sh
 ```
+
+**Do not `chmod` it.** The executable bit is tracked in the repository, so the
+clone already has it. A local mode change counts as a modification on Linux
+(`core.fileMode` is true there), which leaves the worktree permanently dirty —
+and the script refuses to run on a dirty worktree, for the reason in Step 6.
+This is not hypothetical: this document used to say `chmod +x` here.
 
 Expect roughly **2–4 minutes**. The script pings Binance first and aborts loudly
 on any non-200, so a hosting problem surfaces on line one rather than as a
@@ -172,7 +177,19 @@ document — a step a human has to remember is a step that eventually stops
 happening, and this particular omission was invisible from the output.
 
 The merge is `--ff-only`, so a box with local commits refuses to run rather
-than silently merging. If that happens, reset it to `origin/main` by hand.
+than silently merging. The script checks for a dirty worktree *before* the
+merge and names the offending files, because the merge's own failure is
+otherwise indistinguishable from a network fault in the log. Reset by hand:
+
+```bash
+cd ~/claudius-hq && git reset --hard origin/main
+```
+
+A fast-forward is a checkout, and checkout will not overwrite a locally
+modified file — so a single stray edit stops the fetch on the day a commit
+first touches that file, and not before. That delay is what makes it hard to
+diagnose: the box runs fine for weeks, then stops for a change unrelated to
+anything it does. Keep the worktree clean.
 
 **Check `drizzle/` for new migration files when a run fails.** They are not
 applied automatically. If a run fails with "no such column", the migration for
@@ -188,6 +205,11 @@ against the shared production database.
 | `no such column` / `no such table` | An unapplied migration in `drizzle/`. Report it. |
 | Run takes >10 min | Venue rate limiting. Check for `429`/`418` in the log; the client backs off on its own. |
 | Cron never fires | Check `timedatectl` is UTC, that the script is executable, and that the crontab path is absolute. |
+| `the worktree is dirty` | A tracked file was edited on the box. `git status --short -uno` names it; `git reset --hard origin/main` clears it. |
+| Nothing in the log at all | Cron did not run the script. Check `journalctl -u cron --since yesterday` and that the crontab still exists. |
+
+Every failure now ends with `FATAL: daily-fetch.sh failed at line N`, so the
+last line of `fetch.log` identifies the step that aborted.
 
 ## Things to avoid
 
