@@ -313,6 +313,75 @@ export function checkLexicon(text: string): LexiconCheck {
   return m ? { ok: false, word: m[0] } : { ok: true };
 }
 
+/**
+ * §8.3's blind spot: every numeral can map to a fact and the sentence still say
+ * the opposite of what happened.
+ *
+ * On 2026-08-14 the bear case shipped as "The index's GAIN is hostage to a
+ * cluster of mega-caps" on a session that closed -0.17%. Nothing caught it: the
+ * field cites no numbers at all, so the numeral pool had nothing to check, and
+ * neither the causal rule nor the lexicon looks at direction. Bull and bear are
+ * where this costs most — they are the two fields a reader takes as a reading of
+ * the day rather than as a figure.
+ *
+ * DEFAULT-ALLOW, unlike every other check in this file, and deliberately so.
+ * Direction words are ordinary English and the whole field is dropped on a hit,
+ * so a false positive silently deletes a good bullet. Three guards keep it quiet:
+ *
+ *  - it only fires on a field that names the INDEX itself, not a sector or a name;
+ *  - it only fires when the field is single-polarity. "Up 3.6% over 21 sessions
+ *    but lower today" is a legitimate mixed claim and is left alone, which is
+ *    also the cheap way to avoid parsing which clause a timeframe qualifies;
+ *  - it does not fire on a near-flat close, where no direction is contradicted.
+ */
+const INDEX_SUBJECT =
+  /\b(?:the index|the s&p(?:\s+500)?|s&p\s*500|the market|the tape|the benchmark|stocks|equities)\b/i;
+
+const DIR_UP =
+  /\b(?:gain|gains|gained|rally|rallied|rallies|advance|advanced|advances|climb|climbed|climbs|rose|rise|rises|risen|rising|higher|up|surge|surged|jump|jumped|rebound|rebounded|firmed|positive|green)\b/i;
+
+/**
+ * `sold\s+off` is the reason this is not a plain word list: the phrasal verb is
+ * the single most common way the model says a market fell, and a `\b`-delimited
+ * token list catches "selloff" while missing "sold off" — the same word.
+ */
+const DIR_DOWN =
+  /\b(?:loss|losses|lost|drop|drops|dropped|decline|declines|declined|fell|fall|falls|falling|fallen|lower|down|slid|slide|slipped|slips|sank|sink|sold\s+off|selloff|sell-off|retreated|retreat|tumbled|tumble|dipped|sagged|negative|slump|slumped|plunge|plunged|red)\b/i;
+
+/** Below this the close has no direction worth contradicting. */
+const FLAT_PCT = 0.05;
+
+export interface DirectionCheck {
+  ok: boolean;
+  /** The direction the field asserts. */
+  said?: "up" | "down";
+  /** What the index actually did. */
+  actual?: number;
+}
+
+/**
+ * True when the field does not assert a direction the index close contradicts.
+ * `indexPct` is the S&P's own change; pass null to skip the check entirely.
+ */
+export function checkDirection(text: string, indexPct: number | null): DirectionCheck {
+  if (indexPct == null || Math.abs(indexPct) < FLAT_PCT) return { ok: true };
+  if (!INDEX_SUBJECT.test(text)) return { ok: true };
+
+  const up = DIR_UP.test(text);
+  const down = DIR_DOWN.test(text);
+  // Mixed or silent on direction — nothing to contradict.
+  if (up === down) return { ok: true };
+
+  const said = up ? "up" : "down";
+  const agrees = up ? indexPct > 0 : indexPct < 0;
+  return agrees ? { ok: true } : { ok: false, said, actual: indexPct };
+}
+
+/** The S&P's change on the day, for `checkDirection`. */
+export function indexChangePct(f: StructuredFacts): number | null {
+  return f.indices?.value.find((i) => i.symbol === "^GSPC")?.changePct ?? null;
+}
+
 /** Validate one prose string against the fact pool. */
 export function validateProseField(text: string, allowed: number[]): ValidationResult {
   const unsupported = extractNumerals(text)

@@ -1,7 +1,17 @@
-import type { StructuredFacts, CrossAssetPoint } from "@/lib/notes/types";
-import { spct, sbp, intFmt, toneClass } from "../_lib/format";
+import type { StructuredFacts, NoteProse, CrossAssetPoint, SpotlightBlock } from "@/lib/notes/types";
+import { spct, intFmt, toneClass, shortDate } from "../_lib/format";
 import { RatesCurve } from "./charts";
 import { Section, TableWrap, Th, Absent, NoValue } from "./primitives";
+
+/**
+ * Which spotlight block proxies which cross-asset row.
+ *
+ * Keyed by the cross-asset LABEL, valued by the spotlight key. Only GOLD needs
+ * it today: it is the one pseudo-sector, driven off a cross-asset print plus a
+ * miners proxy rather than off a sector SPDR, so its whole spotlight block was
+ * this row plus one extra ticker.
+ */
+const PROXY_KEY: Record<string, string> = { Gold: "GOLD" };
 
 /**
  * Price formatting differs per instrument — copper trades in cents, BTC in tens
@@ -72,9 +82,17 @@ const QUOTE_NOTE: Record<string, string> = {
  * and a bare level standing next to a peer that carries a change reads as
  * "unchanged", which is a claim the feed never made.
  */
-export function MarketsSection({ facts }: { facts: StructuredFacts }) {
+export function MarketsSection({ facts, prose }: { facts: StructuredFacts; prose: NoteProse | null }) {
   const r = facts.rates?.value;
   const cross = facts.crossAsset?.value ?? [];
+  const tf = new Map((facts.timeframes?.value ?? []).map((t) => [t.symbol, t]));
+  // A proxy introduced by a spotlight block belongs on the row it proxies, not
+  // in a section of its own — see the fold-in note on the table below.
+  const proxies = new Map(
+    (facts.spotlight?.value ?? [])
+      .filter((s) => s.proxy != null)
+      .map((s) => [s.key, s.proxy as NonNullable<SpotlightBlock["proxy"]>]),
+  );
 
   return (
     <>
@@ -85,12 +103,21 @@ export function MarketsSection({ facts }: { facts: StructuredFacts }) {
         // No clock in this sentence: the ET print time is fixed but its local
         // reading is not, so a hard-coded figure would be wrong for most
         // readers and wrong twice a year for the rest.
-        intro="Treasury constant-maturity yields against the prior close. Note these print half an hour before the equity close."
+        intro="Treasury constant-maturity yields against the prior close. The levels and their changes sit in the scoreboard above; this is the shape."
       >
         {!r ? (
           <Absent fact={facts.rates} quiet="No Treasury yields were published for this session." missing="Treasury yields" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+          /*
+            The table is GONE, and the curve is what is left.
+            It printed 2Y/10Y/30Y with their bp changes — the same six figures
+            the scoreboard shows one screen above, in the same two columns. The
+            chart is not a duplicate of those figures: it is the only thing on
+            the page that shows the curve's SHAPE against the prior close, which
+            no arrangement of tiles can. 2s10s moved up to the scoreboard with
+            the tenors, so the whole rates read now lives in one place.
+          */
+          <div className="space-y-3">
             <RatesCurve
               today={[
                 { tenor: "2Y", y: r.y2 },
@@ -103,48 +130,16 @@ export function MarketsSection({ facts }: { facts: StructuredFacts }) {
                 { tenor: "30Y", y: r.y30 - r.chg30Bp / 100 },
               ]}
             />
-            <TableWrap>
-              <table className="w-full">
-                <caption className="sr-only">Treasury yields and their change on the day.</caption>
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <Th>Tenor</Th>
-                    <Th align="right">Yield</Th>
-                    <Th align="right">Change</Th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {[
-                    { tenor: "2Y", y: r.y2, chg: r.chg2Bp },
-                    { tenor: "10Y", y: r.y10, chg: r.chg10Bp },
-                    { tenor: "30Y", y: r.y30, chg: r.chg30Bp },
-                  ].map((row) => (
-                    <tr key={row.tenor} className="hover:bg-gray-50">
-                      <th scope="row" className="px-3 py-2 text-sm font-medium text-gray-900 text-left">
-                        {row.tenor}
-                      </th>
-                      <td className="px-3 py-2 text-sm text-right tabular-nums text-gray-900">
-                        {row.y.toFixed(2)}%
-                      </td>
-                      <td className={`px-3 py-2 text-sm text-right tabular-nums ${toneClass(row.chg)}`}>
-                        {sbp(row.chg)}
-                      </td>
-                    </tr>
-                  ))}
-                  <tr className="bg-gray-50">
-                    <th scope="row" className="px-3 py-2 text-sm font-medium text-gray-900 text-left">
-                      2s10s
-                    </th>
-                    <td className="px-3 py-2 text-sm text-right tabular-nums text-gray-900">
-                      {sbp(r.spread2s10Bp)}
-                    </td>
-                    <td className={`px-3 py-2 text-sm text-right tabular-nums ${toneClass(r.spread2s10ChgBp)}`}>
-                      {sbp(r.spread2s10ChgBp)}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </TableWrap>
+            {/*
+              The model's one line on the curve, which until now shipped only to
+              Telegram. It is written every night, it clears the numeral
+              validator like every other field, it is persisted on the note — and
+              the web page, the thing that keeps the archive, was the one reader
+              that never saw it. This is its subject, so this is where it goes.
+            */}
+            {prose?.curveRead && (
+              <p className="text-sm text-gray-600 leading-relaxed max-w-[62ch]">{prose.curveRead}</p>
+            )}
           </div>
         )}
       </Section>
@@ -153,52 +148,95 @@ export function MarketsSection({ facts }: { facts: StructuredFacts }) {
         id="cross-asset"
         title="Cross-asset"
         fact={facts.crossAsset}
-        intro="Each instrument trades in its own unit, so this is a table rather than a chart — no shared axis would be honest."
+        intro="Each instrument trades in its own unit, so this is a table rather than a chart — no shared axis would be honest. The 5- and 21-session columns are where a one-day move either fits a trend or breaks one."
       >
         {cross.length === 0 ? (
           <Absent fact={facts.crossAsset} quiet="No cross-asset quotes were returned for this session." missing="Cross-asset quotes" />
         ) : (
-          <TableWrap>
-            <table className="w-full max-w-md">
-              <caption className="sr-only">Cross-asset levels and change on the day.</caption>
+          <TableWrap hint="Scroll sideways for the 5- and 21-session columns.">
+            <table className="w-full min-w-[34rem]">
+              <caption className="sr-only">
+                Cross-asset levels, change on the day, and 5- and 21-session context.
+              </caption>
               <thead>
                 <tr className="border-b border-gray-200">
                   <Th>Instrument</Th>
                   <Th align="right">Level</Th>
-                  <Th align="right">Change</Th>
+                  <Th align="right">Today</Th>
+                  <Th align="right">5-session</Th>
+                  <Th align="right">21-session</Th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {cross.map((p) => (
-                  <tr key={p.label} className="hover:bg-gray-50">
-                    {/* One line, not a stacked pair. The symbol is what makes
-                        the level checkable, so it belongs beside the name at the
-                        same size rather than under it as a footnote — and a
-                        second line here set the row height for the whole
-                        table. `title` alone is unreachable on touch and by
-                        keyboard, so the detail is an aria-label too — the same
-                        rule `NoValue` follows. */}
-                    <th
-                      scope="row"
-                      className="px-3 py-2 text-sm font-medium text-gray-900 text-left whitespace-nowrap"
-                      title={QUOTE_NOTE[p.label]}
-                      aria-label={QUOTE_NOTE[p.label] ? `${p.label} — ${QUOTE_NOTE[p.label]}` : undefined}
-                    >
-                      {p.label}{" "}
-                      <span className="font-mono text-[0.8125rem] font-normal text-gray-500">({p.symbol})</span>
-                    </th>
-                    <td className="px-3 py-2 text-sm text-right tabular-nums text-gray-900">
-                      {crossPrice(p)}
-                    </td>
-                    <td className={`px-3 py-2 text-sm text-right tabular-nums ${p.changePct != null ? toneClass(p.changePct) : ""}`}>
-                      {p.changePct != null ? (
-                        spct(p.changePct)
-                      ) : (
-                        <NoValue reason="The feed returned a level but no prior close, so the change is unknown — not zero" />
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {cross.map((p) => {
+                  const t = tf.get(p.symbol);
+                  const proxy = proxies.get(PROXY_KEY[p.label] ?? "");
+                  // `timeframes` is fetched per symbol and a 24/7 instrument can
+                  // settle its daily bar a session behind the equity close. Two
+                  // windows printed in one column with no marker is a comparison
+                  // nobody made — see the sub-line below.
+                  const stale = t != null && t.asOfDate !== facts.date;
+                  return (
+                    <tr key={p.label} className="hover:bg-gray-50 align-top">
+                      {/* One line, not a stacked pair. The symbol is what makes
+                          the level checkable, so it belongs beside the name at the
+                          same size rather than under it as a footnote. `title`
+                          alone is unreachable on touch and by keyboard, so the
+                          detail is an aria-label too — the same rule `NoValue`
+                          follows. */}
+                      <th
+                        scope="row"
+                        className="px-3 py-2 text-sm font-medium text-gray-900 text-left whitespace-nowrap"
+                        title={QUOTE_NOTE[p.label]}
+                        aria-label={QUOTE_NOTE[p.label] ? `${p.label} — ${QUOTE_NOTE[p.label]}` : undefined}
+                      >
+                        {p.label}{" "}
+                        <span className="font-mono text-[0.8125rem] font-normal text-gray-500">
+                          ({p.symbol})
+                        </span>
+                        {/*
+                          The spotlight proxy, folded in. A "Spotlight — Gold"
+                          block was a whole section, heading and table and empty
+                          chart, that restated this row's level and change in
+                          order to introduce exactly one new number: the miners.
+                          It is one number, so it is one line, on the row it
+                          qualifies.
+                        */}
+                        {proxy && (
+                          <span className="block text-[11px] font-normal text-gray-500">
+                            Miners <span className="font-mono">{proxy.ticker}</span>{" "}
+                            <span className={`tabular-nums ${toneClass(proxy.changePct)}`}>
+                              {spct(proxy.changePct)}
+                            </span>
+                          </span>
+                        )}
+                        {stale && (
+                          <span className="block text-[11px] font-normal text-gray-500">
+                            Run measured to {shortDate(t.asOfDate)}
+                          </span>
+                        )}
+                      </th>
+                      <td className="px-3 py-2 text-sm text-right tabular-nums text-gray-900">
+                        {crossPrice(p)}
+                      </td>
+                      <td
+                        className={`px-3 py-2 text-sm text-right font-medium tabular-nums ${p.changePct != null ? toneClass(p.changePct) : ""}`}
+                      >
+                        {p.changePct != null ? (
+                          spct(p.changePct)
+                        ) : (
+                          <NoValue reason="The feed returned a level but no prior close, so the change is unknown — not zero" />
+                        )}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-right tabular-nums text-gray-600">
+                        {t?.chg5s != null ? spct(t.chg5s) : <NoValue reason="Split or data defect — figure withheld" />}
+                      </td>
+                      <td className="px-3 py-2 text-sm text-right tabular-nums text-gray-600">
+                        {t?.chg21s != null ? spct(t.chg21s) : <NoValue reason="Split or data defect — figure withheld" />}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </TableWrap>

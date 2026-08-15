@@ -1,8 +1,8 @@
 import type { StructuredFacts } from "@/lib/notes/types";
 import { displayName } from "@/lib/notes/display-name";
-import { spct, spp } from "../_lib/format";
+import { spct, spp, toneClass } from "../_lib/format";
 import { ConcentrationBars } from "./charts";
-import { Section, Ticker, Absent } from "./primitives";
+import { Section, Ticker, Absent, NoValue } from "./primitives";
 
 /**
  * Was the index move broad, or five names?
@@ -27,6 +27,10 @@ function opposedSigns(a: number, b: number): boolean {
 export function ConcentrationSection({ facts }: { facts: StructuredFacts }) {
   const c = facts.contribution?.value;
   const names = facts.companyNames ?? {};
+  // The day's move for any contributor the mover ranking also surfaced. The two
+  // sets are routinely disjoint — contribution selects on weight × return, the
+  // ranking on gap from sector — so this is a partial join by design.
+  const moves = new Map((facts.movers?.value ?? []).map((m) => [m.ticker, m.changePct]));
 
   return (
     <Section
@@ -65,7 +69,13 @@ export function ConcentrationSection({ facts }: { facts: StructuredFacts }) {
           <p className="text-sm text-gray-600 leading-relaxed max-w-[62ch]">
             The {c.topNames.length} largest {c.actualPct >= 0 ? "boosts" : "drags"}{" "}
             {c.topPoints >= 0 ? "added" : "took"}{" "}
-            <span className="tabular-nums font-medium text-gray-900">{spp(c.topPoints)}</span>
+            {/* The MAGNITUDE, because the verb already carries the sign. This
+                read "took -0.30pp off the index" — a double negative that says
+                the opposite of what happened. The signed form is still correct
+                on the chart's own axis, where there is no verb to carry it. */}
+            <span className="tabular-nums font-medium text-gray-900">
+              {c.topPoints >= 0 ? spp(c.topPoints) : spp(Math.abs(c.topPoints)).replace("+", "")}
+            </span>
             {c.topPoints >= 0 ? "" : " off the index"}; every other name{" "}
             {c.exTopPct >= 0 ? "added" : "took"}{" "}
             <span className="tabular-nums font-medium text-gray-900">{spp(c.exTopPct)}</span>. That models
@@ -96,14 +106,41 @@ export function ConcentrationSection({ facts }: { facts: StructuredFacts }) {
             )}
           </p>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-xs uppercase tracking-wide text-gray-500">Contributors</span>
-            {c.topNames.map((t) => (
-              <span key={t} className="inline-flex items-baseline gap-1.5">
-                <Ticker symbol={t} />
-                <span className="text-xs text-gray-500">{displayName(names[t]) ?? ""}</span>
-              </span>
-            ))}
+          {/*
+            Five bare tickers under a chart claiming they cost the index 0.30pp
+            gave the reader nothing to check the claim against. The move makes it
+            auditable for the names we hold one for — which is the overlap with
+            MOVERS, and the overlap is itself worth seeing: on 2026-08-14 two of
+            these five are also in the mover ranking and three are not, which is
+            the difference between "the big names moved" and "the big WEIGHTS
+            moved".
+
+            Per-name CONTRIBUTION in points is what this row really wants, and it
+            cannot be shown: `ContributionData.topNames` is a `string[]`, so the
+            group's total is the only figure the fact set carries. Widening it
+            would need a pipeline change plus a migration for every archived
+            note; until then an em dash is the honest cell.
+          */}
+          <div>
+            <p className="text-xs uppercase tracking-wide text-gray-500 mb-1.5">Contributors</p>
+            <div className="flex flex-wrap gap-2">
+              {c.topNames.map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-baseline gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1"
+                >
+                  <Ticker symbol={t} />
+                  <span className="text-xs text-gray-500">{displayName(names[t]) ?? ""}</span>
+                  {moves.has(t) ? (
+                    <span className={`text-xs font-semibold tabular-nums ${toneClass(moves.get(t) as number)}`}>
+                      {spct(moves.get(t) as number)}
+                    </span>
+                  ) : (
+                    <NoValue reason="Not in the mover ranking, so this note carries no move for it" />
+                  )}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       )}

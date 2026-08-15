@@ -10,14 +10,28 @@ import { prettyDate, shortDate } from "../_lib/format";
  * An archive page is consulted far more often than it is read, so the dominant
  * use is a targeted lookup — "where did the 10Y close on the 10th". The
  * scoreboard answers most of those above the fold; this rail answers the rest
- * without a scroll hunt. Deliberately NOT sticky: `MarketsTabs` already pins
- * itself at `top-12`, and a second sticky band would need an exact matching
- * offset to avoid overlapping it.
+ * without a scroll hunt.
+ *
+ * STICKY, below `MarketsTabs`. Non-sticky it scrolled away after the first
+ * section and was useless for exactly the lookup it exists to serve — nine
+ * sections, six of them scrollable tables.
+ *
+ * `top-24` is empirical, not derived: `MarketsTabs` pins at `top-12` and is
+ * content-sized, so there is no height constant to inherit. The `z-20` here
+ * against its `z-40` is what makes that safe — if the tab row grows, this rail
+ * tucks UNDER it rather than overlapping it, which loses a few pixels of chips
+ * instead of producing two bands of unreadable overprinted text.
+ *
+ * `bg-white` is load-bearing, not cosmetic — a transparent sticky bar lets the
+ * tables scroll visibly underneath the chips.
  */
 export function SectionRail({ sections }: { sections: { id: string; label: string }[] }) {
   if (sections.length === 0) return null;
   return (
-    <nav aria-label="Sections of this note" className="overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+    <nav
+      aria-label="Sections of this note"
+      className="sticky top-24 z-20 bg-white overflow-x-auto scrollbar-hide -mx-4 px-4 py-2 sm:mx-0 sm:px-0 border-b border-gray-100"
+    >
       <ul className="flex items-center gap-2 w-max">
         {sections.map((s) => (
           <li key={s.id}>
@@ -121,6 +135,11 @@ export function SourcesFooter({ facts }: { facts: StructuredFacts }) {
     { label: "Rates", key: "rates" },
     { label: "Cross-asset", key: "crossAsset" },
     { label: "Sectors", key: "sectors" },
+    // Its own feed and its own as-of, so it is its own entry. Leaving it out
+    // understated the denominator AND left the semis row with no source line
+    // anywhere on the page — the coverage count is meant to answer "did the page
+    // render short", which it cannot do while it is blind to a whole fact.
+    { label: "Industry groups", key: "thematics" },
     { label: "Timeframes", key: "timeframes" },
     { label: "Movers", key: "movers" },
     { label: "Attributions", key: "attributions" },

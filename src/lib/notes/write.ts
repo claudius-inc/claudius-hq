@@ -23,6 +23,8 @@ import {
   validateProseField,
   checkCausalRule,
   checkLexicon,
+  checkDirection,
+  indexChangePct,
   collectProseSubjects,
 } from "@/lib/notes/validate";
 import { deterministicHook } from "@/lib/notes/render";
@@ -321,11 +323,19 @@ function applyFallbacks(f: StructuredFacts, p: NoteProse, allowed: number[]): No
   // Tickers AND company names: "Akamai fell after the print" must fail exactly
   // as "AKAM fell after the print" does, or the rule is a spelling preference.
   const subjects = collectProseSubjects(f);
-  // A field must clear BOTH gates: its numerals must be supported (§8.3), and
-  // it must not name an instrument alongside a causal connective (§1b). The
-  // second stops an invented mechanism riding on a legitimately-pooled number.
+  const indexPct = indexChangePct(f);
+  // A field must clear every gate: its numerals must be supported (§8.3), it
+  // must not name an instrument alongside a causal connective (§1b), it must
+  // avoid expectation-loaded language, and it must not assert a direction the
+  // index close contradicts. The last one catches what the others structurally
+  // cannot — a field citing no numbers at all can still say the day went the
+  // other way.
   const okField = (t?: string) =>
-    !!t && validateProseField(t, allowed).ok && checkCausalRule(t, subjects).ok && checkLexicon(t).ok;
+    !!t &&
+    validateProseField(t, allowed).ok &&
+    checkCausalRule(t, subjects).ok &&
+    checkLexicon(t).ok &&
+    checkDirection(t, indexPct).ok;
 
   for (const t of [p.hook, p.curveRead, ...p.whatMatters, p.bull, p.bear, p.book]) {
     if (!t) continue;
@@ -341,6 +351,13 @@ function applyFallbacks(f: StructuredFacts, p: NoteProse, allowed: number[]): No
     const lex = checkLexicon(t);
     if (!lex.ok) {
       logger.info(SRC, "Dropping field: expectation-loaded language", { word: lex.word });
+    }
+    const dir = checkDirection(t, indexPct);
+    if (!dir.ok) {
+      logger.info(SRC, "Dropping field: asserts a direction the index close contradicts", {
+        said: dir.said,
+        actualPct: dir.actual,
+      });
     }
   }
 

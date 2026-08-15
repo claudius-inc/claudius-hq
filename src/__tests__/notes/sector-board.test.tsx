@@ -54,7 +54,18 @@ describe("SectorBoard", () => {
   });
 
   it("marks the industry row so it is not read as a twelfth sector", () => {
-    expect(text(true)).toContain("Semiconductors industry SMH");
+    // Adjacency of the marker to the ETF cell is not the claim — the marker
+    // riding on the semis row is. The two are no longer neighbours because the
+    // row now carries its own source line between them.
+    expect(text(true)).toMatch(/Semiconductors industry.*SMH/);
+  });
+
+  it("gives the industry row its own provenance", () => {
+    // Every other row inherits the `sectors` fact's source line from the section
+    // header. A thematic comes from a separate fact with its own feed and its own
+    // as-of, and was the one row on the page with no source attached anywhere —
+    // so it states its own, inline, beside the marker.
+    expect(text(true)).toMatch(/Semiconductors industry · test/);
   });
 
   it("keeps the 21-session leader sentence to the eleven sectors", () => {

@@ -9,10 +9,9 @@ import { Scoreboard } from "./_components/Scoreboard";
 import { TheRead } from "./_components/TheRead";
 import { MarketsSection } from "./_components/MarketsSection";
 import { SectorBoard } from "./_components/SectorBoard";
+import { SectorDepthSection } from "./_components/SectorDepthSection";
 import { MoversSection } from "./_components/MoversSection";
-import { DivergenceSection } from "./_components/DivergenceSection";
 import { ConcentrationSection } from "./_components/ConcentrationSection";
-import { SpotlightSection } from "./_components/SpotlightSection";
 import { CalendarSection } from "./_components/CalendarSection";
 import { SectionRail, NoteFooterNav, SourcesFooter } from "./_components/NoteNav";
 
@@ -91,12 +90,18 @@ export default async function DailyNotePage(props: { params: Promise<{ date: str
 
         <TheRead facts={facts} prose={prose} />
 
-        <MarketsSection facts={facts} />
+        {/*
+          A funnel, deliberately: the whole market, then the sector board, then
+          the one sector worth expanding, then individual names, then who
+          actually moved the index. Divergence used to sit between Movers and
+          Concentration and Spotlight after both, which put two sector-level
+          blocks on either side of a name-level one.
+        */}
+        <MarketsSection facts={facts} prose={prose} />
         <SectorBoard facts={facts} />
+        <SectorDepthSection facts={facts} />
         <MoversSection facts={facts} />
-        <DivergenceSection facts={facts} />
         <ConcentrationSection facts={facts} />
-        <SpotlightSection facts={facts} />
         <CalendarSection facts={facts} />
 
         <NoteFooterNav prevDate={note.prevDate} nextDate={note.nextDate} weekEnd={note.weekEnd} />

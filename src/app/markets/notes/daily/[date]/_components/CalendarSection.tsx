@@ -1,6 +1,23 @@
 import type { StructuredFacts } from "@/lib/notes/types";
 import { Section, TableWrap, Th, Absent, EtClock, NoValue } from "./primitives";
-import { toneClass } from "../_lib/format";
+import { toneClass, longDayDate } from "../_lib/format";
+
+/**
+ * The forward window the pipeline actually searched, as a readable span.
+ *
+ * Mirrors `assembleFacts`, which asks FRED for `[date + 1, date + 4]` so a
+ * Friday note reaches the following Monday. Kept as calendar arithmetic on the
+ * session date rather than read off the events — an EMPTY calendar is exactly
+ * the case this sentence exists for, and an empty list carries no dates.
+ */
+const DAY_MS = 86_400_000;
+
+function forwardWindow(date: string): string {
+  const start = new Date(`${date}T12:00:00Z`).getTime() + DAY_MS;
+  const end = start + 3 * DAY_MS;
+  const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  return `${longDayDate(iso(start))} and ${longDayDate(iso(end))}`;
+}
 
 /**
  * What printed today, and what prints next.
@@ -140,7 +157,17 @@ export function CalendarSection({ facts }: { facts: StructuredFacts }) {
         intro="Scheduled releases ahead, with the street's median where one is published yet and the twelve-month range where it is not."
       >
         {events.length === 0 ? (
-          <Absent fact={facts.econEvents} quiet="No scheduled releases in the window ahead." missing="The forward calendar" />
+          <Absent
+            fact={facts.econEvents}
+            // Names the window it searched. "In the window ahead" left the
+            // reader unable to tell an empty calendar from a short one, and the
+            // window is four calendar days rather than the single session the
+            // heading implies — the pipeline reaches to `date + 4` so a Friday
+            // note carries Monday. Three months on, that difference decides
+            // whether the silence means anything.
+            quiet={`Nothing tracked is scheduled between ${forwardWindow(facts.date)}. The calendar answered; it is genuinely empty.`}
+            missing="The forward calendar"
+          />
         ) : (
           <ul className="space-y-1.5">
             {events.map((e) => (

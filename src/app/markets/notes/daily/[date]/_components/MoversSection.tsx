@@ -5,6 +5,7 @@ import { displayName } from "@/lib/notes/display-name";
 import { spct, toneClass } from "../_lib/format";
 import { DivergingBar, ReversalScatter } from "./charts";
 import { Section, TickerTh, TableWrap, Th, Absent, NoValue, EtClock } from "./primitives";
+import { InfoPopover } from "./InfoPopover";
 
 /**
  * The day's ranked names, their session context, and — the point of the whole
@@ -27,6 +28,11 @@ export function MoversSection({ facts }: { facts: StructuredFacts }) {
   const names = facts.companyNames ?? {};
   const postMarket = new Map((facts.postMarket?.value ?? []).map((p) => [p.ticker, p]));
 
+  // `facts.movers` arrives in RELEVANCE order and the table sorts on move size,
+  // which threw the ranking away entirely — the reader could no longer tell
+  // which name the ranker thought mattered most, only which number was biggest.
+  // Captured before the re-sort, so the ranking survives as a column.
+  const rankOf = new Map(movers.map((m, i) => [m.ticker, i + 1]));
   const rows = [...movers].sort((a, b) => Math.abs(b.changePct) - Math.abs(a.changePct));
   const maxAbs = rows.length ? Math.max(...rows.map((r) => Math.abs(r.changePct))) : 0;
 
@@ -48,6 +54,36 @@ export function MoversSection({ facts }: { facts: StructuredFacts }) {
         <Absent fact={facts.movers} quiet="No single name qualified as a mover this session." missing="The mover ranking" />
       ) : (
         <div className="space-y-6">
+          {/*
+            The rank column is unreadable without this. "Why is the biggest move
+            ranked fifth" is the first question it provokes, and the answer —
+            that the score leads with the name's gap from its OWN sector, not
+            its raw move — is not derivable from anything on the page. Placed
+            here rather than in the table header on purpose: `TableWrap` is an
+            `overflow-x` scrollport, so a popover opened inside it is clipped.
+          */}
+          <div>
+            <InfoPopover label="What the rank column measures" title="Rank is not move size">
+              <p>
+                Rank is the order of the <span className="font-semibold text-gray-900">relevance score</span>,
+                and its leading term is the name&rsquo;s{" "}
+                <span className="font-semibold text-gray-900">gap from its own sector&rsquo;s close</span> —
+                not its raw move. That gap is then damped and weighted three ways: by the name&rsquo;s
+                dollar-volume percentile, by how large it sits inside its own sector, and by a
+                reason-to-care factor — 1.75 if it reported today, otherwise its volume against its 10-day
+                average.
+              </p>
+              <p>
+                A mega-cap moving <em>with</em> its sector has a gap near zero and would vanish entirely, so a
+                second route admits the largest raw moves above a dollar-volume floor whatever they score.
+              </p>
+              <p>
+                So the biggest move on the day is routinely not the top-ranked name: a large move against a
+                sector that moved with it is a smaller gap than a slightly smaller move against a sector that
+                went the other way.
+              </p>
+            </InfoPopover>
+          </div>
           {scatter.length >= 3 && (
             <div>
               <ReversalScatter points={scatter} />
@@ -66,14 +102,15 @@ export function MoversSection({ facts }: { facts: StructuredFacts }) {
               line of data followed by 76px of blank table — which reads as a
               rendering fault, not as content the reader has to scroll to.
             */}
-            <table className="w-full min-w-[34rem] sm:min-w-[44rem]">
+            <table className="w-full min-w-[36rem] sm:min-w-[46rem]">
               <caption className="sr-only">
-                Today&apos;s movers with 5- and 21-session context and, where retrieved, the reason for
-                the move.
+                Today&apos;s movers with their relevance rank, 5- and 21-session context and, where
+                retrieved, the reason for the move.
               </caption>
               <thead>
                 <tr className="border-b border-gray-200">
                   <Th sticky>Ticker</Th>
+                  <Th align="right">Rank</Th>
                   <Th>Company</Th>
                   <Th align="right">Today</Th>
                   <Th><span className="sr-only">Today, as a bar</span></Th>
@@ -91,6 +128,11 @@ export function MoversSection({ facts }: { facts: StructuredFacts }) {
                     <Fragment key={m.ticker}>
                     <tr className="group hover:bg-gray-50 align-top">
                       <TickerTh symbol={m.ticker} />
+                      <td className="px-3 py-2 text-right">
+                        <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded bg-gray-100 px-1 text-[11px] font-semibold tabular-nums text-gray-600">
+                          {rankOf.get(m.ticker)}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 text-sm text-gray-600">
                         {displayName(names[m.ticker]) ?? <NoValue reason="No company name in the holdings file" />}
                       </td>
@@ -130,7 +172,9 @@ export function MoversSection({ facts }: { facts: StructuredFacts }) {
                         name and its own reason, tying the reason to the row below. */}
                     {reason && (
                       <tr className="sm:hidden !border-t-0">
-                        <td colSpan={6} className="px-3 pb-2 text-xs text-gray-600">
+                        {/* Seven columns now that rank is one of them, minus the
+                            Why column this sub-row replaces on a phone. */}
+                        <td colSpan={7} className="px-3 pb-2 text-xs text-gray-600">
                           {/*
                             The cell inherits the TABLE's width, not the
                             viewport's, so a long reason runs off the right edge

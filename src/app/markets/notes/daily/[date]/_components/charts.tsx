@@ -1,4 +1,4 @@
-import { fillFor, spct, intFmt, MARK_NEUTRAL } from "../_lib/format";
+import { fillFor, spct, intFmt, toneClass, MARK_NEUTRAL, MARK_DOWN } from "../_lib/format";
 
 /**
  * Every chart on this page is inline SVG or flexbox, rendered on the server.
@@ -17,6 +17,13 @@ import { fillFor, spct, intFmt, MARK_NEUTRAL } from "../_lib/format";
 
 const GRID = "#e5e7eb";
 const LABEL = "#6b7280";
+/**
+ * amber-700, for the one annotation that is neither a direction nor chrome:
+ * "today set the year's low". It has to separate from `LABEL` at 8–9px, and it
+ * must not be read as a gain or a loss — which rules out the emerald/red pair
+ * every other coloured mark on the page uses. 4.8:1 on white.
+ */
+const MARK_EXTREME = "#b45309";
 
 /* ── Diverging bar, for a table cell ─────────────────────────────────────── */
 
@@ -127,28 +134,71 @@ export function VixStrip({
   ytdLow,
   ytdHigh,
   percentile,
+  trendDays,
+  trendDir,
+  chg21s,
 }: {
   level: number;
   change: number;
   ytdLow: number;
   ytdHigh: number;
   percentile: number;
+  trendDays: number;
+  trendDir: "up" | "down" | "flat";
+  /** The 21-session move, where `timeframes` carried one for ^VIX. */
+  chg21s?: number | null;
 }) {
   const W = 320;
   const H = 46;
-  const padX = 6;
+  const padX = 10;
   const span = Math.max(ytdHigh - ytdLow, 0.0001);
   const x = (v: number) => padX + ((v - ytdLow) / span) * (W - padX * 2);
   const prior = level - change;
   const trackY = 20;
 
+  /*
+   * Today SET the extreme. `ytdLow` is a min over a series that INCLUDES
+   * today, so on a day like 2026-08-14 the marker and the range's own endpoint
+   * are the same number — and the chart printed "14.3" twice, once as the
+   * marker label and once as the axis end, with the dot pinned to the frame and
+   * nothing saying why. That is the most interesting thing VIX did all year and
+   * it read as a rendering fault.
+   *
+   * Compared with a tolerance rather than `===`: both figures go through the
+   * same `round` helper in the assembler, so equality is safe today, but a
+   * future change to either rounding would silently switch this off.
+   */
+  const atLow = Math.abs(level - ytdLow) < 0.005;
+  const atHigh = Math.abs(level - ytdHigh) < 0.005;
+  const extreme = atLow ? "low" : atHigh ? "high" : null;
+
+  const trendPhrase =
+    trendDays >= 2 && trendDir !== "flat" ? `${trendDir} ${trendDays} sessions` : null;
+
+  const rankPhrase = atLow
+    ? "Below every close this year"
+    : atHigh
+      ? "Above every close this year"
+      : `Below ${100 - percentile}% of this year's closes`;
+
   return (
     <div>
+      {extreme && (
+        <p className="mb-1.5">
+          <span className="inline-block rounded border border-amber-200 bg-amber-50 px-1.5 py-px text-[11px] font-semibold text-amber-800">
+            {atLow ? "Lowest" : "Highest"} close of the year
+          </span>
+        </p>
+      )}
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="w-full max-w-sm h-auto"
         role="img"
-        aria-label={`VIX closed at ${level.toFixed(1)}, ${change >= 0 ? "up" : "down"} ${Math.abs(change).toFixed(1)} from ${prior.toFixed(1)}. It sits below ${100 - percentile}% of this year's closes, in a range of ${ytdLow.toFixed(1)} to ${ytdHigh.toFixed(1)}.`}
+        aria-label={`VIX closed at ${level.toFixed(1)}, ${change >= 0 ? "up" : "down"} ${Math.abs(change).toFixed(1)} from ${prior.toFixed(1)}. ${
+          extreme
+            ? `That is the ${atLow ? "lowest" : "highest"} close of the year.`
+            : `It sits below ${100 - percentile}% of this year's closes.`
+        } This year's range is ${ytdLow.toFixed(1)} to ${ytdHigh.toFixed(1)}.`}
       >
         <line x1={padX} y1={trackY} x2={W - padX} y2={trackY} stroke={GRID} strokeWidth={4} strokeLinecap="round" />
         {/*
@@ -169,19 +219,36 @@ export function VixStrip({
         />
         <circle cx={x(prior)} cy={trackY} r={4} fill="#ffffff" stroke={LABEL} strokeWidth={1.5} />
         <circle cx={x(level)} cy={trackY} r={5.5} fill="#374151" stroke="#ffffff" strokeWidth={2} />
-        {/* The track IS this year's low-to-high range, and it has to say so.
-            The caption below states a RANK ("below 92% of closes"), which is a
-            different statistic — they agree today only by coincidence, and an
-            unlabelled track let the weaker reading pass as the strong one. */}
-        <text x={padX} y={trackY + 18} fontSize={10} fill={LABEL}>
-          {ytdLow.toFixed(1)}
-        </text>
-        <text x={W / 2} y={trackY + 18} fontSize={9} fill={LABEL} textAnchor="middle">
-          this year&apos;s range
-        </text>
-        <text x={W - padX} y={trackY + 18} fontSize={10} fill={LABEL} textAnchor="end">
-          {ytdHigh.toFixed(1)}
-        </text>
+
+        {/* The track IS this year's low-to-high range. Whichever end today set
+            is labelled by the marker above it, so repeating it underneath is
+            the duplicate — only the OTHER end gets an axis label. */}
+        {!atLow && (
+          <text x={padX} y={trackY + 18} fontSize={10} fill={LABEL}>
+            {ytdLow.toFixed(1)}
+          </text>
+        )}
+        {extreme ? (
+          <text
+            x={atLow ? padX + 14 : W - padX - 14}
+            y={trackY + 18}
+            fontSize={9}
+            fill={MARK_EXTREME}
+            textAnchor={atLow ? "start" : "end"}
+          >
+            today, and the year&apos;s {extreme}
+          </text>
+        ) : (
+          <text x={W / 2} y={trackY + 18} fontSize={9} fill={LABEL} textAnchor="middle">
+            this year&apos;s range
+          </text>
+        )}
+        {!atHigh && (
+          <text x={W - padX} y={trackY + 18} fontSize={10} fill={LABEL} textAnchor="end">
+            {ytdHigh.toFixed(1)}
+          </text>
+        )}
+
         <text
           x={Math.min(Math.max(x(level), 18), W - 18)}
           y={trackY - 10}
@@ -193,10 +260,141 @@ export function VixStrip({
           {level.toFixed(1)}
         </text>
       </svg>
+      {/* The run and the 21-session move were computed on every note and shown
+          only in the Telegram push. A single close means little without them:
+          a low print on a three-week grind lower is a different fact from a low
+          print on a one-day drop. */}
       <p className="text-[11px] text-gray-500 mt-0.5">
-        Below {100 - percentile}% of this year&apos;s closes
+        {rankPhrase}
+        {trendPhrase ? ` · ${trendPhrase}` : ""}
+        {chg21s != null ? (
+          <>
+            {" · "}
+            <span className={`tabular-nums ${toneClass(chg21s)}`}>{spct(chg21s)}</span> over 21 sessions
+          </>
+        ) : null}
       </p>
     </div>
+  );
+}
+
+/* ── Dealer gamma: the three levels on one axis ──────────────────────────── */
+
+/**
+ * Spot, the zero-gamma crossing, and the pin — one number line.
+ *
+ * These are three points on a single scale and the page described them across
+ * two paragraphs, leaving the reader to hold their ORDER in their head. Order is
+ * the entire actionable content: a pin above spot with the crossing below is a
+ * different session from a pin below spot, and the prose made that a puzzle.
+ *
+ * The proximity is the finding the prose buried. On 2026-08-14 the crossing sits
+ * 0.65% under the close — the shock absorber runs out almost immediately — and
+ * no sentence conveys that as fast as two marks on an axis do.
+ *
+ * The track is painted in two segments: below the crossing, dealer hedging
+ * amplifies moves; above it, hedging damps them. Colour is reinforcement only —
+ * each mark carries its own level and a word.
+ */
+export function GammaLevels({
+  spot,
+  pin,
+  zeroGamma,
+  pinNoun: noun,
+}: {
+  spot: number;
+  pin: number;
+  /** Null when no crossing was detected in the search band. */
+  zeroGamma: number | null;
+  /** "pin" draws price in; "trigger" accelerates through. */
+  pinNoun: "pin" | "trigger";
+}) {
+  const W = 340;
+  const H = 82;
+  const padX = 8;
+  const marks = [spot, pin, ...(zeroGamma != null ? [zeroGamma] : [])];
+  const lo = Math.min(...marks);
+  const hi = Math.max(...marks);
+  // Pad so an outer mark never sits on the frame and its label never clips.
+  const pad = Math.max((hi - lo) * 0.18, Math.abs(spot) * 0.0005);
+  const dLo = lo - pad;
+  const dHi = hi + pad;
+  const x = (v: number) => padX + ((v - dLo) / Math.max(dHi - dLo, 1e-9)) * (W - padX * 2);
+
+  const fmt = (v: number) => Math.round(v).toLocaleString("en-US");
+  const trackY = 44;
+  const zx = zeroGamma != null ? x(zeroGamma) : null;
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      className="w-full max-w-md h-auto"
+      role="img"
+      aria-label={
+        `Index levels. Spot closed at ${fmt(spot)}. The ${noun} sits at ${fmt(pin)}, ` +
+        `${pin >= spot ? "above" : "below"} spot.` +
+        (zeroGamma != null
+          ? ` Dealer gamma crosses zero at ${fmt(zeroGamma)}. Below that level hedging amplifies moves` +
+            ` rather than damping them.`
+          : "")
+      }
+    >
+      {/* Amplifying side first, damping side over it — drawn as two segments so
+          the boundary IS the crossing rather than a separately-positioned tick. */}
+      {zx != null ? (
+        <>
+          <line x1={padX} y1={trackY} x2={zx} y2={trackY} stroke={MARK_DOWN} strokeWidth={6} strokeLinecap="round" />
+          <line x1={zx} y1={trackY} x2={W - padX} y2={trackY} stroke={MARK_NEUTRAL} strokeWidth={6} strokeLinecap="round" />
+        </>
+      ) : (
+        <line x1={padX} y1={trackY} x2={W - padX} y2={trackY} stroke={MARK_NEUTRAL} strokeWidth={6} strokeLinecap="round" />
+      )}
+
+      {zx != null && (
+        <g>
+          <line x1={zx} y1={trackY - 10} x2={zx} y2={trackY + 10} stroke="#111827" strokeWidth={1.5} />
+          <text x={zx} y={trackY - 16} fontSize={10} fontWeight={600} fill="#111827" textAnchor="middle">
+            {fmt(zeroGamma as number)}
+          </text>
+          <text x={zx} y={trackY + 22} fontSize={8.5} fill={LABEL} textAnchor="middle">
+            flips here
+          </text>
+        </g>
+      )}
+
+      <g>
+        <circle cx={x(spot)} cy={trackY} r={6} fill="#111827" stroke="#ffffff" strokeWidth={2.5} />
+        <text x={x(spot)} y={trackY - 16} fontSize={10} fontWeight={600} fill="#111827" textAnchor="middle">
+          {fmt(spot)}
+        </text>
+        <text x={x(spot)} y={trackY + 22} fontSize={8.5} fill={LABEL} textAnchor="middle">
+          closed here
+        </text>
+      </g>
+
+      <g>
+        {/* Hollow, so it reads as a level the market is drawn toward rather than
+            as a price that happened — the filled dot is the only real print. */}
+        <circle cx={x(pin)} cy={trackY} r={5.5} fill="#ffffff" stroke="#374151" strokeWidth={2.5} />
+        <text x={x(pin)} y={trackY - 16} fontSize={10} fontWeight={600} fill="#111827" textAnchor="middle">
+          {fmt(pin)}
+        </text>
+        <text x={x(pin)} y={trackY + 22} fontSize={8.5} fill={LABEL} textAnchor="middle">
+          {noun === "pin" ? "magnet" : "trigger"}
+        </text>
+      </g>
+
+      {zx != null && (
+        <>
+          <text x={padX} y={H - 3} fontSize={8.5} fill={MARK_DOWN} textAnchor="start">
+            moves amplify
+          </text>
+          <text x={W - padX} y={H - 3} fontSize={8.5} fill={LABEL} textAnchor="end">
+            moves damped
+          </text>
+        </>
+      )}
+    </svg>
   );
 }
 

@@ -1,4 +1,5 @@
 import type { StructuredFacts } from "@/lib/notes/types";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { spct, sbp, intFmt, toneClass } from "../_lib/format";
 import { BreadthBar, VixStrip } from "./charts";
 import { NoValue, Provenance } from "./primitives";
@@ -23,7 +24,27 @@ import { NoValue, Provenance } from "./primitives";
  * non-breaking space where there is no level) so the four tiles keep one
  * baseline.
  */
-function IndexTile({ name, close, changePct }: { name: string; close: number | null; changePct: number }) {
+function IndexTile({
+  name,
+  close,
+  changePct,
+  chg5s,
+  chg21s,
+}: {
+  name: string;
+  close: number | null;
+  changePct: number;
+  chg5s?: number | null;
+  chg21s?: number | null;
+}) {
+  // Where the day sits in this index's OWN recent run. Deliberately "5s"/"21s"
+  // for sessions, never "1W"/"1M" — a holiday week would make those labels
+  // false. This existed for the S&P alone, as one line of prose under the row,
+  // while `timeframes` carried all four indices every night.
+  const runs: { label: string; value: number }[] = [];
+  if (chg5s != null) runs.push({ label: "5s", value: chg5s });
+  if (chg21s != null) runs.push({ label: "21s", value: chg21s });
+
   return (
     <div className="min-w-0">
       <p className="text-xs tracking-wide text-gray-500 truncate">{name}</p>
@@ -32,6 +53,18 @@ function IndexTile({ name, close, changePct }: { name: string; close: number | n
       </p>
       <p className="text-sm text-gray-600 tabular-nums">
         {close != null ? intFmt(close) : " "}
+      </p>
+      {/* Rendered even when empty, so the four tiles keep one baseline on a day
+          a split defect withholds one index's session figures. */}
+      <p className="text-[11px] text-gray-500 tabular-nums mt-0.5">
+        {runs.length > 0
+          ? runs.map((r, i) => (
+              <span key={r.label}>
+                {i > 0 ? " · " : ""}
+                {r.label} <span className={toneClass(r.value)}>{spct(r.value)}</span>
+              </span>
+            ))
+          : " "}
       </p>
     </div>
   );
@@ -64,14 +97,8 @@ export function Scoreboard({ facts }: { facts: StructuredFacts }) {
   const br = facts.breadth?.value;
   const vx = facts.vix?.value;
   const rates = facts.rates?.value;
-  const dxy = facts.crossAsset?.value.find((c) => c.label === "DXY");
-  // Where the day sits in its own recent run. Deliberately "5-session" and
-  // "21-session", never "1 week" / "1 month" — a holiday week would make those
-  // labels false.
-  const spTrend = facts.timeframes?.value.find((t) => t.symbol === "^GSPC");
-  const trendParts: string[] = [];
-  if (spTrend?.chg5s != null) trendParts.push(`5 sessions ${spct(spTrend.chg5s)}`);
-  if (spTrend?.chg21s != null) trendParts.push(`21 sessions ${spct(spTrend.chg21s)}`);
+  const tf = new Map((facts.timeframes?.value ?? []).map((t) => [t.symbol, t]));
+  const vixRun = tf.get("^VIX");
 
   return (
     <section id="scoreboard" aria-labelledby="scoreboard-heading" className="scroll-mt-24">
@@ -84,16 +111,18 @@ export function Scoreboard({ facts }: { facts: StructuredFacts }) {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4">
           {indices.length > 0 ? (
             indices.map((i) => (
-              <IndexTile key={i.symbol} name={i.name} close={i.close} changePct={i.changePct} />
+              <IndexTile
+                key={i.symbol}
+                name={i.name}
+                close={i.close}
+                changePct={i.changePct}
+                chg5s={tf.get(i.symbol)?.chg5s}
+                chg21s={tf.get(i.symbol)?.chg21s}
+              />
             ))
           ) : (
             <p className="col-span-full text-sm text-gray-500 italic">
               Index closes unavailable for this session.
-            </p>
-          )}
-          {trendParts.length > 0 && (
-            <p className="col-span-full text-xs text-gray-600 tabular-nums">
-              S&amp;P over {trendParts.join(" · ")}
             </p>
           )}
         </div>
@@ -142,6 +171,9 @@ export function Scoreboard({ facts }: { facts: StructuredFacts }) {
                 ytdLow={vx.ytdLow}
                 ytdHigh={vx.ytdHigh}
                 percentile={vx.percentile}
+                trendDays={vx.trendDays}
+                trendDir={vx.trendDir}
+                chg21s={vixRun?.chg21s}
               />
             ) : (
               <p className="text-sm text-gray-500 italic">VIX unavailable for this session.</p>
@@ -150,7 +182,17 @@ export function Scoreboard({ facts }: { facts: StructuredFacts }) {
           </div>
         </div>
 
-        {/* The four numbers most often looked up on their own. */}
+        {/*
+          THE rates glance, and the only place these four figures appear.
+          Previously three of them were repeated verbatim by a table one screen
+          below, and the fourth slot held the dollar — which the cross-asset
+          table also carried in full. The old comment here reasoned that 2s10s
+          did not belong "because it is already printed with its change in the
+          Rates table below", which was equally true of the three tenors beside
+          it; the rule is now applied to all four. The Rates section keeps the
+          curve, which shows a shape no tile can, and the dollar keeps its
+          cross-asset row, where its 5- and 21-session context now lives too.
+        */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4">
           <MicroStat
             label="10Y"
@@ -162,21 +204,24 @@ export function Scoreboard({ facts }: { facts: StructuredFacts }) {
             value={rates ? `${rates.y2.toFixed(2)}%` : <NoValue />}
             hint={rates ? `${sbp(rates.chg2Bp)} on the day` : undefined}
           />
-          {/* The long end, not 2s10s. The spread is a derived figure and it is
-              already printed with its change in the Rates table below; the 30Y
-              is a level nobody can reconstruct from the other two tiles, and it
-              is the one that carries term premium and issuance. */}
           <MicroStat
             label="30Y"
             value={rates ? `${rates.y30.toFixed(2)}%` : <NoValue />}
             hint={rates ? `${sbp(rates.chg30Bp)} on the day` : undefined}
           />
+          {/* Not uppercased by `MicroStat` on purpose — `uppercase` renders this
+              label as "2S10S". */}
           <MicroStat
-            label="Dollar (DXY)"
-            value={dxy ? dxy.price.toFixed(1) : <NoValue />}
-            tone={dxy?.changePct != null ? toneClass(dxy.changePct) : undefined}
-            hint={dxy?.changePct != null ? `${spct(dxy.changePct)} on the day` : "level only"}
+            label="2s10s"
+            value={rates ? sbp(rates.spread2s10Bp) : <NoValue />}
+            hint={rates ? `${sbp(rates.spread2s10ChgBp)} on the day` : undefined}
           />
+          {facts.rates ? (
+            <p className="col-span-full text-[11px] text-gray-500 tabular-nums">
+              {facts.rates.source} &middot; <LocalTime iso={facts.rates.asOf} /> — these print half an hour
+              before the equity close
+            </p>
+          ) : null}
         </div>
       </div>
     </section>

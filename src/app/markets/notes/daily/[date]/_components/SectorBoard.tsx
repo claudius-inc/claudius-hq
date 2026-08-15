@@ -1,4 +1,5 @@
 import type { StructuredFacts, SectorPoint } from "@/lib/notes/types";
+import { LocalTime } from "@/components/ui/LocalTime";
 import { spct, toneClass } from "../_lib/format";
 import { DivergingBar } from "./charts";
 import { Section, Ticker, TableWrap, Th, Absent, NoValue } from "./primitives";
@@ -128,7 +129,20 @@ export function SectorBoard({ facts }: { facts: StructuredFacts }) {
                               className="block text-[11px] font-normal text-gray-500"
                               title="An industry group, not a GICS sector — its members are already counted inside one of the sectors above."
                             >
+                              {/* Its own provenance, because it has its own
+                                  fact. Every other row on this board inherits
+                                  the sector fact's source line in the section
+                                  header; a thematic comes from a SEPARATE feed
+                                  with a separate as-of, and was the one row on
+                                  the page with no source attached anywhere. */}
                               industry
+                              {facts.thematics && (
+                                <>
+                                  {" · "}
+                                  {facts.thematics.source}{" "}
+                                  <LocalTime iso={facts.thematics.asOf} />
+                                </>
+                              )}
                             </span>
                           )}
                         </th>

@@ -108,10 +108,12 @@ export function sectionRailItems(
   if (facts.rates) items.push({ id: "rates", label: "Rates" });
   if (facts.crossAsset) items.push({ id: "cross-asset", label: "Cross-asset" });
   if (facts.sectors) items.push({ id: "sectors", label: "Sectors" });
+  // Divergence and Spotlight merged into one block, so they get one chip. It
+  // renders whenever EITHER feed produced something — the section shows
+  // spotlighted sectors, divergent sectors, or both merged per sector.
+  if (facts.spotlight || facts.divergence) items.push({ id: "depth", label: "In depth" });
   if (facts.movers) items.push({ id: "movers", label: "Movers" });
-  if (facts.divergence) items.push({ id: "divergence", label: "Divergence" });
   if (facts.contribution) items.push({ id: "concentration", label: "Concentration" });
-  if (facts.spotlight) items.push({ id: "spotlight", label: "Spotlight" });
   // Both calendar sections always render (their absence is itself the claim),
   // and each gets its own chip — labelled with the heading it actually lands on.
   items.push({ id: "data", label: "Data today" });

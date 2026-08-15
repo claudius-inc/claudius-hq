@@ -38,6 +38,7 @@ const BRAND_CASE: Record<string, string> = {
   YETI: "YETI",
   IQVIA: "IQVIA",
   EQIX: "Equinix",
+  SANDISK: "SanDisk",
 };
 
 /** Tokens that stay lower-case unless they lead. */
@@ -74,6 +75,12 @@ export function displayName(raw: string | null | undefined): string | null {
   let s = raw.replace(/\s+/g, " ").trim();
   if (!s) return null;
 
+  // The holdings files write an ampersand as a plus: "ELI LILLY + CO",
+  // "JOHNSON + JOHNSON". Restored before anything else so the tail stripper
+  // sees a normal name, and so an internal one renders as the company's own
+  // punctuation rather than as arithmetic.
+  s = s.replace(/\s\+\s/g, " & ");
+
   // Strip repeatedly: "INC   A" is two tails, and so is "HOLDINGS INC".
   for (let i = 0; i < 3; i++) {
     const next = s.replace(TRAILING_NOISE, "").trim();
@@ -87,6 +94,13 @@ export function displayName(raw: string | null | undefined): string | null {
   // where the company is simply Cigna. Guarded so a one-word name survives.
   const deArticled = s.replace(/^THE\s+/i, "").trim();
   if (deArticled) s = deArticled;
+
+  // Stripping the legal form can orphan the conjunction that joined it:
+  // "ELI LILLY & CO" loses "CO" and reads "Eli Lilly &" on the page. Guarded
+  // like every other strip here, so a name that is nothing but punctuation is
+  // left alone rather than emptied.
+  const deTrailed = s.replace(/[\s&+,.\-]+$/, "").trim();
+  if (deTrailed) s = deTrailed;
 
   return s
     .split(" ")

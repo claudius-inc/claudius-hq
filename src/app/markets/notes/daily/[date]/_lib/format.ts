@@ -129,6 +129,23 @@ export function shortDayDate(iso: string): string {
   return `${md}, ${wd}`;
 }
 
+/**
+ * "Saturday 15 August" — for the sentence that states an empty forward window.
+ *
+ * The weekday is the load-bearing half: "nothing between the 15th and the 18th"
+ * is unreadable, while "nothing between Saturday and Tuesday" says at once that
+ * the span is mostly a weekend. Read in UTC like every other date helper here,
+ * so the ISO string stays literal.
+ */
+export function longDayDate(iso: string): string {
+  return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+}
+
 /** "Aug 10" — for dense contexts such as the prev/next rail. */
 export function shortDate(iso: string): string {
   return new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", {
