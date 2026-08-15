@@ -71,8 +71,4 @@ Promote to `src/components/` only at 3+ consumers, or for genuine UI primitives 
 
 ## Scripts
 
-`scripts/` is for tooling that gets reused, filed under `seed/`, `backfill/`, `pipelines/`, `portfolio/`, `ops/`, or `research/` — no loose files at the top level. One-shots are deleted once they've run; the canonical record is git history plus the resulting state in the DB and `drizzle/`.
-
-`research/` holds re-runnable studies that answer "does this signal work" — they read cached data, print findings, and write nothing. Named `run-*.ts` / `fetch-*.ts`. `tsconfig.json` excludes `scripts/`, so `npx tsc --noEmit` does not check them; keep the logic in `src/lib/markets/` (which is checked) and the scripts as thin arg-parse-and-print shells. `tsconfig.scripts.json` typechecks them explicitly.
-
-Full rules, including what doesn't belong in `scripts/` and how renames propagate: `.claude/skills/scripts-discipline/SKILL.md`.
+Anything under `scripts/` — adding, naming, moving, deleting — follows `.claude/skills/scripts-discipline/SKILL.md`.
