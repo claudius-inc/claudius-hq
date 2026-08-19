@@ -76,6 +76,11 @@ export interface SectorPoint {
   etf: string; // XLE
   name: string; // Energy
   changePct: number;
+  /**
+   * The ETF's session close. Optional: notes archived before this field render
+   * the board with an em dash in the price cell rather than a number.
+   */
+  price?: number;
 }
 
 export interface BreadthData {

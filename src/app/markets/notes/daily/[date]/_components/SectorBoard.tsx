@@ -89,7 +89,7 @@ export function SectorBoard({ facts }: { facts: StructuredFacts }) {
           return (
             <>
             <TableWrap hint="Scroll sideways for the 5- and 21-session columns.">
-              <table className="w-full min-w-[38rem]">
+              <table className="w-full min-w-[42rem]">
                 <caption className="sr-only">
                   Sector performance for this session, with 5- and 21-session context.
                 </caption>
@@ -102,6 +102,7 @@ export function SectorBoard({ facts }: { facts: StructuredFacts }) {
                     <Th className={`${SECTOR_COL} ${GUTTER_MASK} z-20 border-b border-gray-200`}>Sector</Th>
                     <Th className={`${ETF_COL} z-20 border-b`}>ETF</Th>
                     <Th align="right">Today</Th>
+                    <Th align="right">Price</Th>
                     <Th><span className="sr-only">Today, as a bar</span></Th>
                     <Th align="right">5-session</Th>
                     <Th align="right">21-session</Th>
@@ -153,6 +154,9 @@ export function SectorBoard({ facts }: { facts: StructuredFacts }) {
                         </td>
                         <td className={`px-3 py-2 text-sm text-right font-medium tabular-nums ${toneClass(s.changePct)}`}>
                           {spct(s.changePct)}
+                        </td>
+                        <td className="px-3 py-2 text-sm text-right tabular-nums text-gray-900">
+                          {s.price != null ? `$${s.price.toFixed(2)}` : <NoValue reason="No close returned for this ETF" />}
                         </td>
                         <td className="px-3 py-2 w-[88px]">
                           <DivergingBar value={s.changePct} max={maxAbs} />

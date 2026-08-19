@@ -137,7 +137,13 @@ function sectorsFact(map: Map<string, QuoteLike>, marketDate: string, now: numbe
   for (const { etf, name } of SECTOR_ETFS) {
     const q = map.get(etf);
     if (q?.regularMarketChangePercent == null || !Number.isFinite(q.regularMarketChangePercent)) continue;
-    pts.push({ etf, name, changePct: round(q.regularMarketChangePercent) });
+    const price = q.regularMarketPrice;
+    pts.push({
+      etf,
+      name,
+      changePct: round(q.regularMarketChangePercent),
+      price: price != null && Number.isFinite(price) ? round(price) : undefined,
+    });
   }
   // A partial board can't support a market-wide "top-2 / bottom-2" claim (§1a):
   // require the full 11 sectors or omit.
@@ -155,7 +161,13 @@ function thematicsFact(map: Map<string, QuoteLike>, marketDate: string, now: num
   for (const { etf, name } of THEMATIC_ETFS) {
     const q = map.get(etf);
     if (q?.regularMarketChangePercent == null || !Number.isFinite(q.regularMarketChangePercent)) continue;
-    pts.push({ etf, name, changePct: round(q.regularMarketChangePercent) });
+    const price = q.regularMarketPrice;
+    pts.push({
+      etf,
+      name,
+      changePct: round(q.regularMarketChangePercent),
+      price: price != null && Number.isFinite(price) ? round(price) : undefined,
+    });
   }
   if (pts.length === 0) return null;
   return { value: pts, source: "Yahoo", asOf: etStamp(marketDate, "16:00:00", now) };
