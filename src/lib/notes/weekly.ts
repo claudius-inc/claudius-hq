@@ -212,7 +212,11 @@ export function aggregateWeek(a: WeeklyAnchors): WeeklyFacts {
   const rates =
     rEnd && rStart
       ? [
-          { label: "2Y", changeBp: Math.round((rEnd.y2 - rStart.y2) * 100) },
+          // The 2Y row needs both endpoints — a provisional print at either end
+          // has none, so the week shows the 2Y move only when both are authoritative.
+          ...(rEnd.y2 != null && rStart.y2 != null
+            ? [{ label: "2Y", changeBp: Math.round((rEnd.y2 - rStart.y2) * 100) }]
+            : []),
           { label: "10Y", changeBp: Math.round((rEnd.y10 - rStart.y10) * 100) },
           { label: "30Y", changeBp: Math.round((rEnd.y30 - rStart.y30) * 100) },
         ]

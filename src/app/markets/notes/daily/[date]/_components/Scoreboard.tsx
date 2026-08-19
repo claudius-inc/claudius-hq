@@ -199,10 +199,12 @@ export function Scoreboard({ facts }: { facts: StructuredFacts }) {
             value={rates ? `${rates.y10.toFixed(2)}%` : <NoValue />}
             hint={rates ? `${sbp(rates.chg10Bp)} on the day` : undefined}
           />
+          {/* 2Y and 2s10s are absent on a provisional Yahoo print (no reliable
+              same-day 2Y), so they read as NoValue until the Treasury back-fill. */}
           <MicroStat
             label="2Y"
-            value={rates ? `${rates.y2.toFixed(2)}%` : <NoValue />}
-            hint={rates ? `${sbp(rates.chg2Bp)} on the day` : undefined}
+            value={rates?.y2 != null ? `${rates.y2.toFixed(2)}%` : <NoValue />}
+            hint={rates?.chg2Bp != null ? `${sbp(rates.chg2Bp)} on the day` : undefined}
           />
           <MicroStat
             label="30Y"
@@ -213,8 +215,8 @@ export function Scoreboard({ facts }: { facts: StructuredFacts }) {
               label as "2S10S". */}
           <MicroStat
             label="2s10s"
-            value={rates ? sbp(rates.spread2s10Bp) : <NoValue />}
-            hint={rates ? `${sbp(rates.spread2s10ChgBp)} on the day` : undefined}
+            value={rates?.spread2s10Bp != null ? sbp(rates.spread2s10Bp) : <NoValue />}
+            hint={rates?.spread2s10ChgBp != null ? `${sbp(rates.spread2s10ChgBp)} on the day` : undefined}
           />
           {facts.rates ? (
             <p className="col-span-full text-[11px] text-gray-500 tabular-nums">

@@ -118,18 +118,28 @@ export function MarketsSection({ facts, prose }: { facts: StructuredFacts; prose
             the tenors, so the whole rates read now lives in one place.
           */
           <div className="space-y-3">
+            {/* The 2Y point is dropped on a provisional Yahoo print — the curve
+                is drawn from the tenors actually quoted (10Y/30Y then). Both
+                series share ONE guard so today and prior always carry the same
+                tenors: a mismatch would map 10Y onto the 2Y x-slot. */}
             <RatesCurve
               today={[
-                { tenor: "2Y", y: r.y2 },
+                ...(r.y2 != null && r.chg2Bp != null ? [{ tenor: "2Y", y: r.y2 }] : []),
                 { tenor: "10Y", y: r.y10 },
                 { tenor: "30Y", y: r.y30 },
               ]}
               prior={[
-                { tenor: "2Y", y: r.y2 - r.chg2Bp / 100 },
+                ...(r.y2 != null && r.chg2Bp != null ? [{ tenor: "2Y", y: r.y2 - r.chg2Bp / 100 }] : []),
                 { tenor: "10Y", y: r.y10 - r.chg10Bp / 100 },
                 { tenor: "30Y", y: r.y30 - r.chg30Bp / 100 },
               ]}
             />
+            {r.provisional && (
+              <p className="text-xs text-amber-700">
+                Provisional 10Y/30Y from Yahoo — the US Treasury par curve had not published at
+                send time. The full curve, including the 2Y and 2s10s, follows when it does.
+              </p>
+            )}
             {/*
               The model's one line on the curve, which until now shipped only to
               Telegram. It is written every night, it clears the numeral

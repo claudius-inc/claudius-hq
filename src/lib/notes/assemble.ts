@@ -20,6 +20,7 @@ import { toYahooSymbol } from "@/lib/notes/sources/daily-bars";
 import { placeEarnings, isReactionDay } from "@/lib/notes/earnings-window";
 import type { ConstituentQuote } from "@/lib/notes/divergence";
 import { fetchRatesFact } from "@/lib/notes/sources/treasury";
+import { fetchYahooRatesFact } from "@/lib/notes/sources/yahoo-rates";
 import { computeDivergenceFacts } from "@/lib/notes/divergence";
 import { fetchGexPinFact } from "@/lib/notes/sources/gex-pin";
 import { fetchMacroReleases, fetchUpcomingReleases, fomcHorizonHealth } from "@/lib/notes/sources/fred-releases";
@@ -382,7 +383,15 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     ),
     capped("Yahoo VIX", CONNECTOR_TIMEOUT_MS, vixFact(marketDate, now), null),
     capped("Yahoo cross-asset", CONNECTOR_TIMEOUT_MS, crossAssetFact(now), null),
-    capped("Treasury yields", CONNECTOR_TIMEOUT_MS, fetchRatesFact(marketDate), null),
+    capped(
+      "Treasury yields",
+      CONNECTOR_TIMEOUT_MS,
+      // Authoritative Treasury curve first; Yahoo's provisional 10Y/30Y only when
+      // the par CSV has not published yet. The back-fill later swaps the
+      // provisional print for the full Treasury curve (see run-rates-backfill).
+      fetchRatesFact(marketDate).then((t) => t ?? fetchYahooRatesFact(marketDate)),
+      null,
+    ),
     capped("WSJ breadth", CONNECTOR_TIMEOUT_MS, breadthFact(marketDate, now), null),
   ]);
 
@@ -407,7 +416,15 @@ export async function assembleFacts(marketDate: string, now = Date.now()): Promi
     itemsExpected: CROSS_ASSETS.length,
     itemsGot: crossAsset?.value.length ?? 0,
   });
-  health.push({ name: "Treasury yields", status: rates ? "ok" : "down", detail: rates ? undefined : "no same-day yields" });
+  health.push({
+    name: "Treasury yields",
+    status: rates ? (rates.value.provisional ? "degraded" : "ok") : "down",
+    detail: rates
+      ? rates.value.provisional
+        ? "Treasury CSV not published; provisional Yahoo 10Y/30Y (awaiting back-fill)"
+        : undefined
+      : "no same-day yields",
+  });
   // Breadth is source-gated (§1a): a non-WSJ or stale answer is REJECTED upstream,
   // so a null here already means "answered wrong" as often as "did not answer".
   health.push({

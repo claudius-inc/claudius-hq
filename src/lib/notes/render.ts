@@ -251,12 +251,23 @@ function ratesSection(f: StructuredFacts, prose?: NoteProse): string {
   if (!f.rates) return "";
   const r: RatesData = f.rates.value;
   const bp = (n: number) => `${n >= 0 ? "+" : ""}${n}bp`;
-  
-  const l1 = `${b("RATES")} — ${bind("2Y", `${r.y2.toFixed(2)}% ${bp(r.chg2Bp)}`)} · ${bind("10Y", `${r.y10.toFixed(2)}% ${bp(r.chg10Bp)}`)} · ${bind("30Y", `${r.y30.toFixed(2)}% ${bp(r.chg30Bp)}`)}`;
-  const l2 = prose?.curveRead
-    ? escapeHtml(prose.curveRead)
-    : `2s10s ${bp(r.spread2s10Bp)} (${bp(r.spread2s10ChgBp)} on the day)`;
-  return `${l1}\n${l2}`;
+
+  // The 2Y tenor is absent on a provisional Yahoo print — drop that chip rather
+  // than fabricate it. 10Y and 30Y are always present.
+  const tenors = [
+    r.y2 != null && r.chg2Bp != null ? bind("2Y", `${r.y2.toFixed(2)}% ${bp(r.chg2Bp)}`) : null,
+    bind("10Y", `${r.y10.toFixed(2)}% ${bp(r.chg10Bp)}`),
+    bind("30Y", `${r.y30.toFixed(2)}% ${bp(r.chg30Bp)}`),
+  ].filter(Boolean);
+  const tag = r.provisional ? " (provisional)" : "";
+  const l1 = `${b("RATES")}${tag} — ${tenors.join(" · ")}`;
+  // The 2s10s clause needs the 2Y; on a provisional print, defer to prose or drop it.
+  const spread =
+    r.spread2s10Bp != null && r.spread2s10ChgBp != null
+      ? `2s10s ${bp(r.spread2s10Bp)} (${bp(r.spread2s10ChgBp)} on the day)`
+      : "";
+  const l2 = prose?.curveRead ? escapeHtml(prose.curveRead) : spread;
+  return l2 ? `${l1}\n${l2}` : l1;
 }
 
 /**

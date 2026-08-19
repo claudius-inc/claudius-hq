@@ -27,10 +27,22 @@ function opposedSigns(a: number, b: number): boolean {
 export function ConcentrationSection({ facts }: { facts: StructuredFacts }) {
   const c = facts.contribution?.value;
   const names = facts.companyNames ?? {};
-  // The day's move for any contributor the mover ranking also surfaced. The two
-  // sets are routinely disjoint — contribution selects on weight × return, the
-  // ranking on gap from sector — so this is a partial join by design.
+  // The day's move for any contributor the mover ranking also surfaced. Only used
+  // for notes archived before `topContributors` existed: the two sets are
+  // routinely disjoint — contribution selects on weight × return, the ranking on
+  // gap from sector — so on those older notes most cells stay blank.
   const moves = new Map((facts.movers?.value ?? []).map((m) => [m.ticker, m.changePct]));
+
+  // Prefer the per-name figures the fact set now carries. Older notes have only
+  // `topNames`, so fall back to the mover join for those — `points` is absent and
+  // `changePct` is present only where the ranking happened to overlap.
+  const contributors: { ticker: string; changePct: number | null; points: number | null }[] =
+    c?.topContributors ??
+    (c?.topNames ?? []).map((ticker) => ({
+      ticker,
+      changePct: moves.get(ticker) ?? null,
+      points: null,
+    }));
 
   return (
     <Section
@@ -107,36 +119,34 @@ export function ConcentrationSection({ facts }: { facts: StructuredFacts }) {
           </p>
 
           {/*
-            Five bare tickers under a chart claiming they cost the index 0.30pp
-            gave the reader nothing to check the claim against. The move makes it
-            auditable for the names we hold one for — which is the overlap with
-            MOVERS, and the overlap is itself worth seeing: on 2026-08-14 two of
-            these five are also in the mover ranking and three are not, which is
-            the difference between "the big names moved" and "the big WEIGHTS
-            moved".
-
-            Per-name CONTRIBUTION in points is what this row really wants, and it
-            cannot be shown: `ContributionData.topNames` is a `string[]`, so the
-            group's total is the only figure the fact set carries. Widening it
-            would need a pipeline change plus a migration for every archived
-            note; until then an em dash is the honest cell.
+            Each contributor now carries its own move AND its contribution in
+            points — weight × return, which is the figure the bar above is a sum
+            of. That makes the claim auditable name by name: the move says why the
+            name mattered, the pp says how much of the index it moved. Notes
+            archived before `topContributors` existed still fall back to the mover
+            join, where a name outside the ranking has no move and shows an em dash.
           */}
           <div>
             <p className="text-xs uppercase tracking-wide text-gray-500 mb-1.5">Contributors</p>
             <div className="flex flex-wrap gap-2">
-              {c.topNames.map((t) => (
+              {contributors.map((n) => (
                 <span
-                  key={t}
+                  key={n.ticker}
                   className="inline-flex items-baseline gap-1.5 rounded-md border border-gray-200 bg-gray-50 px-2 py-1"
                 >
-                  <Ticker symbol={t} />
-                  <span className="text-xs text-gray-500">{displayName(names[t]) ?? ""}</span>
-                  {moves.has(t) ? (
-                    <span className={`text-xs font-semibold tabular-nums ${toneClass(moves.get(t) as number)}`}>
-                      {spct(moves.get(t) as number)}
+                  <Ticker symbol={n.ticker} />
+                  <span className="text-xs text-gray-500">{displayName(names[n.ticker]) ?? ""}</span>
+                  {n.changePct != null ? (
+                    <span className={`text-xs font-semibold tabular-nums ${toneClass(n.changePct)}`}>
+                      {spct(n.changePct)}
                     </span>
                   ) : (
                     <NoValue reason="Not in the mover ranking, so this note carries no move for it" />
+                  )}
+                  {n.points != null && (
+                    <span className="text-xs text-gray-400 tabular-nums" title="Contribution to the index, in points">
+                      {spp(n.points)}
+                    </span>
                   )}
                 </span>
               ))}

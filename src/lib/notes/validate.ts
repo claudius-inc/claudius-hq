@@ -26,6 +26,7 @@ export function collectAllowedNumbers(f: StructuredFacts): number[] {
   if (f.indices) for (const i of f.indices.value) push(i.close, i.changePct);
   if (f.rates) {
     const r = f.rates.value;
+    // 2Y-derived fields are absent on a provisional print; `push` drops the nulls.
     push(r.y2, r.y10, r.y30, r.chg2Bp, r.chg10Bp, r.chg30Bp, r.spread2s10Bp, r.spread2s10ChgBp);
   }
   if (f.vix) {

@@ -49,7 +49,17 @@ function factSheet(f: StructuredFacts): string {
   if (f.indices) lines.push("Indices: " + f.indices.value.map((i) => `${i.name} ${num(i.close)} (${pct(i.changePct)})`).join(", "));
   if (f.rates) {
     const r = f.rates.value;
-    lines.push(`Rates: 2Y ${r.y2.toFixed(2)}% (${r.chg2Bp}bp), 10Y ${r.y10.toFixed(2)}% (${r.chg10Bp}bp), 30Y ${r.y30.toFixed(2)}% (${r.chg30Bp}bp); 2s10s ${r.spread2s10Bp}bp (${r.spread2s10ChgBp}bp on day)`);
+    // 2Y and the 2s10s spread are absent on a provisional Yahoo print, so build
+    // the line from the tenors that are actually present.
+    const parts: string[] = [];
+    if (r.y2 != null && r.chg2Bp != null) parts.push(`2Y ${r.y2.toFixed(2)}% (${r.chg2Bp}bp)`);
+    parts.push(`10Y ${r.y10.toFixed(2)}% (${r.chg10Bp}bp)`);
+    parts.push(`30Y ${r.y30.toFixed(2)}% (${r.chg30Bp}bp)`);
+    const spread =
+      r.spread2s10Bp != null && r.spread2s10ChgBp != null
+        ? `; 2s10s ${r.spread2s10Bp}bp (${r.spread2s10ChgBp}bp on day)`
+        : "";
+    lines.push(`Rates${r.provisional ? " (provisional)" : ""}: ${parts.join(", ")}${spread}`);
   }
   if (f.vix) {
     const v = f.vix.value;

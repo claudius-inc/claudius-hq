@@ -227,6 +227,7 @@ export function computeContribution(
 
   const contrib = weighted.map((q) => ({
     ticker: q.ticker,
+    changePct: q.changePct,
     // weight is a percent, change is a percent → contribution in index %-points.
     points: ((q.spyWeight as number) / 100) * q.changePct,
   }));
@@ -252,6 +253,11 @@ export function computeContribution(
     modelledPct: Math.round(modelled * 100) / 100,
     actualPct: indexChangePct,
     topNames: topN.map((c) => c.ticker),
+    topContributors: topN.map((c) => ({
+      ticker: c.ticker,
+      changePct: Math.round(c.changePct * 100) / 100,
+      points: Math.round(c.points * 100) / 100,
+    })),
     topPoints: Math.round(topPoints * 100) / 100,
     exTopPct: Math.round(exTop * 100) / 100,
     // True when the index's sign flips once the top names are removed. Requires

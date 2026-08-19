@@ -24,14 +24,28 @@ export interface IndexPoint {
 }
 
 export interface RatesData {
-  y2: number;
+  /**
+   * 10Y and 30Y are always present. The 2Y and everything derived from it are
+   * OPTIONAL because the provisional Yahoo fallback (see `provisional`) carries
+   * no reliable same-day 2Y — Yahoo has no 2Y yield index, only 10Y (^TNX) and
+   * 30Y (^TYX). The authoritative Treasury curve always fills every field, so an
+   * absent 2Y means "provisional print, awaiting back-fill", never "no 2Y today".
+   */
+  y2?: number;
   y10: number;
   y30: number;
-  chg2Bp: number;
+  chg2Bp?: number;
   chg10Bp: number;
   chg30Bp: number;
-  spread2s10Bp: number;
-  spread2s10ChgBp: number;
+  spread2s10Bp?: number;
+  spread2s10ChgBp?: number;
+  /**
+   * True while these are Yahoo's stopgap 10Y/30Y, printed because the Treasury
+   * par curve had not published at send time. The back-fill replaces the whole
+   * fact with the authoritative Treasury curve once the row appears, clearing
+   * this flag and filling the 2Y.
+   */
+  provisional?: boolean;
 }
 
 export interface VixData {
@@ -91,11 +105,32 @@ export interface DivergenceSector {
   names: DivergenceName[];
 }
 
+/** One top index contributor, with its own move and its weight-times-return. */
+export interface ContributionName {
+  ticker: string;
+  /** The name's own 1-day return, percent. */
+  changePct: number;
+  /** Its contribution to the index, in percentage points (float weight × return). */
+  points: number;
+}
+
 /** Cap-weighted index contribution, post reconciliation gate (§8). */
 export interface ContributionData {
   modelledPct: number;
   actualPct: number;
+  /**
+   * The top-N contributor tickers, in render order. Kept as the canonical list
+   * every consumer already reads; `topContributors` carries the same names with
+   * their figures.
+   */
   topNames: string[];
+  /**
+   * The same names with each one's own move and contribution points, so the note
+   * shows a figure per contributor rather than joining against the disjoint mover
+   * ranking. Optional: notes archived before this field render from `topNames`
+   * alone, so no migration is needed.
+   */
+  topContributors?: ContributionName[];
   topPoints: number;
   exTopPct: number;
   flipsWithoutTop: boolean;
