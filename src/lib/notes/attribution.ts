@@ -290,7 +290,9 @@ export async function buildAttributions(
     );
     // Only when the targets move as one — mixed revisions explain nothing.
     if (targets.length > 0 && sameWay.length === targets.length) {
-      const word = c.changePct < 0 ? "target cuts" : "target raises";
+      // Singular when a single firm revised — "1 target cut", not "1 target cuts".
+      const stem = c.changePct < 0 ? "cut" : "raise";
+      const word = `target ${stem}${targets.length === 1 ? "" : "s"}`;
       out.push({
         ticker: c.ticker,
         rung: "target",
