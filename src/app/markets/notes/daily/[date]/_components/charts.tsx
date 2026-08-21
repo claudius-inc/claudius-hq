@@ -1,4 +1,4 @@
-import { fillFor, spct, intFmt, toneClass, MARK_NEUTRAL, MARK_DOWN } from "../_lib/format";
+import { fillFor, spct, sbp, intFmt, toneClass, MARK_NEUTRAL, MARK_DOWN } from "../_lib/format";
 
 /**
  * Every chart on this page is inline SVG or flexbox, rendered on the server.
@@ -401,13 +401,28 @@ export function GammaLevels({
 /* ── Treasury curve ──────────────────────────────────────────────────────── */
 
 /**
- * Today's three tenors against yesterday's.
+ * Today's tenors, and their move from the prior close, in two stacked panels.
  *
- * The Y domain is pinned to the data plus a fixed 15bp margin rather than
- * autoscaled: a 6bp parallel shift on an autoscaled axis fills the plot and
- * looks like a regime change, which would be a chart that lies. The x axis is
- * categorical (2Y, 10Y, 30Y) and evenly spaced — honest only because it is
- * never presented as a time axis.
+ * The old single panel drew today over prior on one axis. It was honest — the
+ * domain is pinned to the data plus a fixed margin, so a 6bp parallel shift
+ * does NOT fill the plot and pose as a regime change — but honesty cost it its
+ * legibility: a 6bp move on a curve that spans ~130bp is a two-pixel gap, and
+ * the pale prior line vanished under the dark one. The move, which is the whole
+ * reason the prior close is on the chart, was the one thing you could not read.
+ *
+ * The fix is not to distort the level axis but to give the move its OWN axis.
+ * Top panel: today's curve on the same pinned domain — the shape, unchanged.
+ * Bottom panel: the per-tenor change in basis points, on a scale of its own,
+ * where +1 and +9 are finally different sizes. Naming the unit ("change vs
+ * prior · bp") is what keeps the second axis from being read as more yield.
+ *
+ * The bars are neutral ink, not the emerald/red the rest of the page uses for
+ * signed moves: a rising yield is not a gain, so painting it green would
+ * mislead — the same call the scoreboard makes for the VIX. Direction rides on
+ * the side of the zero line, exactly as `DivergingBar` does it, so the encoding
+ * survives greyscale and never claims up-is-good. The x axis is categorical
+ * (2Y, 10Y, 30Y), evenly spaced, and honest only because it is never a time
+ * axis.
  */
 export function RatesCurve({
   today,
@@ -417,11 +432,23 @@ export function RatesCurve({
   prior: { tenor: string; y: number }[];
 }) {
   const W = 320;
-  const H = 130;
+  const H = 196;
   const padL = 34;
-  const padR = 12;
-  const padT = 12;
-  const padB = 22;
+  const padR = 14;
+  // Curve panel (the shape) and, below it, the change strip (the move). The two
+  // share one x scale so a tenor sits in the same column in both.
+  const cTop = 14;
+  const cBot = 90;
+  const capY = 101; // "change vs prior · bp" caption baseline
+  // Origin and half-height are set together so a full-depth bar clears its
+  // neighbours: a max positive bar's label (bZero - bSpan - 4) stays below the
+  // caption, and a max NEGATIVE bar's label (bZero + bSpan + 11) stays above the
+  // tenor row at tenorY. Widen bSpan or drop bZero and a decline's label collides
+  // with the tenor labels.
+  const bZero = 143; // change-strip origin; bars grow up for a rise, down for a fall
+  const bSpan = 26; // half-height of the strip, so a twist (front down, long up) fits
+  const tenorY = 192;
+
   const all = [...today.map((d) => d.y), ...prior.map((d) => d.y)];
   // Snap the domain out to round quarter-percents. A data-derived domain gave
   // ticks like 4.04 / 4.72 / 5.40 — unreadable, and different on every archived
@@ -431,51 +458,73 @@ export function RatesCurve({
   const lo = Math.floor((Math.min(...all) - 0.1) / STEP) * STEP;
   const hi = Math.ceil((Math.max(...all) + 0.1) / STEP) * STEP;
   const x = (i: number) => padL + (i / Math.max(today.length - 1, 1)) * (W - padL - padR);
-  const y = (v: number) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
-  const path = (pts: { y: number }[]) => pts.map((p, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(p.y)}`).join(" ");
+  const yC = (v: number) => cTop + (1 - (v - lo) / (hi - lo)) * (cBot - cTop);
+  const curve = today.map((d, i) => `${i === 0 ? "M" : "L"}${x(i)},${yC(d.y)}`).join(" ");
+
+  // The change in bp. today.y - prior.y is exactly chgNBp/100 by construction
+  // (the caller derives prior from today minus the bp change), so this rounds
+  // back to the same integer the scoreboard prints — no second source of truth.
+  const bps = today.map((d, i) => Math.round((d.y - (prior[i]?.y ?? d.y)) * 100));
+  const maxBp = Math.max(...bps.map((b) => Math.abs(b)), 1);
+  const barH = (b: number) => (b === 0 ? 0 : Math.max((Math.abs(b) / maxBp) * bSpan, 2));
 
   return (
     <figure className="m-0">
-      {/* Two series, so a legend is required — the dark line is meaningless
-          without something naming what the pale one is. */}
-      <figcaption className="flex items-center gap-4 mb-1 text-[11px] text-gray-600">
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="14" height="2" aria-hidden="true">
-            <rect width="14" height="2" fill="#111827" />
-          </svg>
-          Today
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <svg width="14" height="2" aria-hidden="true">
-            <rect width="14" height="2" fill="#d1d5db" />
-          </svg>
-          Prior close
-        </span>
-      </figcaption>
+      {/* One series on the curve panel and a self-labelled strip below, so no
+          legend box is needed — the aria-label carries the full read. */}
       <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full max-w-sm h-auto"
-      role="img"
-      aria-label={`Treasury curve. Today: ${today.map((d) => `${d.tenor} ${d.y.toFixed(2)}%`).join(", ")}. Prior close: ${prior.map((d) => `${d.tenor} ${d.y.toFixed(2)}%`).join(", ")}.`}
-    >
-      {[lo, (lo + hi) / 2, hi].map((v) => (
-        <g key={v}>
-          <line x1={padL} y1={y(v)} x2={W - padR} y2={y(v)} stroke={GRID} strokeWidth={1} />
-          <text x={padL - 6} y={y(v) + 3} fontSize={9} fill={LABEL} textAnchor="end">
-            {v.toFixed(2)}
-          </text>
-        </g>
-      ))}
-      <path d={path(prior)} fill="none" stroke="#d1d5db" strokeWidth={2} strokeLinecap="round" />
-      <path d={path(today)} fill="none" stroke="#111827" strokeWidth={2} strokeLinecap="round" />
-      {today.map((d, i) => (
-        <circle key={d.tenor} cx={x(i)} cy={y(d.y)} r={3.5} fill="#111827" stroke="#ffffff" strokeWidth={2} />
-      ))}
-        {today.map((d, i) => (
-          <text key={d.tenor} x={x(i)} y={H - 6} fontSize={10} fill={LABEL} textAnchor="middle">
-            {d.tenor}
-          </text>
+        viewBox={`0 0 ${W} ${H}`}
+        className="w-full max-w-sm h-auto"
+        role="img"
+        aria-label={`Treasury curve and its move from the prior close. Today: ${today
+          .map((d) => `${d.tenor} ${d.y.toFixed(2)}%`)
+          .join(", ")}. Change: ${today.map((d, i) => `${d.tenor} ${sbp(bps[i])}`).join(", ")}.`}
+      >
+        {/* Curve panel — the shape, on the pinned domain */}
+        {[lo, (lo + hi) / 2, hi].map((v) => (
+          <g key={v}>
+            <line x1={padL} y1={yC(v)} x2={W - padR} y2={yC(v)} stroke={GRID} strokeWidth={1} />
+            <text x={padL - 6} y={yC(v) + 3} fontSize={9} fill={LABEL} textAnchor="end">
+              {v.toFixed(2)}
+            </text>
+          </g>
         ))}
+        <path d={curve} fill="none" stroke="#111827" strokeWidth={2.25} strokeLinecap="round" strokeLinejoin="round" />
+        {today.map((d, i) => (
+          <circle key={d.tenor} cx={x(i)} cy={yC(d.y)} r={3.5} fill="#111827" stroke="#ffffff" strokeWidth={2} />
+        ))}
+
+        {/* Change strip — the move, on its own bp scale */}
+        <text x={padL} y={capY} fontSize={9} fill={LABEL} textAnchor="start">
+          change vs prior · bp
+        </text>
+        <line x1={padL} y1={bZero} x2={W - padR} y2={bZero} stroke={GRID} strokeWidth={1} />
+        <text x={padL - 6} y={bZero + 3} fontSize={9} fill={LABEL} textAnchor="end">
+          0
+        </text>
+        {today.map((d, i) => {
+          const b = bps[i];
+          const h = barH(b);
+          const bw = 26;
+          return (
+            <g key={d.tenor}>
+              <rect x={x(i) - bw / 2} y={b >= 0 ? bZero - h : bZero} width={bw} height={h} rx={3} fill="#111827" />
+              <text
+                x={x(i)}
+                y={b >= 0 ? bZero - h - 4 : bZero + h + 11}
+                fontSize={10}
+                fontWeight={600}
+                fill="#374151"
+                textAnchor="middle"
+              >
+                {sbp(b)}
+              </text>
+              <text x={x(i)} y={tenorY} fontSize={10} fill={LABEL} textAnchor="middle">
+                {d.tenor}
+              </text>
+            </g>
+          );
+        })}
       </svg>
     </figure>
   );
