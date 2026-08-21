@@ -2,50 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
 import { goldAnalysis } from "@/db/schema";
 import { desc, eq } from "drizzle-orm";
-import { getCache, setCache, CACHE_KEYS } from "@/lib/cache/market-cache";
 import { logger } from "@/lib/logger";
-import { fetchGoldData } from "@/lib/markets/gold";
+import { getGoldData } from "@/lib/markets/gold";
 
 export const dynamic = "force-dynamic";
 
-// GET /api/gold - Returns current analysis, live price, and recent flows
+// GET /api/gold - Returns current analysis, live price, and recent flows.
+// Never serves stale data: `getGoldData` blocks on a fresh fetch once the
+// cache passes its TTL. The 60s TTL only dedups rapid refreshes so we don't
+// hammer Yahoo/FRED. `?fresh=true` forces a live fetch, bypassing the TTL.
 export async function GET(request: NextRequest) {
   try {
     const fresh = request.nextUrl.searchParams.get("fresh") === "true";
 
-    if (!fresh) {
-      // Reduced TTL from 300s to 60s for fresher data
-      const cached = await getCache<Record<string, unknown>>(
-        CACHE_KEYS.GOLD,
-        60,
+    const data = await getGoldData(fresh ? 0 : 60);
+    if (!data) {
+      return NextResponse.json(
+        { error: "Gold data unavailable" },
+        { status: 503 },
       );
-      if (cached && !cached.isStale) {
-        return NextResponse.json({
-          ...cached.data,
-          cached: true,
-          cacheAge: cached.updatedAt,
-        });
-      }
-      if (cached) {
-        fetchGoldData()
-          .then((data) => setCache(CACHE_KEYS.GOLD, data))
-          .catch((e) =>
-            logger.error("api/gold", "Background gold refresh failed", {
-              error: e,
-            }),
-          );
-        return NextResponse.json({
-          ...cached.data,
-          cached: true,
-          cacheAge: cached.updatedAt,
-          isStale: true,
-        });
-      }
     }
-
-    const data = await fetchGoldData();
-    await setCache(CACHE_KEYS.GOLD, data);
-    return NextResponse.json({ ...data, cached: false });
+    return NextResponse.json(data);
   } catch (e) {
     logger.error("api/gold", "Gold API error", { error: e });
     return NextResponse.json({ error: String(e) }, { status: 500 });

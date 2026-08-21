@@ -16,7 +16,7 @@ import { fetchSentimentData } from "@/lib/markets/sentiment";
 import { fetchBreadthData } from "@/lib/markets/breadth";
 import { fetchValuationData } from "@/lib/markets/market-valuation";
 import { fetchThemePerformanceAll } from "@/lib/markets/themes";
-import { fetchGoldData } from "@/lib/markets/gold";
+import { getGoldData } from "@/lib/markets/gold";
 import { fetchExpectedReturnsData } from "@/lib/valuation/fetch-expected-returns";
 
 const GAVEKAL_CACHE_KEY = "gavekal:quadrant:v13";
@@ -80,9 +80,10 @@ async function fetchAllInitialData() {
     cachedFetch(CACHE_KEYS.SSR_BREADTH, () => fetchBreadthData(), 300),
     cachedFetch(CACHE_KEYS.SSR_VALUATION, () => fetchValuationData(), 300),
     cachedFetch(CACHE_KEYS.SSR_THEMES, () => fetchThemePerformanceAll(), 300),
-    // Gold: just read from the gold API route cache (populated by /api/gold)
-    // No external calls in SSR — client SWR handles freshness
-    getCache<unknown>(CACHE_KEYS.GOLD, 120).then((c) => c?.data ?? null),
+    // Gold: cache-first with a hard freshness guarantee. Returns instantly on
+    // a warm (<60s) cache; blocks on a live fetch once stale so the first
+    // paint is never stale. Client SWR keeps it current after mount.
+    getGoldData(60),
     cachedFetch(CACHE_KEYS.SSR_EXPECTED, () => fetchExpectedReturnsData(), 300),
   ]);
 }

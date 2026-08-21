@@ -127,6 +127,40 @@ async function fetchGoldHistoricalCached(): Promise<{
   }
 }
 
+/**
+ * Cache-first gold data with a hard freshness guarantee.
+ *
+ * While the cache is younger than `maxAgeSeconds` it is returned as-is. Once
+ * the cache is stale, this BLOCKS on a fresh `fetchGoldData()` and returns the
+ * current value — it never hands stale data back to the caller. The TTL is
+ * only a rate-limit guard against hammering Yahoo/FRED on rapid refreshes, not
+ * a staleness window the user sees. It falls back to the last cache only when
+ * the live fetch itself fails.
+ *
+ * Shared by the /api/gold route and the /markets SSR read so both surfaces
+ * always show the same, current price.
+ */
+export async function getGoldData(
+  maxAgeSeconds = 60,
+): Promise<Awaited<ReturnType<typeof fetchGoldData>> | null> {
+  const cached = await getCache<Awaited<ReturnType<typeof fetchGoldData>>>(
+    CACHE_KEYS.GOLD,
+    maxAgeSeconds,
+  );
+  if (cached && !cached.isStale) return cached.data;
+
+  try {
+    const data = await fetchGoldData();
+    await setCache(CACHE_KEYS.GOLD, data);
+    return data;
+  } catch (e) {
+    logger.error(LOG_SRC, "Fresh gold fetch failed; serving last cache", {
+      error: e,
+    });
+    return cached?.data ?? null;
+  }
+}
+
 export async function fetchGoldData() {
   // DB calls can run in parallel with everything else
   const analysisPromise = db
