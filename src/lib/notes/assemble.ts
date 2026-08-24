@@ -249,9 +249,11 @@ async function crossAssetPoint(
   now: number,
 ): Promise<{ pt: CrossAssetPoint; barMs: number } | null> {
   try {
-    // ~75h so a Monday run reaches Friday's session for the prior-close base.
+    // ~105h so a post-holiday session still reaches the previous trading day's
+    // close for the prior-close base: a Tuesday after a Monday holiday must span
+    // back to Friday, and a plain Monday must span back through the weekend.
     const chart = (await yahooFinance.chart(symbol, {
-      period1: new Date(now - 75 * 60 * 60 * 1000),
+      period1: new Date(now - 105 * 60 * 60 * 1000),
       interval: "5m",
     })) as { quotes?: { date?: Date; close?: number | null }[] };
     const bars = (chart?.quotes ?? []).filter(
@@ -271,12 +273,25 @@ async function crossAssetPoint(
       chosen = bars[bars.length - 1];
     }
 
-    // Base = the prior ET trading date's close bar (from the same series).
+    // Base = the prior ET trading date's close bar (from the same series). Step
+    // back through the prior dates rather than trusting the single latest one:
+    // futures and DXY reopen at 18:00 ET, so the calendar day before a Monday
+    // note is Sunday, which carries only post-16:00 bars and no close. The real
+    // prior session is Friday — skip the dates with no close bar to reach it,
+    // and the same skip carries a post-holiday session back to the day before
+    // the holiday. BTC alone had a Sunday close, which is why it was the one row
+    // that ever showed a "today" figure.
     const priorDates = Array.from(new Set(bars.map((b) => etDate(b.date.getTime()))))
       .filter((d) => d < targetDate)
       .sort();
-    const priorDate = priorDates[priorDates.length - 1];
-    const base = priorDate ? closeBarOn(bars, priorDate)?.close ?? null : null;
+    let base: number | null = null;
+    for (let i = priorDates.length - 1; i >= 0; i--) {
+      const close = closeBarOn(bars, priorDates[i])?.close;
+      if (close != null) {
+        base = close;
+        break;
+      }
+    }
 
     const price = round(chosen.close, symbol === "BTC-USD" ? 0 : 2);
     const changePct = base != null && base !== 0 ? round(((chosen.close - base) / base) * 100) : null;
