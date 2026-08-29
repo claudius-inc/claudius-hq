@@ -171,7 +171,8 @@ export function formatMessage(
   );
   lines.push(
     `_Held back: ${funnel.cooldownSkipped} on cooldown · ` +
-      `${funnel.correlationSkipped} too correlated · ${funnel.contested} contested_`,
+      `${funnel.correlationSkipped} too correlated · ${funnel.contested} contested · ` +
+      `${funnel.trendShortSkipped} shorts still rising_`,
   );
 
   return lines.join("\n");

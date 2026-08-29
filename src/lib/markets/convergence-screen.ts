@@ -83,8 +83,45 @@ export const CONVERGENCE_CONFIG = {
   vwapWeight: 2,
   /** Threshold on the WEIGHTED score, out of `5 + vwapWeight`. */
   minScore: 5,
-  /** Per side. */
+  /** Per side, and the total budget is `2 × topN` shared across both sides. */
   topN: 8,
+  /**
+   * Floor and ceiling on either side of the shared `2 × topN` budget.
+   *
+   * [decision: flexible-side-split] `splitBudget` can lean the report toward the
+   * side carrying more of the volume-and-funding action (the `comboGated` count)
+   * instead of forcing a fixed 8 long / 8 short every day. The MECHANISM is
+   * built and tested, but it ships EVEN (`min = max = topN`, i.e. 8/8) on
+   * purpose:
+   *
+   * The 2026-08 holdout review flagged the fixed quota because the short book
+   * returned −13% at 7d over a 16-day alt rally. But when the picks were finally
+   * labelled (this is what created `pick_labels` source='perp'), the gated-share
+   * lean was measured against those same labels and it leaned SHORT 40/5 on
+   * 16-17 Aug — the very days that were then squeezed hardest. A squeeze is a
+   * reversal of the trailing signal, so every trailing-signal split (breadth or
+   * regime alike) leans INTO it. No such split beat an even 8/8 on the one
+   * regime there is data for, so shipping a lean now would be fitting to noise.
+   *
+   * The knobs stay so a lean can be switched on the day a multi-regime study
+   * picks a weight that holds out of sample: widen to e.g. `minPerSide: 3,
+   * maxPerSide: 11`. Until then, even.
+   */
+  minPerSide: 8,
+  maxPerSide: 8,
+  /**
+   * A short candidate whose trailing move is above this is dropped from the
+   * MESSAGE (still recorded).
+   *
+   * [decision: trend-short-gate] The same review found the short book was
+   * shorting names that had just risen and getting squeezed on the continuation:
+   * conditioned on the stored regime, every short bucket was negative and the
+   * worst were the ones entered after strength. `changePct` is the move over
+   * `liquidityBars`; requiring it to be non-positive keeps shorts to names
+   * actually rolling over, not to strength that merely triggered enough factors.
+   * A gate on the message only — the control group keeps every qualifier.
+   */
+  trendShortMaxChangePct: 0,
   /** Bars used for the liquidity average and the displayed move. */
   liquidityBars: 30,
   /**
@@ -277,6 +314,9 @@ export interface ConvergenceResult {
     cooldownSkipped: number;
     /** Qualified but too correlated with a name already on the list. */
     correlationSkipped: number;
+    /** Short qualifiers dropped by the trend gate — up over the trailing window,
+     *  so squeeze-prone rather than rolling over. Recorded, not sent. */
+    trendShortSkipped: number;
     byCategory: Record<string, number>;
   };
   /** Bar close time the scores were computed from, ISO. */
@@ -794,6 +834,44 @@ export function allocateByCategory(
 }
 
 /**
+ * Splits the shared `budget` between the two sides by their share of the action.
+ *
+ * `weight` is each side's count of gated (high volume-and-funding) qualifiers —
+ * the leg the holdout review found positively related to forward return, so the
+ * budget leans toward where names are actually being traded, not toward whichever
+ * side merely has more names scraping the threshold. Both results are clamped to
+ * [min, max] and to the supply each side actually has, then any budget a clamp
+ * frees up is handed to the other side while it has room. With `min = budget/2`
+ * the split is pinned to an even split, which is the pre-review behaviour.
+ */
+export function splitBudget(
+  longWeight: number,
+  shortWeight: number,
+  longSupply: number,
+  shortSupply: number,
+  budget: number,
+  min: number,
+  max: number,
+): { longSlots: number; shortSlots: number } {
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  // A side cannot be floored above what it can supply, or the budget would claim
+  // names that do not exist and never reach the other side.
+  const floorL = Math.min(min, longSupply);
+  const floorS = Math.min(min, shortSupply);
+  const capL = Math.min(max, longSupply);
+  const capS = Math.min(max, shortSupply);
+  const total = longWeight + shortWeight;
+  // No signal either way — fall back to an even split.
+  const rawLong = total > 0 ? Math.round((budget * longWeight) / total) : Math.round(budget / 2);
+
+  const shortSlots = clamp(budget - clamp(rawLong, floorL, capL), floorS, capS);
+  // Whatever the short cap freed is offered back to the long side, so the budget
+  // fills to `budget` whenever the two sides between them have the supply.
+  const longSlots = clamp(budget - shortSlots, floorL, capL);
+  return { longSlots, shortSlots };
+}
+
+/**
  * Runs the screen end to end: universe -> bars -> score -> filter -> rank.
  *
  * Sends nothing and writes nothing; the pipeline script owns both.
@@ -943,8 +1021,29 @@ export async function selectConvergencePicks(
     cfg.maxCorrelation,
   );
 
-  const longs = allocateByCategory(longPool.kept, cfg.topN);
-  const shorts = allocateByCategory(shortPool.kept, cfg.topN);
+  // Trend-short gate: a short must be rolling over, not merely have tripped the
+  // factors while rising. Applied after decorrelation so the count reflects what
+  // would actually have been sendable. See [decision: trend-short-gate].
+  const shortKept = shortPool.kept.filter(
+    (p) => (p.changePct ?? 0) <= cfg.trendShortMaxChangePct,
+  );
+  const trendShortSkipped = shortPool.kept.length - shortKept.length;
+
+  // Share the 2×topN budget between the sides by where the gated action is,
+  // rather than forcing 8/8. See [decision: flexible-side-split].
+  const budget = cfg.topN * 2;
+  const { longSlots, shortSlots } = splitBudget(
+    longPool.kept.filter((p) => p.comboGated).length,
+    shortKept.filter((p) => p.comboGated).length,
+    longPool.kept.length,
+    shortKept.length,
+    budget,
+    cfg.minPerSide,
+    cfg.maxPerSide,
+  );
+
+  const longs = allocateByCategory(longPool.kept, longSlots);
+  const shorts = allocateByCategory(shortKept, shortSlots);
   const correlationSkipped = longPool.dropped + shortPool.dropped;
 
   const result: ConvergenceResult = {
@@ -963,6 +1062,7 @@ export async function selectConvergencePicks(
       contested: contestedN,
       cooldownSkipped,
       correlationSkipped,
+      trendShortSkipped,
       byCategory,
     },
     // The bar CLOSE, not its open — the moment the scored data was complete.

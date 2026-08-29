@@ -3,6 +3,7 @@ import {
   scoreSymbol,
   rankPicks,
   allocateByCategory,
+  splitBudget,
   assignLiquidityPercentiles,
   assignComboScores,
   CONVERGENCE_CONFIG,
@@ -318,5 +319,43 @@ describe("allocateByCategory", () => {
       pick({ base: `X${i}`, category: i % 3 === 0 ? "equity" : "crypto" }),
     );
     expect(allocateByCategory(ranked, 8)).toHaveLength(8);
+  });
+});
+
+describe("splitBudget", () => {
+  it("leans toward the side with more gated action", () => {
+    // 12 gated shorts vs 4 gated longs, ample supply — short-heavy, still summing.
+    const s = splitBudget(4, 12, 50, 50, 16, 3, 11);
+    expect(s.longSlots + s.shortSlots).toBe(16);
+    expect(s.shortSlots).toBeGreaterThan(s.longSlots);
+    expect(s.shortSlots).toBeLessThanOrEqual(11);
+    expect(s.longSlots).toBeGreaterThanOrEqual(3);
+  });
+
+  it("caps the dominant side and fills the rest from the other", () => {
+    // Short wants everything but is capped at 11; the other 5 go to long, so the
+    // full 16-slot budget is still used rather than sending only 11 names.
+    const s = splitBudget(0, 100, 50, 50, 16, 3, 11);
+    expect(s.shortSlots).toBe(11);
+    expect(s.longSlots).toBe(5);
+    expect(s.longSlots + s.shortSlots).toBe(16);
+  });
+
+  it("restores an even split when min is half the budget", () => {
+    const s = splitBudget(2, 30, 50, 50, 16, 8, 8);
+    expect(s).toEqual({ longSlots: 8, shortSlots: 8 });
+  });
+
+  it("respects thin supply on one side", () => {
+    // Longs win the weight but only 2 long qualifiers exist.
+    const s = splitBudget(20, 5, 2, 50, 16, 3, 11);
+    expect(s.longSlots).toBe(2);
+    expect(s.shortSlots).toBeLessThanOrEqual(11);
+  });
+
+  it("falls back to even when neither side has gated names", () => {
+    const s = splitBudget(0, 0, 50, 50, 16, 3, 11);
+    expect(s.longSlots).toBe(8);
+    expect(s.shortSlots).toBe(8);
   });
 });
