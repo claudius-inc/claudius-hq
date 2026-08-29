@@ -12,7 +12,7 @@
 import { eq } from "drizzle-orm";
 import { db, dailyNotes } from "@/db";
 import { logger } from "@/lib/logger";
-import { checkTradingSession } from "@/lib/notes/session";
+import { checkTradingSession, etToday } from "@/lib/notes/session";
 import { assembleFacts } from "@/lib/notes/assemble";
 import { writeProse } from "@/lib/notes/write";
 import { renderPush, renderWeb } from "@/lib/notes/render";
@@ -48,6 +48,33 @@ async function main() {
     return; // exit 0 — a skip is a valid outcome
   }
   const date = gate.marketDate;
+
+  // 0b. HOLIDAY / ALREADY-PUBLISHED GUARD.
+  //
+  // The gate now keys off the session that CLOSED, not wall-clock today, which is
+  // what lets a delayed run still publish the right session. The cost is that on
+  // a market holiday the cron still fires and the S&P's last print is a PRIOR,
+  // already-published session — so without this guard the pipeline would re-run
+  // the LLM and OVERWRITE that day's stored note with holiday-refetched data.
+  //
+  // Skip only when BOTH hold: the session is not today's (a prior day), AND it
+  // already has a SENT note. That leaves the two cases we must still handle
+  // untouched — a genuinely missed prior session (no row, or a persisted-but-
+  // unsent note to retry) still generates, and today's own session still runs,
+  // including a same-evening second cron re-editing with late-arriving data.
+  // Quiet on purpose: the note is already out, the heartbeat already fired, so an
+  // alert here would be nightly noise during a GitHub-delay stretch.
+  if (date !== etToday()) {
+    const already = await db
+      .select({ messageId: dailyNotes.telegramMessageId })
+      .from(dailyNotes)
+      .where(eq(dailyNotes.date, date))
+      .limit(1);
+    if (already[0]?.messageId != null) {
+      logger.info(SRC, "Prior session already published; skipping re-process", { date });
+      return; // exit 0 — nothing to do, not an error
+    }
+  }
 
   // 1. ASSEMBLE (§8.1)
   const { facts, health } = await assembleFacts(date);

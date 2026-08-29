@@ -31,13 +31,19 @@ function webUrl(weekEnd: string): string {
 async function main() {
   const today = etToday();
 
-  // Only wrap on a Friday. A manual dispatch mid-week would otherwise publish
-  // Mon–Wed as a three-session "week", and Friday's real run would then create a
-  // second row and a second message for the same week.
-  const dow = new Date(`${today}T12:00:00Z`).getUTCDay();
-  if (dow !== 5) {
-    logger.info(SRC, "Not a Friday — no wrap", { today, dow });
-    await alertAdmin(`SKIPPED — weekly wrap: ${today} is not a Friday.`);
+  // Only wrap over the weekend window — Fri, Sat, or Sun ET. Friday is the
+  // scheduled run; Sat/Sun are tolerated so a late GitHub cron (the same delay
+  // that made the daily notes skip) still wraps the week it was meant to rather
+  // than reading "not a Friday" and refusing. A mid-week (Mon–Thu) dispatch is
+  // still blocked, so a manual run cannot publish Mon–Wed as a short "week"; and
+  // the truncated-week guard below keys off the session that actually closed, so
+  // the extra days cannot wrap the wrong week. resolveWeek anchors the week from
+  // the stored notes, not from `today`.
+  const dow = new Date(`${today}T12:00:00Z`).getUTCDay(); // 0 Sun … 6 Sat
+  const WEEKEND_WINDOW = new Set([5, 6, 0]);
+  if (!WEEKEND_WINDOW.has(dow)) {
+    logger.info(SRC, "Not the weekend window — no wrap", { today, dow });
+    await alertAdmin(`SKIPPED — weekly wrap: ${today} is not Fri–Sun.`);
     return;
   }
 
