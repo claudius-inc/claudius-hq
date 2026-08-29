@@ -378,3 +378,135 @@ export function quarantineReasonFor(
   if (status === "no_data") return { reason: "delisted", expiresInDays: null };
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Perps (Binance)
+// ---------------------------------------------------------------------------
+//
+// The convergence screen persists every candidate with an entry price and an
+// as-of bar-close, exactly like the other two screens, but it had no labeller —
+// so the daily perp list has run with no forward-return record at all, and "did
+// the screen work?" could only be answered by hand. This closes that gap.
+//
+// Two things differ from the crypto path and drive the shape below:
+//
+//  1. Perps have no splits or dividends, so raw IS adjusted. There is no
+//     adjusted series to divide by and no split artifact to cancel — the
+//     anomaly test collapses to a single stored-vs-observed price check.
+//  2. Entry is matched on the 4h bar CLOSE, not a calendar date. The pick's
+//     `as_of` is the close of the scored bar, so the label must measure from
+//     that exact bar and not from a day boundary — a perp trades every hour and
+//     "the close on run_date" is not a defined thing.
+//
+// fwd_pct is stored RAW and UNSIGNED — the price return of the contract, same
+// convention as momentum/crypto. The pick's side lives in
+// perp_convergence_picks and a study signs by it there; baking the side in here
+// would make this column mean something different from the other two sources.
+
+/** One 4h perp bar, reduced to what a label needs. `tClose` is epoch ms. */
+export interface PerpLabelBar {
+  tClose: number;
+  c: number;
+}
+
+export interface PerpLabelInput {
+  /** Ascending by `tClose`. */
+  bars: PerpLabelBar[];
+  /** Close time of the scored (entry) bar, epoch ms — the pick's `as_of`. */
+  asOfMs: number;
+  /** CALENDAR days — perps trade 24/7, so there is no trading-day concept. */
+  horizonDays: number;
+  storedPrice: number | null;
+  nowMs: number;
+  /** Hours a forward bar may sit either side of the target before it is
+   *  rejected. One 4h bar of slack absorbs ordinary settlement jitter. */
+  toleranceHours?: number;
+  /** Hours past the horizon to wait before a missing forward bar is read as a
+   *  delisting rather than as data not having arrived yet. */
+  graceHours?: number;
+}
+
+const H4_MS = 14_400_000;
+
+/** Bar whose `tClose` is nearest `targetMs`, within `toleranceMs`, else null. */
+function nearestBar(bars: PerpLabelBar[], targetMs: number, toleranceMs: number): PerpLabelBar | null {
+  let best: PerpLabelBar | null = null;
+  let bestGap = Infinity;
+  for (const b of bars) {
+    const gap = Math.abs(b.tClose - targetMs);
+    if (gap <= toleranceMs && gap < bestGap) {
+      best = b;
+      bestGap = gap;
+    }
+  }
+  return best;
+}
+
+/**
+ * Label one perp pick against its own 4h bars.
+ *
+ * The caller fetches the bars (Binance klines, which is why this only ever runs
+ * on the venue-permitted VPS and never in CI) and owns the DB I/O; this part is
+ * pure so it can be tested without a network.
+ */
+export function labelPerpPick(input: PerpLabelInput): LabelResult {
+  const {
+    bars, asOfMs, horizonDays, storedPrice, nowMs,
+    toleranceHours = 4, graceHours = 8,
+  } = input;
+  const tol = toleranceHours * 3_600_000;
+
+  const nil = (status: LabelStatus, note: string | null = null): LabelResult => ({
+    status, entryAdj: null, exitAdj: null, exitDate: null, fwdPct: null, anomalyNote: note,
+  });
+
+  if (!bars.length) return nil("no_data", "no bars");
+
+  const sorted = [...bars].sort((a, b) => a.tClose - b.tClose);
+  // Entry may sit up to a full bar out: the screen scores the last CLOSED bar,
+  // and a re-run minutes later can shift `as_of` by one interval.
+  const entry = nearestBar(sorted, asOfMs, H4_MS + tol);
+  if (!entry || entry.c <= 0) return nil("no_data", "no usable entry bar");
+
+  // The only anomaly a splitless series can carry: the price the screen banked
+  // and the venue's own bar for that moment disagree, which means one write is
+  // corrupt. 5% is wide enough to absorb a one-bar timing mismatch on a fast
+  // name and narrow enough to catch a genuinely wrong number.
+  if (storedPrice !== null && storedPrice > 0) {
+    const divergence = Math.abs(entry.c - storedPrice) / storedPrice;
+    if (divergence > 0.05) {
+      return nil("anomaly", `stored price ${storedPrice} vs bar ${entry.c} — write disagreement`);
+    }
+  }
+
+  const targetExitMs = entry.tClose + horizonDays * 86_400_000;
+  const exit = nearestBar(sorted, targetExitMs, tol);
+  if (exit && exit.c > 0) {
+    return {
+      status: "labeled",
+      entryAdj: entry.c,
+      exitAdj: exit.c,
+      exitDate: new Date(exit.tClose).toISOString().slice(0, 10),
+      fwdPct: (100 * (exit.c - entry.c)) / entry.c,
+      anomalyNote: null,
+    };
+  }
+
+  // Horizon not reached yet — nothing to say.
+  if (nowMs - asOfMs < horizonDays * 86_400_000 + graceHours * 3_600_000) return nil("pending");
+
+  // Past due with no bar at the horizon. For a perp this means the contract was
+  // delisted mid-window; label at the last bar that exists rather than dropping
+  // the outcome, which — as with the crypto path — would delete exactly the
+  // names that died.
+  const last = sorted[sorted.length - 1];
+  if (last.tClose <= entry.tClose || last.c <= 0) return nil("no_data", "no bar after entry");
+  return {
+    status: "partial_delist",
+    entryAdj: entry.c,
+    exitAdj: last.c,
+    exitDate: new Date(last.tClose).toISOString().slice(0, 10),
+    fwdPct: (100 * (last.c - entry.c)) / entry.c,
+    anomalyNote: `no bar at horizon; labelled at last bar ${new Date(last.tClose).toISOString().slice(0, 10)}`,
+  };
+}

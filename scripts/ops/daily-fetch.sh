@@ -111,6 +111,15 @@ main() {
   # acting as it. It stays where it already lives.
   npx tsx scripts/pipelines/run-convergence-report.ts --record-only
 
+  # Forward-return labels for the perp picks recorded above and on earlier days.
+  #
+  # This runs HERE, not in the CI label-picks job, for the same reason the screen
+  # does: it needs Binance klines, and CI is 451'd. Momentum and crypto picks are
+  # still labelled in CI, where Yahoo and CoinGecko are reachable. A failure here
+  # must not cost the fetch — the picks are already recorded, and a label is
+  # re-attempted every day it stays pending — so it is allowed to fail soft.
+  npx tsx scripts/pipelines/run-label-perps.ts || echo "WARN: perp labelling failed; picks are recorded, labels retry tomorrow"
+
   # Underlying daily history for the tradfi names, and the mapping re-verification
   # that demotes any contract whose Yahoo ticker has drifted from its index price.
   # Cheap and idempotent, so it runs every day rather than on a separate schedule.

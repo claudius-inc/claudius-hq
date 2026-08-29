@@ -7,7 +7,9 @@ import {
   cohortStats,
   quarantineReasonFor,
   labelCryptoPick,
+  labelPerpPick,
   type LabelBar,
+  type PerpLabelBar,
 } from "@/lib/markets/labeling";
 
 /** `n` daily bars from `start`, price rising by `pctPerBar`, adj == raw. */
@@ -302,5 +304,64 @@ describe("quarantineReasonFor", () => {
     // partial_delist can be a temporary halt; banning the ticker on that alone
     // would remove recoverable names.
     expect(quarantineReasonFor("partial_delist", "only 3 of 20 bars available")).toBeNull();
+  });
+});
+
+describe("labelPerpPick", () => {
+  const H4 = 14_400_000;
+  const DAY = 86_400_000;
+
+  /** `n` 4h bars from `startMs`, close rising by `pctPerBar`. */
+  function perpBars(n: number, startMs: number, start = 100, pctPerBar = 0): PerpLabelBar[] {
+    const out: PerpLabelBar[] = [];
+    let p = start;
+    for (let i = 0; i < n; i++) {
+      out.push({ tClose: startMs + i * H4, c: p });
+      p *= 1 + pctPerBar / 100;
+    }
+    return out;
+  }
+
+  const t0 = Date.parse("2026-08-01T00:00:00Z");
+
+  it("labels a clean forward return at the horizon bar", () => {
+    // 60 bars (10 days) rising 1%/bar; entry at bar 0, horizon 1 day = +6 bars.
+    const bars = perpBars(60, t0, 100, 1);
+    const res = labelPerpPick({ bars, asOfMs: t0, horizonDays: 1, storedPrice: 100, nowMs: t0 + 20 * DAY });
+    expect(res.status).toBe("labeled");
+    expect(res.entryAdj).toBe(100);
+    // close after 6 bars of +1% compounding.
+    expect(res.fwdPct).toBeCloseTo((Math.pow(1.01, 6) - 1) * 100, 4);
+  });
+
+  it("stores fwd_pct RAW and unsigned — never signed by side", () => {
+    const bars = perpBars(60, t0, 100, -1); // falling
+    const res = labelPerpPick({ bars, asOfMs: t0, horizonDays: 1, storedPrice: 100, nowMs: t0 + 20 * DAY });
+    expect(res.fwdPct).toBeLessThan(0); // a falling contract is a negative return, full stop
+  });
+
+  it("flags a stored price that disagrees with the venue bar", () => {
+    const bars = perpBars(60, t0, 100, 0);
+    const res = labelPerpPick({ bars, asOfMs: t0, horizonDays: 1, storedPrice: 130, nowMs: t0 + 20 * DAY });
+    expect(res.status).toBe("anomaly");
+  });
+
+  it("stays pending until the horizon has elapsed", () => {
+    const bars = perpBars(6, t0, 100, 0); // only ~1 day of bars
+    const res = labelPerpPick({ bars, asOfMs: t0, horizonDays: 7, storedPrice: 100, nowMs: t0 + DAY });
+    expect(res.status).toBe("pending");
+  });
+
+  it("labels at the last bar when a contract delists mid-window", () => {
+    // Entry, then bars stop after 3 days, but 7-day horizon is long past due.
+    const bars = perpBars(18, t0, 100, 0); // 3 days of bars
+    const res = labelPerpPick({ bars, asOfMs: t0, horizonDays: 7, storedPrice: 100, nowMs: t0 + 20 * DAY });
+    expect(res.status).toBe("partial_delist");
+    expect(res.exitAdj).toBe(100);
+  });
+
+  it("returns no_data when there are no bars at all", () => {
+    const res = labelPerpPick({ bars: [], asOfMs: t0, horizonDays: 1, storedPrice: 100, nowMs: t0 + 20 * DAY });
+    expect(res.status).toBe("no_data");
   });
 });
