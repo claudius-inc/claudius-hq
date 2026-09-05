@@ -29,6 +29,7 @@ import { fetchEarningsCalendar } from "@/lib/notes/sources/earnings-calendar";
 import { buildAttributions } from "@/lib/notes/attribution";
 import { loadEnabledSpotlights, buildSpotlightBlocks } from "@/lib/notes/spotlight";
 import { etDate, etStamp, etMinutes, toMs } from "@/lib/notes/session";
+import { acquireYahooSlot, withYahooRetry } from "@/lib/scanner/yahoo-rate-limiter";
 import type {
   Fact,
   IndexPoint,
@@ -111,12 +112,71 @@ const round = (n: number, dp = 2) => {
 };
 
 // ── Indices + sector ETFs: one batch quote ──────────────────────────────────
+//
+// The whole note is gated on this returning at least the four indices, so it
+// gets three layers of resilience — because a single `quote()` failure
+// otherwise zeroes the batch and kills the note (2026-09-04):
+//
+//  1. slot-gated + `withYahooRetry` — recovers the retryable classes
+//     (429, 5xx, network/timeout), same as the scanner's `fetchBatchQuotes`.
+//  2. a retry on a FRESH `YahooFinance` instance — the module-level client
+//     caches its cookie+crumb, and a stale/invalid crumb is NOT retryable per
+//     `isTransient`, so retrying the same client cannot fix it. A new instance
+//     re-runs the cookie+crumb handshake, which is what recovers the
+//     crumb/cookie/401 class the plain retry cannot.
+//  3. a per-symbol sweep on that fresh instance — salvages a partial batch
+//     one name at a time. The set is tiny (~18), so slot-gated singles cost
+//     seconds, not a job timeout: the large-batch reasoning in
+//     `fetchBatchQuotes` does not apply.
+//
+// The chart feeds VIX and cross-asset use survive a `quote()` outage untouched,
+// which is why they still reported OK on the run that lost this one.
 async function fetchBatchQuoteMap(symbols: string[]): Promise<Map<string, QuoteLike>> {
   const out = new Map<string, QuoteLike>();
-  const res = (await yahooFinance.quote(symbols)) as QuoteLike | QuoteLike[];
-  for (const q of Array.isArray(res) ? res : [res]) {
-    if (q?.symbol) out.set(q.symbol, q);
+  if (symbols.length === 0) return out;
+
+  const collect = (res: QuoteLike | QuoteLike[]) => {
+    for (const q of Array.isArray(res) ? res : [res]) {
+      if (q?.symbol) out.set(q.symbol, q);
+    }
+  };
+
+  const batchOn = async (client: InstanceType<typeof YahooFinance>, want: string[], label: string) => {
+    if (want.length === 0) return;
+    try {
+      await acquireYahooSlot();
+      collect(
+        (await withYahooRetry(label, () => client.quote(want))) as QuoteLike | QuoteLike[],
+      );
+    } catch (error) {
+      logger.warn(SRC, `${label} failed`, { error });
+    }
+  };
+
+  // Layer 1: the shared client.
+  await batchOn(yahooFinance, symbols, `notes-quote(batch:${symbols.length})`);
+
+  let missing = symbols.filter((s) => !out.has(s));
+  if (missing.length === 0) return out;
+
+  // Layers 2 + 3 share one fresh client so the crumb is re-fetched exactly once.
+  const fresh = new YahooFinance({ suppressNotices: ["yahooSurvey"] });
+  await batchOn(fresh, missing, `notes-quote(retry-fresh:${missing.length})`);
+
+  missing = symbols.filter((s) => !out.has(s));
+  for (const symbol of missing) {
+    try {
+      await acquireYahooSlot();
+      collect(
+        (await withYahooRetry(`notes-quote(${symbol})`, () =>
+          fresh.quote(symbol),
+        )) as QuoteLike | QuoteLike[],
+      );
+    } catch {
+      /* leave it out — coverage is the health signal, not an exception */
+    }
   }
+
   return out;
 }
 
